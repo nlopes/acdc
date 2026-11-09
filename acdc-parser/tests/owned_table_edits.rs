@@ -5,7 +5,7 @@ use std::{alloc::System, hint::black_box};
 use acdc_parser::{
     Block, ColumnFormat, ColumnStyle, ColumnWidth, CompatibilityMode, DelimitedBlock,
     DelimitedBlockType, HorizontalAlignment, Location, Options, Paragraph, ParseResult, Table,
-    TableColumn, TableFrame, TableGrid, TableRow, VerticalAlignment,
+    TableCell, TableFrame, TableGrid, TableRow, VerticalAlignment,
     ast::{BlockKind, BlockRef, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
     parse,
 };
@@ -81,7 +81,7 @@ fn selected_copies_preserve_rows_formats_presentation_and_initial_scopes(
         let row = TableRow::from(actual);
         assert_eq!(row, TableRow::from(expected));
         for (actual, expected) in actual.cells().zip(expected.cells()) {
-            assert_eq!(TableColumn::from(actual), TableColumn::from(expected));
+            assert_eq!(TableCell::from(actual), TableCell::from(expected));
             assert_eq!(
                 actual.initial_attributes().collect::<Vec<_>>(),
                 expected.initial_attributes().collect::<Vec<_>>()
@@ -184,7 +184,7 @@ fn row_cell_transfers_outlive_the_previous_row(
     let mut rebuilt = TableRow::new(Vec::new());
     rebuilt.set_cells(cells);
     assert_eq!(rebuilt, TableRow::from(original));
-    rebuilt.push_cell(TableColumn::new(Vec::new()));
+    rebuilt.push_cell(TableCell::new(Vec::new()));
     assert_eq!(
         TableRowRef::from(&rebuilt).cells().count(),
         original.cells().count() + 1
@@ -210,7 +210,7 @@ fn cell_content_transfers_keep_the_initial_scope_and_formatting(
         .ok_or("cell")?;
     assert!(original.initial_attributes().next().is_some());
     let blocks = {
-        let mut local = TableColumn::from(original);
+        let mut local = TableCell::from(original);
         let blocks = local.take_blocks();
         assert_eq!(TableCellRef::from(&local).blocks().count(), 0);
         assert_eq!(
@@ -221,9 +221,9 @@ fn cell_content_transfers_keep_the_initial_scope_and_formatting(
         );
         blocks
     };
-    let mut rebuilt = TableColumn::from(original);
+    let mut rebuilt = TableCell::from(original);
     rebuilt.set_blocks(blocks);
-    assert_eq!(rebuilt, TableColumn::from(original));
+    assert_eq!(rebuilt, TableCell::from(original));
     rebuilt.push_block(Block::Paragraph(Paragraph::new(
         Vec::new(),
         Location::default(),
@@ -244,7 +244,7 @@ fn cell_content_transfers_keep_the_initial_scope_and_formatting(
 
 #[test]
 fn constructed_cells_keep_explicit_spans_and_optional_format_overrides() {
-    let mut cell = TableColumn::new(Vec::new());
+    let mut cell = TableCell::new(Vec::new());
     cell.set_colspan(0);
     cell.set_rowspan(3);
     cell.set_halign(Some(HorizontalAlignment::Center));
@@ -303,7 +303,7 @@ fn selected_row_and_cell_copy_cost_does_not_grow_with_unrelated_table_size() -> 
         assert_eq!(row.cells().count(), 1);
         rows.push(cost(|| TableRow::from(row)));
         let cell = row.cells().next().ok_or("cell")?;
-        cells.push(cost(|| TableColumn::from(cell)));
+        cells.push(cost(|| TableCell::from(cell)));
     }
     assert_eq!(rows.first(), rows.last());
     assert_eq!(cells.first(), cells.last());
@@ -318,7 +318,7 @@ fn selected_row_and_cell_copy_cost_does_not_grow_with_unrelated_table_size() -> 
         let row = table(&parsed)?.rows().next().ok_or("row")?;
         assert_eq!(row.cells().count(), count);
         let cell = row.cells().next().ok_or("cell")?;
-        wide_cells.push(cost(|| TableColumn::from(cell)));
+        wide_cells.push(cost(|| TableCell::from(cell)));
     }
     assert_eq!(wide_cells.first(), wide_cells.last());
     Ok(())

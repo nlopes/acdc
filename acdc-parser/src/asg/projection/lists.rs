@@ -1,5 +1,5 @@
 use crate::{
-    CalloutList, CalloutListItem, CalloutRefKind, DescriptionList, DescriptionListItem,
+    CalloutList, CalloutListItem, CalloutMarkerKind, DescriptionList, DescriptionListItem,
     DescriptionListTerm, ListItem, ListItemCheckedStatus,
 };
 
@@ -103,7 +103,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
     ) -> Result<Value, Error> {
         if value.callout.number == 0
             || self.profile == Profile::Upstream
-                && matches!(value.callout.kind, CalloutRefKind::Auto)
+                && matches!(value.callout.kind, CalloutMarkerKind::Auto)
                 && value.callout.number != index + 1
         {
             return Err(unsupported(
@@ -279,7 +279,7 @@ fn require_items<'a, T>(values: &'a [T], path: &str) -> Result<&'a T, Error> {
 
 fn callout_marker(value: &CalloutListItem<'_>) -> String {
     match value.callout.kind {
-        CalloutRefKind::Explicit => format!("<{}>", value.callout.number),
-        CalloutRefKind::Auto => "<.>".into(),
+        CalloutMarkerKind::Explicit => format!("<{}>", value.callout.number),
+        CalloutMarkerKind::Auto => "<.>".into(),
     }
 }

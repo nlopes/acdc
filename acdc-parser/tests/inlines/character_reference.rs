@@ -12,15 +12,15 @@ fn is_macro(kind: InlineKind<'_>) -> bool {
         InlineKind::Footnote(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_)
             | InlineKind::IndexTerm(_)
     )
@@ -106,7 +106,7 @@ fn asg_character_references_are_checked_values() -> Result<(), Error> {
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         )];
         assert_eq!(
-            acdc_parser::asg::inlines(acdc_parser::ast::ContentRef::from(
+            acdc_parser::asg::export_inlines(acdc_parser::ast::ContentRef::from(
                 &acdc_parser::ContentAttribute::new(nodes.to_vec())
             ))?,
             json!([{
@@ -120,7 +120,7 @@ fn asg_character_references_are_checked_values() -> Result<(), Error> {
                 .ok_or("invalid reference")?,
         )];
         assert!(
-            matches!(acdc_parser::asg::inlines(acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(nodes.to_vec()))), Err(acdc_parser::asg::Error::Unsupported { path, .. }) if path == "/0")
+            matches!(acdc_parser::asg::export_inlines(acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(nodes.to_vec()))), Err(acdc_parser::asg::Error::Unsupported { path, .. }) if path == "/0")
         );
     }
     Ok(())
@@ -323,7 +323,7 @@ fn intrinsic_references_have_semantic_identity_and_authored_ranges() -> Result<(
             {
                 assert_eq!(reference.kind(), CharacterReferenceKind::Numeric(expected));
                 assert_eq!(
-                    &parsed.source()[reference.location().absolute_start()
+                    &parsed.preprocessed_source()[reference.location().absolute_start()
                         ..=reference.location().absolute_end()],
                     token
                 );

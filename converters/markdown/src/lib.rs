@@ -7,14 +7,14 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use acdc_converters_markdown::{MarkdownVariant, Processor};
-//! use acdc_converters_core::{Converter, Options};
+//! use acdc_converters_markdown::{MarkdownVariant, Converter};
+//! use acdc_converters_core::{Converter as _, Options};
 //!
 //! let options = Options::default();
-//! let processor = Processor::new(options, acdc_parser::Options::builder())?
+//! let converter = Converter::new(options, acdc_parser::Options::builder())?
 //!     .with_variant(MarkdownVariant::CommonMark);
-//! let parsed = acdc_parser::parse("= Title\n\nHello.\n", processor.parser_options())?;
-//! processor.convert(parsed.document(), Some(Path::new("doc.adoc")))?;
+//! let parsed = acdc_parser::parse("= Title\n\nHello.\n", converter.parser_options())?;
+//! converter.convert(parsed.document(), Some(Path::new("doc.adoc")))?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -109,11 +109,11 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
+    BackendProfile, Diagnostics, Options, TraversalContext, WarningSource,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    CaptionKind, Options as ParserOptions, Reference,
+    CaptionKind, Options as ParserOptions, ReferenceTarget,
     ast::{AttributesRef, CaptionRef, DocumentAttributesRef, DocumentRef},
 };
 
@@ -126,7 +126,7 @@ use markdown_visitor::MarkdownVisitor;
 
 /// Markdown output flavour, owned by the markdown converter.
 ///
-/// Pick a variant via [`Processor::with_variant`]; [`Processor::new`]
+/// Pick a variant via [`Converter::with_variant`]; [`Converter::new`]
 /// defaults to [`MarkdownVariant::GitHubFlavored`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum MarkdownVariant {
@@ -194,14 +194,14 @@ impl std::fmt::Display for MarkdownVariant {
     }
 }
 
-/// Markdown converter processor.
+/// A converter from `AsciiDoc` to Markdown output.
 #[derive(Clone, Debug)]
-pub struct Processor<'a> {
+pub struct Converter<'a> {
     options: Options,
     parser_options: ParserOptions<'a>,
     /// Cross-reference targets keyed by id, cloned from `Document::references`,
     /// so `<<id>>` resolves to its target's reference text.
-    references: Rc<HashMap<&'a str, Reference<'a>>>,
+    references: Rc<HashMap<&'a str, ReferenceTarget<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     xref_guard: XrefGuard,
     document: Option<DocumentRef<'a>>,
@@ -217,7 +217,7 @@ pub struct Processor<'a> {
     variant: MarkdownVariant,
 }
 
-impl Processor<'_> {
+impl Converter<'_> {
     /// Override the Markdown variant (`CommonMark` or GitHub Flavored).
     #[must_use]
     pub fn with_variant(mut self, variant: MarkdownVariant) -> Self {
@@ -293,7 +293,7 @@ impl Processor<'_> {
     }
 }
 
-impl<'a> Converter<'a> for Processor<'a> {
+impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
     type Error = Error;
 
     fn new(
@@ -352,8 +352,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
-        // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
-        let processor = Processor {
+        // This converter borrows from `doc`; its lifetime is independent of `self`.
+        let converter = Converter {
             options: self.options.clone(),
             parser_options: ParserOptions::default()
                 .with_document_attributes(doc.attributes().into()),
@@ -373,7 +373,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             variant: self.variant,
         };
         let mut traversal = TraversalContext::new(doc.attributes());
-        let mut visitor = MarkdownVisitor::new(writer, &processor, diagnostics.reborrow());
+        let mut visitor = MarkdownVisitor::new(writer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, doc)
     }
 
@@ -393,21 +393,22 @@ fn index_generation_enabled(attributes: DocumentAttributesRef<'_>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_converters_core::Converter as _;
     use std::error::Error as StdError;
 
     #[test]
     fn new_defaults_to_gfm() -> Result<(), Box<dyn StdError>> {
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
-        assert_eq!(processor.variant(), MarkdownVariant::GitHubFlavored);
+        let converter = Converter::new(Options::default(), ParserOptions::builder())?;
+        assert_eq!(converter.variant(), MarkdownVariant::GitHubFlavored);
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("markdown")
         );
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("filetype")
                 .and_then(|value| value.text()),
@@ -418,9 +419,9 @@ mod tests {
 
     #[test]
     fn with_variant_switches_to_commonmark() -> Result<(), Box<dyn StdError>> {
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?
+        let converter = Converter::new(Options::default(), ParserOptions::builder())?
             .with_variant(MarkdownVariant::CommonMark);
-        assert_eq!(processor.variant(), MarkdownVariant::CommonMark);
+        assert_eq!(converter.variant(), MarkdownVariant::CommonMark);
         Ok(())
     }
 
@@ -430,18 +431,18 @@ mod tests {
             ":imagesdir: media (library)\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[]\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
-        let source = processor.warning_source();
+        let source = converter.warning_source();
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let markdown = String::from_utf8(output)?;
         for target in [
@@ -466,18 +467,18 @@ mod tests {
             include_str!("../../../acdc-parser/fixtures/tests/document_attributes_consumers.adoc"),
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
-        let source = processor.warning_source();
+        let source = converter.warning_source();
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let markdown = String::from_utf8(output)?;
         assert!(markdown.contains("](images/header/before.png)"));

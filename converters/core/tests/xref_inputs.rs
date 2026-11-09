@@ -17,7 +17,7 @@ fn resolved_title_keeps_catalog_content_and_its_guard() -> Result<(), TestError>
     let parsed_references = std::collections::HashMap::from(parsed.document().references());
     let reference = parsed_references
         .get("target")
-        .map(acdc_parser::ast::ReferenceRef::from);
+        .map(acdc_parser::ast::ReferenceTargetRef::from);
     let guard = XrefGuard::default();
     let shared = guard.clone();
     let target = String::from("target");
@@ -50,7 +50,7 @@ fn caption_prefixes_own_temporary_overrides_and_read_current_controls() -> Resul
     let parsed_references = std::collections::HashMap::from(parsed.document().references());
     let reference = parsed_references
         .get("target")
-        .map(acdc_parser::ast::ReferenceRef::from);
+        .map(acdc_parser::ast::ReferenceTargetRef::from);
     let guard = XrefGuard::default();
     let label = String::from("Plate");
     let mut occurrence = CrossReference::new("target", Location::default());
@@ -93,7 +93,7 @@ fn empty_labels_and_external_classification_keep_precedence() -> Result<(), Test
     let guard = XrefGuard::default();
     let mut occurrence = CrossReference::new("target", Location::default());
     let display = resolve_reference(
-        Some(acdc_parser::ast::ReferenceRef::from(&reference)),
+        Some(acdc_parser::ast::ReferenceTargetRef::from(&reference)),
         CrossReferenceRef::from(&occurrence),
         &guard,
     );
@@ -107,7 +107,7 @@ fn empty_labels_and_external_classification_keep_precedence() -> Result<(), Test
     drop(scope);
     occurrence.set_target_is_local(false);
     assert!(matches!(
-        resolve_reference(Some(acdc_parser::ast::ReferenceRef::from(&reference)), CrossReferenceRef::from(&occurrence), &guard),
+        resolve_reference(Some(acdc_parser::ast::ReferenceTargetRef::from(&reference)), CrossReferenceRef::from(&occurrence), &guard),
         XrefDisplay::External(target) if target == "target"
     ));
     assert!(!guard.is_resolving());

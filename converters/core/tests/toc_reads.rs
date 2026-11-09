@@ -41,7 +41,7 @@ fn local_levels_keep_exact_text_parsing_and_document_fallback() -> Result<(), Er
         let mut toc = seed.clone();
         if let Some(value) = local {
             let mut metadata = toc.take_metadata();
-            metadata.attributes.insert("levels".into(), value);
+            metadata.attributes.insert_if_absent("levels".into(), value);
             toc.set_metadata(metadata)?;
         }
         let config = Config::from_attributes(Some(&toc), &context);

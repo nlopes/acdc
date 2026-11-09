@@ -51,9 +51,9 @@ pub(crate) fn render_summary(entries: &[TimingEntry], wall_clock: Option<Duratio
         eprintln!(
             "{:<nw$}  {:>cw$}  {:>cw$}  {:>cw$}",
             name,
-            entry.parse.pretty_print(),
-            entry.convert.pretty_print(),
-            total.pretty_print(),
+            entry.parse.format_human(),
+            entry.convert.format_human(),
+            total.format_human(),
             nw = name_width,
             cw = col
         );
@@ -67,9 +67,9 @@ pub(crate) fn render_summary(entries: &[TimingEntry], wall_clock: Option<Duratio
     eprintln!(
         "{:<nw$}  {:>cw$}  {:>cw$}  {:>cw$}",
         label,
-        total_parse.pretty_print(),
-        total_convert.pretty_print(),
-        total_all.pretty_print(),
+        total_parse.format_human(),
+        total_convert.format_human(),
+        total_all.format_human(),
         nw = name_width,
         cw = col
     );
@@ -78,7 +78,7 @@ pub(crate) fn render_summary(entries: &[TimingEntry], wall_clock: Option<Duratio
         eprintln!(
             "{:<nw$}  {:>cw$}",
             "Wall clock",
-            wall.pretty_print(),
+            wall.format_human(),
             nw = name_width + 2 + col * 2 + 2,
             cw = col
         );

@@ -2,7 +2,7 @@ use acdc_parser::{
     CompatibilityMode, Options,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, FootnoteDefinitionRef,
-        InlineKind, InlineRef, ReferenceRef, TocEntryRef,
+        InlineKind, InlineRef, ReferenceTargetRef, TocEntryRef,
     },
     parse,
 };
@@ -64,7 +64,7 @@ fn reference_label_nodes_point_to_the_authored_value(
         .document()
         .references()
         .get("target")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     let bold = label
         .inlines()
@@ -97,7 +97,7 @@ fn draft_literal_reference_text_is_distinct_from_formatted_text(
         .document()
         .references()
         .get("target")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     assert_eq!(
         matches!(
@@ -161,7 +161,7 @@ fn only_the_selected_draft_label_registers_content_before_the_body(
             .document()
             .references()
             .get("target")
-            .and_then(ReferenceRef::xreflabel)
+            .and_then(ReferenceTargetRef::xreflabel)
     );
     Ok(())
 }
@@ -313,7 +313,7 @@ fn expanded_reference_labels_map_to_the_full_authored_reference(
         .document()
         .references()
         .get("target")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     let bold = label
         .inlines()
@@ -349,7 +349,7 @@ fn a_block_anchor_uses_its_declaration_snapshot(
         .document()
         .references()
         .get("target")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     assert!(
         matches!(label.inlines().next().map(InlineRef::kind), Some(InlineKind::Plain(plain)) if plain.text() == "At anchor"),
@@ -379,7 +379,7 @@ fn nested_blocks_keep_reference_label_locations_and_natural_lookup(
         .document()
         .references()
         .get("cell")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     let bold = label
         .inlines()
@@ -431,7 +431,7 @@ fn included_reference_labels_keep_the_selected_file_and_line(
         .document()
         .references()
         .get("included")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     let bold = label
         .inlines()
@@ -480,7 +480,7 @@ fn nested_inline_labels_follow_the_same_location_mapping_as_their_anchor(
         .document()
         .references()
         .get("target")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing target label")?;
     let first = label.inlines().next().ok_or("missing label content")?;
     let location = first.location();

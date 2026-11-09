@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** duration formatting now uses `format_human()` and
+  `format_human_with_precision()` in place of `pretty_print()` and
+  `pretty_print_precise()`. Update custom converters to use these names.
+
 - TOC configuration preserves attribute presentation rules. Custom converters can
   use `toc::Config::title_value()` for target-specific escaping; `title()` returns
   literal text, including authored entity spellings.
@@ -507,8 +511,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`placement()`, `title()`, `levels()`, `toc_class()`)
 - **BREAKING**: Removed `Backend`, `Options::backend`, and
   `OptionsBuilder::backend(...)`. Variant choice lives in each converter crate
-  (`HtmlVariant`, `MarkdownVariant`) and is set via `Processor::with_variant` /
-  `Processor::new_with_variant`. Use `Converter::name(&self) -> &'static str`
+  (`HtmlVariant`, `MarkdownVariant`) and is set via each converter's `with_variant()`
+  method, or HTML's `acdc_converters_html::Converter::new_with_variant()`. Use `Converter::name(&self) -> &'static str`
   instead of `Converter::backend(&self) -> Backend`.
 - **BREAKING**: Renamed `Processable` trait to `Converter` with new output routing:
   - New `OutputDestination` enum for routing output (stdout, file, buffer)

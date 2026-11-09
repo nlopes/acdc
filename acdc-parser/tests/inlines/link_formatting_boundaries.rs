@@ -72,7 +72,7 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
         &source[location.absolute_start..=location.absolute_end],
         link
     );
-    let text = if let InlineNode::Macro(InlineMacro::Url(link)) = node {
+    let text = if let InlineNode::Macro(InlineMacro::UrlMacro(link)) = node {
         link.clone().take_text()
     } else if let InlineNode::Macro(InlineMacro::Link(link)) = node {
         link.clone().take_text()

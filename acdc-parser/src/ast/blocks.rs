@@ -56,8 +56,8 @@ node_ref!(
     "An admonition."
 );
 node_ref!(
-    DiscreteHeaderRef<'doc>,
-    crate::DiscreteHeader<'doc>,
+    DiscreteHeadingRef<'doc>,
+    crate::DiscreteHeading<'doc>,
     "A discrete heading."
 );
 node_ref!(
@@ -145,7 +145,7 @@ pub struct BlockRef<'doc> {
 pub enum BlockKind<'doc> {
     TableOfContents(TableOfContentsRef<'doc>),
     Admonition(AdmonitionRef<'doc>),
-    DiscreteHeader(DiscreteHeaderRef<'doc>),
+    DiscreteHeading(DiscreteHeadingRef<'doc>),
     DocumentAttribute(DocumentAttributeRef<'doc>),
     ThematicBreak(ThematicBreakRef<'doc>),
     PageBreak(PageBreakRef<'doc>),
@@ -185,7 +185,7 @@ impl<'doc> BlockRef<'doc> {
         match self.kind {
             BlockKind::TableOfContents(node) => node.location(),
             BlockKind::Admonition(node) => node.location(),
-            BlockKind::DiscreteHeader(node) => node.location(),
+            BlockKind::DiscreteHeading(node) => node.location(),
             BlockKind::DocumentAttribute(node) => node.location(),
             BlockKind::ThematicBreak(node) => node.location(),
             BlockKind::PageBreak(node) => node.location(),
@@ -415,7 +415,9 @@ impl<'doc> From<&'doc Block<'doc>> for BlockRef<'doc> {
                 BlockKind::TableOfContents(TableOfContentsRef::new(node))
             }
             Block::Admonition(node) => BlockKind::Admonition(AdmonitionRef::new(node)),
-            Block::DiscreteHeader(node) => BlockKind::DiscreteHeader(DiscreteHeaderRef::new(node)),
+            Block::DiscreteHeading(node) => {
+                BlockKind::DiscreteHeading(DiscreteHeadingRef::new(node))
+            }
             Block::DocumentAttribute(node) => {
                 BlockKind::DocumentAttribute(DocumentAttributeRef::new(node))
             }
@@ -529,7 +531,7 @@ impl<'doc> From<BlockRef<'doc>> for Block<'doc> {
         match block.kind() {
             BlockKind::TableOfContents(node) => Self::TableOfContents(node.node.clone()),
             BlockKind::Admonition(node) => Self::Admonition(node.node.clone()),
-            BlockKind::DiscreteHeader(node) => Self::DiscreteHeader(node.node.clone()),
+            BlockKind::DiscreteHeading(node) => Self::DiscreteHeading(node.node.clone()),
             BlockKind::DocumentAttribute(node) => Self::DocumentAttribute(node.node.clone()),
             BlockKind::ThematicBreak(node) => Self::ThematicBreak(node.node.clone()),
             BlockKind::PageBreak(node) => Self::PageBreak(node.node.clone()),

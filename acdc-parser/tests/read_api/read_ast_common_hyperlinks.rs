@@ -1,9 +1,9 @@
 use acdc_parser::{
     CompatibilityMode, InlineMacro, InlineNode, Link, Location, Mailto, Options, SafeMode, Source,
-    Url,
+    UrlMacro,
     ast::{
         AutolinkRef, BlockKind, ElementIdRef, HyperlinkRef, InlineKind, InlineRef, LinkRef,
-        MailtoRef, UrlRef,
+        MailtoRef, UrlMacroRef,
     },
     parse, parse_file, parse_inline,
 };
@@ -58,7 +58,7 @@ fn common_reads_preserve_targets_labels_and_source_forms(
     let actual = if let HyperlinkRef::Link(concrete) = link {
         assert_eq!(concrete.text(), link.text());
         "link"
-    } else if let HyperlinkRef::Url(concrete) = link {
+    } else if let HyperlinkRef::UrlMacro(concrete) = link {
         assert_eq!(concrete.text(), link.text());
         "url"
     } else if let HyperlinkRef::Mailto(concrete) = link {
@@ -157,7 +157,7 @@ fn display_policy_is_captured_per_occurrence_without_changing_the_target(
             );
             let hidden = if let HyperlinkRef::Link(link) = link {
                 link.hides_uri_scheme()
-            } else if let HyperlinkRef::Url(link) = link {
+            } else if let HyperlinkRef::UrlMacro(link) = link {
                 link.hides_uri_scheme()
             } else if let HyperlinkRef::Autolink(link) = link {
                 link.hides_uri_scheme()
@@ -175,11 +175,11 @@ fn display_policy_is_captured_per_occurrence_without_changing_the_target(
 #[test]
 fn typed_owner_conversions_and_xref_exclusion_keep_distinct_contracts() -> Result<(), Error> {
     let link = Link::new(Source::Name("guide"), Location::default());
-    let url = Url::new(Source::Name("target"), Location::default());
+    let url = UrlMacro::new(Source::Name("target"), Location::default());
     let mail = Mailto::new(Source::Name("team"), Location::default());
     for link in [
         HyperlinkRef::from(LinkRef::from(&link)),
-        HyperlinkRef::from(UrlRef::from(&url)),
+        HyperlinkRef::from(UrlMacroRef::from(&url)),
         HyperlinkRef::from(MailtoRef::from(&mail)),
     ] {
         assert!(link.text().is_empty());

@@ -4,7 +4,7 @@ use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_reference};
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, CrossReference, Location, Options, Title,
     XrefCaptionLabel, XrefSignifier, XrefStyle,
-    ast::{ContentRef, CrossReferenceRef, InlineKind, ReferenceRef},
+    ast::{ContentRef, CrossReferenceRef, InlineKind, ReferenceTargetRef},
     parse,
 };
 
@@ -49,11 +49,11 @@ Body.
 "#;
 
 fn resolve_xref<'doc, 'guard>(
-    reference: Option<&'doc acdc_parser::Reference<'doc>>,
+    reference: Option<&'doc acdc_parser::ReferenceTarget<'doc>>,
     xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
-    resolve_reference(reference.map(ReferenceRef::from), xref, guard)
+    resolve_reference(reference.map(ReferenceTargetRef::from), xref, guard)
 }
 
 fn assert_content(owner: ContentRef<'_>, typed: ContentRef<'_>) {
@@ -194,8 +194,11 @@ fn typed_xrefs_preserve_empty_titles_labels_and_temporary_overrides() -> Result<
             xref.set_caption_label(XrefCaptionLabel::AtReference(&caption));
             xref.set_signifier(XrefSignifier::AtReference(&signifier));
             let owner = resolve_xref(Some(&reference), &xref, &guard);
-            let typed =
-                resolve_reference(Some(ReferenceRef::from(&independent)), &xref, &other_guard);
+            let typed = resolve_reference(
+                Some(ReferenceTargetRef::from(&independent)),
+                &xref,
+                &other_guard,
+            );
             assert_display(owner, typed)?;
             assert!(!guard.is_resolving());
             assert!(!other_guard.is_resolving());

@@ -10,7 +10,7 @@ use crate::{
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_document_metadata(&mut self) -> Result<(), Error> {
-        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        let attributes = DocumentAttributesRef::from(self.converter.document_attributes());
         for name in ["description", "keywords"] {
             let mut value = String::new();
             let value = attributes

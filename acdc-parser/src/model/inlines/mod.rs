@@ -13,7 +13,7 @@ mod symbol;
 mod text;
 
 pub use character_reference::{CharacterReference, CharacterReferenceKind};
-pub use hyperlinks::{Link, Mailto, Url};
+pub use hyperlinks::{Link, Mailto, UrlMacro};
 pub use icon::Icon;
 pub use macros::*;
 pub use symbol::{Symbol, SymbolKind};
@@ -43,14 +43,14 @@ pub enum InlineNode<'a> {
     HighlightText(Highlight<'a>),
     SubscriptText(Subscript<'a>),
     SuperscriptText(Superscript<'a>),
-    CurvedQuotationText(CurvedQuotation<'a>),
-    CurvedApostropheText(CurvedApostrophe<'a>),
+    DoubleQuotedSpan(DoubleQuotedSpan<'a>),
+    SingleQuotedSpan(SingleQuotedSpan<'a>),
     StandaloneCurvedApostrophe(StandaloneCurvedApostrophe),
     LineBreak(LineBreak),
     InlineAnchor(Anchor<'a>),
     Macro(InlineMacro<'a>),
     /// Callout reference marker in verbatim content: `<1>`, `<.>`, etc.
-    CalloutRef(CalloutRef),
+    CalloutMarker(CalloutMarker),
 }
 
 impl InlineNode<'_> {
@@ -69,13 +69,13 @@ impl InlineNode<'_> {
             InlineNode::HighlightText(t) => &t.location,
             InlineNode::SubscriptText(t) => &t.location,
             InlineNode::SuperscriptText(t) => &t.location,
-            InlineNode::CurvedQuotationText(t) => &t.location,
-            InlineNode::CurvedApostropheText(t) => &t.location,
+            InlineNode::DoubleQuotedSpan(t) => &t.location,
+            InlineNode::SingleQuotedSpan(t) => &t.location,
             InlineNode::StandaloneCurvedApostrophe(t) => &t.location,
             InlineNode::LineBreak(l) => &l.location,
             InlineNode::InlineAnchor(a) => &a.location,
             InlineNode::Macro(m) => m.location(),
-            InlineNode::CalloutRef(c) => &c.location,
+            InlineNode::CalloutMarker(c) => &c.location,
         }
     }
 }
@@ -96,13 +96,13 @@ impl InlineNode<'_> {
             InlineNode::HighlightText(t) => &mut t.location,
             InlineNode::SubscriptText(t) => &mut t.location,
             InlineNode::SuperscriptText(t) => &mut t.location,
-            InlineNode::CurvedQuotationText(t) => &mut t.location,
-            InlineNode::CurvedApostropheText(t) => &mut t.location,
+            InlineNode::DoubleQuotedSpan(t) => &mut t.location,
+            InlineNode::SingleQuotedSpan(t) => &mut t.location,
             InlineNode::StandaloneCurvedApostrophe(t) => &mut t.location,
             InlineNode::LineBreak(l) => &mut l.location,
             InlineNode::InlineAnchor(a) => &mut a.location,
             InlineNode::Macro(m) => m.location_mut(),
-            InlineNode::CalloutRef(c) => &mut c.location,
+            InlineNode::CalloutMarker(c) => &mut c.location,
         }
     }
 }
@@ -114,15 +114,15 @@ impl InlineMacro<'_> {
             Self::Footnote(f) => &mut f.location,
             Self::Icon(i) => &mut i.location,
             Self::Image(img) => &mut img.location,
-            Self::Keyboard(k) => &mut k.location,
+            Self::KeyboardShortcut(k) => &mut k.location,
             Self::Button(b) => &mut b.location,
-            Self::Menu(m) => &mut m.location,
-            Self::Url(u) => &mut u.location,
+            Self::MenuPath(m) => &mut m.location,
+            Self::UrlMacro(u) => &mut u.location,
             Self::Mailto(m) => &mut m.location,
             Self::Link(l) => &mut l.location,
             Self::Autolink(a) => &mut a.location,
             Self::CrossReference(x) => &mut x.location,
-            Self::Pass(p) => &mut p.location,
+            Self::Passthrough(p) => &mut p.location,
             Self::Stem(s) => &mut s.location,
             Self::IndexTerm(i) => &mut i.location,
         }
@@ -139,17 +139,17 @@ impl InlineMacro<'_> {
 /// | Variant | `AsciiDoc` Syntax | Description |
 /// |---------|-----------------|-------------|
 /// | `Link` | `link:url[text]` | Explicit link with optional text |
-/// | `Url` | `\https://...` or `link:` | URL reference |
+/// | `UrlMacro` | `\https://...` or `link:` | URL reference |
 /// | `Mailto` | `mailto:addr[text]` | Email link |
 /// | `Autolink` | `<\https://...>` | Auto-detected URL |
 /// | `CrossReference` | `<<id>>` or `xref:id[]` | Local or external reference |
 /// | `Image` | `image:file.png[alt]` | Inline image |
 /// | `Icon` | `icon:name[]` | Icon reference (font or image) |
 /// | `Footnote` | `footnote:[text]` | Footnote reference |
-/// | `Keyboard` | `kbd:[Ctrl+C]` | Keyboard shortcut |
+/// | `KeyboardShortcut` | `kbd:[Ctrl+C]` | Keyboard shortcut |
 /// | `Button` | `btn:[OK]` | UI button label |
-/// | `Menu` | `menu:File[Save]` | Menu navigation path |
-/// | `Pass` | `pass:[content]` | Passthrough (no processing) |
+/// | `MenuPath` | `menu:File[Save]` | Menu navigation path |
+/// | `Passthrough` | `pass:[content]` | Passthrough (no processing) |
 /// | `Stem` | `stem:[formula]` | Math notation |
 /// | `IndexTerm` | `((term))` or `(((term)))` | Index term (visible or hidden) |
 ///
@@ -160,7 +160,7 @@ impl InlineMacro<'_> {
 /// fn extract_link_target(node: InlineRef<'_>) -> Option<String> {
 ///     match node.kind() {
 ///         InlineKind::Link(link) => Some(link.target().to_string()),
-///         InlineKind::Url(url) => Some(url.target().to_string()),
+///         InlineKind::UrlMacro(url) => Some(url.target().to_string()),
 ///         InlineKind::CrossReference(xref) => Some(xref.target().to_string()),
 ///         _ => None,
 ///     }
@@ -185,13 +185,13 @@ pub enum InlineMacro<'a> {
     /// Inline image: `image:path[alt,width,height]`
     Image(Box<InlineImage<'a>>),
     /// Keyboard shortcut: `kbd:[Ctrl+C]`
-    Keyboard(Keyboard<'a>),
+    KeyboardShortcut(KeyboardShortcut<'a>),
     /// UI button: `btn:[Label]`
     Button(Button<'a>),
     /// Menu path: `menu:TopLevel[Item > Subitem]`
-    Menu(Menu<'a>),
+    MenuPath(MenuPath<'a>),
     /// URL with optional text: parsed from `link:` macro or bare URLs
-    Url(Box<Url<'a>>),
+    UrlMacro(Box<UrlMacro<'a>>),
     /// Explicit link macro: `link:target[text]`
     Link(Box<Link<'a>>),
     /// Email link: `mailto:address[text]`
@@ -201,7 +201,7 @@ pub enum InlineMacro<'a> {
     /// Cross-reference: `<<id,text>>` or `xref:id[text]`
     CrossReference(Box<CrossReference<'a>>),
     /// Inline passthrough: `pass:[content]`
-    Pass(Pass<'a>),
+    Passthrough(Passthrough<'a>),
     /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
     Stem(Stem<'a>),
     /// Index term: `((term))` (visible) or `(((term)))` (hidden)
@@ -216,15 +216,15 @@ impl InlineMacro<'_> {
             Self::Footnote(f) => &f.location,
             Self::Icon(i) => &i.location,
             Self::Image(img) => &img.location,
-            Self::Keyboard(k) => &k.location,
+            Self::KeyboardShortcut(k) => &k.location,
             Self::Button(b) => &b.location,
-            Self::Menu(m) => &m.location,
-            Self::Url(u) => &u.location,
+            Self::MenuPath(m) => &m.location,
+            Self::UrlMacro(u) => &u.location,
             Self::Mailto(m) => &m.location,
             Self::Link(l) => &l.location,
             Self::Autolink(a) => &a.location,
             Self::CrossReference(x) => &x.location,
-            Self::Pass(p) => &p.location,
+            Self::Passthrough(p) => &p.location,
             Self::Stem(s) => &s.location,
             Self::IndexTerm(i) => &i.location,
         }
@@ -290,10 +290,10 @@ impl Serialize for InlineNode<'_> {
             InlineNode::SuperscriptText(superscript) => {
                 serialize_inline_format!(map, superscript, "superscript");
             }
-            InlineNode::CurvedQuotationText(curved_quotation) => {
+            InlineNode::DoubleQuotedSpan(curved_quotation) => {
                 serialize_inline_format!(map, curved_quotation, "curved_quotation");
             }
-            InlineNode::CurvedApostropheText(curved_apostrophe) => {
+            InlineNode::SingleQuotedSpan(curved_apostrophe) => {
                 serialize_inline_format!(map, curved_apostrophe, "curved_apostrophe");
             }
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
@@ -326,7 +326,7 @@ impl Serialize for InlineNode<'_> {
             InlineNode::Macro(macro_node) => {
                 serialize_inline_macro::<S>(macro_node, &mut map)?;
             }
-            InlineNode::CalloutRef(callout_ref) => {
+            InlineNode::CalloutMarker(callout_ref) => {
                 map.serialize_entry("name", "callout_reference")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", &callout_ref.kind)?;
@@ -356,17 +356,17 @@ serialize_inline_owner! {
     Footnote => serialize_footnote,
     Icon => serialize_icon,
     InlineImage => serialize_image,
-    Keyboard => serialize_keyboard,
+    KeyboardShortcut => serialize_keyboard,
     Button => serialize_button,
-    Menu => serialize_menu,
-    Url => serialize_url,
+    MenuPath => serialize_menu,
+    UrlMacro => serialize_url,
     Link => serialize_link,
     Mailto => serialize_mailto,
     Autolink => serialize_autolink,
     CrossReference => serialize_xref,
     Stem => serialize_stem,
     IndexTerm => serialize_indexterm,
-    Pass => serialize_pass,
+    Passthrough => serialize_pass,
 }
 
 fn serialize_inline_macro<S>(
@@ -380,17 +380,17 @@ where
         InlineMacro::Footnote(f) => serialize_footnote::<S>(f, map),
         InlineMacro::Icon(i) => serialize_icon::<S>(i, map),
         InlineMacro::Image(i) => serialize_image::<S>(i, map),
-        InlineMacro::Keyboard(k) => serialize_keyboard::<S>(k, map),
+        InlineMacro::KeyboardShortcut(k) => serialize_keyboard::<S>(k, map),
         InlineMacro::Button(b) => serialize_button::<S>(b, map),
-        InlineMacro::Menu(m) => serialize_menu::<S>(m, map),
-        InlineMacro::Url(u) => serialize_url::<S>(u, map),
+        InlineMacro::MenuPath(m) => serialize_menu::<S>(m, map),
+        InlineMacro::UrlMacro(u) => serialize_url::<S>(u, map),
         InlineMacro::Mailto(m) => serialize_mailto::<S>(m, map),
         InlineMacro::Link(l) => serialize_link::<S>(l, map),
         InlineMacro::Autolink(a) => serialize_autolink::<S>(a, map),
         InlineMacro::CrossReference(x) => serialize_xref::<S>(x, map),
         InlineMacro::Stem(s) => serialize_stem::<S>(s, map),
         InlineMacro::IndexTerm(i) => serialize_indexterm::<S>(i, map),
-        InlineMacro::Pass(pass) => serialize_pass::<S>(pass, map),
+        InlineMacro::Passthrough(pass) => serialize_pass::<S>(pass, map),
     }
 }
 
@@ -445,7 +445,10 @@ where
     map.serialize_entry("location", &i.location)
 }
 
-fn serialize_keyboard<S>(k: &Keyboard<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_keyboard<S>(
+    k: &KeyboardShortcut<'_>,
+    map: &mut S::SerializeMap,
+) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -465,7 +468,7 @@ where
     map.serialize_entry("location", &b.location)
 }
 
-fn serialize_menu<S>(m: &Menu<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
+fn serialize_menu<S>(m: &MenuPath<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
 where
     S: Serializer,
 {
@@ -497,7 +500,7 @@ macro_rules! serialize_hyperlink {
 }
 
 serialize_hyperlink!(Link, serialize_link, "link");
-serialize_hyperlink!(Url, serialize_url, "link");
+serialize_hyperlink!(UrlMacro, serialize_url, "link");
 serialize_hyperlink!(Mailto, serialize_mailto, "mailto", subject, body);
 
 fn serialize_autolink<S>(a: &Autolink<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
@@ -555,7 +558,7 @@ fn serialize_raw<S: Serializer>(raw: &Raw<'_>, map: &mut S::SerializeMap) -> Res
 }
 
 fn serialize_pass<S: Serializer>(
-    pass: &Pass<'_>,
+    pass: &Passthrough<'_>,
     map: &mut S::SerializeMap,
 ) -> Result<(), S::Error> {
     map.serialize_entry("name", "pass")?;
@@ -655,7 +658,7 @@ impl<'a> InlineMacro<'a> {
                     content(value)?;
                 }
             }
-            Self::Url(url) => {
+            Self::UrlMacro(url) => {
                 if let Some(value) = &mut url.tooltip {
                     content(value)?;
                 }
@@ -666,13 +669,13 @@ impl<'a> InlineMacro<'a> {
                 }
             }
             Self::Button(button) => content(&mut button.label)?,
-            Self::Menu(menu) => {
+            Self::MenuPath(menu) => {
                 content(&mut menu.target)?;
                 for item in &mut menu.items {
                     content(item)?;
                 }
             }
-            Self::Keyboard(keyboard) => {
+            Self::KeyboardShortcut(keyboard) => {
                 for key in &mut keyboard.keys {
                     content(key)?;
                 }
@@ -680,7 +683,7 @@ impl<'a> InlineMacro<'a> {
             Self::Footnote(_)
             | Self::Autolink(_)
             | Self::CrossReference(_)
-            | Self::Pass(_)
+            | Self::Passthrough(_)
             | Self::Stem(_)
             | Self::IndexTerm(_) => {}
         }

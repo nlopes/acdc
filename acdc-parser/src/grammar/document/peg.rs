@@ -4,9 +4,9 @@
 
 use crate::{
     Anchor, Attribution, Audio, Author, Block, BlockMetadata, CalloutList, CalloutListItem,
-    CalloutRef, CiteTitle, Comment, CommentKind, CompatibilityMode, DelimitedBlock,
+    CalloutMarker, CiteTitle, Comment, CommentKind, CompatibilityMode, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListDefinition, DescriptionListItem,
-    DescriptionListTerm, DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, Error,
+    DescriptionListTerm, DiscreteHeading, Document, DocumentAttribute, DocumentAttributes, Error,
     Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
     Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
     UnorderedList, Video, Warning, WarningKind,
@@ -73,7 +73,7 @@ use std::{
 
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState<'input>) for str {
-        use crate::model::substitute;
+        use crate::model::apply_attribute_substitutions;
 
         // Each action gets the byte range of its preceding sequence.
         // Resolve line and column positions only when a node needs a location.
@@ -575,7 +575,7 @@ peg::parser! {
         rule author_line() -> Vec<Author<'input>>
             = !document_attribute_match() !comment()
               start:position!() author_line:$([^'\n']+) end:position!() {?
-                let substituted_cow = substitute(author_line.trim(), HEADER, &state.document_attributes);
+                let substituted_cow = apply_attribute_substitutions(author_line.trim(), HEADER, &state.document_attributes);
                 // Intern any owned substitution result so the downstream
                 // `authors()` parse can yield `Author<'input>` that outlives
                 // this action block.
@@ -688,7 +688,7 @@ peg::parser! {
         /// Parse revision line with attribute reference support
         rule revision_pre_substitution() -> ()
             = rev_line:$([^'\n']+) {?
-                let substituted_cow = substitute(rev_line.trim(), HEADER, &state.document_attributes);
+                let substituted_cow = apply_attribute_substitutions(rev_line.trim(), HEADER, &state.document_attributes);
                 let substituted: &'input str = match substituted_cow {
                     Cow::Borrowed(s) => s,
                     Cow::Owned(s) => state.intern_str(&s),
@@ -998,7 +998,7 @@ peg::parser! {
                 ));
             }
 
-            Ok(Block::DiscreteHeader(DiscreteHeader {
+            Ok(Block::DiscreteHeading(DiscreteHeading {
                 metadata: block_metadata.metadata,
                 title,
                 level,
@@ -1555,7 +1555,7 @@ peg::parser! {
             / d:literal_delimiter()  { (DelimitedKind::Literal, d, None) }
             / d:open_delimiter()     { (DelimitedKind::Open, d, None) }
             / d:sidebar_delimiter()  { (DelimitedKind::Sidebar, d, None) }
-            / d:pass_delimiter()     { (DelimitedKind::Pass, d, None) }
+            / d:pass_delimiter()     { (DelimitedKind::Passthrough, d, None) }
             / d:quote_delimiter()    { (DelimitedKind::Quote, d, None) }
             / d:markdown_code_delimiter() lang:markdown_language()? { (DelimitedKind::Listing, d, lang) }
 
@@ -1877,7 +1877,7 @@ peg::parser! {
         = &media_block_ahead_true() "video::" target:$([^'[' | '\n' | '\r']+) attributes:cached_macro_attributes(block_metadata) end:position!()
           block_macro_end()
         {
-            let target = substitute(target, &[Substitution::Attributes], &state.document_attributes);
+            let target = apply_attribute_substitutions(target, &[Substitution::Attributes], &state.document_attributes);
             let source = Source::from_str_borrowed(state.intern_str(&target))?;
             let metadata_from_attributes = attributes.metadata;
             let title = block_metadata.title.clone();
@@ -2884,7 +2884,7 @@ peg::parser! {
         // Save the enclosing scope for callout_list to restore after parsing its
         // items. Keep pending verbatim references local for validation,
         // since child listings add their own references to the shared catalog.
-        rule enter_callout_list(offset: usize) -> (Option<usize>, Vec<CalloutRef>)
+        rule enter_callout_list(offset: usize) -> (Option<usize>, Vec<CalloutMarker>)
         = {
             let parent = state.callout_list_offset.replace(offset);
             (parent, std::mem::take(&mut state.pending_callouts))
@@ -3044,9 +3044,9 @@ peg::parser! {
             // Create a placeholder callout - will be resolved in callout_list
             // We pass the marker string to the parent rule for resolution
             let callout = if marker == "<.>" {
-                CalloutRef::auto(0, location.clone()) // Number will be resolved later
+                CalloutMarker::auto(0, location.clone()) // Number will be resolved later
             } else {
-                CalloutRef::explicit(0, location.clone())
+                CalloutMarker::explicit(0, location.clone())
             };
 
             let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
@@ -3725,7 +3725,7 @@ peg::parser! {
         eol()
         {
             let (id, reftext) = result;
-            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
+            let substituted_id = state.intern_cow(apply_attribute_substitutions(id, HEADER, &state.document_attributes));
             // `end` is captured before the trailing eol() so the anchor's
             // location doesn't include the newline.
             Anchor {
@@ -3771,7 +3771,7 @@ peg::parser! {
         )
         double_close_square_bracket()
         {?
-            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
+            let substituted_id = state.intern_cow(apply_attribute_substitutions(id, HEADER, &state.document_attributes));
             let source = reftext.map(|(start, text)| crate::grammar::reference_text::capture_inline(state, text, start + offset, true));
             let xreflabel = source.map(|id| crate::grammar::reference_text::resolve(state, id)).transpose().map_err(|_| "reference label")?;
             Ok(InlineNode::InlineAnchor(Anchor {

@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
-use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, WarningSource};
+use acdc_converters_core::{
+    Converter as _, Diagnostics, Options as ConverterOptions, WarningSource,
+};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_terminal::{Capabilities, Processor};
+use acdc_converters_terminal::{Capabilities, Converter};
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 
 mod support;
@@ -21,7 +23,7 @@ fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
         )?;
         for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
             let osc8 = capabilities.osc8_links;
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
@@ -30,7 +32,7 @@ fn selected_terminal_text_works_in_every_build() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("terminal");
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -92,7 +94,7 @@ fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), E
             .build()?,
     )?;
     for capabilities in [TEXT_TERMINAL, OSC8_TERMINAL] {
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_compatibility_mode(CompatibilityMode::Draft),
         )?
@@ -100,7 +102,7 @@ fn selected_draft_buttons_render_in_plain_and_buffered_content() -> Result<(), E
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("terminal");
-        processor.write_to(
+        converter.write_to(
             parsed.document(),
             &mut output,
             None,
@@ -131,7 +133,7 @@ fn render_terminal(
     crossterm::style::force_color_output(true);
     let parsed = parse(input, &ParserOptions::default())?;
     let doc = parsed.document();
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -143,7 +145,7 @@ fn render_terminal(
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     Ok((
         String::from_utf8(output)?,
         warnings
@@ -307,7 +309,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let parsed = parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -317,7 +319,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
         for marker in expected_markers {
             assert!(
@@ -336,7 +338,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let parsed = parse(input, &parser_options)?;
     let doc = parsed.document();
     let mut output = Vec::new();
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -345,7 +347,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -370,7 +372,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let parsed = parse(input, &ParserOptions::default())?;
     let doc = parsed.document();
     let mut output = Vec::new();
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -379,7 +381,7 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for expected in [
@@ -402,7 +404,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let parsed = parse(input, &ParserOptions::default())?;
     let doc = parsed.document();
     let mut output = Vec::new();
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -411,7 +413,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let output = String::from_utf8(output)?;
 
     for resolved in ["Pass raw Title", "Plus raw Title"] {
@@ -439,7 +441,7 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let parsed = parse(input, &parser_options)?;
     let doc = parsed.document();
     let mut output = Vec::new();
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -448,7 +450,7 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
     let actual = String::from_utf8(output)?;
 
     assert!(actual.contains("1. numbered"), "{actual}");
@@ -464,7 +466,7 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
         let parsed = parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -474,7 +476,7 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
@@ -490,7 +492,7 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
         let parsed = parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -500,7 +502,7 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
@@ -516,7 +518,7 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
         let parsed = parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -526,7 +528,7 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
         let actual = String::from_utf8(output)?;
 
         assert!(actual.contains("[ ]"), "{actual}");
@@ -544,7 +546,7 @@ fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error>
     let parser_options = ParserOptions::default();
     let parsed = parse("image::definitely-missing-image.png[]\n", &parser_options)?;
     let doc = parsed.document();
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -552,7 +554,7 @@ fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error>
     .with_terminal_width(80);
     let output_path = temp_output_path("terminal-warning", "txt");
 
-    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let result = converter.convert_to_file(doc, None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {
@@ -842,8 +844,8 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
 #[test]
 fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
     use acdc_parser::{
-        Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
-        Location, Paragraph,
+        Block, Bold, CharacterReference, CharacterReferenceKind, Document, FormattingForm,
+        InlineNode, Location, Paragraph,
     };
     let mut content = Vec::new();
     for kind in [
@@ -857,7 +859,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     }
     let bold = InlineNode::BoldText(Bold::new(
         content.clone(),
-        Form::Constrained,
+        FormattingForm::Constrained,
         Location::default(),
     ));
     content.push(bold);
@@ -866,14 +868,14 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
         content,
         Location::default(),
     )));
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::builder().embedded(true).build(),
         ParserOptions::builder(),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("terminal");
-    processor.write_to(
+    converter.write_to(
         (&doc).into(),
         &mut output,
         None,

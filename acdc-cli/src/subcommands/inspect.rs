@@ -300,7 +300,7 @@ impl<'doc, W: Write> BlockVisitor<'doc> for TreeVisitor<W> {
             BlockKind::TableOfContents(_) => {
                 self.print_tree_line("TableOfContents", None, location)
             }
-            BlockKind::DiscreteHeader(header) => {
+            BlockKind::DiscreteHeading(header) => {
                 let title = header
                     .title()
                     .map(|title| InlineTextTransform::default().content_to_string(title))

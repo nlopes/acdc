@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** Rust callers receive `EditorRenderResult` from
+  `parse_and_render()` and `parse_and_render_with_mode()`, renamed from
+  `ParseResult`. Highlighted source, preview HTML, and warnings are unchanged.
+
 - Description-list previews retain all terms in a shared group, with separate
   marker highlighting and one highlighted definition.
 

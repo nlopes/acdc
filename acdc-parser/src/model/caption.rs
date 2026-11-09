@@ -80,7 +80,7 @@ impl CaptionKind {
             BlockKind::Open(open) => Self::for_style(open.style()),
             BlockKind::Section(_)
             | BlockKind::Admonition(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::PageBreak(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::TableOfContents(_)
@@ -388,7 +388,7 @@ fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
                 | DelimitedBlockType::DelimitedStem(_) => {}
             },
             Block::Paragraph(_)
-            | Block::DiscreteHeader(_)
+            | Block::DiscreteHeading(_)
             | Block::PageBreak(_)
             | Block::ThematicBreak(_)
             | Block::TableOfContents(_)
@@ -461,7 +461,7 @@ fn renumber_children(block: &mut Block<'_>, counters: &mut CaptionCounters) {
             | DelimitedBlockType::DelimitedStem(_) => {}
         },
         Block::Paragraph(_)
-        | Block::DiscreteHeader(_)
+        | Block::DiscreteHeading(_)
         | Block::PageBreak(_)
         | Block::ThematicBreak(_)
         | Block::TableOfContents(_)

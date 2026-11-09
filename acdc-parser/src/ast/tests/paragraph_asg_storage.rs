@@ -11,6 +11,6 @@ fn dedicated_metadata_cannot_be_shadowed_by_scalar_attributes() {
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attributes/style")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attributes/style")
     );
 }

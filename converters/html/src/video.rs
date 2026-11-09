@@ -13,7 +13,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         video: VideoRef<'_>,
     ) -> Result<(), Error> {
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             return visit_video_semantic(traversal, video, self);
         }
 

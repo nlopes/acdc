@@ -1,5 +1,5 @@
 use acdc_converters_core::Options;
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
@@ -22,12 +22,12 @@ fn copied_caption_content_keeps_single_ids_and_index_occurrences(
             .build()?,
     )?;
     let before = Document::from(parsed.document());
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::default(),
         ParserOptions::builder().with_compatibility_mode(mode),
         variant,
     )?;
-    let output = processor.convert_to_string(
+    let output = converter.convert_to_string(
         parsed.document(),
         &RenderOptions {
             embedded: true,

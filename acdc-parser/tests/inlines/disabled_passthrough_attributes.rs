@@ -61,7 +61,7 @@ fn disabled_passthroughs_use_the_enclosing_attribute_stage() -> Result<(), Error
                 );
                 assert_eq!(
                     parsed
-                        .source()
+                        .preprocessed_source()
                         .get(text.location().absolute_start()..=text.location().absolute_end()),
                     Some(format!("α {body} ω.").as_str())
                 );

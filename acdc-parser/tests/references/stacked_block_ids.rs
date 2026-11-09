@@ -1,7 +1,7 @@
 use acdc_parser::{
     Anchor, Block, BlockMetadata, CompatibilityMode, Document, Location, Options, Paragraph,
     WarningKind,
-    ast::{AnchorRef, BlockRef, ContentRef, DocumentRef, InlineKind, ReferenceRef},
+    ast::{AnchorRef, BlockRef, ContentRef, DocumentRef, InlineKind, ReferenceTargetRef},
     parse,
 };
 
@@ -61,8 +61,10 @@ fn the_last_source_id_selects_the_registered_block(
     assert_eq!(serde_json::to_value(document)?, before);
     #[cfg(feature = "asg")]
     {
-        let value =
-            acdc_parser::asg::document_with_profile(document, acdc_parser::asg::Profile::Acdc)?;
+        let value = acdc_parser::asg::export_document_with_profile(
+            document,
+            acdc_parser::asg::Profile::Acdc,
+        )?;
         assert_eq!(
             value
                 .pointer("/blocks/0/id")
@@ -88,7 +90,7 @@ fn the_last_source_id_selects_the_registered_block(
             repaired
                 .references()
                 .get("second")
-                .and_then(ReferenceRef::xreflabel)
+                .and_then(ReferenceTargetRef::xreflabel)
                 .ok_or("repaired label")?
         ),
         "Selected"
@@ -136,8 +138,10 @@ fn prepared_ids_select_one_registration_without_inventing_source_spans() -> Resu
         }
         #[cfg(feature = "asg")]
         {
-            let value =
-                acdc_parser::asg::document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
+            let value = acdc_parser::asg::export_document_with_profile(
+                read,
+                acdc_parser::asg::Profile::Acdc,
+            )?;
             assert_eq!(
                 value
                     .pointer("/blocks/0/id")
@@ -170,7 +174,7 @@ fn duplicate_selected_ids_keep_the_first_registration(
     assert!(!references.contains("unused-second"));
     let label = references
         .get("shared")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("first label")?;
     assert_eq!(label_text(label), "First label");
     assert_eq!(parsed.warnings().iter().filter(|warning| matches!(&warning.kind, WarningKind::DuplicateId { id, .. } if id == "shared")).count(), 1);

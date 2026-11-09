@@ -6,7 +6,7 @@ use std::{borrow::Cow, collections::HashMap, io::Write, rc::Rc};
 
 use acdc_converters_core::{InlineTextTransform, TraversalContext, document_attribute_text};
 use acdc_parser::{
-    Reference,
+    ReferenceTarget,
     ast::{AuthorRef, ContentRef, DocumentRef, HeaderRef},
 };
 
@@ -92,7 +92,7 @@ pub(crate) fn extract_verbatim_text(nodes: ContentRef<'_>) -> String {
 /// `asciidoctor`.
 pub(crate) fn extract_heading_text(
     nodes: Option<ContentRef<'_>>,
-    references: &HashMap<&str, Reference<'_>>,
+    references: &HashMap<&str, ReferenceTarget<'_>>,
 ) -> String {
     nodes.map_or_else(String::new, |nodes| {
         InlineTextTransform::default()
@@ -122,7 +122,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
 
         // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
         // This matches asciidoctor's --embedded behavior for manpages
-        if self.processor.options.embedded() {
+        if self.converter.options.embedded() {
             return Ok(());
         }
 
@@ -164,7 +164,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         mansource: &str,
         manmanual: &str,
     ) -> Result<(), Error> {
-        let references = Rc::clone(&self.processor.references);
+        let references = Rc::clone(&self.converter.references);
         let w = self.writer_mut();
         writeln!(w, r#"'\" t"#)?;
 

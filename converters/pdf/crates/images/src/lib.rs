@@ -156,7 +156,7 @@ pub struct ResolveFailure {
 
 /// The outcome of resolving a set of image references.
 #[derive(Debug)]
-pub struct Resolved {
+pub struct ImageResolutionReport {
     pub assets: ImageMap,
     pub failures: Vec<ResolveFailure>,
 }
@@ -177,9 +177,9 @@ pub struct Resolved {
 /// permits it. Consecutive remote sources form bounded batches. Validation,
 /// snapshot writes, and failure reporting retain source-input order.
 #[must_use]
-pub fn resolve(urls: &[&str], config: &ResolveConfig) -> Resolved {
+pub fn resolve(urls: &[&str], config: &ResolveConfig) -> ImageResolutionReport {
     let fetcher = fetch::Fetcher::new(config);
-    let mut resolved = Resolved {
+    let mut resolved = ImageResolutionReport {
         assets: ImageMap::new(),
         failures: Vec::new(),
     };
@@ -274,7 +274,7 @@ fn remote_batch_limit(config: &ResolveConfig, remaining_bytes: u64, seen: usize)
 fn record_image(
     url: &str,
     result: Result<(ResolvedImage, u64), Error>,
-    resolved: &mut Resolved,
+    resolved: &mut ImageResolutionReport,
     accepted_bytes: &mut u64,
     bytes_exhausted: &mut bool,
 ) {

@@ -1,6 +1,9 @@
 use acdc_parser::{
     Options, SafeMode, SectionKind, WarningKind,
-    ast::{BlockKind, BlockRef, ContentRef, InlineKind, InlineRef, ReferenceRef, UnorderedListRef},
+    ast::{
+        BlockKind, BlockRef, ContentRef, InlineKind, InlineRef, ReferenceTargetRef,
+        UnorderedListRef,
+    },
     parse,
 };
 
@@ -16,7 +19,7 @@ fn bibliography_citation_keeps_attribute_escape() -> Result<(), Error> {
         .document()
         .references()
         .get("ref")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     let text: String = label
         .inlines()

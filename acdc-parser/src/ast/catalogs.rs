@@ -3,13 +3,13 @@ use std::{
     iter::FusedIterator,
 };
 
-use crate::{Reference, SectionKind, TocEntry};
+use crate::{ReferenceTarget, SectionKind, TocEntry};
 
 use super::{CaptionRef, ContentRef, DocumentRef};
 
 node_ref!(
-    ReferenceRef<'doc>,
-    Reference<'doc>,
+    ReferenceTargetRef<'doc>,
+    ReferenceTarget<'doc>,
     "A registered cross-reference target."
 );
 node_ref!(
@@ -25,11 +25,11 @@ node_ref!(
 /// whose title and reference label are both absent.
 #[derive(Clone, Copy, Debug)]
 pub struct ReferencesRef<'doc> {
-    references: &'doc HashMap<&'doc str, Reference<'doc>>,
+    references: &'doc HashMap<&'doc str, ReferenceTarget<'doc>>,
 }
 
-impl<'doc> From<&'doc HashMap<&'doc str, Reference<'doc>>> for ReferencesRef<'doc> {
-    fn from(references: &'doc HashMap<&'doc str, Reference<'doc>>) -> Self {
+impl<'doc> From<&'doc HashMap<&'doc str, ReferenceTarget<'doc>>> for ReferencesRef<'doc> {
+    fn from(references: &'doc HashMap<&'doc str, ReferenceTarget<'doc>>) -> Self {
         Self { references }
     }
 }
@@ -60,8 +60,8 @@ impl<'doc> DocumentRef<'doc> {
 impl<'doc> ReferencesRef<'doc> {
     /// The registered target, or `None` if the ID is absent.
     #[must_use]
-    pub fn get(self, id: &str) -> Option<ReferenceRef<'doc>> {
-        self.references.get(id).map(ReferenceRef::from)
+    pub fn get(self, id: &str) -> Option<ReferenceTargetRef<'doc>> {
+        self.references.get(id).map(ReferenceTargetRef::from)
     }
 
     /// Whether the ID is registered, even if it has no display content.
@@ -85,18 +85,18 @@ impl<'doc> ReferencesRef<'doc> {
     /// Each registered ID and target in unspecified order.
     pub fn iter(
         self,
-    ) -> impl ExactSizeIterator<Item = (&'doc str, ReferenceRef<'doc>)>
+    ) -> impl ExactSizeIterator<Item = (&'doc str, ReferenceTargetRef<'doc>)>
     + FusedIterator
     + Send
     + Sync
     + 'doc {
         self.references
             .iter()
-            .map(|(&id, reference)| (id, ReferenceRef::from(reference)))
+            .map(|(&id, reference)| (id, ReferenceTargetRef::from(reference)))
     }
 }
 
-impl<'doc> ReferenceRef<'doc> {
+impl<'doc> ReferenceTargetRef<'doc> {
     /// Whether this target is the document top or its explicit header ID.
     #[must_use]
     pub fn is_document(self) -> bool {
@@ -161,8 +161,8 @@ impl<'doc> ReferenceRef<'doc> {
 
     /// The section's reference category; absent for other targets.
     #[must_use]
-    pub fn section_name(self) -> Option<&'doc str> {
-        self.node.section_name()
+    pub fn section_category(self) -> Option<&'doc str> {
+        self.node.section_category()
     }
 
     /// The assigned reference number without a signifier or trailing punctuation.
@@ -225,8 +225,8 @@ impl<'doc> TocEntryRef<'doc> {
     }
 }
 
-impl<'doc> From<&'doc Reference<'doc>> for ReferenceRef<'doc> {
-    fn from(reference: &'doc Reference<'doc>) -> Self {
+impl<'doc> From<&'doc ReferenceTarget<'doc>> for ReferenceTargetRef<'doc> {
+    fn from(reference: &'doc ReferenceTarget<'doc>) -> Self {
         Self::new(reference)
     }
 }
@@ -239,8 +239,8 @@ impl<'doc> From<&'doc TocEntry<'doc>> for TocEntryRef<'doc> {
 
 /// Copies the registered target, including derived values and source locations.
 /// Source text remains borrowed. The copy does not refresh the catalog.
-impl<'doc> From<ReferenceRef<'doc>> for Reference<'doc> {
-    fn from(reference: ReferenceRef<'doc>) -> Self {
+impl<'doc> From<ReferenceTargetRef<'doc>> for ReferenceTarget<'doc> {
+    fn from(reference: ReferenceTargetRef<'doc>) -> Self {
         reference.node.clone()
     }
 }
@@ -255,7 +255,7 @@ impl<'doc> From<TocEntryRef<'doc>> for TocEntry<'doc> {
 
 /// Copies every registered ID and target, including aliases.
 /// Source text remains borrowed. The copy does not refresh the catalog.
-impl<'doc> From<ReferencesRef<'doc>> for HashMap<&'doc str, Reference<'doc>, RandomState> {
+impl<'doc> From<ReferencesRef<'doc>> for HashMap<&'doc str, ReferenceTarget<'doc>, RandomState> {
     fn from(references: ReferencesRef<'doc>) -> Self {
         references.references.clone()
     }

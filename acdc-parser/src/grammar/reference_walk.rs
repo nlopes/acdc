@@ -168,7 +168,7 @@ pub(crate) fn blocks<'a, V: ReferenceVisitor<'a>>(
                     inlines(visitor, label.as_inlines())?;
                 }
             }
-            Block::DiscreteHeader(_)
+            Block::DiscreteHeading(_)
             | Block::PageBreak(_)
             | Block::Image(_)
             | Block::Audio(_)
@@ -267,7 +267,7 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
             InlineNode::Macro(InlineMacro::Link(node)) => {
                 link(visitor, &node.metadata, &node.location, &node.text)?;
             }
-            InlineNode::Macro(InlineMacro::Url(node)) => {
+            InlineNode::Macro(InlineMacro::UrlMacro(node)) => {
                 link(visitor, &node.metadata, &node.location, &node.text)?;
             }
             InlineNode::Macro(InlineMacro::Mailto(node)) => {
@@ -279,8 +279,8 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
             InlineNode::HighlightText(node) => formatted(visitor, node)?,
             InlineNode::SubscriptText(node) => formatted(visitor, node)?,
             InlineNode::SuperscriptText(node) => formatted(visitor, node)?,
-            InlineNode::CurvedQuotationText(node) => formatted(visitor, node)?,
-            InlineNode::CurvedApostropheText(node) => formatted(visitor, node)?,
+            InlineNode::DoubleQuotedSpan(node) => formatted(visitor, node)?,
+            InlineNode::SingleQuotedSpan(node) => formatted(visitor, node)?,
             InlineNode::RawText(node) => {
                 if let Some(id) = node
                     .metadata
@@ -297,7 +297,7 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
             | InlineNode::CharacterReference(_)
             | InlineNode::LineBreak(_)
             | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_) => {}
+            | InlineNode::CalloutMarker(_) => {}
         }
     }
     Ok(())

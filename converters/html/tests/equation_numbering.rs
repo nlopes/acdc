@@ -1,5 +1,5 @@
 use acdc_converters_core::Options;
-use acdc_converters_html::{HtmlVariant, MATHJAX_LOADER_URL, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, MATHJAX_LOADER_URL, RenderOptions};
 use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha2::{Digest, Sha256};
@@ -32,12 +32,12 @@ fn equation_numbering_selects_safe_configuration_and_matching_csp(
             .build()?,
     )?;
     let before = Document::from(parsed.document());
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::default(),
         ParserOptions::builder().with_compatibility_mode(mode),
         variant,
     )?;
-    let output = processor.convert_to_string(
+    let output = converter.convert_to_string(
         parsed.document(),
         &RenderOptions {
             embedded,
@@ -96,9 +96,9 @@ fn equation_numbering_requires_stem_and_uses_the_header_setting(
         let source =
             format!("= Equations\n:csp:\n:stylesheet!:\n:webfonts!:\n{header}\nBody.\n\n{body}\n");
         let parsed = parse(&source, &ParserOptions::default())?;
-        let processor =
-            Processor::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
-        let output = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+        let converter =
+            Converter::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
+        let output = converter.convert_to_string(parsed.document(), &RenderOptions::default())?;
         assert_eq!(output.contains("MathJax.tex.tags ="), expected.is_some());
         if let Some(tags) = expected {
             assert!(output.contains(&format!("MathJax.tex.tags = '{tags}';")));

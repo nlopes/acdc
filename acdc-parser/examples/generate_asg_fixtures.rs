@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .join("fixtures/asg")
         .join(name);
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let output = format!("{}\n", serde_json::to_string_pretty(&value)?);
     fs::write(source.with_extension("json"), output)?;
     Ok(())

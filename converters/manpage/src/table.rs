@@ -19,7 +19,7 @@ use acdc_parser::{
     },
 };
 
-use crate::{Error, ManpageVisitor, Processor};
+use crate::{Converter, Error, ManpageVisitor};
 
 /// Map horizontal alignment to tbl format character.
 fn alignment_prefix(halign: HorizontalAlignment) -> &'static str {
@@ -307,7 +307,7 @@ fn has_rowspans(table: TableRef<'_>) -> bool {
 fn render_grid_row<'a>(
     grid_row: &GridRow<TableRowRef<'a>>,
     table: TableRef<'_>,
-    processor: &Processor<'a>,
+    converter: &Converter<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
@@ -327,7 +327,7 @@ fn render_grid_row<'a>(
                         cell,
                         column,
                         grid_row.is_header,
-                        processor,
+                        converter,
                         traversal,
                         diagnostics,
                     )?);
@@ -353,12 +353,12 @@ pub(crate) fn visit_table<'a, W: Write>(
     table: TableRef<'a>,
     visitor: &mut ManpageVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let processor = visitor.processor;
+    let converter = visitor.converter;
     let num_cols = column_count(table);
     let grid = grid_rows(table, num_cols);
     let presentation = table.presentation().unwrap_or_else(|| {
         TablePresentation::resolve_with(Some(table.attributes()), |name| {
-            (processor.parser_options.document_attributes()).get(name)
+            (converter.parser_options.document_attributes()).get(name)
         })
     });
     if presentation.stripes() != TableStripes::None {
@@ -402,7 +402,7 @@ pub(crate) fn visit_table<'a, W: Write>(
 
     let data_rows: Vec<String> = grid
         .iter()
-        .map(|row| render_grid_row(row, table, processor, traversal, &mut visitor.diagnostics))
+        .map(|row| render_grid_row(row, table, converter, traversal, &mut visitor.diagnostics))
         .collect::<Result<Vec<_>, _>>()?;
 
     let w = visitor.writer_mut();
@@ -453,12 +453,12 @@ fn format_cell_with_inlines<'a>(
     cell: TableCellRef<'a>,
     column: Option<ColumnFormatRef<'_>>,
     is_header: bool,
-    processor: &Processor<'a>,
+    converter: &Converter<'a>,
     traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
     let mut buf = Vec::new();
-    let mut cell_visitor = ManpageVisitor::new(&mut buf, processor, diagnostics.reborrow());
+    let mut cell_visitor = ManpageVisitor::new(&mut buf, converter, diagnostics.reborrow());
     if is_header {
         // tbl selects bold for the header before it renders the cell's inlines.
         cell_visitor.current_font = "\\fB";

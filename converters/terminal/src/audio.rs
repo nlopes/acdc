@@ -16,7 +16,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let mut target = resolve_target(&audio.source().to_string(), traversal);
         if target.is_empty() {
-            if self.processor.mark_fallback("audio-missing-source") {
+            if self.converter.mark_fallback("audio-missing-source") {
                 self.diagnostics.warn_with_advice(
                     "audio has no source and cannot be represented in terminal output",
                     "Add a source to the `audio::` macro.",
@@ -36,8 +36,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 .map_or_else(|| audio.source().to_string(), str::to_string)
         };
         let text = format!("[Audio: {title}]");
-        let processor = self.processor;
-        inlines::maybe_render_osc8_link(&target, &text, self.writer_mut(), processor)?;
+        let converter = self.converter;
+        inlines::maybe_render_osc8_link(&target, &text, self.writer_mut(), converter)?;
         writeln!(self.writer_mut())?;
         Ok(())
     }
@@ -52,14 +52,14 @@ mod tests {
     #[test]
     fn missing_audio_source_warns_once() -> Result<(), Error> {
         let audio = Audio::new(Source::Name(""), Location::default());
-        let processor = crate::create_test_processor();
+        let converter = crate::create_test_converter();
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
         let attribute_header =
-            acdc_converters_core::Converter::document_attributes(&processor).clone();
+            acdc_converters_core::Converter::document_attributes(&converter).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = TerminalVisitor::new(Vec::new(), &processor, diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(Vec::new(), &converter, diagnostics.reborrow());
 
         visitor.render_audio(&mut traversal, (&audio).into())?;
         visitor.render_audio(&mut traversal, (&audio).into())?;

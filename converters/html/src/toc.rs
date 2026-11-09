@@ -198,7 +198,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         toc_macro: Option<TableOfContentsRef<'_>>,
         placement: &str,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let converter = self.converter.clone();
         let config = TocConfig::resolve(toc_macro, traversal);
 
         // Determine if TOC should render at this placement point
@@ -213,8 +213,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             other => config.placement() == other,
         };
 
-        if should_render && !processor.toc_entries.is_empty() {
-            let semantic = processor.variant() == HtmlVariant::Semantic;
+        if should_render && !converter.toc_entries.is_empty() {
+            let semantic = converter.variant() == HtmlVariant::Semantic;
             let embedded = self.render_options.embedded;
 
             // Embedded output downgrades only the default sidebar class.
@@ -223,7 +223,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // toc::[] macro adds class="title" to the toctitle div
             let is_macro = placement == "macro";
 
-            let entries: Vec<_> = processor
+            let entries: Vec<_> = converter
                 .toc_entries
                 .iter()
                 .map(TocEntryRef::from)
@@ -307,7 +307,7 @@ mod tests {
     use acdc_parser::{CompatibilityMode, Options, ast::BlockKind, parse};
 
     use super::toc_class;
-    use crate::{HtmlVariant, Processor, RenderOptions};
+    use crate::{Converter, HtmlVariant, RenderOptions};
 
     #[rstest::rstest]
     fn many_siblings_keep_nested_lists_and_global_section_numbers(
@@ -325,12 +325,12 @@ mod tests {
             &source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::default(),
             Options::builder().with_compatibility_mode(mode),
             variant,
         )?;
-        let output = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+        let output = converter.convert_to_string(parsed.document(), &RenderOptions::default())?;
         let tag = if variant == HtmlVariant::Semantic {
             "ol class=\"toc-list level-"
         } else {

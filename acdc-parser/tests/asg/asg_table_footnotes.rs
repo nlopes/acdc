@@ -9,7 +9,7 @@ type Error = Box<dyn std::error::Error>;
 fn prepared_cells_reject_foreign_bindings_and_duplicate_global_numbers() -> Result<(), Error> {
     use acdc_parser::{
         Block, DelimitedBlock, DelimitedBlockType, Document, Footnote, InlineMacro, InlineNode,
-        Location, Paragraph, Table, TableColumn, TableRow, ast::StructuralRef, parse,
+        Location, Paragraph, Table, TableCell, TableRow, ast::StructuralRef, parse,
     };
     let parsed = parse(
         "[cols=a,options=noheader]\n|===\n|footnote:same[Cell.]\n|===\n",
@@ -34,10 +34,10 @@ fn prepared_cells_reject_foreign_bindings_and_duplicate_global_numbers() -> Resu
         Location::default(),
     )));
     let before = serde_json::to_value(&document)?;
-    assert!(asg::document_with_profile((&document).into(), asg::Profile::Acdc).is_err());
+    assert!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc).is_err());
     assert_eq!(serde_json::to_value(&document)?, before);
 
-    let cell = TableColumn::from(cell);
+    let cell = TableCell::from(cell);
     document.set_blocks([Block::DelimitedBlock(DelimitedBlock::new(
         DelimitedBlockType::DelimitedTable(Table::new(
             vec![TableRow::new(vec![cell.clone(), cell])],
@@ -47,11 +47,11 @@ fn prepared_cells_reject_foreign_bindings_and_duplicate_global_numbers() -> Resu
         Location::default(),
     ))]);
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc),
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc),
         Err(asg::Error::Unsupported { path, .. }) if path.ends_with("/footnotes/0/number"))
     );
     document.rebuild_footnotes()?;
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/rows/0/cells/0/footnotes/0/number"),
         Some(&json!(1))
@@ -73,7 +73,7 @@ fn cell_catalogs_export_once_with_local_names_and_global_numbers(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let expected: Value =
         serde_json::from_str(&std::fs::read_to_string(source.with_extension("json"))?)?;
     assert_eq!(value, expected);
@@ -96,7 +96,7 @@ fn cell_catalogs_export_once_with_local_names_and_global_numbers(
     for body in ["Outernote.", "Firstnote.", "Nestednote.", "Secondnote."] {
         assert_eq!(text.matches(body).count(), 1, "{body}");
     }
-    assert!(asg::document(parsed.document()).is_err());
+    assert!(asg::export_document(parsed.document()).is_err());
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     assert!(jsonschema::validator_for(&schema)?.is_valid(&value));
     let mut invalid = value;

@@ -201,7 +201,8 @@ fn document_attribute_pass_raw_fragments_keep_reference_locations() -> Result<()
                     raw_count += 1;
                     let location = node.location();
                     assert_eq!(
-                        &parsed.source()[location.absolute_start()..=location.absolute_end()],
+                        &parsed.preprocessed_source()
+                            [location.absolute_start()..=location.absolute_end()],
                         "{raw}"
                     );
                     assert_eq!(location.start().line(), 4);

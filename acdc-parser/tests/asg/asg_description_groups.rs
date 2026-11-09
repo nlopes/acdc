@@ -24,8 +24,8 @@ fn description_exports_keep_term_order_and_definition_presence(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let native = serde_json::to_value(parsed.document())?;
-    let strict = asg::document(parsed.document())?;
-    let named = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let strict = asg::export_document(parsed.document())?;
+    let named = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let group = named.pointer("/blocks/0/items/0").ok_or("named group")?;
     assert_eq!(
         group.get("definition_present"),
@@ -102,8 +102,8 @@ fn constructed_empty_definitions_and_term_identities_need_named_export() -> Resu
         Location::default(),
     )));
     document.rebuild_references_and_toc()?;
-    assert!(asg::document((&document).into()).is_err());
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    assert!(asg::export_document((&document).into()).is_err());
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     for (index, id) in ["first", "second"].into_iter().enumerate() {
         let owner = format!("/blocks/0/items/0/term_metadata/{index}");
         assert_eq!(
@@ -123,7 +123,7 @@ fn constructed_empty_definitions_and_term_identities_need_named_export() -> Resu
 #[test]
 fn named_description_metadata_is_closed_and_checks_definition_presence() -> Result<(), Error> {
     let parsed = parse("first::\nsecond:: body", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

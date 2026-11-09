@@ -1,6 +1,6 @@
 use acdc_parser::{
     Anchor, Block, BlockMetadata, CompatibilityMode, ContentAttribute, Document, InlineNode,
-    Location, Options, Plain, Reference, SafeMode, Section, Title,
+    Location, Options, Plain, ReferenceTarget, SafeMode, Section, Title,
     ast::{BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, TocEntryRef},
     parse, parse_file,
 };
@@ -157,7 +157,7 @@ fn missing_assigned_identity_fails_before_changing_tree_or_catalogs() -> Result<
 fn aliases_follow_surviving_canonical_targets_and_disappear_with_the_target() -> Result<(), Error> {
     let parsed = parse("[#target]\n== Target\n", &Options::default())?;
     let mut document = Document::from(parsed.document());
-    let target = Reference::from(
+    let target = ReferenceTarget::from(
         parsed
             .document()
             .references()
@@ -391,7 +391,7 @@ fn primary_block_ownership_does_not_become_section_metadata_when_spans_are_equal
     let read = DocumentRef::from(&document);
     let reference = read.references().get("shared").ok_or("shared")?;
     assert_eq!(reference.title().map(text).as_deref(), Some("Same"));
-    assert!(reference.section_name().is_none());
+    assert!(reference.section_category().is_none());
     assert!(reference.section_number().is_none());
     let entry = read.toc_entries().next().ok_or("entry")?;
     assert_eq!(reference.location(), entry.location());

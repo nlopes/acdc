@@ -1,5 +1,5 @@
 use acdc_converters_core::Options;
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse, parse_file};
 
 type Error = Box<dyn std::error::Error>;
@@ -43,12 +43,12 @@ fn file_controls_preserve_ast_targets_and_local_anchors(
             .build()?,
     )?;
     let before = Document::from(parsed.document());
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::default(),
         ParserOptions::builder().with_compatibility_mode(mode),
         variant,
     )?;
-    let output = processor.convert_to_string(
+    let output = converter.convert_to_string(
         parsed.document(),
         &RenderOptions {
             embedded: true,
@@ -103,9 +103,9 @@ fn file_controls_keep_included_references_local(
             .build()?,
     )?;
     let before = Document::from(parsed.document());
-    let processor =
-        Processor::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
-    let output = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+    let converter =
+        Converter::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
+    let output = converter.convert_to_string(parsed.document(), &RenderOptions::default())?;
     assert_eq!(Document::from(parsed.document()), before);
     assert!(output.contains("href=\"#target\">Before</a>"));
     assert!(output.contains("href=\"#target\">After</a>"));
@@ -124,12 +124,12 @@ fn file_controls_follow_body_assignments_and_preserve_cell_inheritance(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::default(),
         ParserOptions::builder().with_compatibility_mode(mode),
         variant,
     )?;
-    let output = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+    let output = converter.convert_to_string(parsed.document(), &RenderOptions::default())?;
     for (target, label) in [
         ("root/guide.xhtml", "Header"),
         ("body/guide.xhtml", "Body"),
@@ -151,9 +151,9 @@ fn file_prefix_and_suffix_cannot_escape_the_link_attribute(
         "= Escaped files\n:relfileprefix: docs/\"&/\n:relfilesuffix: .html?x=\"&\n\nxref:guide.adoc[File]\n",
         &ParserOptions::default(),
     )?;
-    let processor =
-        Processor::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
-    let output = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+    let converter =
+        Converter::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
+    let output = converter.convert_to_string(parsed.document(), &RenderOptions::default())?;
     assert!(output.contains("href=\"docs/&quot;&amp;/guide.html?x=&quot;&amp;\">File</a>"));
     Ok(())
 }

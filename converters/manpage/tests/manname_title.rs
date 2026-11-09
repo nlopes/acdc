@@ -1,5 +1,5 @@
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_converters_manpage::Processor;
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
+use acdc_converters_manpage::Converter;
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 
 #[rstest::rstest]
@@ -28,14 +28,14 @@ fn name_section_conventions_accept_literal_or_configured_titles(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let processor = Processor::new(
+    let converter = Converter::new(
         Options::builder().embedded(embedded).build(),
         ParserOptions::builder().with_compatibility_mode(mode),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut output,
         None,
@@ -69,11 +69,11 @@ fn custom_name_title_does_not_disable_the_second_section_warning()
         "= names(1)\n:doctype: manpage\n:manname-title: NOMS\n\n== NAME\n\nnames - purpose\n\n== DESCRIPTION\n\nBody.\n",
         &ParserOptions::default(),
     )?;
-    let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+    let converter = Converter::new(Options::default(), ParserOptions::builder())?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut output,
         None,

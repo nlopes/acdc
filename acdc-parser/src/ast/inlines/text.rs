@@ -1,10 +1,11 @@
 use crate::{
-    LineBreak, Pass, PassthroughKind, Plain, Raw, StandaloneCurvedApostrophe, Substitution,
+    LineBreak, Passthrough, PassthroughKind, Plain, Raw, StandaloneCurvedApostrophe, Substitution,
     Verbatim, ast::TextPartRef,
 };
 
 use super::{
-    LineBreakRef, PassRef, PlainRef, RawRef, StandaloneCurvedApostropheRef, SymbolRef, VerbatimRef,
+    InlinePassthroughRef, LineBreakRef, PlainRef, RawRef, StandaloneCurvedApostropheRef, SymbolRef,
+    VerbatimRef,
 };
 
 impl<'doc> PlainRef<'doc> {
@@ -72,7 +73,7 @@ impl<'doc> VerbatimRef<'doc> {
     }
 }
 
-impl<'doc> PassRef<'doc> {
+impl<'doc> InlinePassthroughRef<'doc> {
     /// Unprocessed macro content, distinguishing absent from empty text.
     /// Document parsing lowers passthroughs into text or structured inlines;
     /// standalone inline parsing can retain a passthrough macro.
@@ -117,8 +118,8 @@ impl<'doc> From<&'doc Verbatim<'doc>> for VerbatimRef<'doc> {
     }
 }
 
-impl<'doc> From<&'doc Pass<'doc>> for PassRef<'doc> {
-    fn from(owner: &'doc Pass<'doc>) -> Self {
+impl<'doc> From<&'doc Passthrough<'doc>> for InlinePassthroughRef<'doc> {
+    fn from(owner: &'doc Passthrough<'doc>) -> Self {
         Self::new(owner)
     }
 }
@@ -212,8 +213,8 @@ impl<'doc> From<StandaloneCurvedApostropheRef<'doc>> for StandaloneCurvedApostro
 }
 
 /// Copy the selected passthrough, retaining its requested interpretation and source span.
-impl<'doc> From<PassRef<'doc>> for Pass<'doc> {
-    fn from(value: PassRef<'doc>) -> Self {
+impl<'doc> From<InlinePassthroughRef<'doc>> for Passthrough<'doc> {
+    fn from(value: InlinePassthroughRef<'doc>) -> Self {
         value.node.clone()
     }
 }

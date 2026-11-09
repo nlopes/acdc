@@ -19,7 +19,7 @@ use crossterm::{
     style::{Color, PrintStyledContent, SetBackgroundColor, SetForegroundColor, Stylize},
 };
 
-use crate::{Error, Processor};
+use crate::{Converter, Error};
 
 pub(crate) fn has_token(attributes: AttributesRef<'_>, name: &str, token: &str) -> bool {
     matches!(attributes.get(name), Some(AttributeValueRef::Tokens(tokens)) if tokens.iter().any(|value| value == token))
@@ -28,7 +28,7 @@ pub(crate) fn has_token(attributes: AttributesRef<'_>, name: &str, token: &str) 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
 pub(crate) struct TerminalVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
-    pub(crate) processor: &'d Processor<'a>,
+    pub(crate) converter: &'d Converter<'a>,
 
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,
@@ -62,7 +62,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             for footnote in footnotes {
                 self.writer.queue(PrintStyledContent(
                     format!("[{}]", footnote.number())
-                        .with(self.processor.appearance.colors.footnote)
+                        .with(self.converter.appearance.colors.footnote)
                         .bold(),
                 ))?;
                 write!(self.writer, " ")?;
@@ -76,12 +76,12 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
 
     pub(super) fn new(
         writer: W,
-        processor: &'d Processor<'a>,
+        converter: &'d Converter<'a>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         Self {
             writer,
-            processor,
+            converter,
 
             diagnostics,
             in_inline_span: false,
@@ -182,7 +182,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             return self.render_title_with_wrapper(traversal, title, "", suffix);
         }
         let caption = self
-            .processor
+            .converter
             .caption_prefix(attributes, fallback)
             .unwrap_or_default();
         self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)
@@ -254,12 +254,12 @@ impl<'a, W: Write> BlockVisitor<'a> for TerminalVisitor<'a, '_, W> {
         match block.kind() {
             BlockKind::Section(section) => {
                 let render_catalog = section.kind() == SectionKind::Index
-                    && self.processor.has_valid_index_section();
+                    && self.converter.has_valid_index_section();
                 self.render_section(traversal, section)?;
                 traversal.visit_blocks(self, section.blocks())?;
                 if render_catalog {
-                    let processor = self.processor;
-                    crate::index::render(self.writer_mut(), processor)?;
+                    let converter = self.converter;
+                    crate::index::render(self.writer_mut(), converter)?;
                 }
                 Ok(())
             }
@@ -272,17 +272,17 @@ impl<'a, W: Write> BlockVisitor<'a> for TerminalVisitor<'a, '_, W> {
             BlockKind::Image(node) => self.render_image(traversal, node),
             BlockKind::Audio(node) => self.render_audio(traversal, node),
             BlockKind::Video(node) => self.render_video(traversal, node),
-            BlockKind::DiscreteHeader(node) => self.render_discrete_header(node),
+            BlockKind::DiscreteHeading(node) => self.render_discrete_header(node),
             BlockKind::TableOfContents(node) => self.render_toc(traversal, Some(node), "macro"),
             BlockKind::ThematicBreak(_) => {
-                writeln!(self.writer, "{}", "─".repeat(self.processor.terminal_width))?;
+                writeln!(self.writer, "{}", "─".repeat(self.converter.terminal_width))?;
                 Ok(())
             }
             BlockKind::PageBreak(_) => {
                 writeln!(
                     self.writer,
                     "\n{}\n",
-                    "═".repeat(self.processor.terminal_width)
+                    "═".repeat(self.converter.terminal_width)
                 )?;
                 Ok(())
             }
@@ -313,7 +313,7 @@ impl<'a, W: Write> DocumentVisitor<'a> for TerminalVisitor<'a, '_, W> {
         header: HeaderRef<'a>,
     ) -> Result<(), Self::Error> {
         // In embedded mode, skip header output (title, authors, revision info)
-        if self.processor.options.embedded() {
+        if self.converter.options.embedded() {
             return Ok(());
         }
         self.render_header(traversal, header)
@@ -370,8 +370,8 @@ impl<'a, W: Write> acdc_converters_core::visitor::InlineVisitor<'a> for Terminal
                 | InlineKind::Highlight(_)
                 | InlineKind::Superscript(_)
                 | InlineKind::Subscript(_)
-                | InlineKind::CurvedQuotation(_)
-                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::DoubleQuotedSpan(_)
+                | InlineKind::SingleQuotedSpan(_)
         ) {
             self.in_inline_span = true;
         }

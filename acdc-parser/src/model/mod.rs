@@ -30,7 +30,7 @@ mod title;
 mod token_assignment;
 
 pub use admonition::{Admonition, AdmonitionForm, AdmonitionVariant};
-pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
+pub use anchor::{Anchor, ReferenceTarget, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub(crate) use attributes::{
     AttributeInlineFragment, AttributeInlineSource, AttributeTextFragment, DocumentAttributeStatus,
@@ -58,7 +58,7 @@ pub use metadata::{BlockMetadata, ElementId, InlineMetadata, ReservedAttribute, 
 pub use section::*;
 pub use substitution::*;
 pub use tables::{
-    ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, Table, TableColumn, TableFrame,
+    ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, Table, TableCell, TableFrame,
     TableGrid, TablePresentation, TableRow, TableStripes, VerticalAlignment,
 };
 pub use title::{Subtitle, Title};
@@ -93,7 +93,7 @@ pub struct Document<'a> {
     /// document title or label when a reference addresses the document top.
     /// Like `toc_entries` and
     /// `footnotes`, this is not serialized.
-    pub(crate) references: HashMap<&'a str, Reference<'a>>,
+    pub(crate) references: HashMap<&'a str, ReferenceTarget<'a>>,
     pub(crate) location: Location,
 }
 
@@ -167,7 +167,7 @@ impl<'a> Document<'a> {
     /// and source identity are preserved; catalog coherence is not checked.
     pub fn set_references(
         &mut self,
-        references: impl IntoIterator<Item = (&'a str, Reference<'a>)>,
+        references: impl IntoIterator<Item = (&'a str, ReferenceTarget<'a>)>,
     ) {
         self.references = references.into_iter().collect();
     }
@@ -175,7 +175,7 @@ impl<'a> Document<'a> {
     /// Remove reference snapshots without changing target elements.
     pub fn take_references(
         &mut self,
-    ) -> impl ExactSizeIterator<Item = (&'a str, Reference<'a>)> + use<'a> {
+    ) -> impl ExactSizeIterator<Item = (&'a str, ReferenceTarget<'a>)> + use<'a> {
         std::mem::take(&mut self.references).into_iter()
     }
 
@@ -247,7 +247,7 @@ impl<'a> Document<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Header<'a> {
-    #[serde(skip_serializing_if = "BlockMetadata::is_default")]
+    #[serde(skip_serializing_if = "BlockMetadata::is_empty_for_serialization")]
     pub(crate) metadata: BlockMetadata<'a>,
     #[serde(skip_serializing_if = "Title::is_empty")]
     pub(crate) title: Title<'a>,
@@ -537,7 +537,7 @@ pub enum Block<'a> {
     // The main one that would need changing is the Paragraph and the Delimited Example
     // blocks, where we currently use this but don't need to.
     Admonition(Admonition<'a>),
-    DiscreteHeader(DiscreteHeader<'a>),
+    DiscreteHeading(DiscreteHeading<'a>),
     DocumentAttribute(DocumentAttribute<'a>),
     ThematicBreak(ThematicBreak<'a>),
     PageBreak(PageBreak<'a>),
@@ -568,7 +568,7 @@ impl<'a> Block<'a> {
             Block::DelimitedBlock(d) => &d.location,
             Block::Admonition(a) => &a.location,
             Block::TableOfContents(t) => &t.location,
-            Block::DiscreteHeader(h) => &h.location,
+            Block::DiscreteHeading(h) => &h.location,
             Block::DocumentAttribute(a) => &a.location,
             Block::ThematicBreak(tb) => &tb.location,
             Block::PageBreak(pb) => &pb.location,
@@ -600,7 +600,7 @@ impl<'a> Block<'a> {
             Block::Section(block) => Some(&block.metadata),
             Block::DelimitedBlock(block) => Some(&block.metadata),
             Block::Admonition(block) => Some(&block.metadata),
-            Block::DiscreteHeader(block) => Some(&block.metadata),
+            Block::DiscreteHeading(block) => Some(&block.metadata),
             Block::PageBreak(block) => Some(&block.metadata),
             Block::Paragraph(block) => Some(&block.metadata),
             Block::Image(block) => Some(&block.metadata),
@@ -621,7 +621,7 @@ impl<'a> Block<'a> {
             Block::Section(block) => Some(&mut block.metadata),
             Block::DelimitedBlock(block) => Some(&mut block.metadata),
             Block::Admonition(block) => Some(&mut block.metadata),
-            Block::DiscreteHeader(block) => Some(&mut block.metadata),
+            Block::DiscreteHeading(block) => Some(&mut block.metadata),
             Block::PageBreak(block) => Some(&mut block.metadata),
             Block::Paragraph(block) => Some(&mut block.metadata),
             Block::Image(block) => Some(&mut block.metadata),
@@ -642,7 +642,7 @@ impl<'a> Block<'a> {
             Block::Section(b) => b.metadata.id_anchor(),
             Block::DelimitedBlock(b) => b.metadata.id_anchor(),
             Block::Admonition(b) => b.metadata.id_anchor(),
-            Block::DiscreteHeader(b) => b.metadata.id_anchor(),
+            Block::DiscreteHeading(b) => b.metadata.id_anchor(),
             Block::PageBreak(b) => b.metadata.id_anchor(),
             Block::Paragraph(b) => b.metadata.id_anchor(),
             Block::Image(b) => b.metadata.id_anchor(),
@@ -665,7 +665,7 @@ impl<'a> Block<'a> {
             Block::Section(b) => &b.title,
             Block::DelimitedBlock(b) => &b.title,
             Block::Admonition(b) => &b.title,
-            Block::DiscreteHeader(b) => &b.title,
+            Block::DiscreteHeading(b) => &b.title,
             Block::PageBreak(b) => &b.title,
             Block::Paragraph(b) => &b.title,
             Block::Image(b) => &b.title,
@@ -698,7 +698,7 @@ impl Block<'_> {
             Block::DelimitedBlock(d) => &mut d.location,
             Block::Admonition(a) => &mut a.location,
             Block::TableOfContents(t) => &mut t.location,
-            Block::DiscreteHeader(h) => &mut h.location,
+            Block::DiscreteHeading(h) => &mut h.location,
             Block::DocumentAttribute(a) => &mut a.location,
             Block::ThematicBreak(tb) => &mut tb.location,
             Block::PageBreak(pb) => &mut pb.location,
@@ -780,13 +780,13 @@ impl Serialize for DocumentAttribute<'_> {
     }
 }
 
-/// A `DiscreteHeader` represents a discrete header in a document.
+/// A heading outside the section hierarchy.
 ///
 /// Discrete headings are useful for making headings inside of other blocks, like a
 /// sidebar.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct DiscreteHeader<'a> {
+pub struct DiscreteHeading<'a> {
     pub(crate) metadata: BlockMetadata<'a>,
     pub(crate) title: Title<'a>,
     pub(crate) level: u8,
@@ -843,7 +843,7 @@ impl Serialize for PageBreak<'_> {
         if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -887,7 +887,7 @@ impl Serialize for TableOfContents<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "toc")?;
         state.serialize_entry("type", "block")?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -1377,7 +1377,7 @@ impl Serialize for DelimitedBlock<'_> {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "delimited")?;
         state.serialize_entry("delimiter", &self.delimiter)?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
 
@@ -1411,7 +1411,7 @@ impl Serialize for DelimitedBlock<'_> {
     }
 }
 
-impl Serialize for DiscreteHeader<'_> {
+impl Serialize for DiscreteHeading<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -1423,7 +1423,7 @@ impl Serialize for DiscreteHeader<'_> {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("level", &self.level)?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("location", &self.location)?;
@@ -1443,7 +1443,7 @@ impl Serialize for Paragraph<'_> {
             state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("inlines", &self.content)?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("location", &self.location)?;

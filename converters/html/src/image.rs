@@ -16,8 +16,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         img: ImageRef<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        if processor.variant() == HtmlVariant::Semantic {
+        let converter = self.converter.clone();
+        if converter.variant() == HtmlVariant::Semantic {
             return self.render_image_semantic(traversal, img);
         }
 

@@ -1,4 +1,4 @@
-use crate::{Anchor, Block, CalloutRef, Document, InlineNode, Location, Options, asg, parse};
+use crate::{Anchor, Block, CalloutMarker, Document, InlineNode, Location, Options, asg, parse};
 use serde_json::json;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
@@ -24,7 +24,7 @@ fn invalid_list_state_fails_before_schema_projection() -> Result<(), Error> {
             return Err("unexpected list type".into());
         }
         assert!(
-            matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items")
+            matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items")
         );
     }
     let parsed = parse("* Item", &Options::default())?;
@@ -37,7 +37,7 @@ fn invalid_list_state_fails_before_schema_projection() -> Result<(), Error> {
     };
     list.items.first_mut().ok_or("item")?.level = 4;
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, construct: Some("list item"), ..})
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, construct: Some("list item"), ..})
         if path == "/blocks/0/items/0/level")
     );
     Ok(())
@@ -65,7 +65,7 @@ fn checklist_and_nested_unsupported_content_report_their_own_paths() -> Result<(
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, construct: Some(actual), ..})
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, construct: Some(actual), ..})
             if path == expected && actual == owner),
             "{source}"
         );
@@ -78,11 +78,11 @@ fn checklist_and_nested_unsupported_content_report_their_own_paths() -> Result<(
     let Some(Block::UnorderedList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
-    list.items.first_mut().ok_or("item")?.principal = vec![InlineNode::CalloutRef(
-        CalloutRef::explicit(1, Location::default()),
+    list.items.first_mut().ok_or("item")?.principal = vec![InlineNode::CalloutMarker(
+        CalloutMarker::explicit(1, Location::default()),
     )];
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, construct: Some("callout"), ..})
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, construct: Some("callout"), ..})
         if path == "/blocks/0/items/0/principal/0")
     );
     Ok(())
@@ -91,7 +91,7 @@ fn checklist_and_nested_unsupported_content_report_their_own_paths() -> Result<(
 #[test]
 fn callout_markers_preserve_kind_and_resolved_number() -> Result<(), Error> {
     let parsed = parse("<.> First\n<5> Second\n<.> Third", &Options::default())?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(value.pointer("/blocks/0/marker"), Some(&json!("<.>")));
     assert_eq!(
         value.pointer("/blocks/0/items/0/marker"),
@@ -114,7 +114,7 @@ fn callout_markers_preserve_kind_and_resolved_number() -> Result<(), Error> {
     };
     list.items.first_mut().ok_or("item")?.callout.number = 42;
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items/0/callout/number")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items/0/callout/number")
     );
     Ok(())
 }
@@ -140,9 +140,9 @@ fn description_item_identities_are_preserved_or_explicitly_rejected() -> Result<
         .push(Anchor::new("term-id", Location::default()));
     term.anchors.push(Anchor::new("alias", Location::default()));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items/0/terms/0")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/items/0/terms/0")
     );
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/items/0/term_metadata/0/id"),
         Some(&json!("term-id"))
@@ -175,7 +175,7 @@ fn list_attachments_cannot_gain_sections() -> Result<(), Error> {
             Location::default(),
         )));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, construct: Some("section"), ..})
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, construct: Some("section"), ..})
         if path == "/blocks/0/items/0/blocks/0")
     );
     Ok(())

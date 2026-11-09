@@ -334,7 +334,7 @@ impl<'a> BlockMetadata<'a> {
         if self.style != Some("source") {
             for attribute in &positional_attributes {
                 if !attribute.value.is_empty() {
-                    self.attributes.insert(
+                    self.attributes.insert_if_absent(
                         std::borrow::Cow::Borrowed(attribute.value),
                         AttributeValue::None,
                     );
@@ -400,7 +400,7 @@ impl<'a> BlockMetadata<'a> {
     /// the serialized fields. Only authored caption content is serialized; generated
     /// caption labels and ordinals do not make metadata nonempty.
     #[must_use]
-    pub fn is_default(&self) -> bool {
+    pub fn is_empty_for_serialization(&self) -> bool {
         self.roles.is_absent()
             && self.options.is_absent()
             && self.style.is_none()
@@ -584,7 +584,7 @@ mod serialization_tests {
             value: "parser working slot",
             ..PositionalAttribute::default()
         });
-        assert!(metadata.is_default());
+        assert!(metadata.is_empty_for_serialization());
         assert_eq!(serde_json::to_value(metadata)?, serde_json::json!({}));
         Ok(())
     }

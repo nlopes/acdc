@@ -5,9 +5,9 @@ use std::{
 
 use acdc_pdf_theme::Theme;
 
-use crate::{Error, MAX_THEME_FILE_BYTES, Processor};
+use crate::{Converter, Error, MAX_THEME_FILE_BYTES};
 
-impl Processor<'_> {
+impl Converter<'_> {
     pub(super) fn validate_theme_config_paths(
         &self,
         source_file: Option<&Path>,

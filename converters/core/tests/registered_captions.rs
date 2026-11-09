@@ -135,7 +135,7 @@ fn empty_or_unnumbered_registered_captions_keep_title_fallback() -> Result<(), E
         reference.set_caption(caption);
         assert!(matches!(
             resolve_reference(
-                Some(acdc_parser::ast::ReferenceRef::from(&reference)),
+                Some(acdc_parser::ast::ReferenceTargetRef::from(&reference)),
                 &xref,
                 &guard
             ),

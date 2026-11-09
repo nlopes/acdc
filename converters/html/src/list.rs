@@ -72,7 +72,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let is_checklist = has_checklist_items(data.items());
         let is_bibliography = section_style == Some("bibliography");
 
-        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let semantic = self.converter.variant() == HtmlVariant::Semantic;
         let has_title = data.title().is_some();
 
         // Semantic mode: use <section> for titled, <div> otherwise
@@ -157,7 +157,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
         let (style, type_attr) = resolve_ordered_list_style(data.style(), depth);
 
-        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let semantic = self.converter.variant() == HtmlVariant::Semantic;
         let has_title = data.title().is_some();
 
         // Semantic mode: use <section> for titled, <div> otherwise
@@ -225,7 +225,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         list: CalloutListRef<'a>,
     ) -> Result<(), Error> {
         let data = list;
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             return visit_callout_list_semantic(traversal, list, self);
         }
 
@@ -392,7 +392,7 @@ fn render_nested_list_items<'a, W: Write>(
     depth: u8,
     interactive: bool,
 ) -> Result<(), Error> {
-    let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
+    let semantic = visitor.converter.variant() == HtmlVariant::Semantic;
     let wrap_li_in_p = !semantic;
     while let Some(item) = items.next_if(|item| item.level() >= expected_level) {
         render_list_item_content(traversal, item, visitor, interactive, semantic)?;
@@ -475,7 +475,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
         let data = list;
-        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let semantic = self.converter.variant() == HtmlVariant::Semantic;
 
         if semantic {
             return visit_description_list_semantic(traversal, list, self);

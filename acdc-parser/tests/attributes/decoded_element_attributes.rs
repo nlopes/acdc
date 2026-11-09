@@ -30,7 +30,7 @@ fn hyperlink_ids_and_reference_catalog_keep_the_same_literal_value(
     for node in paragraph.content().inlines() {
         if matches!(
             node.kind(),
-            InlineKind::Link(_) | InlineKind::Url(_) | InlineKind::Mailto(_)
+            InlineKind::Link(_) | InlineKind::UrlMacro(_) | InlineKind::Mailto(_)
         ) {
             let id = node.id().ok_or("ID")?.as_str();
             let reference = parsed

@@ -181,7 +181,7 @@ fn selected_includes_keep_cell_provenance(
     Ok(())
 }
 
-fn cell_table(cells: Vec<acdc_parser::TableColumn<'_>>) -> acdc_parser::Block<'_> {
+fn cell_table(cells: Vec<acdc_parser::TableCell<'_>>) -> acdc_parser::Block<'_> {
     use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Table, TableRow};
     Block::DelimitedBlock(DelimitedBlock::new(
         DelimitedBlockType::DelimitedTable(Table::new(
@@ -197,7 +197,7 @@ fn cell_table(cells: Vec<acdc_parser::TableColumn<'_>>) -> acdc_parser::Block<'_
 fn prepared_cell_repair_uses_local_catalogs_and_one_number_sequence(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{Document, TableColumn};
+    use acdc_parser::{Document, TableCell};
     let source = format!(
         "= Notes\n\n{}",
         table(&[
@@ -211,7 +211,7 @@ fn prepared_cell_repair_uses_local_catalogs_and_one_number_sequence(
     )?;
     let mut owners = cells(parsed.document())
         .into_iter()
-        .map(TableColumn::from)
+        .map(TableCell::from)
         .collect::<Vec<_>>();
     for cell in &mut owners {
         let remaining = cell.take_blocks().skip(1);
@@ -244,7 +244,7 @@ fn prepared_cell_repair_uses_local_catalogs_and_one_number_sequence(
 
 #[test]
 fn failed_cell_repair_cannot_borrow_a_sibling_definition() -> Result<(), Error> {
-    use acdc_parser::{Document, FootnoteRebuildError, TableColumn};
+    use acdc_parser::{Document, FootnoteRebuildError, TableCell};
     let source = format!(
         "= Notes\n\n{}",
         table(&[
@@ -255,7 +255,7 @@ fn failed_cell_repair_cannot_borrow_a_sibling_definition() -> Result<(), Error> 
     let parsed = parse(&source, &Options::default())?;
     let mut owners = cells(parsed.document())
         .into_iter()
-        .map(TableColumn::from)
+        .map(TableCell::from)
         .collect::<Vec<_>>();
     let second = owners.get_mut(1).ok_or("second")?;
     let remaining = second.take_blocks().skip(1);
@@ -277,7 +277,7 @@ fn failed_cell_repair_cannot_borrow_a_sibling_definition() -> Result<(), Error> 
 fn derived_reference_titles_keep_the_source_owners_number_binding(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{Document, TableColumn, ast::InlineKind};
+    use acdc_parser::{Document, TableCell, ast::InlineKind};
     let source = format!(
         "= Notes\n\nfootnote:same[Outer.]\n\n{}",
         table(&[
@@ -291,7 +291,7 @@ fn derived_reference_titles_keep_the_source_owners_number_binding(
     )?;
     let mut owners = cells(parsed.document())
         .into_iter()
-        .map(TableColumn::from)
+        .map(TableCell::from)
         .collect::<Vec<_>>();
     owners.reverse();
     let mut edited = Document::from(parsed.document());

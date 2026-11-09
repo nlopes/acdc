@@ -1,6 +1,6 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, Location, Options, Reference, Title, TocEntry,
-    ast::{ReferenceRef, TocEntryRef},
+    CompatibilityMode, ContentAttribute, Location, Options, ReferenceTarget, Title, TocEntry,
+    ast::{ReferenceTargetRef, TocEntryRef},
     parse, parse_file,
 };
 
@@ -11,17 +11,18 @@ fn canonical_target_is_independent_of_lookup_keys_and_retains_source_lifetime() 
 {
     let target = String::from("canonical");
     let previous = {
-        let mut reference = Reference::new(&target, Location::default());
+        let mut reference = ReferenceTarget::new(&target, Location::default());
         let map = std::collections::HashMap::from([("alias", reference.clone())]);
         let read = acdc_parser::ast::ReferencesRef::from(&map);
         assert_eq!(read.get("alias").ok_or("alias")?.target(), "canonical");
         assert!(!read.contains("canonical"));
         assert_eq!(
-            ReferenceRef::from(&reference).target().as_ptr(),
+            ReferenceTargetRef::from(&reference).target().as_ptr(),
             target.as_ptr()
         );
         assert_eq!(
-            ReferenceRef::from(&Reference::from(read.get("alias").ok_or("alias")?)).target(),
+            ReferenceTargetRef::from(&ReferenceTarget::from(read.get("alias").ok_or("alias")?))
+                .target(),
             "canonical"
         );
         reference.replace_target("replacement")
@@ -33,17 +34,20 @@ fn canonical_target_is_independent_of_lookup_keys_and_retains_source_lifetime() 
 
 #[test]
 fn reference_titles_have_one_presence_boundary() {
-    let mut reference = Reference::new("target", Location::default());
+    let mut reference = ReferenceTarget::new("target", Location::default());
     for legacy in [None, Some(Title::default()), Some(Title::new(Vec::new()))] {
         let present = legacy.is_some();
         let prepared = legacy.map(|title| ContentAttribute::new(title.into_inlines()));
         reference.set_title(prepared.clone());
-        assert_eq!(ReferenceRef::from(&reference).title().is_some(), present);
-        if let Some(content) = ReferenceRef::from(&reference).title() {
+        assert_eq!(
+            ReferenceTargetRef::from(&reference).title().is_some(),
+            present
+        );
+        if let Some(content) = ReferenceTargetRef::from(&reference).title() {
             assert!(content.is_empty());
         }
         assert_eq!(reference.take_title(), prepared);
-        assert!(ReferenceRef::from(&reference).title().is_none());
+        assert!(ReferenceTargetRef::from(&reference).title().is_none());
     }
 }
 
@@ -51,26 +55,26 @@ fn reference_titles_have_one_presence_boundary() {
 fn toc_matching_requires_target_present_title_and_heading_end() -> Result<(), Error> {
     let parsed = parse("== Heading\n", &Options::default())?;
     let entry = parsed.document().toc_entries().next().ok_or("entry")?;
-    let mut reference = Reference::from(
+    let mut reference = ReferenceTarget::from(
         parsed
             .document()
             .references()
             .get(entry.id())
             .ok_or("reference")?,
     );
-    assert!(ReferenceRef::from(&reference).matches_toc_entry(entry));
+    assert!(ReferenceTargetRef::from(&reference).matches_toc_entry(entry));
     reference.replace_target("another");
-    assert!(!ReferenceRef::from(&reference).matches_toc_entry(entry));
+    assert!(!ReferenceTargetRef::from(&reference).matches_toc_entry(entry));
     reference.replace_target(entry.id());
     reference.set_title(None);
-    assert!(!ReferenceRef::from(&reference).matches_toc_entry(entry));
+    assert!(!ReferenceTargetRef::from(&reference).matches_toc_entry(entry));
     reference.set_title(entry.title().map(ContentAttribute::from));
     reference.set_location(Location::default());
-    assert!(!ReferenceRef::from(&reference).matches_toc_entry(entry));
+    assert!(!ReferenceTargetRef::from(&reference).matches_toc_entry(entry));
     let absent = TocEntry::new("target", Title::default(), 1, Location::default());
-    let mut empty = Reference::new("target", Location::default());
+    let mut empty = ReferenceTarget::new("target", Location::default());
     empty.set_title(Some(ContentAttribute::default()));
-    assert!(!ReferenceRef::from(&empty).matches_toc_entry(TocEntryRef::from(&absent)));
+    assert!(!ReferenceTargetRef::from(&empty).matches_toc_entry(TocEntryRef::from(&absent)));
     Ok(())
 }
 
@@ -116,13 +120,15 @@ fn parsed_targets_and_selected_include_snapshots_keep_their_identity() -> Result
 fn checked_asg_export_rejects_a_reference_with_a_different_canonical_target() -> Result<(), Error> {
     let parsed = parse("[#target]\nA paragraph.\n", &Options::default())?;
     let mut document = acdc_parser::Document::from(parsed.document());
-    acdc_parser::asg::document(acdc_parser::ast::DocumentRef::from(&document))?;
+    acdc_parser::asg::export_document(acdc_parser::ast::DocumentRef::from(&document))?;
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
     references
         .get_mut("target")
         .ok_or("target")?
         .replace_target("other");
     document.set_references(references);
-    assert!(acdc_parser::asg::document(acdc_parser::ast::DocumentRef::from(&document)).is_err());
+    assert!(
+        acdc_parser::asg::export_document(acdc_parser::ast::DocumentRef::from(&document)).is_err()
+    );
     Ok(())
 }

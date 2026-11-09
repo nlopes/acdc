@@ -29,7 +29,7 @@ where
     ) -> Result<(), E> {
         if matches!(
             block.kind(),
-            BlockKind::Section(_) | BlockKind::DiscreteHeader(_)
+            BlockKind::Section(_) | BlockKind::DiscreteHeading(_)
         ) && traversal.contains_key("sectids")
             && block.primary_anchor().is_none()
             && let Some(title) = block.title()

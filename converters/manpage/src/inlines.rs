@@ -14,7 +14,7 @@ use acdc_parser::{
     Substitution, SymbolKind,
     ast::{
         AttributeValueRef, AutolinkRef, ContentRef, CrossReferenceRef, IconRef, InlineKind,
-        InlineRef, LinkRef, MailtoRef, RawRef, ReferenceRef, TokensRef, UrlRef,
+        InlineRef, LinkRef, MailtoRef, RawRef, ReferenceTargetRef, TokensRef, UrlMacroRef,
     },
 };
 
@@ -167,7 +167,7 @@ fn is_empty_formatting(node: InlineRef<'_>) -> bool {
 pub(crate) fn contains_link(node: InlineRef<'_>) -> bool {
     let content = match node.kind() {
         InlineKind::Link(_)
-        | InlineKind::Url(_)
+        | InlineKind::UrlMacro(_)
         | InlineKind::Mailto(_)
         | InlineKind::Autolink(_)
         | InlineKind::CrossReference(_) => return true,
@@ -178,8 +178,8 @@ pub(crate) fn contains_link(node: InlineRef<'_>) -> bool {
         InlineKind::Highlight(node) => node.content(),
         InlineKind::Subscript(node) => node.content(),
         InlineKind::Superscript(node) => node.content(),
-        InlineKind::CurvedQuotation(node) => node.content(),
-        InlineKind::CurvedApostrophe(node) => node.content(),
+        InlineKind::DoubleQuotedSpan(node) => node.content(),
+        InlineKind::SingleQuotedSpan(node) => node.content(),
         InlineKind::IndexTerm(term) if term.is_visible() => term.term(),
         InlineKind::Plain(_)
         | InlineKind::Raw(_)
@@ -192,10 +192,10 @@ pub(crate) fn contains_link(node: InlineRef<'_>) -> bool {
         | InlineKind::Callout(_)
         | InlineKind::Footnote(_)
         | InlineKind::Icon(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
-        | InlineKind::Pass(_)
+        | InlineKind::MenuPath(_)
+        | InlineKind::Passthrough(_)
         | InlineKind::Stem(_)
         | InlineKind::IndexTerm(_)
         | _ => return false,
@@ -286,7 +286,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         split: bool,
         content: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if has_degraded_role(role) && !self.processor.inline_role_warning.replace(true) {
+        if has_degraded_role(role) && !self.converter.inline_role_warning.replace(true) {
             self.diagnostics.warn_with_advice(
                 "some inline roles have no exact portable roff styling; rendering textual or plain fallbacks",
                 "Use an HTML-capable backend when exact role styling is required.",
@@ -477,9 +477,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             if !sup.content().inlines().all(is_empty_formatting) {
                 self.render_formatted_inlines(traversal, sup.content(), "^(", ")")?;
             }
-        } else if let InlineKind::CurvedQuotation(quoted) = node.kind() {
+        } else if let InlineKind::DoubleQuotedSpan(quoted) = node.kind() {
             self.render_formatted_inlines(traversal, quoted.content(), "\\(lq", "\\(rq")?;
-        } else if let InlineKind::CurvedApostrophe(quoted) = node.kind() {
+        } else if let InlineKind::SingleQuotedSpan(quoted) = node.kind() {
             self.render_formatted_inlines(traversal, quoted.content(), "\\(oq", "\\(cq")?;
         } else {
             self.warn_unsupported_parser_variant("formatting span");
@@ -541,9 +541,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             | InlineKind::Highlight(_)
             | InlineKind::Subscript(_)
             | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_) => self.render_formatting_span(traversal, node)?,
-            InlineKind::Url(url) => self.render_url(traversal, url)?,
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_) => self.render_formatting_span(traversal, node)?,
+            InlineKind::UrlMacro(url) => self.render_url(traversal, url)?,
             InlineKind::Link(link) => self.render_link(traversal, link)?,
             InlineKind::Mailto(mailto) => self.render_mailto(traversal, mailto)?,
             InlineKind::Autolink(autolink) => self.render_autolink(autolink)?,
@@ -554,7 +554,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 self.render_inline_image(traversal, img)?;
             }
 
-            InlineKind::Keyboard(kbd) => {
+            InlineKind::KeyboardShortcut(kbd) => {
                 for (index, key) in kbd.keys().enumerate() {
                     if index > 0 {
                         write!(self.writer_mut(), "+")?;
@@ -567,7 +567,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 self.render_font_inlines(traversal, btn.label(), "\\fB")?;
                 write!(self.writer_mut(), "]")?;
             }
-            InlineKind::Menu(menu) => {
+            InlineKind::MenuPath(menu) => {
                 self.render_font_inlines(traversal, menu.target(), "\\fB")?;
                 for item in menu.items() {
                     write!(self.writer_mut(), " \\(ra ")?;
@@ -575,7 +575,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 }
             }
 
-            InlineKind::Pass(pass) => {
+            InlineKind::Passthrough(pass) => {
                 // Passthrough content is backend-native and intentionally bypasses escaping.
                 if let Some(text) = pass.text() {
                     let w = self.writer_mut();
@@ -601,7 +601,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_url(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        url: UrlRef<'_>,
+        url: UrlMacroRef<'_>,
     ) -> Result<(), Error> {
         let target = url.target().to_string();
         let role = role_from_tokens(url.roles());
@@ -715,13 +715,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
 
         // Clone the handles so the borrowed reference text and the resolution
         // guard both outlive the `&mut self` render calls.
-        let references = Rc::clone(&self.processor.references);
-        let guard = self.processor.xref_guard.clone();
+        let references = Rc::clone(&self.converter.references);
+        let guard = self.converter.xref_guard.clone();
         let target = local_reference_id(xref);
         // Manpages print reference text without a link. Asciidoctor uses a
         // matching local label even when the syntax selects another document.
         match resolve_local_reference(
-            references.get(target.as_ref()).map(ReferenceRef::from),
+            references
+                .get(target.as_ref())
+                .map(ReferenceTargetRef::from),
             xref,
             &guard,
         ) {
@@ -730,7 +732,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             // written.
             XrefDisplay::Title(inlines, _scope) => {
                 let text_case = if self
-                    .processor
+                    .converter
                     .top_level_section_ids
                     .contains(target.as_ref())
                 {

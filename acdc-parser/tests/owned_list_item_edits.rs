@@ -239,7 +239,7 @@ item_contract!(
     CalloutList,
     "----\nCode <.>\n----\n\n<.> First *explanation* footnote:[Note].\n+\nAttached paragraph.\n",
     acdc_parser::CalloutListItem::new(
-        acdc_parser::CalloutRef::auto(1, acdc_parser::Location::default()),
+        acdc_parser::CalloutMarker::auto(1, acdc_parser::Location::default()),
         Vec::new(),
         acdc_parser::Location::default()
     )
@@ -274,21 +274,21 @@ fn ordinary_item_scalars_and_checklist_presence_are_independent() {
 #[test]
 fn callout_replacement_keeps_the_supplied_kind_number_and_span() {
     use acdc_parser::{
-        CalloutListItem, CalloutRef, CalloutRefKind, Location, ast::CalloutListItemRef,
+        CalloutListItem, CalloutMarker, CalloutMarkerKind, Location, ast::CalloutListItemRef,
     };
     let mut item = CalloutListItem::new(
-        CalloutRef::auto(3, Location::default()),
+        CalloutMarker::auto(3, Location::default()),
         Vec::new(),
         Location::default(),
     );
-    let old = item.replace_callout(CalloutRef::explicit(7, Location::default()));
+    let old = item.replace_callout(CalloutMarker::explicit(7, Location::default()));
     assert_eq!(
-        acdc_parser::ast::CalloutRef::from(&old).kind(),
-        CalloutRefKind::Auto
+        acdc_parser::ast::CalloutMarkerRef::from(&old).kind(),
+        CalloutMarkerKind::Auto
     );
-    assert_eq!(acdc_parser::ast::CalloutRef::from(&old).number(), 3);
+    assert_eq!(acdc_parser::ast::CalloutMarkerRef::from(&old).number(), 3);
     let read = CalloutListItemRef::from(&item).callout();
-    assert_eq!(read.kind(), CalloutRefKind::Explicit);
+    assert_eq!(read.kind(), CalloutMarkerKind::Explicit);
     assert_eq!(read.number(), 7);
     assert_eq!(Location::from(read.location()), Location::default());
 }

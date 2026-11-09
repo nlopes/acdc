@@ -156,7 +156,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     fn warn_static_media_fallback(&mut self) {
-        if !self.processor.static_media_warning.replace(true) {
+        if !self.converter.static_media_warning.replace(true) {
             self.diagnostics.warn_with_advice(
                 "audio and video playback are not available in manpage output; rendering static links",
                 "Use an HTML-capable backend when embedded playback controls are required.",

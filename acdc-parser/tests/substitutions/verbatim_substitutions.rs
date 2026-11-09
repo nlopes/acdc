@@ -52,7 +52,7 @@ fn quotes_disabled_preserves_formatting_escapes_and_source_spans() -> Result<(),
                 .collect::<Vec<_>>()
             {
                 [InlineKind::Link(link)] => link.text(),
-                [InlineKind::Url(url)] => url.text(),
+                [InlineKind::UrlMacro(url)] => url.text(),
                 _ => paragraph.content(),
             };
             let mut actual = String::new();

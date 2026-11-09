@@ -74,7 +74,7 @@ impl<'doc> BlockVisitor<'doc> for ResourceVisitor<'_, '_, '_> {
             block.kind(),
             BlockKind::Paragraph(_)
                 | BlockKind::Section(_)
-                | BlockKind::DiscreteHeader(_)
+                | BlockKind::DiscreteHeading(_)
                 | BlockKind::OrderedList(_)
                 | BlockKind::UnorderedList(_)
         );

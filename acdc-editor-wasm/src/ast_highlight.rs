@@ -5,7 +5,7 @@
 //! containers are still visited so their entry-file children can be highlighted.
 
 use acdc_parser::{
-    AdmonitionVariant, Form,
+    AdmonitionVariant, FormattingForm,
     ast::{
         AttributesRef, BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, InlineRef,
         ListItemRef, LocationRef, SectionRef, StructuralRef,
@@ -138,7 +138,7 @@ fn collect_block_spans(input: &str, block: BlockRef<'_>, spans: &mut Vec<Span>) 
         BlockKind::Image(_) | BlockKind::Audio(_) | BlockKind::Video(_) => {
             collect_block_macro_spans(input, block.location(), spans);
         }
-        BlockKind::DiscreteHeader(heading) => {
+        BlockKind::DiscreteHeading(heading) => {
             push_block_span(input, spans, heading.location(), "adoc-heading");
             if let Some(title) = heading.title() {
                 collect_inline_spans(input, title, spans);
@@ -405,7 +405,7 @@ fn collect_delimited_block_spans(input: &str, block: BlockRef<'_>, spans: &mut V
         }
         BlockKind::TableOfContents(_)
         | BlockKind::Admonition(_)
-        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DiscreteHeading(_)
         | BlockKind::DocumentAttribute(_)
         | BlockKind::ThematicBreak(_)
         | BlockKind::PageBreak(_)
@@ -482,7 +482,7 @@ fn collect_delimiter_lines(input: &str, kind: BlockKind<'_>, spans: &mut Vec<Spa
         ),
         BlockKind::TableOfContents(_)
         | BlockKind::Admonition(_)
-        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DiscreteHeading(_)
         | BlockKind::DocumentAttribute(_)
         | BlockKind::ThematicBreak(_)
         | BlockKind::PageBreak(_)
@@ -700,10 +700,10 @@ fn collect_block_title_spans(input: &str, title: Option<ContentRef<'_>>, spans: 
     collect_inline_spans(input, title, spans);
 }
 
-fn delimiter_len(form: &Form) -> usize {
+fn delimiter_len(form: &FormattingForm) -> usize {
     match form {
-        Form::Constrained => 1,
-        Form::Unconstrained => 2,
+        FormattingForm::Constrained => 1,
+        FormattingForm::Unconstrained => 2,
     }
 }
 
@@ -769,7 +769,7 @@ fn collect_single_inline_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<
             span.content(),
             spans,
         ),
-        InlineKind::CurvedQuotation(span) => collect_formatted_inline(
+        InlineKind::DoubleQuotedSpan(span) => collect_formatted_inline(
             input,
             span.location(),
             2,
@@ -784,21 +784,21 @@ fn collect_single_inline_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<
         | InlineKind::CharacterReference(_)
         | InlineKind::Raw(_)
         | InlineKind::Verbatim(_)
-        | InlineKind::CurvedApostrophe(_)
+        | InlineKind::SingleQuotedSpan(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Footnote(_)
         | InlineKind::Icon(_)
         | InlineKind::Image(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
-        | InlineKind::Url(_)
+        | InlineKind::MenuPath(_)
+        | InlineKind::UrlMacro(_)
         | InlineKind::Link(_)
         | InlineKind::Mailto(_)
         | InlineKind::Autolink(_)
         | InlineKind::CrossReference(_)
-        | InlineKind::Pass(_)
+        | InlineKind::Passthrough(_)
         | InlineKind::Stem(_)
         | InlineKind::IndexTerm(_)
         | _ => collect_macro_span(input, node, spans),
@@ -807,19 +807,19 @@ fn collect_single_inline_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<
 
 fn collect_macro_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<Span>) {
     let (class, granular) = match node.kind() {
-        InlineKind::Url(_) | InlineKind::Mailto(_) | InlineKind::Autolink(_) => {
+        InlineKind::UrlMacro(_) | InlineKind::Mailto(_) | InlineKind::Autolink(_) => {
             ("adoc-link", false)
         }
         InlineKind::Link(_) => ("adoc-link", true),
         InlineKind::CrossReference(_) => ("adoc-xref", true),
         InlineKind::IndexTerm(_) => ("adoc-index-term", false),
-        InlineKind::Pass(_) => ("adoc-passthrough-inline", true),
+        InlineKind::Passthrough(_) => ("adoc-passthrough-inline", true),
         InlineKind::Footnote(_) => ("adoc-footnote", true),
         InlineKind::Icon(_)
         | InlineKind::Image(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
+        | InlineKind::MenuPath(_)
         | InlineKind::Stem(_) => ("adoc-inline-macro", true),
         InlineKind::Plain(_)
         | InlineKind::Symbol(_)
@@ -832,8 +832,8 @@ fn collect_macro_span(input: &str, node: InlineRef<'_>, spans: &mut Vec<Span>) {
         | InlineKind::Highlight(_)
         | InlineKind::Subscript(_)
         | InlineKind::Superscript(_)
-        | InlineKind::CurvedQuotation(_)
-        | InlineKind::CurvedApostrophe(_)
+        | InlineKind::DoubleQuotedSpan(_)
+        | InlineKind::SingleQuotedSpan(_)
         | InlineKind::StandaloneCurvedApostrophe(_)
         | InlineKind::LineBreak(_)
         | InlineKind::Anchor(_)

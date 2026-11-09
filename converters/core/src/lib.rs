@@ -410,17 +410,17 @@ pub trait PrettyDuration {
     /// - Automatically selects appropriate unit (ns, µs, ms, s)
     /// - Rounds to 2 decimal places
     /// - Strips trailing zeros
-    fn pretty_print(&self) -> String;
+    fn format_human(&self) -> String;
 
     /// Returns a detailed timing string with specified precision.
     ///
     /// # Arguments
     /// * `precision` - Number of decimal places (0-9)
-    fn pretty_print_precise(&self, precision: u8) -> String;
+    fn format_human_with_precision(&self, precision: u8) -> String;
 }
 
 impl PrettyDuration for std::time::Duration {
-    fn pretty_print(&self) -> String {
+    fn format_human(&self) -> String {
         let nanos = self.as_nanos();
 
         match nanos {
@@ -436,7 +436,7 @@ impl PrettyDuration for std::time::Duration {
         .to_string()
     }
 
-    fn pretty_print_precise(&self, precision: u8) -> String {
+    fn format_human_with_precision(&self, precision: u8) -> String {
         let precision = precision.min(9);
         let nanos = self.as_nanos();
         let precision = usize::from(precision);
@@ -696,12 +696,12 @@ pub trait Converter<'a>: Sized {
         if let Some(start) = start {
             let elapsed = start.elapsed();
             tracing::debug!(
-                time = elapsed.pretty_print_precise(3),
+                time = elapsed.format_human_with_precision(3),
                 source = ?source_file,
                 destination = ?output_path,
                 "time to convert document"
             );
-            println!("  Time to convert document: {}", elapsed.pretty_print());
+            println!("  Time to convert document: {}", elapsed.format_human());
         }
 
         println!("Generated {} file: {}", self.name(), output_path.display());

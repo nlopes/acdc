@@ -45,7 +45,7 @@ fn collect_ranges(node: StructuralRef<'_>, source: &LineIndex<'_>, ranges: &mut 
                     (FoldingRangeKind::Comment, false)
                 }
                 BlockKind::TableOfContents(_)
-                | BlockKind::DiscreteHeader(_)
+                | BlockKind::DiscreteHeading(_)
                 | BlockKind::DocumentAttribute(_)
                 | BlockKind::ThematicBreak(_)
                 | BlockKind::PageBreak(_)

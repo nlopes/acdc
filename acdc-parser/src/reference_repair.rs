@@ -5,13 +5,13 @@ use std::{
 
 use crate::{
     Anchor, Block, BlockMetadata, Caption, ContentAttribute, CrossReference, Document, Header,
-    Location, Reference, ReferenceRepairError, Section, Title, TocEntry,
+    Location, ReferenceRepairError, ReferenceTarget, Section, Title, TocEntry,
     grammar::reference_walk::{self, ReferenceVisitor},
     model::{DocumentReferenceLabel, SectionOccurrence, displayed_reference_label},
 };
 
 struct RebuiltReferences<'a> {
-    entries: HashMap<&'a str, Reference<'a>>,
+    entries: HashMap<&'a str, ReferenceTarget<'a>>,
     toc: Vec<TocEntry<'a>>,
     occurrences: Occurrences,
     automatic: Vec<&'a str>,
@@ -49,7 +49,7 @@ impl<'a> ReferenceVisitor<'a> for RebuiltReferences<'a> {
                 .heading_location
                 .absolute_end
                 .max(location.absolute_start);
-            let mut reference = Reference::new(id, location);
+            let mut reference = ReferenceTarget::new(id, location);
             reference.occurrence = Some(occurrence.clone());
             reference.title = Some(ContentAttribute::new(section.title.clone().into_inlines()));
             reference.xreflabel = displayed_reference_label(label);
@@ -80,14 +80,14 @@ impl<'a> ReferenceVisitor<'a> for RebuiltReferences<'a> {
     ) -> Result<(), Self::Error> {
         self.entries
             .entry(anchor.id)
-            .or_insert_with(|| Reference::for_anchor(anchor, label, title, caption));
+            .or_insert_with(|| ReferenceTarget::for_anchor(anchor, label, title, caption));
         Ok(())
     }
 
     fn untitled(&mut self, id: &'a str, location: &Location) -> Result<(), Self::Error> {
         self.entries
             .entry(id)
-            .or_insert_with(|| Reference::new(id, location.clone()));
+            .or_insert_with(|| ReferenceTarget::new(id, location.clone()));
         Ok(())
     }
 
@@ -138,7 +138,9 @@ impl<'a> ReferenceVisitor<'a> for AssignSections {
     }
 }
 
-fn document_reference<'a>(document: &Document<'a>) -> Result<Reference<'a>, ReferenceRepairError> {
+fn document_reference<'a>(
+    document: &Document<'a>,
+) -> Result<ReferenceTarget<'a>, ReferenceRepairError> {
     let previous = document.references.get("").or_else(|| {
         document
             .references
@@ -171,7 +173,7 @@ fn document_reference<'a>(document: &Document<'a>) -> Result<Reference<'a>, Refe
         || document.location.clone(),
         |header| header.location.clone(),
     );
-    let mut reference = Reference::new("", location);
+    let mut reference = ReferenceTarget::new("", location);
     reference.title = title.map(|title| ContentAttribute::new(title.into_inlines()));
     reference.document_label = Some(origin.unwrap_or(DocumentReferenceLabel::Header));
     reference.xreflabel = if origin == Some(DocumentReferenceLabel::Attribute) {

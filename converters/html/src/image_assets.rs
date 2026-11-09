@@ -45,7 +45,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         let target = acdc_converters_core::media::resolve_target(&source.to_string(), traversal);
         let svg = attributes.get("format").and_then(AttributeValueRef::as_str) == Some("svg")
             || target.contains(".svg");
-        let embedding_allowed = self.processor.options.safe_mode() < SafeMode::Secure;
+        let embedding_allowed = self.converter.options.safe_mode() < SafeMode::Secure;
         if svg && embedding_allowed && options.contains("inline") {
             let result = self
                 .read_image(&target, traversal)
@@ -69,7 +69,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
         let mut attrs = Vec::new();
         write_dimension_attributes(&mut attrs, attributes)?;
         write!(attrs, "{}", crate::inlines::tooltip_attribute(tooltip))?;
-        if self.processor.variant() == HtmlVariant::Semantic
+        if self.converter.variant() == HtmlVariant::Semantic
             && let Some(loading) = attributes
                 .get("loading")
                 .and_then(AttributeValueRef::as_str)
@@ -106,7 +106,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
 
     pub(crate) fn image_uri(&mut self, target: &str, traversal: &TraversalContext<'_>) -> String {
         let remote = target.starts_with("https://") || target.starts_with("http://");
-        if self.processor.options.safe_mode() >= SafeMode::Secure
+        if self.converter.options.safe_mode() >= SafeMode::Secure
             || traversal.get("data-uri").is_none()
             || target.starts_with("data:")
             || (remote && traversal.get("allow-uri-read").is_none())
@@ -167,7 +167,7 @@ impl<'a, W: std::io::Write> HtmlVisitor<'a, '_, W> {
             base.join(decoded.as_ref())
         };
         let path = path.canonicalize().map_err(|error| error.to_string())?;
-        if self.processor.options.safe_mode() >= SafeMode::Safe {
+        if self.converter.options.safe_mode() >= SafeMode::Safe {
             let base = base.canonicalize().map_err(|error| error.to_string())?;
             if !path.starts_with(base) {
                 return Err("image is outside the source document directory".into());

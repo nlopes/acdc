@@ -38,7 +38,7 @@ fn unsupported_substitutions_preserve_source_and_report_recovery(
         assert!(warning.source_location().is_some());
     }
     assert!(parsed.source_recovery().is_some());
-    assert_eq!(parsed.source(), source.trim_end());
+    assert_eq!(parsed.preprocessed_source(), source.trim_end());
     assert_eq!(parsed.document().footnotes().count(), 0);
     let [
         BlockKind::Paragraph(first),

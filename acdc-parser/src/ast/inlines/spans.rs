@@ -1,10 +1,10 @@
 use crate::{
-    Form,
+    FormattingForm,
     ast::{AttributesRef, ContentRef, ElementIdRef, TokensRef},
 };
 
 use super::{
-    BoldRef, CurvedApostropheRef, CurvedQuotationRef, HighlightRef, ItalicRef, MonospaceRef,
+    BoldRef, DoubleQuotedSpanRef, HighlightRef, ItalicRef, MonospaceRef, SingleQuotedSpanRef,
     SubscriptRef, SuperscriptRef,
 };
 
@@ -19,7 +19,7 @@ macro_rules! span_reads {
 
             /// Whether the source used constrained or unconstrained formatting.
             #[must_use]
-            pub fn form(self) -> Form {
+            pub fn form(self) -> FormattingForm {
                 self.node.form.clone()
             }
 
@@ -70,8 +70,8 @@ span_reads!(MonospaceRef, Monospace, monospace);
 span_reads!(HighlightRef, Highlight, highlight);
 span_reads!(SubscriptRef, Subscript, subscript);
 span_reads!(SuperscriptRef, Superscript, superscript);
-span_reads!(CurvedQuotationRef, CurvedQuotation, curved_quotation);
-span_reads!(CurvedApostropheRef, CurvedApostrophe, curved_apostrophe);
+span_reads!(DoubleQuotedSpanRef, DoubleQuotedSpan, curved_quotation);
+span_reads!(SingleQuotedSpanRef, SingleQuotedSpan, curved_apostrophe);
 
 impl HighlightRef<'_> {
     /// Whether this is an unadorned mark rather than an attributed generic span.

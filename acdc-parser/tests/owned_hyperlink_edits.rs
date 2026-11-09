@@ -4,10 +4,10 @@ use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
     AttributeValue, Autolink, ContentAttribute, ElementAttributes, ElementId, InlineMacro,
-    InlineMetadata, InlineNode, Link, Location, Mailto, Options, Plain, Position, Source, Url,
+    InlineMetadata, InlineNode, Link, Location, Mailto, Options, Plain, Position, Source, UrlMacro,
     ast::{
         AttributeValueRef, AutolinkRef, BlockKind, ContentRef, InlineKind, LinkRef, MailtoRef,
-        SourceKind, UrlRef,
+        SourceKind, UrlMacroRef,
     },
     parse,
 };
@@ -21,7 +21,7 @@ type Error = Box<dyn std::error::Error>;
 macro_rules! all_links {
     ($check:ident) => {
         $check!(Link, LinkRef, Link);
-        $check!(Url, UrlRef, Url);
+        $check!(UrlMacro, UrlMacroRef, UrlMacro);
         $check!(Mailto, MailtoRef, Mailto);
     };
 }
@@ -350,20 +350,20 @@ fn selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots(
                         !link.hides_uri_scheme()
                     );
                     check!(Link, LinkRef, Link, link);
-                } else if let InlineKind::Url(url) = inline.kind() {
-                    let mut copy = Url::from(url);
+                } else if let InlineKind::UrlMacro(url) = inline.kind() {
+                    let mut copy = UrlMacro::from(url);
                     flags.push(url.hides_uri_scheme());
                     copy.replace_target(Source::Name("new"));
                     assert_eq!(
-                        UrlRef::from(&copy).hides_uri_scheme(),
+                        UrlMacroRef::from(&copy).hides_uri_scheme(),
                         url.hides_uri_scheme()
                     );
                     copy.set_hide_uri_scheme(!url.hides_uri_scheme());
                     assert_eq!(
-                        UrlRef::from(&copy).hides_uri_scheme(),
+                        UrlMacroRef::from(&copy).hides_uri_scheme(),
                         !url.hides_uri_scheme()
                     );
-                    check!(Url, UrlRef, Url, url);
+                    check!(UrlMacro, UrlMacroRef, UrlMacro, url);
                 } else if let InlineKind::Mailto(mail) = inline.kind() {
                     check!(Mailto, MailtoRef, Mailto, mail);
                 } else if let InlineKind::Autolink(link) = inline.kind() {
@@ -385,7 +385,7 @@ fn selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots(
     assert_eq!(
         kinds,
         [
-            "Link", "Url", "Mailto", "Autolink", "Link", "Url", "Autolink"
+            "Link", "UrlMacro", "Mailto", "Autolink", "Link", "UrlMacro", "Autolink"
         ]
     );
     assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -395,13 +395,13 @@ fn selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots(
 #[test]
 fn selected_empty_named_hyperlink_copies_allocate_nothing() {
     let link = Link::new(Source::Name("link"), Location::default());
-    let url = Url::new(Source::Name("url"), Location::default());
+    let url = UrlMacro::new(Source::Name("url"), Location::default());
     let mail = Mailto::new(Source::Name("mail"), Location::default());
     let auto = Autolink::new(Source::Name("auto"), Location::default());
     let region = Region::new(ALLOCATOR);
     let copies = black_box((
         Link::from(LinkRef::from(&link)),
-        Url::from(UrlRef::from(&url)),
+        UrlMacro::from(UrlMacroRef::from(&url)),
         Mailto::from(MailtoRef::from(&mail)),
         Autolink::from(AutolinkRef::from(&auto)),
     ));

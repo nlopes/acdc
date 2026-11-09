@@ -42,7 +42,7 @@ fn each_list_family_preserves_its_items_and_markers() -> Result<(), Error> {
         ] {
             let parsed = parse(source, &options)?;
             let before = serde_json::to_value(parsed.document())?;
-            let value = asg::document(parsed.document())?;
+            let value = asg::export_document(parsed.document())?;
             assert_eq!(
                 value.pointer("/blocks/0/name"),
                 Some(&json!(name)),
@@ -115,7 +115,7 @@ fn list_topology_and_attached_blocks_are_preserved() -> Result<(), Error> {
         ),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::export_document(parsed.document())?;
         assert_eq!(value.pointer(pointer), Some(&json!(expected)), "{source}");
     }
     Ok(())
@@ -127,7 +127,7 @@ fn list_metadata_and_formatted_description_terms_keep_their_meaning() -> Result<
         "[#tasks,reftext='Task *list*']\n.Tasks\n[.compact]\n* First",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(value.pointer("/blocks/0/id"), Some(&json!("tasks")));
     assert_eq!(
         value.pointer("/blocks/0/title/0/value"),
@@ -142,7 +142,7 @@ fn list_metadata_and_formatted_description_terms_keep_their_meaning() -> Result<
         Some(&json!(["compact"]))
     );
     let parsed = parse("*Term*:: Definition", &Options::default())?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(
         value.pointer("/blocks/0/items/0/terms/0/0/variant"),
         Some(&json!("strong"))

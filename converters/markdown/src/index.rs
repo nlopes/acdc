@@ -5,9 +5,9 @@ use std::{
     io::Write,
 };
 
-use acdc_converters_core::{Converter, document_attribute_text};
+use acdc_converters_core::{Converter as _, document_attribute_text};
 
-use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
+use crate::{Converter, Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel};
 
 #[derive(Clone, Debug)]
 struct Occurrence {
@@ -248,18 +248,18 @@ fn render_entries<W: Write + ?Sized>(
 
 pub(crate) fn render(
     writer: &mut dyn Write,
-    processor: &Processor<'_>,
+    converter: &Converter<'_>,
     heading_level: usize,
 ) -> Result<(), Error> {
-    let entries = processor.index_entries().borrow();
+    let entries = converter.index_entries().borrow();
     if entries.is_empty() {
         return Ok(());
     }
 
-    let fallback = document_attribute_text((processor.document_attributes()).get("doctitle"))
+    let fallback = document_attribute_text((converter.document_attributes()).get("doctitle"))
         .map_or_else(|| "top".to_owned(), str::to_owned);
-    let catalog = processor.index_catalog_counter.get() + 1;
-    processor.index_catalog_counter.set(catalog);
+    let catalog = converter.index_catalog_counter.get() + 1;
+    converter.index_catalog_counter.set(catalog);
     let index = build_index_structure(&entries);
     let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);

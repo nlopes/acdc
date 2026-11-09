@@ -1,6 +1,6 @@
 use crate::{
     ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, DocumentAttributeAssignment,
-    HorizontalAlignment, Table, TableColumn, TablePresentation, TableRow, VerticalAlignment,
+    HorizontalAlignment, Table, TableCell, TablePresentation, TableRow, VerticalAlignment,
 };
 
 use super::{
@@ -163,7 +163,7 @@ impl<'doc> From<&'doc TableRow<'doc>> for TableRowRef<'doc> {
 /// A table cell and its parsed formatting.
 #[derive(Clone, Copy, Debug)]
 pub struct TableCellRef<'doc> {
-    pub(super) cell: &'doc TableColumn<'doc>,
+    pub(super) cell: &'doc TableCell<'doc>,
 }
 
 impl<'doc> TableCellRef<'doc> {
@@ -232,8 +232,8 @@ impl<'doc> TableCellRef<'doc> {
     }
 }
 
-impl<'doc> From<&'doc TableColumn<'doc>> for TableCellRef<'doc> {
-    fn from(cell: &'doc TableColumn<'doc>) -> Self {
+impl<'doc> From<&'doc TableCell<'doc>> for TableCellRef<'doc> {
+    fn from(cell: &'doc TableCell<'doc>) -> Self {
         Self { cell }
     }
 }
@@ -321,7 +321,7 @@ impl<'doc> From<TableRowRef<'doc>> for TableRow<'doc> {
     }
 }
 
-impl<'doc> From<TableCellRef<'doc>> for TableColumn<'doc> {
+impl<'doc> From<TableCellRef<'doc>> for TableCell<'doc> {
     /// Copy this cell's prepared content, formatting and initial scope snapshot.
     fn from(cell: TableCellRef<'doc>) -> Self {
         cell.cell.clone()

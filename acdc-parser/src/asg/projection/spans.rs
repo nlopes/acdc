@@ -1,4 +1,4 @@
-use crate::{ElementId, Form, InlineNode};
+use crate::{ElementId, FormattingForm, InlineNode};
 
 use super::{Error, InlineContext, Node, Profile, node, pointer, project_inlines, unsupported};
 
@@ -62,7 +62,7 @@ pub(super) fn project(
             path,
             settings,
         ),
-        InlineNode::CurvedQuotationText(span) => span_node(
+        InlineNode::DoubleQuotedSpan(span) => span_node(
             "quotation",
             &span.form,
             span.role,
@@ -72,7 +72,7 @@ pub(super) fn project(
             settings,
         )
         .map(|result| quotation(result, ["“", "”"])),
-        InlineNode::CurvedApostropheText(span) => span_node(
+        InlineNode::SingleQuotedSpan(span) => span_node(
             "quotation",
             &span.form,
             span.role,
@@ -91,7 +91,9 @@ pub(super) fn project(
         | InlineNode::Macro(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_) => Err(unsupported(path, "expected a supported inline span")),
+        | InlineNode::CalloutMarker(_) => {
+            Err(unsupported(path, "expected a supported inline span"))
+        }
     }
 }
 
@@ -102,7 +104,7 @@ fn quotation(mut result: Node, quotes: [&str; 2]) -> Node {
 
 fn span_node(
     name: &str,
-    form: &Form,
+    form: &FormattingForm,
     role: Option<&str>,
     id: Option<&ElementId<'_>>,
     content: &[InlineNode<'_>],
@@ -134,8 +136,8 @@ fn span_node(
     result.insert(
         "form".into(),
         match form {
-            Form::Constrained => "constrained",
-            Form::Unconstrained => "unconstrained",
+            FormattingForm::Constrained => "constrained",
+            FormattingForm::Unconstrained => "unconstrained",
         }
         .into(),
     );

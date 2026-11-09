@@ -55,7 +55,7 @@ fn menu_separators_follow_the_macro_stage(
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph.content().inlines().find_map(|node| {
-                    if let InlineKind::Menu(menu) = node.kind() {
+                    if let InlineKind::MenuPath(menu) = node.kind() {
                         Some(menu)
                     } else {
                         None
@@ -96,7 +96,7 @@ fn entity_width_does_not_shift_unicode_labels_or_registered_content(
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph.content().inlines().find_map(|node| {
-                    if let InlineKind::Menu(menu) = node.kind() {
+                    if let InlineKind::MenuPath(menu) = node.kind() {
                         Some(menu)
                     } else {
                         None

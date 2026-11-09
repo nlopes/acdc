@@ -132,7 +132,7 @@ impl<'doc> StructuralRef<'doc> {
                     | BlockKind::CalloutList(_)
                     | BlockKind::Table(_)
                     | BlockKind::TableOfContents(_)
-                    | BlockKind::DiscreteHeader(_)
+                    | BlockKind::DiscreteHeading(_)
                     | BlockKind::DocumentAttribute(_)
                     | BlockKind::ThematicBreak(_)
                     | BlockKind::PageBreak(_)
@@ -196,8 +196,8 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::Highlight(node) => Fields::one(owner, Span, Some(node.content())),
             InlineKind::Subscript(node) => Fields::one(owner, Span, Some(node.content())),
             InlineKind::Superscript(node) => Fields::one(owner, Span, Some(node.content())),
-            InlineKind::CurvedQuotation(node) => Fields::one(owner, Span, Some(node.content())),
-            InlineKind::CurvedApostrophe(node) => Fields::one(owner, Span, Some(node.content())),
+            InlineKind::DoubleQuotedSpan(node) => Fields::one(owner, Span, Some(node.content())),
+            InlineKind::SingleQuotedSpan(node) => Fields::one(owner, Span, Some(node.content())),
             InlineKind::Image(node) => {
                 Fields::pair(owner, (Alt, node.alt()), (Tooltip, node.tooltip()))
             }
@@ -209,7 +209,7 @@ impl<'doc> InlineRef<'doc> {
                 (LinkText, Some(node.text())),
                 (Tooltip, node.tooltip()),
             ),
-            InlineKind::Url(node) => Fields::pair(
+            InlineKind::UrlMacro(node) => Fields::pair(
                 owner,
                 (LinkText, Some(node.text())),
                 (Tooltip, node.tooltip()),
@@ -223,11 +223,11 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::Footnote(node) => Fields::one(owner, Footnote, node.content()),
             InlineKind::Anchor(node) => node.field_iter(),
             InlineKind::Button(node) => Fields::one(owner, ButtonLabel, Some(node.label())),
-            InlineKind::Keyboard(node) => Fields {
+            InlineKind::KeyboardShortcut(node) => Fields {
                 tail: Tail::Attributes(KeyboardKey, node.node.keys.iter()),
                 ..Fields::empty(owner)
             },
-            InlineKind::Menu(node) => Fields {
+            InlineKind::MenuPath(node) => Fields {
                 tail: Tail::Attributes(MenuItem, node.node.items.iter()),
                 ..Fields::one(owner, MenuTarget, Some(node.target()))
             },
@@ -264,7 +264,7 @@ impl<'doc> InlineRef<'doc> {
             | InlineKind::LineBreak(_)
             | InlineKind::Callout(_)
             | InlineKind::Autolink(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_) => Fields::empty(owner),
         }
     }

@@ -86,11 +86,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         title: Option<ContentRef<'_>>,
     ) -> Result<(), Error> {
         if let Some(title) = title {
-            let processor = self.processor;
+            let converter = self.converter;
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
             let mut temp_visitor =
-                TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+                TerminalVisitor::new(inner, converter, self.diagnostics.reborrow());
             for node in title.inlines() {
                 temp_visitor.write_inline(traversal, node)?;
             }
@@ -110,7 +110,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     ///
     /// All items in a single list are at the same nesting level. Nested lists appear
     /// as `Block` children within individual items and are handled by the visitor
-    /// pattern (which reads `processor.list_indent` for the correct indentation).
+    /// pattern (which reads `converter.list_indent` for the correct indentation).
     #[tracing::instrument(skip(self, traversal, items))]
     fn render_list_items(
         &mut self,
@@ -121,7 +121,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         start: usize,
         reversed: bool,
     ) -> Result<(), Error> {
-        let unicode = self.processor.appearance.capabilities.unicode;
+        let unicode = self.converter.appearance.capabilities.unicode;
         for (idx, item) in items.enumerate() {
             let number = if reversed {
                 start.saturating_sub(idx)
@@ -136,7 +136,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Render a single list item with the specified indentation.
     ///
     /// After rendering the item's principal text, child blocks (which may include
-    /// nested lists) are visited with an increased `list_indent` on the processor.
+    /// nested lists) are visited with an increased `list_indent` on the converter.
     #[tracing::instrument(skip(self, traversal))]
     fn render_list_item(
         &mut self,
@@ -179,12 +179,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         // Render attached blocks with increased indentation.
         // Set list_indent so nested lists rendered via the visitor pick up the right depth.
         let nested_indent = indent + 2;
-        let old_indent = self.processor.list_indent.get();
-        self.processor.list_indent.set(nested_indent);
+        let old_indent = self.converter.list_indent.get();
+        self.converter.list_indent.set(nested_indent);
         for block in item.blocks() {
             traversal.visit_block(self, block)?;
         }
-        self.processor.list_indent.set(old_indent);
+        self.converter.list_indent.set(old_indent);
 
         Ok(())
     }
@@ -198,7 +198,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             return self.render_bibliography_list(traversal, list);
         }
 
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         self.render_styled_title(traversal, list.title())?;
         // Only emit a leading newline for top-level lists (not nested ones)
         if indent == 0 {
@@ -224,7 +224,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: UnorderedListRef<'a>,
     ) -> Result<(), Error> {
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         self.render_styled_title(traversal, list.title())?;
         if indent == 0 {
             writeln!(self.writer)?;
@@ -247,11 +247,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             self.write_inlines(traversal, content)?;
             writeln!(self.writer)?;
-            let previous = self.processor.list_indent.replace(indent + 2);
+            let previous = self.converter.list_indent.replace(indent + 2);
             for block in item.blocks() {
                 traversal.visit_block(self, block)?;
             }
-            self.processor.list_indent.set(previous);
+            self.converter.list_indent.set(previous);
         }
         Ok(())
     }
@@ -274,7 +274,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: OrderedListRef<'a>,
     ) -> Result<(), Error> {
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         self.render_styled_title(traversal, list.title())?;
         // Only emit a leading newline for top-level lists (not nested ones)
         if indent == 0 {
@@ -358,7 +358,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         self.render_styled_title(traversal, list.title())?;
         if indent == 0 || list.title().is_some() {
             writeln!(self.writer)?;
@@ -382,7 +382,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                     )?;
                 }
                 Some("unordered") => {
-                    let marker = if self.processor.appearance.capabilities.unicode {
+                    let marker = if self.converter.appearance.capabilities.unicode {
                         "•"
                     } else {
                         "*"
@@ -407,12 +407,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         item: DescriptionListItemRef<'a>,
         marker: Option<&str>,
     ) -> Result<(), Error> {
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         // Render term in bold
-        let processor = self.processor;
+        let converter = self.converter;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+        let mut temp_visitor = TerminalVisitor::new(inner, converter, self.diagnostics.reborrow());
         for (index, term) in item.terms().enumerate() {
             if index > 0 {
                 write!(temp_visitor.writer, ", ")?;
@@ -461,12 +461,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         item: DescriptionListItemRef<'a>,
     ) -> Result<(), Error> {
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         // Render term in bold
-        let processor = self.processor;
+        let converter = self.converter;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+        let mut temp_visitor = TerminalVisitor::new(inner, converter, self.diagnostics.reborrow());
         for (index, term) in item.terms().enumerate() {
             if index > 0 {
                 write!(temp_visitor.writer, ", ")?;
@@ -512,12 +512,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         item: DescriptionListItemRef<'a>,
     ) -> Result<(), Error> {
-        let indent = self.processor.list_indent.get();
+        let indent = self.converter.list_indent.get();
         // Render "Q: " prefix + term in bold
-        let processor = self.processor;
+        let converter = self.converter;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+        let mut temp_visitor = TerminalVisitor::new(inner, converter, self.diagnostics.reborrow());
         for (index, term) in item.terms().enumerate() {
             if index > 0 {
                 write!(temp_visitor.writer, ", ")?;
@@ -564,7 +564,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         mut blocks: impl Iterator<Item = BlockRef<'a>>,
         indent: usize,
     ) -> Result<(), Error> {
-        let previous_indent = self.processor.list_indent.replace(indent);
+        let previous_indent = self.converter.list_indent.replace(indent);
         let result = blocks.try_for_each(|block| {
             if !matches!(
                 block.kind(),
@@ -576,7 +576,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             traversal.visit_block(self, block)
         });
-        self.processor.list_indent.set(previous_indent);
+        self.converter.list_indent.set(previous_indent);
         result
     }
 }

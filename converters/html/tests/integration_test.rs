@@ -7,10 +7,10 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
+    Converter as _, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
 };
 use acdc_converters_dev::{fixtures::parse_fixture, output::remove_lines_trailing_whitespace};
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{
     AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options as ParserOptions,
     SafeMode, Table, parse, parse_file,
@@ -31,7 +31,7 @@ fn quoted_header_values_stay_inside_html_attributes() -> Result<(), Error> {
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -39,7 +39,7 @@ fn quoted_header_values_stay_inside_html_attributes() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -70,7 +70,7 @@ fn image_text_preserves_curved_quotation_punctuation() -> Result<(), Error> {
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -78,7 +78,7 @@ fn image_text_preserves_curved_quotation_punctuation() -> Result<(), Error> {
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -110,7 +110,7 @@ fn block_substitutions_are_honored_in_every_build() -> Result<(), Error> {
         )?;
         assert_eq!(parsed.document().footnotes().count(), 0);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -119,7 +119,7 @@ fn block_substitutions_are_honored_in_every_build() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -153,7 +153,7 @@ fn decoded_attribute_values_keep_literal_quotes() -> Result<(), Error> {
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -162,7 +162,7 @@ fn decoded_attribute_values_keep_literal_quotes() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -208,7 +208,7 @@ fn decoded_source_controls_keep_literal_quotes() -> Result<(), Error> {
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -217,7 +217,7 @@ fn decoded_source_controls_keep_literal_quotes() -> Result<(), Error> {
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -243,7 +243,7 @@ fn inline_identity_attributes_cannot_create_html_elements() -> Result<(), Error>
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -252,7 +252,7 @@ fn inline_identity_attributes_cannot_create_html_elements() -> Result<(), Error>
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -290,7 +290,7 @@ fn block_identity_attributes_cannot_create_html_elements() -> Result<(), Error> 
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
@@ -299,7 +299,7 @@ fn block_identity_attributes_cannot_create_html_elements() -> Result<(), Error> 
             let mut warnings = Vec::new();
             let warning_source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),
@@ -1294,7 +1294,7 @@ fn bibliography_conversion_keeps_parent_safe_mode() -> Result<(), Error> {
             "[bibliography]\n* [[[ref,pass:a[{safe-mode-name}; {safe-mode-level}]]]] Entry.\n* [[[home,pass:a[{user-home}]]]] Home.\n",
             &ParserOptions::builder().with_safe_mode(mode).build()?,
         )?;
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::builder().safe_mode(mode).build(),
             ParserOptions::builder(),
             HtmlVariant::Standard,
@@ -1303,7 +1303,7 @@ fn bibliography_conversion_keeps_parent_safe_mode() -> Result<(), Error> {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.convert_to_writer(
+        converter.convert_to_writer(
             parsed.document(),
             &mut output,
             &RenderOptions {
@@ -1338,7 +1338,7 @@ fn oversized_source_indent_is_a_bounded_structured_warning() -> Result<(), Error
                 .build()?;
             let parsed = parse(&input, &options)?;
             let attributes = acdc_parser::DocumentAttributes::from(parsed.document().attributes());
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_attributes(attributes.into_inputs()),
                 HtmlVariant::Standard,
@@ -1347,7 +1347,7 @@ fn oversized_source_indent_is_a_bounded_structured_warning() -> Result<(), Error
             let mut warnings = Vec::new();
             let source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions {
@@ -1670,7 +1670,7 @@ fn convert_string_with_variant(
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         converter_options,
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -1681,7 +1681,7 @@ fn convert_string_with_variant(
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+    converter.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
     Ok(String::from_utf8(output)?)
 }
 
@@ -1763,7 +1763,7 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     let parsed = parse("[big]#large#\n", &parser_options)?;
     let doc = parsed.document();
     let converter_options = ConverterOptions::builder().embedded(true).build();
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         converter_options,
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -1771,7 +1771,7 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     )?;
     let output_path = temp_output_path("html-warning", "html");
 
-    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let result = converter.convert_to_file(doc, None, &output_path)?;
     let _ = std::fs::remove_file(&output_path);
 
     assert!(result.warnings().iter().any(|warning| {
@@ -1830,20 +1830,20 @@ fn deprecated_highlight_attributes_warn_once_per_conversion(
     let parsed = parse(input, &options.build()?)?;
     let doc = parsed.document();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
             ),
             variant,
         )?;
-        let source = processor.warning_source();
+        let source = converter.warning_source();
         for embedded in [false, true] {
             let mut warnings = Vec::new();
             for conversion in 1..=2 {
                 let mut output = Vec::new();
                 let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-                processor.convert_to_writer(
+                converter.convert_to_writer(
                     doc,
                     &mut output,
                     &RenderOptions {
@@ -1879,21 +1879,21 @@ fn deprecated_highlight_warnings_are_returned_in_conversion_result() -> Result<(
     )?;
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let temp = tempfile::tempdir()?;
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::builder().embedded(true).build(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
             variant,
         )?;
-        let result = processor.convert_to_file(
+        let result = converter.convert_to_file(
             parsed.document(),
             None,
             &temp.path().join("document.html"),
         )?;
         assert_eq!(result.warnings().len(), 2);
         assert!(result.warnings().iter().all(|warning| {
-            warning.source == processor.warning_source()
+            warning.source == converter.warning_source()
                 && warning.message.contains("is deprecated")
                 && warning.advice().is_some()
         }));
@@ -1962,7 +1962,7 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let parsed = parse(input, &ParserOptions::default())?;
         let doc = parsed.document();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -1973,7 +1973,7 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.convert_to_writer(
+        converter.convert_to_writer(
             doc,
             &mut output,
             &RenderOptions::default(),
@@ -2028,7 +2028,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         let parsed = parse(input, &ParserOptions::default())?;
         let doc = parsed.document();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2039,7 +2039,7 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.convert_to_writer(
+        converter.convert_to_writer(
             doc,
             &mut output,
             &RenderOptions::default(),
@@ -2242,7 +2242,7 @@ fn main() {
                 .build()?;
             let parsed = parse(SOURCE_BLOCK, &parser_options)?;
             let doc = parsed.document();
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_attributes(
                     acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2253,7 +2253,7 @@ fn main() {
             let mut warnings = Vec::new();
             let source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            processor.write_to(doc, &mut linked, None, Some(&path), &mut diagnostics)?;
+            converter.write_to(doc, &mut linked, None, Some(&path), &mut diagnostics)?;
             let linked = String::from_utf8(linked)?;
             assert!(
                 linked.contains("href=\"css/acdc-highlight.css\""),
@@ -2350,7 +2350,7 @@ fn main() {
                 .build()?;
             let parsed = parse(&input, &options)?;
             let doc = parsed.document();
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_attributes(
                     acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2361,7 +2361,7 @@ fn main() {
             let mut warnings = Vec::new();
             let source = WarningSource::new("html");
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            processor.write_to(doc, &mut output, None, Some(&path), &mut diagnostics)?;
+            converter.write_to(doc, &mut output, None, Some(&path), &mut diagnostics)?;
             let output = String::from_utf8(output)?;
             assert!(!output.contains("class=\"syntax-"), "{output}");
             assert!(!output.contains("acdc-highlight.css"), "{output}");
@@ -2679,7 +2679,6 @@ mod webfonts {
 
 mod copycss {
     use super::*;
-    use acdc_converters_core::Converter;
     use std::fs::write;
     use tempfile::tempdir;
 
@@ -2700,7 +2699,7 @@ mod copycss {
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2714,7 +2713,7 @@ mod copycss {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(
+        converter.write_to(
             doc,
             &mut html_output,
             None,
@@ -2768,7 +2767,7 @@ mod copycss {
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2782,7 +2781,7 @@ mod copycss {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(
+        converter.write_to(
             doc,
             &mut html_output,
             None,
@@ -2826,7 +2825,7 @@ mod copycss {
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2838,7 +2837,7 @@ mod copycss {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(
+        converter.write_to(
             doc,
             &mut html_output,
             None,
@@ -2877,7 +2876,7 @@ mod copycss {
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .embedded(true)
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2889,7 +2888,7 @@ mod copycss {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.write_to(
+        converter.write_to(
             doc,
             &mut html_output,
             None,
@@ -2944,7 +2943,7 @@ mod docinfo {
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .safe_mode(safe_mode)
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -2958,7 +2957,7 @@ mod docinfo {
             ..RenderOptions::default()
         };
 
-        let html = processor.convert_to_string(doc, &render_options)?;
+        let html = converter.convert_to_string(doc, &render_options)?;
         Ok(html)
     }
 
@@ -3206,7 +3205,7 @@ mod docinfo {
             .safe_mode(SafeMode::Unsafe)
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -3219,7 +3218,7 @@ mod docinfo {
             ..RenderOptions::default()
         };
 
-        let html = processor.convert_to_string(doc, &render_options)?;
+        let html = converter.convert_to_string(doc, &render_options)?;
 
         assert!(
             html.contains("<!-- from-custom-dir -->"),
@@ -3323,7 +3322,7 @@ mod toc_footnote {
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             converter_options,
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -3338,7 +3337,7 @@ mod toc_footnote {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
+        converter.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
         Ok(String::from_utf8(output)?)
     }
 
@@ -3510,7 +3509,7 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
             block.replace_body(body);
             unresolved.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-                let processor = Processor::new_with_variant(
+                let converter = Converter::new_with_variant(
                     ConverterOptions::default(),
                     ParserOptions::builder(),
                     variant,
@@ -3525,7 +3524,7 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                     let mut warnings = Vec::new();
                     let warning_source = WarningSource::new("html");
                     let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-                    processor.convert_to_writer(
+                    converter.convert_to_writer(
                         document.into(),
                         &mut output,
                         &options,
@@ -3648,14 +3647,14 @@ fn head_title_keeps_literal_text_inside_the_title_element() -> Result<(), Error>
                 .build()?,
         )?;
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
                 variant,
             )?;
             let mut output = Vec::new();
             let mut warnings = Vec::new();
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 parsed.document(),
                 &mut output,
                 &RenderOptions::default(),

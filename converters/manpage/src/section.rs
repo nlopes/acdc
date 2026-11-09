@@ -23,7 +23,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         if let Some(title) = section.title() {
             self.collect_index_terms_from_inlines(traversal, title)?;
         }
-        let title_text = extract_heading_text(section.title(), &self.processor.references);
+        let title_text = extract_heading_text(section.title(), &self.converter.references);
 
         // Track level-1 section titles for convention validation
         if section.level() == 1 {
@@ -36,7 +36,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             section.level() == 1 && title_text.eq_ignore_ascii_case(name_section_title);
 
         // In embedded mode, skip the name section (matches asciidoctor --embedded).
-        if self.processor.options.embedded() && is_name_section {
+        if self.converter.options.embedded() && is_name_section {
             return Ok(());
         }
 
@@ -73,7 +73,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         for block in section.blocks() {
             traversal.visit_block(self, block)?;
         }
-        if section.kind() == SectionKind::Index && self.processor.has_valid_index_section {
+        if section.kind() == SectionKind::Index && self.converter.has_valid_index_section {
             self.render_index_catalog()?;
         }
 

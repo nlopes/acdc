@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use acdc_converters_core::Diagnostics;
-use acdc_parser::{DocumentAttributes, SafeMode, Substitution, substitute};
+use acdc_parser::{DocumentAttributes, SafeMode, Substitution, apply_attribute_substitutions};
 
 /// Resolved docinfo content for each injection position.
 ///
@@ -290,7 +290,7 @@ fn load_position_content(
                 let processed = if subs.is_empty() {
                     content
                 } else {
-                    substitute(&content, subs, attributes).into_owned()
+                    apply_attribute_substitutions(&content, subs, attributes).into_owned()
                 };
                 if !processed.trim().is_empty() {
                     parts.push(processed);

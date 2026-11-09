@@ -1,6 +1,6 @@
 use std::io::{self, BufWriter, Write};
 
-use acdc_converters_core::{Converter, TraversalContext};
+use acdc_converters_core::{Converter as _, TraversalContext};
 use acdc_parser::ast::{AuthorRef, ContentRef, HeaderRef};
 use crossterm::{
     QueueableCommand,
@@ -15,11 +15,11 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         header: HeaderRef<'_>,
     ) -> Result<(), Error> {
-        let cloned_processor = self.processor;
+        let cloned_converter = self.converter;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor =
-            TerminalVisitor::new(inner, cloned_processor, self.diagnostics.reborrow());
+            TerminalVisitor::new(inner, cloned_converter, self.diagnostics.reborrow());
 
         for node in header.title().into_iter().flat_map(ContentRef::inlines) {
             temp_visitor.write_inline(traversal, node)?;
@@ -44,7 +44,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             .trim()
             .to_string();
 
-        let processor = self.processor;
+        let converter = self.converter;
         let w = self.writer_mut();
         w.queue(PrintStyledContent(title_content.bold().underlined()))?;
 
@@ -63,7 +63,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         // Render revision info if present
         let text_attribute = |name| {
-            processor
+            converter
                 .document_attributes()
                 .get(name)
                 .and_then(|value| value.text())
@@ -74,7 +74,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         if revnumber.is_some() || revdate.is_some() {
             if let Some(revnumber) = revnumber {
-                let label = processor
+                let label = converter
                     .document_attributes()
                     .get("version-label")
                     .and_then(|value| value.text())
@@ -120,7 +120,7 @@ fn visit_author<W: Write + ?Sized>(author: AuthorRef<'_>, w: &mut W) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::create_test_processor_with;
+    use crate::create_test_converter_with;
     use acdc_converters_core::{Diagnostics, WarningSource, visitor::DocumentVisitor};
     use acdc_parser::{
         Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section, Title,
@@ -129,16 +129,17 @@ mod tests {
     #[test]
     fn test_render_document() -> Result<(), Error> {
         let doc = Document::default();
-        let processor = create_test_processor_with(acdc_parser::DocumentAttributes::from(
+        let converter = create_test_converter_with(acdc_parser::DocumentAttributes::from(
             acdc_parser::ast::DocumentRef::from(&doc).attributes(),
         ));
         let buffer = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(&processor).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(&converter).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(buffer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"");
@@ -159,15 +160,16 @@ mod tests {
         )));
         doc.set_blocks(vec![]);
         let buffer = Vec::new();
-        let processor = create_test_processor_with(acdc_parser::DocumentAttributes::from(
+        let converter = create_test_converter_with(acdc_parser::DocumentAttributes::from(
             acdc_parser::ast::DocumentRef::from(&doc).attributes(),
         ));
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(&processor).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(&converter).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(buffer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
@@ -202,15 +204,16 @@ mod tests {
             )),
         ]);
         let buffer = Vec::new();
-        let processor = create_test_processor_with(acdc_parser::DocumentAttributes::from(
+        let converter = create_test_converter_with(acdc_parser::DocumentAttributes::from(
             acdc_parser::ast::DocumentRef::from(&doc).attributes(),
         ));
         let mut warnings = Vec::new();
         let source = WarningSource::new("terminal");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(&processor).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(&converter).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(buffer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
         let output = String::from_utf8_lossy(&buffer);

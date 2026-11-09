@@ -75,7 +75,7 @@ pub(super) enum DelimitedKind {
     Literal,
     Open,
     Sidebar,
-    Pass,
+    Passthrough,
     Quote,
 }
 
@@ -90,7 +90,7 @@ impl DelimitedKind {
             ) => Self::Example,
             (Self::Open, Some("quote" | "verse")) => Self::Quote,
             (Self::Open, Some("sidebar")) => Self::Sidebar,
-            (Self::Open, Some("pass")) => Self::Pass,
+            (Self::Open, Some("pass")) => Self::Passthrough,
             (kind, _) => kind,
         }
     }
@@ -105,7 +105,7 @@ impl DelimitedKind {
             DelimitedKind::Literal => "literal",
             DelimitedKind::Open => "open",
             DelimitedKind::Sidebar => "sidebar",
-            DelimitedKind::Pass => "pass",
+            DelimitedKind::Passthrough => "pass",
             DelimitedKind::Quote => "quote",
         }
     }
@@ -199,7 +199,7 @@ pub(super) fn build_delimited_block<'input>(
         }
         DelimitedKind::Open => open_inner(state, block_metadata, &mut metadata, p)?,
         DelimitedKind::Sidebar => sidebar_inner(state, block_metadata, &mut metadata, p)?,
-        DelimitedKind::Pass => pass_inner(state, &mut metadata, p),
+        DelimitedKind::Passthrough => pass_inner(state, &mut metadata, p),
         DelimitedKind::Quote => quote_inner(state, block_metadata, &mut metadata, p)?,
     };
 
@@ -383,7 +383,7 @@ fn pass_inner<'input>(
                     )),
                 ));
             }
-            state.intern_cow(crate::substitute(content, &substitutions, &state.document_attributes))
+            state.intern_cow(crate::apply_attribute_substitutions(content, &substitutions, &state.document_attributes))
         });
         metadata.move_positional_attributes_to_attributes();
         metadata.style = None;

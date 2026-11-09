@@ -1,7 +1,7 @@
 use std::{fs, path::Path};
 
 use acdc_converters_core::{Diagnostics, Options, Warning, WarningSource};
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{Options as ParserOptions, SafeMode, parse};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 
@@ -19,7 +19,7 @@ fn convert(
         .with_attribute("allow-uri-read", allow_uri_read)
         .build()?;
     let parsed = parse(source, &parser_options)?;
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::builder().safe_mode(safe_mode).build(),
         ParserOptions::builder().with_attributes(
             acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -34,7 +34,7 @@ fn convert(
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
-    processor.convert_to_writer(
+    converter.convert_to_writer(
         parsed.document(),
         &mut output,
         &options,
@@ -301,14 +301,14 @@ fn image_text_survives_embedding_and_fallback_modes() -> Result<(), Error> {
                             .with_compatibility_mode(mode)
                             .build()?,
                     )?;
-                    let processor = Processor::new_with_variant(
+                    let converter = Converter::new_with_variant(
                         Options::builder().safe_mode(SafeMode::Safe).build(),
                         ParserOptions::builder().with_compatibility_mode(mode),
                         variant,
                     )?;
                     let mut output = Vec::new();
                     let mut warnings = Vec::new();
-                    processor.convert_to_writer(
+                    converter.convert_to_writer(
                         parsed.document(),
                         &mut output,
                         &RenderOptions {

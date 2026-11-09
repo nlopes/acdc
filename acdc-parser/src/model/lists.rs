@@ -8,7 +8,7 @@ use serde::{
 use super::{
     Block,
     anchor::Anchor,
-    inlines::{CalloutRef, InlineNode},
+    inlines::{CalloutMarker, InlineNode},
     location::Location,
     metadata::BlockMetadata,
     title::Title,
@@ -142,7 +142,7 @@ pub struct CalloutList<'a> {
 
 /// A `CalloutListItem` represents an item in a callout list.
 ///
-/// Unlike [`ListItem`], callout list items have a structured [`CalloutRef`] that
+/// Unlike [`ListItem`], callout list items have a structured [`CalloutMarker`] that
 /// preserves whether the original marker was explicit (`<1>`) or auto-numbered (`<.>`).
 ///
 /// # Example
@@ -155,7 +155,7 @@ pub struct CalloutList<'a> {
 #[non_exhaustive]
 pub struct CalloutListItem<'a> {
     /// The callout reference (explicit or auto-numbered), numbered by item position.
-    pub(crate) callout: CalloutRef,
+    pub(crate) callout: CalloutMarker,
     /// Principal text - inline content that appears after the callout marker.
     pub(crate) principal: Vec<InlineNode<'a>>,
     /// Attached blocks - blocks attached via continuation (though rarely used for callouts).
@@ -401,7 +401,7 @@ impl<'a> ListItem<'a> {
 impl<'a> CalloutListItem<'a> {
     /// Construct an explanation with a prepared marker and number.
     #[must_use]
-    pub fn new(callout: CalloutRef, principal: Vec<InlineNode<'a>>, location: Location) -> Self {
+    pub fn new(callout: CalloutMarker, principal: Vec<InlineNode<'a>>, location: Location) -> Self {
         Self {
             callout,
             principal,
@@ -411,7 +411,7 @@ impl<'a> CalloutListItem<'a> {
     }
 
     /// Replace the prepared marker without changing other items or source-code references.
-    pub fn replace_callout(&mut self, callout: CalloutRef) -> CalloutRef {
+    pub fn replace_callout(&mut self, callout: CalloutMarker) -> CalloutMarker {
         std::mem::replace(&mut self.callout, callout)
     }
 }
@@ -590,7 +590,7 @@ impl Serialize for UnorderedList<'_> {
         if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("items", &self.items)?;
@@ -612,7 +612,7 @@ impl Serialize for OrderedList<'_> {
         if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("items", &self.items)?;
@@ -633,7 +633,7 @@ impl Serialize for CalloutList<'_> {
         if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("items", &self.items)?;
@@ -653,7 +653,7 @@ impl Serialize for DescriptionList<'_> {
         if self.title.is_present() {
             state.serialize_entry("title", &self.title)?;
         }
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         state.serialize_entry("items", &self.items)?;

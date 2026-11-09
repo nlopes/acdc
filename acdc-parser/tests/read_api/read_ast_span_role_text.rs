@@ -1,8 +1,8 @@
 use acdc_parser::{
-    Bold, CurvedApostrophe, CurvedQuotation, Form, Highlight, Italic, Location, Monospace,
-    Subscript, Superscript,
+    Bold, DoubleQuotedSpan, FormattingForm, Highlight, Italic, Location, Monospace,
+    SingleQuotedSpan, Subscript, Superscript,
     ast::{
-        BoldRef, CurvedApostropheRef, CurvedQuotationRef, HighlightRef, ItalicRef, MonospaceRef,
+        BoldRef, DoubleQuotedSpanRef, HighlightRef, ItalicRef, MonospaceRef, SingleQuotedSpanRef,
         SubscriptRef, SuperscriptRef,
     },
 };
@@ -18,7 +18,8 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
     ] {
         macro_rules! check {
             ($owner:ident, $read:ident) => {{
-                let mut owner = $owner::new(Vec::new(), Form::Constrained, Location::default());
+                let mut owner =
+                    $owner::new(Vec::new(), FormattingForm::Constrained, Location::default());
                 owner.replace_role(role);
                 let span = $read::from(&owner);
                 assert_eq!(span.role(), role);
@@ -44,8 +45,8 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
         check!(Highlight, HighlightRef);
         check!(Subscript, SubscriptRef);
         check!(Superscript, SuperscriptRef);
-        check!(CurvedQuotation, CurvedQuotationRef);
-        check!(CurvedApostrophe, CurvedApostropheRef);
+        check!(DoubleQuotedSpan, DoubleQuotedSpanRef);
+        check!(SingleQuotedSpan, SingleQuotedSpanRef);
     }
 }
 
@@ -53,7 +54,7 @@ fn exact_span_roles_keep_optional_presence_and_token_reads() {
 fn role_text_keeps_the_owner_lifetime_after_the_handle_is_dropped() {
     let text = String::from("one\ttwo\u{2003}one");
     let owner = {
-        let mut span = Bold::new(Vec::new(), Form::Constrained, Location::default());
+        let mut span = Bold::new(Vec::new(), FormattingForm::Constrained, Location::default());
         span.replace_role(Some(&text));
         span
     };

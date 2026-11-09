@@ -5,8 +5,8 @@ use std::{
     process::{Command, Stdio},
 };
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_converters_manpage::Processor;
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
+use acdc_converters_manpage::Converter;
 use acdc_parser::{Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
@@ -144,12 +144,12 @@ fn nested_fonts_restore_the_enclosing_style(#[case] fixture: &str) -> Result<(),
         .filter(|word| marker_font(word).is_some())
         .collect();
     let parsed = parse(&source, &ParserOptions::default())?;
-    let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+    let converter = Converter::new(Options::default(), ParserOptions::builder())?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
     let mut diagnostics = Diagnostics::new(&warning_source, &mut warnings);
-    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
     check_groff(
         &render("groff", &["-Kutf8", "-Z", "-Tps", "-t", "-man"], &output)?,
         &expected,

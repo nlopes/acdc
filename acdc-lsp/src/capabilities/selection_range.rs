@@ -135,7 +135,7 @@ fn collect_structural_ranges(
                 | BlockKind::DescriptionList(_)
                 | BlockKind::CalloutList(_)
                 | BlockKind::Admonition(_)
-                | BlockKind::DiscreteHeader(_)
+                | BlockKind::DiscreteHeading(_)
                 | BlockKind::DocumentAttribute(_)
                 | BlockKind::Image(_) => Some(block.location()),
                 BlockKind::TableOfContents(_)
@@ -188,8 +188,8 @@ fn collect_inline_ranges(
                 | InlineKind::Highlight(_)
                 | InlineKind::Subscript(_)
                 | InlineKind::Superscript(_)
-                | InlineKind::CurvedQuotation(_)
-                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::DoubleQuotedSpan(_)
+                | InlineKind::SingleQuotedSpan(_)
         ) {
             for field in inline.content_fields() {
                 collect_inline_ranges(field.content(), position, source, ranges);

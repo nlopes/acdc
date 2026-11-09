@@ -264,7 +264,7 @@ fn named_asg_keeps_context_separate_from_authored_text(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let before = serde_json::to_value(parsed.document())?;
-    let output = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let output = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let node = output.pointer("/blocks/1/inlines/0").ok_or("xref")?;
     assert_eq!(
         node.pointer("/document_reftext/0/variant"),
@@ -288,10 +288,10 @@ fn named_asg_keeps_context_separate_from_authored_text(
             .find(|node| matches!(node.kind(), InlineKind::CrossReference(_)))
             .ok_or("xref")?,
     )]);
-    assert!(matches!(asg::inlines(ContentRef::from(&occurrence)),
+    assert!(matches!(asg::export_inlines(ContentRef::from(&occurrence)),
         Err(asg::Error::Unsupported { path, .. }) if path == "/0/document_reftext"));
     assert!(matches!(
-        asg::document(parsed.document()),
+        asg::export_document(parsed.document()),
         Err(asg::Error::Unsupported { .. })
     ));
     assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -343,7 +343,7 @@ fn derived_labels_do_not_register_their_inline_ids() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(!parsed.document().references().contains("derived"));
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/1/inlines/0/document_reftext/0/id"),
         Some(&serde_json::json!("derived"))
@@ -362,7 +362,7 @@ fn caller_label_export_has_no_fabricated_source_coordinates() -> Result<(), Erro
             .with_attribute("reftext", "Caller")
             .build()?,
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/references/guide/reftext/0/value"),
         Some(&serde_json::json!("Caller"))

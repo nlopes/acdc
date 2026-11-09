@@ -12,7 +12,7 @@ fn label(nodes: ContentRef<'_>) -> Result<ContentRef<'_>, Error> {
         .find_map(|node| {
             if let InlineKind::Link(link) = node.kind() {
                 Some(link.text())
-            } else if let InlineKind::Url(url) = node.kind() {
+            } else if let InlineKind::UrlMacro(url) = node.kind() {
                 Some(url.text())
             } else if let InlineKind::Mailto(mailto) = node.kind() {
                 Some(mailto.text())

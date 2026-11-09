@@ -199,7 +199,7 @@ pub(super) fn find_link_at_position(
     visit_links(doc, |occurrence| {
         if let LinkOccurrence::Hyperlink(link) = occurrence {
             match link {
-                HyperlinkRef::Link(_) | HyperlinkRef::Url(_) | HyperlinkRef::Autolink(_) => {
+                HyperlinkRef::Link(_) | HyperlinkRef::UrlMacro(_) | HyperlinkRef::Autolink(_) => {
                     if position_in_location(position, link.location()) {
                         return ControlFlow::Break((
                             link.target().to_string(),

@@ -56,10 +56,10 @@ fn checked_export_does_not_change_native_serialization() -> Result<(), Error> {
         let document = parsed.document();
         let native = serde_json::to_string(&document)?;
         assert!(matches!(
-            asg::document(document),
+            asg::export_document(document),
             Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/inlines/0"
         ));
-        let exported = asg::document_with_profile(document, asg::Profile::Acdc)?;
+        let exported = asg::export_document_with_profile(document, asg::Profile::Acdc)?;
         assert_eq!(exported.get("profile"), Some(&json!("urn:acdc:asg:1")));
         assert_eq!(
             exported.pointer("/blocks/0/inlines/0/target"),

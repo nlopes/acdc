@@ -3,11 +3,11 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Bold, CurvedApostrophe, CurvedQuotation, ElementId, Form, Highlight, InlineNode, Italic,
-    Location, Monospace, Plain, Position, Subscript, Superscript,
+    Bold, DoubleQuotedSpan, ElementId, FormattingForm, Highlight, InlineNode, Italic, Location,
+    Monospace, Plain, Position, SingleQuotedSpan, Subscript, Superscript,
     ast::{
-        BoldRef, ContentRef, CurvedApostropheRef, CurvedQuotationRef, HighlightRef, InlineKind,
-        ItalicRef, MonospaceRef, SubscriptRef, SuperscriptRef,
+        BoldRef, ContentRef, DoubleQuotedSpanRef, HighlightRef, InlineKind, ItalicRef,
+        MonospaceRef, SingleQuotedSpanRef, SubscriptRef, SuperscriptRef,
     },
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -25,8 +25,8 @@ macro_rules! all_spans {
         $case!(Highlight, HighlightRef, HighlightText);
         $case!(Subscript, SubscriptRef, SubscriptText);
         $case!(Superscript, SuperscriptRef, SuperscriptText);
-        $case!(CurvedQuotation, CurvedQuotationRef, CurvedQuotationText);
-        $case!(CurvedApostrophe, CurvedApostropheRef, CurvedApostropheText);
+        $case!(DoubleQuotedSpan, DoubleQuotedSpanRef, DoubleQuotedSpan);
+        $case!(SingleQuotedSpan, SingleQuotedSpanRef, SingleQuotedSpan);
     };
 }
 
@@ -50,7 +50,7 @@ fn text(content: ContentRef<'_>) -> Result<&str, Error> {
 fn all_concrete_span_copies_keep_both_forms_and_every_prepared_value() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
-            for form in [Form::Constrained, Form::Unconstrained] {
+            for form in [FormattingForm::Constrained, FormattingForm::Unconstrained] {
                 let mut original = $owner::new(
                     vec![plain("λ *prepared*")],
                     form.clone(),
@@ -90,7 +90,8 @@ fn span_content_transfers_keep_buffers_and_original_source_lifetimes() {
             let new = vec![plain(&replacement)];
             let replacement_pointer = new.as_ptr();
             let (old, transferred) = {
-                let mut span = $owner::new(initial, Form::Constrained, Location::default());
+                let mut span =
+                    $owner::new(initial, FormattingForm::Constrained, Location::default());
                 let old = span.replace_content(new);
                 let transferred = span.take_content();
                 assert!($read::from(&span).content().is_empty());
@@ -111,7 +112,8 @@ fn span_role_transfers_keep_whitespace_duplicates_and_empty_presence() {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
             let old = {
-                let mut span = $owner::new(Vec::new(), Form::Constrained, Location::default());
+                let mut span =
+                    $owner::new(Vec::new(), FormattingForm::Constrained, Location::default());
                 assert_eq!(span.replace_role(Some(&source)), None);
                 assert_eq!($read::from(&span).role(), Some(source.as_str()));
                 assert_eq!(
@@ -139,7 +141,8 @@ fn span_id_transfers_keep_their_own_locations_and_source_lifetimes() {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
             let id = {
-                let mut span = $owner::new(Vec::new(), Form::Constrained, Location::default());
+                let mut span =
+                    $owner::new(Vec::new(), FormattingForm::Constrained, Location::default());
                 span.set_id(Some(ElementId::new(source.as_str(), id_location.clone())));
                 span.set_location(span_location.clone());
                 let read = $read::from(&span);
@@ -167,20 +170,20 @@ fn span_copy_edits_do_not_change_original_children_identity_or_form() -> Result<
         ($owner:ident, $read:ident, $variant:ident) => {
             let mut original = $owner::new(
                 vec![plain("original")],
-                Form::Constrained,
+                FormattingForm::Constrained,
                 Location::default(),
             );
             original.replace_role(Some("source"));
             original.set_id(Some(ElementId::new("original", Location::default())));
             let mut copy = $owner::from($read::from(&original));
-            copy.set_form(Form::Unconstrained);
+            copy.set_form(FormattingForm::Unconstrained);
             copy.replace_role(Some("copy"));
             copy.take_id();
             copy.take_content();
             copy.push_inline(plain("copy"));
             assert_eq!(text($read::from(&original).content())?, "original");
             assert_eq!($read::from(&original).role(), Some("source"));
-            assert_eq!($read::from(&original).form(), Form::Constrained);
+            assert_eq!($read::from(&original).form(), FormattingForm::Constrained);
             assert_eq!(
                 $read::from(&original)
                     .id()
@@ -188,7 +191,7 @@ fn span_copy_edits_do_not_change_original_children_identity_or_form() -> Result<
                 Some("original")
             );
             assert_eq!(text($read::from(&copy).content())?, "copy");
-            assert_eq!($read::from(&copy).form(), Form::Unconstrained);
+            assert_eq!($read::from(&copy).form(), FormattingForm::Unconstrained);
         };
     }
     all_spans!(check);
@@ -197,7 +200,7 @@ fn span_copy_edits_do_not_change_original_children_identity_or_form() -> Result<
 
 #[test]
 fn highlight_marking_depends_on_identity_presence_even_when_empty() {
-    let mut span = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+    let mut span = Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
     assert!(HighlightRef::from(&span).is_marked());
     span.replace_role(Some(""));
     assert!(!HighlightRef::from(&span).is_marked());
@@ -213,7 +216,11 @@ fn highlight_marking_depends_on_identity_presence_even_when_empty() {
 fn empty_span_copies_do_not_allocate() {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
-            let original = $owner::new(Vec::new(), Form::Unconstrained, Location::default());
+            let original = $owner::new(
+                Vec::new(),
+                FormattingForm::Unconstrained,
+                Location::default(),
+            );
             let region = Region::new(ALLOCATOR);
             let copy = black_box($owner::from($read::from(&original)));
             let stats = region.change();
@@ -231,7 +238,7 @@ fn selected_span_copies_keep_native_json() -> Result<(), Error> {
         ($owner:ident, $read:ident, $variant:ident) => {
             let mut original = $owner::new(
                 vec![plain("λ *prepared*")],
-                Form::Unconstrained,
+                FormattingForm::Unconstrained,
                 Location::default(),
             );
             original.replace_role(Some(""));

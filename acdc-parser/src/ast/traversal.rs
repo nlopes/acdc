@@ -2,7 +2,7 @@ use std::{iter::FusedIterator, mem, slice};
 
 use crate::{
     Block, CalloutListItem, DescriptionListDefinition, DescriptionListItem, DescriptionListTerm,
-    Header, ListItem, TableColumn, TableRow,
+    Header, ListItem, TableCell, TableRow,
 };
 
 use super::{
@@ -93,7 +93,7 @@ impl<'doc> StructuralRef<'doc> {
                     footer: table.table.footer.as_ref(),
                 },
                 BlockKind::TableOfContents(_)
-                | BlockKind::DiscreteHeader(_)
+                | BlockKind::DiscreteHeading(_)
                 | BlockKind::DocumentAttribute(_)
                 | BlockKind::ThematicBreak(_)
                 | BlockKind::PageBreak(_)
@@ -187,7 +187,7 @@ pub(super) enum Children<'doc> {
         rows: slice::Iter<'doc, TableRow<'doc>>,
         footer: Option<&'doc TableRow<'doc>>,
     },
-    Cells(slice::Iter<'doc, TableColumn<'doc>>),
+    Cells(slice::Iter<'doc, TableCell<'doc>>),
 }
 
 impl Children<'_> {

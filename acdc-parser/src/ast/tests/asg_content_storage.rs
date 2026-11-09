@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document.into(), asg::Profile::Acdc)
+    asg::export_document_with_profile(document.into(), asg::Profile::Acdc)
 }
 
 #[test]
@@ -47,14 +47,14 @@ fn resolved_content_fields_preserve_their_inline_trees() -> Result<(), Error> {
                 if let Some(content) = content {
                     assert_eq!(
                         value.pointer(&format!("/blocks/0/{name}")),
-                        Some(&asg::inlines(ContentRef::from(content))?)
+                        Some(&asg::export_inlines(ContentRef::from(content))?)
                     );
                 }
             }
             if let Some(Caption::CustomContent(content)) = &metadata.caption {
                 assert_eq!(
                     value.pointer("/blocks/0/caption/prefix"),
-                    Some(&asg::inlines(ContentRef::from(content))?)
+                    Some(&asg::export_inlines(ContentRef::from(content))?)
                 );
             }
             assert_eq!(serde_json::to_value(parsed.document_storage())?, before);

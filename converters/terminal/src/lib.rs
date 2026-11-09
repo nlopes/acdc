@@ -7,11 +7,11 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, TraversalContext,
+    BackendProfile, Converter as _, Diagnostics, InlineTextTransform, Options, TraversalContext,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    CaptionKind, DocumentAttributes, Options as ParserOptions, Reference,
+    CaptionKind, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
     ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef},
 };
 
@@ -45,11 +45,11 @@ enum IndexCatalogRelationship {
 }
 
 #[derive(Clone, Debug)]
-pub struct Processor<'a> {
+pub struct Converter<'a> {
     options: Options,
     parser_options: ParserOptions<'a>,
     document: Option<DocumentRef<'a>>,
-    references: Rc<HashMap<&'a str, Reference<'a>>>,
+    references: Rc<HashMap<&'a str, ReferenceTarget<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     xref_guard: XrefGuard,
     /// Fallback counter for example captions the parser did not number.
@@ -74,20 +74,20 @@ pub struct Processor<'a> {
     warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
 }
 
-/// Build a `Processor` for tests with default document attributes.
+/// Build a `Converter` for tests with default document attributes.
 #[cfg(test)]
-fn create_test_processor() -> Processor<'static> {
-    create_test_processor_with(DocumentAttributes::default())
+fn create_test_converter() -> Converter<'static> {
+    create_test_converter_with(DocumentAttributes::default())
 }
 
-/// Build a `Processor` for tests from the given document attributes.
+/// Build a `Converter` for tests from the given document attributes.
 ///
-/// Every test in the crate goes through here, so a new `Processor` field is
+/// Every test in the crate goes through here, so a new `Converter` field is
 /// filled in once rather than in each test module.
 #[cfg(test)]
-fn create_test_processor_with(document_attributes: DocumentAttributes<'_>) -> Processor<'_> {
+fn create_test_converter_with(document_attributes: DocumentAttributes<'_>) -> Converter<'_> {
     let appearance = Appearance::detect();
-    Processor {
+    Converter {
         options: Options::default(),
         parser_options: ParserOptions::default().with_document_attributes(document_attributes),
         document: None,
@@ -106,7 +106,7 @@ fn create_test_processor_with(document_attributes: DocumentAttributes<'_>) -> Pr
     }
 }
 
-impl<'a> Converter<'a> for Processor<'a> {
+impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
     type Error = Error;
 
     fn new(
@@ -179,9 +179,9 @@ impl<'a> Converter<'a> for Processor<'a> {
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
-        // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
+        // This converter borrows from `doc`; its lifetime is independent of `self`.
         let document = doc;
-        let processor = Processor {
+        let converter = Converter {
             parser_options: ParserOptions::default()
                 .with_document_attributes(document.attributes().into()),
             document: Some(document),
@@ -208,7 +208,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
         };
         let mut traversal = TraversalContext::new(document.attributes());
-        let mut visitor = TerminalVisitor::new(writer, &processor, diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(writer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, document)
     }
 
@@ -217,7 +217,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     }
 }
 
-impl Processor<'_> {
+impl Converter<'_> {
     /// Return the caption prefix for a titled block.
     fn caption_prefix(
         &self,
@@ -321,7 +321,7 @@ pub fn render_document_to_ansi(
     width: usize,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<u8>, Error> {
-    let processor = Processor::new(
+    let converter = Converter::new(
         options,
         ParserOptions::builder().with_attributes(
             DocumentAttributes::from(doc.attributes())
@@ -336,7 +336,7 @@ pub fn render_document_to_ansi(
     let mut terminal_diagnostics = Diagnostics::new(&source, &mut warnings);
 
     let color_guard = ColorOutputGuard::force_enabled();
-    processor.write_to(doc, &mut output, None, None, &mut terminal_diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut terminal_diagnostics)?;
     drop(color_guard);
 
     for warning in warnings {
@@ -364,10 +364,10 @@ pub fn render_listing_to_ansi(
     width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
-    let mut processor = Processor::new(options, ParserOptions::builder())?
+    let mut converter = Converter::new(options, ParserOptions::builder())?
         .with_terminal_width(width)
         .with_dark_mode(dark_mode);
-    processor.parser_options = processor
+    converter.parser_options = converter
         .parser_options
         .with_document_attributes(document_attributes);
     let color_guard = ColorOutputGuard::force_enabled();
@@ -376,7 +376,7 @@ pub fn render_listing_to_ansi(
     let output = crate::delimited::render_preformatted_inlines(
         content.inlines(),
         language,
-        &processor,
+        &converter,
         |source| acdc_converters_core::code::SourceLineOptions::from_attributes(attributes, source),
     )?
     .into_bytes();
@@ -392,17 +392,17 @@ mod backend_tests {
 
     #[test]
     fn constructor_applies_terminal_backend_profile() -> Result<(), Box<dyn StdError>> {
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let converter = Converter::new(Options::default(), ParserOptions::builder())?;
 
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("terminal")
         );
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("filetype")
                 .and_then(|value| value.text()),
@@ -417,19 +417,19 @@ mod backend_tests {
             include_str!("../../../acdc-parser/fixtures/tests/document_attributes_consumers.adoc"),
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?
         .with_terminal_width(120);
-        let source = processor.warning_source();
+        let source = converter.warning_source();
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let terminal = String::from_utf8(output)?;
         assert!(terminal.contains("images/header/before.png"));
@@ -443,18 +443,18 @@ mod backend_tests {
             "= T\n:experimental!:\n\n:experimental:\nhttps://example.com[btn:[Run]]\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
-        let source = processor.warning_source();
+        let source = converter.warning_source();
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let terminal = String::from_utf8(output)?;
         assert!(terminal.contains("[Run]"), "{terminal:?}");
@@ -491,7 +491,7 @@ impl Drop for ColorOutputGuard {
 
 fn extract_heading_content(
     nodes: Option<ContentRef<'_>>,
-    references: &HashMap<&str, Reference<'_>>,
+    references: &HashMap<&str, ReferenceTarget<'_>>,
 ) -> String {
     nodes.map_or_else(String::new, |content| {
         InlineTextTransform::default()

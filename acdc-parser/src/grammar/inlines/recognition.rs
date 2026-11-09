@@ -341,7 +341,7 @@ pub(super) fn record_url_boundary(
         .precedes(substitution, &Substitution::Macros);
     state.last_url_boundary = if formatted {
         Some(InlineUrlBoundary::Formatted(end))
-    } else if matches!(node, InlineNode::Macro(InlineMacro::Pass(_))) {
+    } else if matches!(node, InlineNode::Macro(InlineMacro::Passthrough(_))) {
         Some(InlineUrlBoundary::Protected(end))
     } else if *substitution == Substitution::Attributes {
         let text = if let InlineNode::PlainText(text) = node {

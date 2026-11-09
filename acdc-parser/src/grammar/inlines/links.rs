@@ -296,7 +296,7 @@ pub(super) fn process_link_content<'a>(
         result
             .macro_attributes
             .attributes
-            .insert("window".into(), "_blank".into());
+            .insert_if_absent("window".into(), "_blank".into());
     }
     if !text.is_empty() {
         result.text = parse_bracket_label(state, metadata, text, start + offset, quote, None)?;

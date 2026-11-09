@@ -441,22 +441,22 @@ pub(crate) fn extract_text_and_callouts<'inline>(
             | InlineKind::Highlight(_)
             | InlineKind::Subscript(_)
             | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::Anchor(_)
             | InlineKind::Footnote(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_) => {}
             node => {
                 if let Some(diagnostics) = diagnostics.as_deref_mut() {
@@ -477,7 +477,7 @@ pub(crate) fn extract_text_and_callouts<'inline>(
 mod tests {
     use super::*;
     use acdc_parser::{
-        CalloutRef, CompatibilityMode, InlineNode, LineBreak, Location, Options, Plain, Raw,
+        CalloutMarker, CompatibilityMode, InlineNode, LineBreak, Location, Options, Plain, Raw,
         Substitution, Verbatim,
     };
 
@@ -489,7 +489,7 @@ mod tests {
     }
 
     fn create_callout_ref(number: usize) -> InlineNode<'static> {
-        InlineNode::CalloutRef(CalloutRef::explicit(number, Location::default()))
+        InlineNode::CalloutMarker(CalloutMarker::explicit(number, Location::default()))
     }
 
     #[test]

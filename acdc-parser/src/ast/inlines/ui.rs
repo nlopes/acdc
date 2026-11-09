@@ -1,6 +1,6 @@
-use crate::{Button, Keyboard, Menu, ast::ContentRef};
+use crate::{Button, KeyboardShortcut, MenuPath, ast::ContentRef};
 
-use super::{ButtonRef, KeyboardRef, MenuRef};
+use super::{ButtonRef, KeyboardShortcutRef, MenuPathRef};
 
 impl<'doc> ButtonRef<'doc> {
     /// The parsed label, including an empty label.
@@ -10,14 +10,14 @@ impl<'doc> ButtonRef<'doc> {
     }
 }
 
-impl<'doc> KeyboardRef<'doc> {
+impl<'doc> KeyboardShortcutRef<'doc> {
     /// Key labels in sequence order, including empty labels.
     pub fn keys(self) -> impl Iterator<Item = ContentRef<'doc>> + Send + Sync + 'doc {
         self.node.keys.iter().map(ContentRef::from)
     }
 }
 
-impl<'doc> MenuRef<'doc> {
+impl<'doc> MenuPathRef<'doc> {
     /// The parsed menu name before the item sequence.
     #[must_use]
     pub fn target(self) -> ContentRef<'doc> {
@@ -36,14 +36,14 @@ impl<'doc> From<&'doc Button<'doc>> for ButtonRef<'doc> {
     }
 }
 
-impl<'doc> From<&'doc Keyboard<'doc>> for KeyboardRef<'doc> {
-    fn from(owner: &'doc Keyboard<'doc>) -> Self {
+impl<'doc> From<&'doc KeyboardShortcut<'doc>> for KeyboardShortcutRef<'doc> {
+    fn from(owner: &'doc KeyboardShortcut<'doc>) -> Self {
         Self::new(owner)
     }
 }
 
-impl<'doc> From<&'doc Menu<'doc>> for MenuRef<'doc> {
-    fn from(owner: &'doc Menu<'doc>) -> Self {
+impl<'doc> From<&'doc MenuPath<'doc>> for MenuPathRef<'doc> {
+    fn from(owner: &'doc MenuPath<'doc>) -> Self {
         Self::new(owner)
     }
 }
@@ -54,14 +54,14 @@ impl<'doc> From<ButtonRef<'doc>> for Button<'doc> {
     }
 }
 
-impl<'doc> From<MenuRef<'doc>> for Menu<'doc> {
-    fn from(read: MenuRef<'doc>) -> Self {
+impl<'doc> From<MenuPathRef<'doc>> for MenuPath<'doc> {
+    fn from(read: MenuPathRef<'doc>) -> Self {
         read.node.clone()
     }
 }
 
-impl<'doc> From<KeyboardRef<'doc>> for Keyboard<'doc> {
-    fn from(read: KeyboardRef<'doc>) -> Self {
+impl<'doc> From<KeyboardShortcutRef<'doc>> for KeyboardShortcut<'doc> {
+    fn from(read: KeyboardShortcutRef<'doc>) -> Self {
         read.node.clone()
     }
 }

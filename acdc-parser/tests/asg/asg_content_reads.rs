@@ -16,7 +16,7 @@ fn standalone_typed_content_preserves_formatting_and_unicode_locations() -> Resu
         let parsed = parse_inline("*α*", &options)?;
         let before = serde_json::to_value(parsed.content())?;
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
-            let value = asg::inlines_with_profile(parsed.content(), profile)?;
+            let value = asg::export_inlines_with_profile(parsed.content(), profile)?;
             assert_eq!(value.pointer("/0/variant"), Some(&json!("strong")));
             assert_eq!(value.pointer("/0/inlines/0/value"), Some(&json!("α")));
             assert_eq!(
@@ -45,7 +45,7 @@ fn typed_titles_and_image_content_export_without_owner_access() -> Result<(), Er
         else {
             return Err("paragraph".into());
         };
-        let title = asg::inlines(paragraph.title().ok_or("title")?)?;
+        let title = asg::export_inlines(paragraph.title().ok_or("title")?)?;
         assert_eq!(title.pointer("/0/variant"), Some(&json!("strong")));
         assert_eq!(title.pointer("/0/inlines/0/value"), Some(&json!("Caption")));
         let InlineKind::Image(image) = paragraph.content().inlines().next().ok_or("image")?.kind()
@@ -56,11 +56,11 @@ fn typed_titles_and_image_content_export_without_owner_access() -> Result<(), Er
             (image.alt().ok_or("alt")?, "strong", "Bird"),
             (image.tooltip().ok_or("tooltip")?, "emphasis", "Tip"),
         ] {
-            let value = asg::inlines(content)?;
+            let value = asg::export_inlines(content)?;
             assert_eq!(value.pointer("/0/variant"), Some(&json!(variant)));
             assert_eq!(value.pointer("/0/inlines/0/value"), Some(&json!(text)));
         }
-        let error = asg::inlines(paragraph.content())
+        let error = asg::export_inlines(paragraph.content())
             .err()
             .ok_or("strict rejection")?;
         let asg::Error::Unsupported {
@@ -77,7 +77,7 @@ fn typed_titles_and_image_content_export_without_owner_access() -> Result<(), Er
         let location = location.ok_or("image location")?;
         assert_eq!(location.start.line, 2);
         assert_eq!(location.start.column, 1);
-        let value = asg::inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
+        let value = asg::export_inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
         assert_eq!(value.pointer("/0/target"), Some(&json!("photo.png")));
         assert_eq!(
             value.pointer("/0/alt/0/inlines/0/value"),
@@ -115,9 +115,9 @@ fn absent_and_present_empty_image_content_remain_distinct() -> Result<(), Error>
             assert_eq!(image.tooltip().is_some(), present);
             for content in [image.alt(), image.tooltip()].into_iter().flatten() {
                 assert!(content.is_empty());
-                assert_eq!(asg::inlines(content)?, json!([]));
+                assert_eq!(asg::export_inlines(content)?, json!([]));
             }
-            let value = asg::inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
+            let value = asg::export_inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
             for field in ["alt", "tooltip"] {
                 assert_eq!(
                     value.pointer(&format!("/0/{field}")),
@@ -139,7 +139,7 @@ fn caller_built_content_exports_literal_text_without_reparsing() -> Result<(), E
         );
         let before = serde_json::to_value(&content)?;
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
-            let value = asg::inlines_with_profile(ContentRef::from(&content), profile)?;
+            let value = asg::export_inlines_with_profile(ContentRef::from(&content), profile)?;
             if let Some(text) = text {
                 assert_eq!(value.pointer("/0/name"), Some(&json!("text")));
                 assert_eq!(value.pointer("/0/value"), Some(&json!(text)));

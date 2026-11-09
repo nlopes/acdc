@@ -1,8 +1,10 @@
 use std::{error::Error, path::Path};
 
-use acdc_converters_core::{Converter, Diagnostics, GeneratorMetadata, Options, WarningSource};
+use acdc_converters_core::{
+    Converter as _, Diagnostics, GeneratorMetadata, Options, WarningSource,
+};
 use acdc_converters_dev::fixtures::{FixtureOutput, parse_fixture};
-use acdc_converters_markdown::{MarkdownVariant, Processor};
+use acdc_converters_markdown::{Converter, MarkdownVariant};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions, SafeMode};
 
 pub(crate) fn render(path: &Path) -> Result<FixtureOutput, Box<dyn Error>> {
@@ -17,7 +19,7 @@ pub(crate) fn render(path: &Path) -> Result<FixtureOutput, Box<dyn Error>> {
     };
     let parsed = parse_fixture(path)?;
     let doc = parsed.document();
-    let processor = Processor::new(
+    let converter = Converter::new(
         Options::builder()
             .safe_mode(SafeMode::Unsafe)
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -30,7 +32,7 @@ pub(crate) fn render(path: &Path) -> Result<FixtureOutput, Box<dyn Error>> {
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown").with_variant(variant.as_str());
-    processor.write_to(
+    converter.write_to(
         doc,
         &mut output,
         Some(path),

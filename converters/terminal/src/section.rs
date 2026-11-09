@@ -11,7 +11,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     SectionKind,
-    ast::{DiscreteHeaderRef, SectionRef},
+    ast::{DiscreteHeadingRef, SectionRef},
 };
 use crossterm::{
     QueueableCommand,
@@ -30,7 +30,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        let processor = self.processor;
+        let converter = self.converter;
         let effective_level = effective_section_level(section.level(), section.kind());
         let is_appendix = section.kind() == SectionKind::Appendix;
         let is_part = section.level() == 0 && section.kind() == SectionKind::Normal;
@@ -48,17 +48,17 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
         });
 
-        let raw_title = crate::extract_heading_content(section.title(), &processor.references);
+        let raw_title = crate::extract_heading_content(section.title(), &converter.references);
         let title = format!("{prefix}{raw_title}");
 
-        let tw = processor.terminal_width;
+        let tw = converter.terminal_width;
         let w = self.writer_mut();
         writeln!(w)?;
 
         match effective_level {
             0 | 1 => {
                 // Level 0/1: Full-width rule above, bold title, rule below
-                let color = processor.appearance.colors.section_h1;
+                let color = converter.appearance.colors.section_h1;
                 let rule = "━".repeat(tw);
                 w.queue(PrintStyledContent(rule.clone().with(color)))?;
                 writeln!(w)?;
@@ -69,7 +69,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             2 => {
                 // Level 2: Half-width rule + bold title
-                let color = processor.appearance.colors.section_h2;
+                let color = converter.appearance.colors.section_h2;
                 let rule = "─".repeat(tw / 2);
                 w.queue(PrintStyledContent(rule.with(color)))?;
                 writeln!(w)?;
@@ -78,14 +78,14 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             3 => {
                 // Level 3: Short rule prefix + bold title
-                let color = processor.appearance.colors.section_h3;
+                let color = converter.appearance.colors.section_h3;
                 w.queue(PrintStyledContent("─── ".with(color)))?;
                 w.queue(PrintStyledContent(title.bold().with(color)))?;
                 writeln!(w)?;
             }
             4 => {
                 // Level 4: Bold only (no separator)
-                let styled = title.bold().with(processor.appearance.colors.section_h4);
+                let styled = title.bold().with(converter.appearance.colors.section_h4);
                 QueueableCommand::queue(w, PrintStyledContent(styled))?;
                 writeln!(w)?;
             }
@@ -94,13 +94,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 let styled = title
                     .bold()
                     .italic()
-                    .with(processor.appearance.colors.section_h5);
+                    .with(converter.appearance.colors.section_h5);
                 QueueableCommand::queue(w, PrintStyledContent(styled))?;
                 writeln!(w)?;
             }
             _ => {
                 // Level 6+: Italic only (no separator)
-                let styled = title.italic().with(processor.appearance.colors.section_h6);
+                let styled = title.italic().with(converter.appearance.colors.section_h6);
                 QueueableCommand::queue(w, PrintStyledContent(styled))?;
                 writeln!(w)?;
             }
@@ -111,14 +111,14 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
     pub(crate) fn render_discrete_header(
         &mut self,
-        header: DiscreteHeaderRef<'_>,
+        header: DiscreteHeadingRef<'_>,
     ) -> Result<(), crate::Error> {
-        let processor = self.processor;
+        let converter = self.converter;
         let w = self.writer_mut();
         // Discrete headers render similar to level 4 sections (bold only)
-        let styled = crate::extract_heading_content(header.title(), &processor.references)
+        let styled = crate::extract_heading_content(header.title(), &converter.references)
             .bold()
-            .with(processor.appearance.colors.section_h4);
+            .with(converter.appearance.colors.section_h4);
         QueueableCommand::queue(w, PrintStyledContent(styled))?;
         writeln!(w)?;
         writeln!(w)?;
@@ -133,7 +133,7 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
 #[cfg(test)]
 fn extract_title_text(
     title: &[acdc_parser::InlineNode<'_>],
-    references: &HashMap<&str, acdc_parser::Reference<'_>>,
+    references: &HashMap<&str, acdc_parser::ReferenceTarget<'_>>,
 ) -> String {
     acdc_converters_core::InlineTextTransform::default()
         .decode_char_refs(true)
@@ -145,7 +145,8 @@ fn extract_title_text(
 mod tests {
     use super::*;
     use acdc_parser::{
-        Bold, CalloutRef, Form, InlineMacro, InlineNode, Link, Location, Plain, Source, Verbatim,
+        Bold, CalloutMarker, FormattingForm, InlineMacro, InlineNode, Link, Location, Plain,
+        Source, Verbatim,
     };
 
     fn plain(s: &str) -> InlineNode<'_> {
@@ -157,12 +158,16 @@ mod tests {
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold::new(nodes, Form::Constrained, Location::default()))
+        InlineNode::BoldText(Bold::new(
+            nodes,
+            FormattingForm::Constrained,
+            Location::default(),
+        ))
     }
 
     /// A catalog is only consulted for a cross-reference with no text of its
     /// own; these cases hold none.
-    fn no_references() -> HashMap<&'static str, acdc_parser::Reference<'static>> {
+    fn no_references() -> HashMap<&'static str, acdc_parser::ReferenceTarget<'static>> {
         HashMap::new()
     }
 
@@ -217,7 +222,7 @@ mod tests {
     fn extract_callout_ref() {
         let title = [
             plain("Code "),
-            InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
+            InlineNode::CalloutMarker(CalloutMarker::explicit(1, Location::default())),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "Code <1>");
     }

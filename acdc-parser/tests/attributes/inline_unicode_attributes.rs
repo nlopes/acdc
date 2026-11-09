@@ -54,7 +54,10 @@ fn inline_roles_preserve_the_complete_first_positional_value() -> Result<(), Err
                 assert_eq!(bold.role(), Some(role), "{source:?}");
                 assert_eq!(bold.id().map(ElementIdRef::as_str), None, "{source:?}");
                 assert_eq!(tail.text(), " tail.");
-                let start = parsed.source().find("**End**").ok_or("missing source")?;
+                let start = parsed
+                    .preprocessed_source()
+                    .find("**End**")
+                    .ok_or("missing source")?;
                 assert_eq!(bold.location().absolute_start(), start, "{source:?}");
                 assert_eq!(bold.location().absolute_end(), start + 6, "{source:?}");
                 let [InlineKind::Plain(text)] = &*bold
@@ -107,7 +110,10 @@ fn inline_unicode_ids_keep_their_full_target_and_roles() -> Result<(), Error> {
             );
             let reference = parsed.document().references().get(id).ok_or("missing ID")?;
             assert_eq!(reference.location(), bold.location(), "{source:?}");
-            let start = parsed.source().find("**End**").ok_or("missing source")?;
+            let start = parsed
+                .preprocessed_source()
+                .find("**End**")
+                .ok_or("missing source")?;
             assert_eq!(bold.location().absolute_start(), start, "{source:?}");
             assert_eq!(bold.location().absolute_end(), start + 6, "{source:?}");
             assert_eq!(tail.location().absolute_start(), start + 7, "{source:?}");

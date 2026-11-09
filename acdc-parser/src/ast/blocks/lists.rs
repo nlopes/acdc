@@ -1,6 +1,6 @@
 use crate::{
     ListItemCheckedStatus,
-    ast::{AnchorRef, CalloutRef},
+    ast::{AnchorRef, CalloutMarkerRef},
 };
 
 use super::{
@@ -244,8 +244,8 @@ impl<'doc> From<&'doc crate::DescriptionListDefinition<'doc>>
 impl<'doc> CalloutListItemRef<'doc> {
     /// The explanation's callout marker and resolved number.
     #[must_use]
-    pub fn callout(self) -> CalloutRef<'doc> {
-        CalloutRef::from(&self.node.callout)
+    pub fn callout(self) -> CalloutMarkerRef<'doc> {
+        CalloutMarkerRef::from(&self.node.callout)
     }
 }
 

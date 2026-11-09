@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use serde_json::{Map, Value};
 
-use crate::{Anchor, Reference};
+use crate::{Anchor, ReferenceTarget};
 
 use super::{Error, Profile, metadata, pointer, projection::inlines, unsupported};
 
@@ -103,7 +103,7 @@ pub(super) fn owners(document: &Map<String, Value>) -> Result<BTreeMap<String, S
 }
 
 pub(super) fn registration(
-    reference: &Reference<'_>,
+    reference: &ReferenceTarget<'_>,
     owner: &str,
     independent_label: bool,
     path: &str,

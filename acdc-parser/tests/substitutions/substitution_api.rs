@@ -12,7 +12,7 @@ type Error = Box<dyn std::error::Error>;
 fn substitution_metadata_preserves_absent_empty_and_populated_values() -> Result<(), Error> {
     let absent = BlockMetadata::default();
     assert!(absent.substitutions.is_none());
-    assert!(absent.is_default());
+    assert!(absent.is_empty_for_serialization());
     assert_eq!(serde_json::to_value(&absent)?, json!({}));
 
     for (spec, expected) in [
@@ -40,7 +40,7 @@ fn substitution_metadata_preserves_absent_empty_and_populated_values() -> Result
         metadata.substitutions = Some(spec);
         assert_ne!(metadata, absent);
         assert_eq!(metadata, metadata.clone());
-        assert!(!metadata.is_default());
+        assert!(!metadata.is_empty_for_serialization());
         assert_eq!(
             serde_json::to_value(&metadata)?,
             json!({"substitutions": expected})

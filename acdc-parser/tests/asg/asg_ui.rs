@@ -2,8 +2,8 @@
 
 use acdc_parser::{
     Block, Bold, Button, CharacterReference, CharacterReferenceKind, CompatibilityMode,
-    ContentAttribute, Document, Form, InlineMacro, InlineNode, Keyboard, Location, Menu, Options,
-    Paragraph, Plain, asg, parse, parse_file,
+    ContentAttribute, Document, FormattingForm, InlineMacro, InlineNode, KeyboardShortcut,
+    Location, MenuPath, Options, Paragraph, Plain, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -35,7 +35,7 @@ fn source_interface_labels_keep_component_order_and_nested_content() -> Result<(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (path, expected) in [
             ("/blocks/0/inlines/1/keys/0/0/value", json!("Ctrl")),
@@ -63,7 +63,7 @@ fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<()
             "Formatted",
             Location::default(),
         ))],
-        Form::Constrained,
+        FormattingForm::Constrained,
         Location::default(),
     ))]);
     let mut document = Document::default();
@@ -73,7 +73,7 @@ fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<()
                 plain("*literal*"),
                 Location::default(),
             ))),
-            InlineNode::Macro(InlineMacro::Keyboard(Keyboard::new(
+            InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut::new(
                 vec![
                     ContentAttribute::default(),
                     formatted.clone(),
@@ -81,7 +81,7 @@ fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<()
                 ],
                 Location::default(),
             ))),
-            InlineNode::Macro(InlineMacro::Menu(Menu::new(
+            InlineNode::Macro(InlineMacro::MenuPath(MenuPath::new(
                 ContentAttribute::default(),
                 vec![ContentAttribute::default(), formatted],
                 Location::default(),
@@ -89,7 +89,7 @@ fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<()
         ],
         Location::default(),
     )));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     for (path, expected) in [
         ("/blocks/0/inlines/0/inlines/0/value", json!("*literal*")),
         ("/blocks/0/inlines/1/keys/0", json!([])),
@@ -113,18 +113,18 @@ fn nested_label_errors_and_footnotes_keep_their_owners() -> Result<(), Error> {
             "/0/inlines/0",
         ),
         (
-            InlineMacro::Keyboard(Keyboard::new(
+            InlineMacro::KeyboardShortcut(KeyboardShortcut::new(
                 vec![plain("Ctrl"), invalid()?],
                 Location::default(),
             )),
             "/0/keys/1/0",
         ),
         (
-            InlineMacro::Menu(Menu::new(invalid()?, Vec::new(), Location::default())),
+            InlineMacro::MenuPath(MenuPath::new(invalid()?, Vec::new(), Location::default())),
             "/0/target/0",
         ),
         (
-            InlineMacro::Menu(Menu::new(
+            InlineMacro::MenuPath(MenuPath::new(
                 plain("File"),
                 vec![invalid()?],
                 Location::default(),
@@ -134,14 +134,14 @@ fn nested_label_errors_and_footnotes_keep_their_owners() -> Result<(), Error> {
     ] {
         let content = ContentAttribute::new(vec![InlineNode::Macro(value)]);
         assert!(
-            matches!(asg::inlines_with_profile((&content).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported{path:actual,..}) if actual == path)
+            matches!(asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported{path:actual,..}) if actual == path)
         );
     }
     let parsed = parse(
         "= Guide\n:experimental:\n\nbtn:[Save footnote:n[Note.]]",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0/inlines/1/name"),
         Some(&json!("footnote"))
@@ -164,7 +164,7 @@ fn nested_label_errors_and_footnotes_keep_their_owners() -> Result<(), Error> {
 fn disabled_source_macros_and_strict_export_stay_literal_or_rejected() -> Result<(), Error> {
     let source = "kbd:[Ctrl+C] btn:[Save] menu:File[Save]";
     let parsed = parse(source, &Options::default())?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0/value"),
         Some(&json!(source))
@@ -179,9 +179,9 @@ fn disabled_source_macros_and_strict_export_stay_literal_or_rejected() -> Result
             &Options::default(),
         )?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some(actual),..}) if path == "/blocks/0/inlines/0" && actual == owner)
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some(actual),..}) if path == "/blocks/0/inlines/0" && actual == owner)
         );
-        assert!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc).is_ok());
+        assert!(asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc).is_ok());
     }
     Ok(())
 }
@@ -190,7 +190,7 @@ fn disabled_source_macros_and_strict_export_stay_literal_or_rejected() -> Result
 fn interface_schema_is_closed_and_rejects_flattened_labels() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/ui_macros.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

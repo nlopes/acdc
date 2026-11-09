@@ -80,7 +80,7 @@ fn reference_forms_preserve_targets_and_effective_labels() -> Result<(), Error> 
         ] {
             let parsed = parse_inline(source, &options)?;
             let before = serde_json::to_value(parsed.content())?;
-            let value = asg::inlines(parsed.content())?;
+            let value = asg::export_inlines(parsed.content())?;
             let reference = value
                 .as_array()
                 .and_then(|nodes| nodes.first())
@@ -102,7 +102,7 @@ fn formatted_and_nested_labels_remain_inline_trees() -> Result<(), Error> {
         "link:page.html[Read *bold _nested_* &amp;]",
         &Options::default(),
     )?;
-    let value = asg::inlines(parsed.content())?;
+    let value = asg::export_inlines(parsed.content())?;
     assert_eq!(
         value.pointer("/0/inlines/1/variant"),
         Some(&json!("strong"))
@@ -117,7 +117,7 @@ fn formatted_and_nested_labels_remain_inline_trees() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, construct: Some("inline image"), ..})
+        matches!(asg::export_inlines(parsed.content()), Err(asg::Error::Unsupported {path, construct: Some("inline image"), ..})
         if path == "/0/inlines/1")
     );
     Ok(())
@@ -126,7 +126,7 @@ fn formatted_and_nested_labels_remain_inline_trees() -> Result<(), Error> {
 #[test]
 fn bracketed_email_keeps_brackets_outside_the_reference() -> Result<(), Error> {
     let parsed = parse_inline("<person@example.org>", &Options::default())?;
-    let value = asg::inlines(parsed.content())?;
+    let value = asg::export_inlines(parsed.content())?;
     assert_eq!(value.as_array().ok_or("array")?.len(), 3);
     assert_eq!(value.pointer("/0/value"), Some(&json!("<")));
     assert_eq!(value.pointer("/1/name"), Some(&json!("ref")));
@@ -146,7 +146,7 @@ fn automatic_xrefs_keep_empty_labels_and_exported_target_content() -> Result<(),
         "[#target,reftext='Read *this*']\n== Heading\n\nSee <<target>>.",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(value.pointer("/blocks/0/id"), Some(&json!("target")));
     assert_eq!(
         value.pointer("/blocks/0/reftext/1/variant"),
@@ -188,7 +188,7 @@ fn mailto_queries_keep_unrelated_headers_and_encode_values() -> Result<(), Error
         ),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
-        let value = asg::inlines(parsed.content())?;
+        let value = asg::export_inlines(parsed.content())?;
         assert_eq!(
             value.pointer("/0/target"),
             Some(&json!(expected)),
@@ -198,7 +198,7 @@ fn mailto_queries_keep_unrelated_headers_and_encode_values() -> Result<(), Error
     let mut mail = acdc_parser::Mailto::new(Source::Name("a@example.org"), Location::default());
     mail.replace_subject(Some("Subject"));
     mail.replace_body(Some("First\nsecond\rthird\r\nfourth"));
-    let value = asg::inlines(ContentRef::from(&ContentAttribute::new(vec![
+    let value = asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![
         InlineNode::Macro(InlineMacro::Mailto(Box::new(mail))),
     ])))?;
     assert_eq!(
@@ -221,7 +221,7 @@ fn scheme_hiding_changes_only_automatic_display_text() -> Result<(), Error> {
     else {
         return Err("paragraph".into());
     };
-    let value = asg::inlines(paragraph.content())?;
+    let value = asg::export_inlines(paragraph.content())?;
     assert_eq!(
         value.pointer("/0/target"),
         Some(&json!("https://example.org"))
@@ -253,7 +253,7 @@ fn unsupported_reference_properties_fail_at_the_property() -> Result<(), Error> 
     ] {
         let parsed = parse_inline(source, &Options::default())?;
         assert!(
-            matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::export_inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/0/{suffix}")),
             "{source}"
         );
@@ -261,13 +261,13 @@ fn unsupported_reference_properties_fail_at_the_property() -> Result<(), Error> 
     let mut link = Link::new(Source::Name("target"), Location::default());
     link.set_attribute("custom/~".into(), AttributeValue::Bool(false))?;
     assert!(
-        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/metadata/attributes/custom~1~0")
     );
     let mut xref = CrossReference::new("target", Location::default());
     xref.set_signifier(XrefSignifier::Omitted);
     assert!(
-        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/signifier")
     );
     Ok(())
@@ -279,7 +279,7 @@ fn target_classification_cannot_be_silently_changed() {
     xref.set_target_is_local(true);
     xref.set_xrefstyle(XrefStyle::Default);
     assert!(
-        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/target_is_local")
     );
 }
@@ -291,7 +291,7 @@ fn customized_signifier_snapshots_are_not_mistaken_for_defaults() -> Result<(), 
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
         if path == "/blocks/0/blocks/0/inlines/1/signifier")
     );
     Ok(())
@@ -304,7 +304,7 @@ fn non_utf8_reference_targets_are_not_lossily_stringified() {
     let source = Source::Path(PathBuf::from(OsString::from_vec(vec![b'x', 0xff])));
     let link = Link::new(source, Location::default());
     assert!(
-        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))),
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))),
         Err(asg::Error::Unsupported {path, ..}) if path == "/0/target")
     );
 }
@@ -316,7 +316,7 @@ fn email_bracket_expansion_preserves_error_indices() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..})
         if path == "/4")
     );
     Ok(())

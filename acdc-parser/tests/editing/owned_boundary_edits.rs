@@ -77,9 +77,9 @@ macro_rules! metadata_contract {
 
 metadata_contract!(
     heading,
-    DiscreteHeader,
+    DiscreteHeading,
     "[discrete#local.note]\n== A *heading*",
-    acdc_parser::DiscreteHeader::new(
+    acdc_parser::DiscreteHeading::new(
         acdc_parser::Title::default(),
         2,
         acdc_parser::Location::default()
@@ -115,7 +115,7 @@ fn boundary_titles_keep_absent_empty_and_formatted_content(
         "[discrete]\n== A *heading*",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::DiscreteHeader(mut heading) =
+    let Block::DiscreteHeading(mut heading) =
         Block::from(parsed.document().blocks().next().ok_or("heading")?)
     else {
         return Err("heading".into());
@@ -131,7 +131,7 @@ fn boundary_titles_keep_absent_empty_and_formatted_content(
     let rule_title = rule.take_title();
     rule.set_title(rule_title);
     for mut block in [
-        Block::DiscreteHeader(heading),
+        Block::DiscreteHeading(heading),
         Block::PageBreak(page),
         Block::ThematicBreak(rule),
     ] {
@@ -140,7 +140,7 @@ fn boundary_titles_keep_absent_empty_and_formatted_content(
                 .title()
                 .is_some_and(|title| !title.is_empty())
         );
-        if let Block::DiscreteHeader(owner) = &mut block {
+        if let Block::DiscreteHeading(owner) = &mut block {
             owner.set_title(Title::new(Vec::new()));
         } else if let Block::PageBreak(owner) = &mut block {
             owner.set_title(Title::new(Vec::new()));
@@ -154,7 +154,7 @@ fn boundary_titles_keep_absent_empty_and_formatted_content(
                 .title()
                 .is_some_and(ContentRef::is_empty)
         );
-        let removed = if let Block::DiscreteHeader(owner) = &mut block {
+        let removed = if let Block::DiscreteHeading(owner) = &mut block {
             owner.take_title()
         } else if let Block::PageBreak(owner) = &mut block {
             owner.take_title()

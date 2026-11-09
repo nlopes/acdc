@@ -1,5 +1,5 @@
 use acdc_parser::{
-    Bold, CompatibilityMode, Form, Highlight, Location, Options, Paragraph, SafeMode,
+    Bold, CompatibilityMode, FormattingForm, Highlight, Location, Options, Paragraph, SafeMode,
     ast::{AttributeValueRef, BlockKind, BoldRef, HighlightRef, InlineKind, ParagraphRef},
     parse, parse_file,
 };
@@ -9,22 +9,22 @@ type Error = Box<dyn std::error::Error>;
 fn shared<T: Copy + Send + Sync>(_: T) {}
 
 #[rstest::rstest]
-#[case::bold("*x*", "bold", Form::Constrained)]
-#[case::bold_unconstrained("**x**", "bold", Form::Unconstrained)]
-#[case::italic("_x_", "italic", Form::Constrained)]
-#[case::italic_unconstrained("__x__", "italic", Form::Unconstrained)]
-#[case::monospace("`x`", "monospace", Form::Constrained)]
-#[case::monospace_unconstrained("``x``", "monospace", Form::Unconstrained)]
-#[case::highlight("#x#", "highlight", Form::Constrained)]
-#[case::highlight_unconstrained("##x##", "highlight", Form::Unconstrained)]
-#[case::subscript("~x~", "subscript", Form::Unconstrained)]
-#[case::superscript("^x^", "superscript", Form::Unconstrained)]
-#[case::quotation("\"`x`\"", "quotation", Form::Unconstrained)]
-#[case::apostrophe("'`x`'", "apostrophe", Form::Unconstrained)]
+#[case::bold("*x*", "bold", FormattingForm::Constrained)]
+#[case::bold_unconstrained("**x**", "bold", FormattingForm::Unconstrained)]
+#[case::italic("_x_", "italic", FormattingForm::Constrained)]
+#[case::italic_unconstrained("__x__", "italic", FormattingForm::Unconstrained)]
+#[case::monospace("`x`", "monospace", FormattingForm::Constrained)]
+#[case::monospace_unconstrained("``x``", "monospace", FormattingForm::Unconstrained)]
+#[case::highlight("#x#", "highlight", FormattingForm::Constrained)]
+#[case::highlight_unconstrained("##x##", "highlight", FormattingForm::Unconstrained)]
+#[case::subscript("~x~", "subscript", FormattingForm::Unconstrained)]
+#[case::superscript("^x^", "superscript", FormattingForm::Unconstrained)]
+#[case::quotation("\"`x`\"", "quotation", FormattingForm::Unconstrained)]
+#[case::apostrophe("'`x`'", "apostrophe", FormattingForm::Unconstrained)]
 fn concrete_spans_keep_content_form_identity_and_tokens(
     #[case] source: &str,
     #[case] expected_kind: &str,
-    #[case] expected_form: Form,
+    #[case] expected_form: FormattingForm,
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = format!("Before [#span.one.two.one]{source} after.");
@@ -100,9 +100,9 @@ fn concrete_spans_keep_content_form_identity_and_tokens(
         check!(node, "subscript");
     } else if let InlineKind::Superscript(node) = span.kind() {
         check!(node, "superscript");
-    } else if let InlineKind::CurvedQuotation(node) = span.kind() {
+    } else if let InlineKind::DoubleQuotedSpan(node) = span.kind() {
         check!(node, "quotation");
-    } else if let InlineKind::CurvedApostrophe(node) = span.kind() {
+    } else if let InlineKind::SingleQuotedSpan(node) = span.kind() {
         check!(node, "apostrophe");
     } else {
         return Err(format!("unexpected inline: {:?}", span.kind()).into());
@@ -164,7 +164,7 @@ fn nested_spans_keep_concrete_children_and_unicode_locations(
         let InlineKind::Italic(italic) = children.get(1).ok_or("italic")?.kind() else {
             return Err("italic".into());
         };
-        assert_eq!(italic.form(), Form::Constrained);
+        assert_eq!(italic.form(), FormattingForm::Constrained);
         assert!(italic.roles().is_empty());
         assert!(italic.id().is_none());
         assert!(italic.attributes().is_empty());
@@ -257,7 +257,11 @@ fn included_and_table_cell_spans_keep_original_source_context(
 #[test]
 fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result<(), Error> {
     let mut bold = {
-        let mut span = Bold::new(Vec::new(), Form::Unconstrained, Location::default());
+        let mut span = Bold::new(
+            Vec::new(),
+            FormattingForm::Unconstrained,
+            Location::default(),
+        );
         span.replace_role(Some("one\ttwo\u{2003}one"));
         span.set_id(Some(acdc_parser::ElementId::new("", Location::default())));
         span
@@ -279,7 +283,8 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
     assert!(span.roles().is_empty());
     assert!(span.roles().is_present());
     assert!(span.attributes().contains("role"));
-    let mut highlight = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+    let mut highlight =
+        Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
     assert!(HighlightRef::from(&highlight).is_marked());
     highlight.replace_role(Some(""));
     assert!(!HighlightRef::from(&highlight).is_marked());

@@ -55,7 +55,7 @@ fn shorthand_labels_keep_trailing_and_unicode_whitespace_at_the_authored_span(
     assert_eq!(text.text(), expected);
     // Normalization removes trailing spaces before a newline before assigning byte offsets.
     let start = parsed
-        .source()
+        .preprocessed_source()
         .find(expected)
         .ok_or("missing authored label")?;
     let end = start
@@ -131,7 +131,7 @@ fn content_attributes_keep_their_full_authored_span(
                 icon.alt()
             } else if let InlineKind::Link(link) = node.kind() {
                 link.tooltip()
-            } else if let InlineKind::Url(url) = node.kind() {
+            } else if let InlineKind::UrlMacro(url) = node.kind() {
                 url.tooltip()
             } else if let InlineKind::Mailto(mailto) = node.kind() {
                 mailto.tooltip()

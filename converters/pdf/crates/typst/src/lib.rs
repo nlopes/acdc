@@ -122,7 +122,7 @@ pub struct EmitOptions {
     /// Standard or custom size used for every document page.
     pub page: PageSize,
     /// Initial portrait or landscape page layout.
-    pub page_layout: PageLayout,
+    pub page_layout: PageOrientation,
     /// Page margins that override the theme when set.
     pub page_margin: Option<PageMargins>,
     /// Strip the page background, header, and footer.
@@ -148,7 +148,7 @@ impl Default for EmitOptions {
             metadata: DocumentMetadata::default(),
             locale: DocumentLocale::default(),
             page: PageSize::A4,
-            page_layout: PageLayout::Portrait,
+            page_layout: PageOrientation::Portrait,
             page_margin: None,
             plain: false,
             brand_fonts: false,
@@ -181,9 +181,9 @@ pub enum PageSize {
     Custom(PageDimensions),
 }
 
-/// A supported document page layout.
+/// Portrait or landscape page orientation.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum PageLayout {
+pub enum PageOrientation {
     #[default]
     Portrait,
     Landscape,
@@ -207,7 +207,7 @@ impl PageSize {
 
     /// Returns the page dimensions after applying `layout`.
     #[must_use]
-    pub const fn dimensions(self, layout: PageLayout) -> PageDimensions {
+    pub const fn dimensions(self, layout: PageOrientation) -> PageDimensions {
         let dimensions = match self {
             Self::A3 => PageDimensions::known(841.89, 1190.551),
             Self::A4 => PageDimensions::known(595.276, 841.89),
@@ -219,20 +219,20 @@ impl PageSize {
             Self::Custom(dimensions) => dimensions,
         };
         match layout {
-            PageLayout::Portrait => dimensions,
-            PageLayout::Landscape => dimensions.flipped(),
+            PageOrientation::Portrait => dimensions,
+            PageOrientation::Landscape => dimensions.flipped(),
         }
     }
 
     /// Returns the page width after applying `layout`, in PDF points.
     #[must_use]
-    pub const fn width_points(self, layout: PageLayout) -> f64 {
+    pub const fn width_points(self, layout: PageOrientation) -> f64 {
         self.dimensions(layout).width_points()
     }
 
     /// Returns the page height after applying `layout`, in PDF points.
     #[must_use]
-    pub const fn height_points(self, layout: PageLayout) -> f64 {
+    pub const fn height_points(self, layout: PageOrientation) -> f64 {
         self.dimensions(layout).height_points()
     }
 }

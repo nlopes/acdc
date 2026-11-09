@@ -62,7 +62,7 @@ fn keyboard_key_boundaries_match_the_selected_separator(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineKind::Keyboard(keyboard)) =
+    let Some(InlineKind::KeyboardShortcut(keyboard)) =
         paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
     else {
         return Err("missing keyboard".into());
@@ -107,7 +107,7 @@ fn keyboard_deep_brackets_do_not_overflow_the_stack(
     let keyboard = content
         .inlines()
         .find_map(|node| {
-            if let InlineKind::Keyboard(keyboard) = node.kind() {
+            if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
                 Some(keyboard)
             } else {
                 None
@@ -167,7 +167,8 @@ fn menu_items_keep_nested_and_escaped_boundaries(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineKind::Menu(menu)) = paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
+    let Some(InlineKind::MenuPath(menu)) =
+        paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
     else {
         return Err("missing menu".into());
     };
@@ -238,7 +239,8 @@ fn menu_separators_do_not_split_nested_reference_syntax(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(InlineKind::Menu(menu)) = paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
+    let Some(InlineKind::MenuPath(menu)) =
+        paragraph(&parsed)?.inlines().next().map(InlineRef::kind)
     else {
         return Err("missing menu".into());
     };

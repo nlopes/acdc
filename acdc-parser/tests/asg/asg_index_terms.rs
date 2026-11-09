@@ -30,10 +30,10 @@ fn labels_hierarchy_relationships_and_controls_keep_their_own_fields() -> Result
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         assert_eq!(
-            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
+            asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?,
             value
         );
         assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -68,7 +68,7 @@ fn labels_hierarchy_relationships_and_controls_keep_their_own_fields() -> Result
         }
         assert!(value.pointer("/blocks/0/inlines/1/catalog").is_none());
         assert!(matches!(
-            asg::document(parsed.document()),
+            asg::export_document(parsed.document()),
             Err(asg::Error::Unsupported {
                 construct: Some("index term"),
                 ..
@@ -85,7 +85,7 @@ fn prepared_display_edits_keep_catalog_labels_without_reparsing() -> Result<(), 
     term.replace_relationship(Some(IndexTermRelationship::See { target: Vec::new() }));
     let content = content(term);
     let before = serde_json::to_value(&content)?;
-    let value = asg::inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/0/term/0/value"), Some(&json!("*New*")));
     assert_eq!(
         value.pointer("/0/catalog/term/0/value"),
@@ -111,7 +111,7 @@ fn absent_and_empty_hierarchy_and_relationship_targets_remain_distinct() -> Resu
         targets: vec![Vec::new()],
     }));
     let content = content(term);
-    let value = asg::inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/0/term"), Some(&json!([])));
     assert!(value.pointer("/0/secondary").is_none());
     assert_eq!(value.pointer("/0/tertiary"), Some(&json!([])));
@@ -126,7 +126,7 @@ fn selected_titles_and_cells_keep_index_owners_and_footnote_registration() -> Re
         &Options::default(),
     )?;
     let before = serde_json::to_value(parsed.document())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/title/0/name"),
         Some(&json!("indexterm"))
@@ -150,7 +150,7 @@ fn selected_titles_and_cells_keep_index_owners_and_footnote_registration() -> Re
 #[test]
 fn icon_label_children_keep_the_nested_owner_path() -> Result<(), Error> {
     let parsed = parse("indexterm2:[icon:heart[]]", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0/term/0/target"),
         Some(&json!("heart"))
@@ -162,7 +162,7 @@ fn icon_label_children_keep_the_nested_owner_path() -> Result<(), Error> {
 fn index_schema_closes_labels_snapshots_and_relationship_variants() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/index_terms.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

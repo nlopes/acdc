@@ -72,7 +72,7 @@ fn quoted_menus_follow_the_macro_stage(
         })
         .flatten()
         .filter_map(|node| {
-            if let InlineKind::Menu(menu) = node.kind() {
+            if let InlineKind::MenuPath(menu) = node.kind() {
                 Some(
                     std::iter::once(text(menu.target()))
                         .chain(menu.items().map(text))
@@ -111,7 +111,7 @@ fn later_attributes_cannot_create_the_quoted_menu_form(
                 paragraph
                     .content()
                     .inlines()
-                    .any(|node| matches!(node.kind(), InlineKind::Menu(_)))
+                    .any(|node| matches!(node.kind(), InlineKind::MenuPath(_)))
             } else {
                 false
             }
@@ -142,7 +142,7 @@ fn quoted_menus_share_the_existing_ui_availability(
         paragraph
             .content()
             .inlines()
-            .any(|node| matches!(node.kind(), InlineKind::Menu(_))),
+            .any(|node| matches!(node.kind(), InlineKind::MenuPath(_))),
         mode == CompatibilityMode::Draft
     );
     Ok(())
@@ -171,7 +171,7 @@ fn quoted_menu_labels_keep_rich_content_and_source_locations(
         .content()
         .inlines()
         .find_map(|node| {
-            if let InlineKind::Menu(menu) = node.kind() {
+            if let InlineKind::MenuPath(menu) = node.kind() {
                 Some(menu)
             } else {
                 None

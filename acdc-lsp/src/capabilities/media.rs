@@ -84,7 +84,7 @@ fn collect_node<'doc>(
             | BlockKind::UnorderedList(_)
             | BlockKind::DescriptionList(_)
             | BlockKind::CalloutList(_) => {}
-            BlockKind::DiscreteHeader(_)
+            BlockKind::DiscreteHeading(_)
             | BlockKind::TableOfContents(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)

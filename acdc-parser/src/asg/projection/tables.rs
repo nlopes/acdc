@@ -3,7 +3,7 @@ mod grid;
 use serde_json::{Value, json};
 
 use crate::{
-    Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, Table, TableColumn, TableFrame,
+    Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, Table, TableCell, TableFrame,
     TableGrid, TablePresentation, TableRow, TableStripes,
 };
 
@@ -83,7 +83,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
     fn table_cell(
         &mut self,
-        cell: &'a TableColumn<'doc>,
+        cell: &'a TableCell<'doc>,
         format: Option<&ColumnFormat>,
         path: &str,
     ) -> Result<Value, Error> {

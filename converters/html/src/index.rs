@@ -287,22 +287,22 @@ fn render_entries<W: Write + ?Sized>(
 ///
 /// This generates nested definition lists organized alphabetically by first letter.
 pub(crate) fn render<W: Write>(visitor: &mut HtmlVisitor<'_, '_, W>) -> Result<(), Error> {
-    let processor = visitor.processor.clone();
-    let entries = processor.index_entries().borrow();
+    let converter = visitor.converter.clone();
+    let entries = converter.index_entries().borrow();
 
     if entries.is_empty() {
         return Ok(());
     }
 
     // Label for occurrences outside any section (e.g. the preamble).
-    let fallback = processor
+    let fallback = converter
         .document_attributes()
         .get("doctitle")
         .and_then(|value| value.text())
         .map_or_else(|| "top".to_string(), str::to_owned);
 
-    let catalog = processor.index_catalog_counter.get() + 1;
-    processor.index_catalog_counter.set(catalog);
+    let catalog = converter.index_catalog_counter.get() + 1;
+    converter.index_catalog_counter.set(catalog);
     let index = build_index_structure(&entries);
     let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);

@@ -69,10 +69,10 @@ fn formatting_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         InlineKind::Highlight(text) => Some(text.content()),
         InlineKind::Subscript(text) => Some(text.content()),
         InlineKind::Superscript(text) => Some(text.content()),
-        InlineKind::CurvedQuotation(text) => Some(text.content()),
-        InlineKind::CurvedApostrophe(text) => Some(text.content()),
+        InlineKind::DoubleQuotedSpan(text) => Some(text.content()),
+        InlineKind::SingleQuotedSpan(text) => Some(text.content()),
         InlineKind::Link(_)
-        | InlineKind::Url(_)
+        | InlineKind::UrlMacro(_)
         | InlineKind::Mailto(_)
         | InlineKind::CrossReference(_) => formatted_link_label(node),
         InlineKind::Plain(_)
@@ -88,10 +88,10 @@ fn formatting_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         | InlineKind::Footnote(_)
         | InlineKind::Icon(_)
         | InlineKind::Image(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
-        | InlineKind::Pass(_)
+        | InlineKind::MenuPath(_)
+        | InlineKind::Passthrough(_)
         | InlineKind::Stem(_)
         | InlineKind::IndexTerm(_)
         | _ => None,
@@ -105,7 +105,7 @@ fn formatting_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
 fn formatted_link_label(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
     let label = match node.kind() {
         InlineKind::Link(link) => link.text(),
-        InlineKind::Url(link) => link.text(),
+        InlineKind::UrlMacro(link) => link.text(),
         InlineKind::Mailto(link) => link.text(),
         InlineKind::CrossReference(link) => link.text(),
         _ => return None,

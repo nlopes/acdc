@@ -206,7 +206,7 @@ fn draft_anchor_shorthand_marks_discrete_headings() -> Result<(), Error> {
     )?;
     assert!(matches!(
         parsed.document().blocks().next().map(BlockRef::kind),
-        Some(BlockKind::DiscreteHeader(_))
+        Some(BlockKind::DiscreteHeading(_))
     ));
     Ok(())
 }
@@ -221,7 +221,7 @@ fn a_named_none_style_follows_the_mode_during_heading_lookahead() -> Result<(), 
         assert_eq!(
             matches!(
                 parsed.document().blocks().next().map(BlockRef::kind),
-                Some(BlockKind::DiscreteHeader(_))
+                Some(BlockKind::DiscreteHeading(_))
             ),
             mode == CompatibilityMode::Asciidoctor
         );

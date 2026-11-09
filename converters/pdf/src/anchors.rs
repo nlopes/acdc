@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use acdc_parser::{
-    Reference,
-    ast::{ReferenceRef, SectionRef, TocEntryRef},
+    ReferenceTarget,
+    ast::{ReferenceTargetRef, SectionRef, TocEntryRef},
 };
 
 use crate::encode_label;
@@ -19,7 +19,7 @@ pub(crate) struct Anchors<'a> {
 impl<'a> Anchors<'a> {
     pub(crate) fn new(
         entries: impl ExactSizeIterator<Item = TocEntryRef<'a>>,
-        references: &HashMap<&'a str, Reference<'a>>,
+        references: &HashMap<&'a str, ReferenceTarget<'a>>,
     ) -> Self {
         let mut anchors = Self {
             emitted: HashSet::new(),
@@ -30,9 +30,9 @@ impl<'a> Anchors<'a> {
         };
         let mut seen = HashSet::new();
         for entry in entries {
-            let first = references
-                .get(entry.id())
-                .is_none_or(|reference| ReferenceRef::from(reference).matches_toc_entry(entry));
+            let first = references.get(entry.id()).is_none_or(|reference| {
+                ReferenceTargetRef::from(reference).matches_toc_entry(entry)
+            });
             let label = if first && seen.insert(entry.id()) {
                 encode_label(entry.id())
             } else {
@@ -80,7 +80,7 @@ impl<'a> Anchors<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use acdc_parser::{ContentAttribute, Location, Reference, Title, TocEntry};
+    use acdc_parser::{ContentAttribute, Location, ReferenceTarget, Title, TocEntry};
 
     use super::Anchors;
 
@@ -89,7 +89,7 @@ mod tests {
         for entry_title in [Title::default(), Title::new(Vec::new())] {
             for reference_title in [None, Some(Title::default()), Some(Title::new(Vec::new()))] {
                 let matches = reference_title.is_some() && entry_title.is_present();
-                let mut reference = Reference::new("target", Location::default());
+                let mut reference = ReferenceTarget::new("target", Location::default());
                 reference.set_title(
                     reference_title.map(|title| ContentAttribute::new(title.into_inlines())),
                 );

@@ -12,7 +12,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         video: VideoRef<'_>,
     ) -> Result<(), Error> {
         if video.source().to_string().is_empty() {
-            if self.processor.mark_fallback("video-missing-source") {
+            if self.converter.mark_fallback("video-missing-source") {
                 self.diagnostics.warn_with_advice(
                     "video has no source and cannot be represented in terminal output",
                     "Add at least one source to the `video::` macro.",
@@ -32,10 +32,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 .map_or("video", |name| name)
                 .to_string()
         };
-        let processor = self.processor;
+        let converter = self.converter;
         let target = resolve_target(&video.try_url(false)?, traversal);
         let label = format!("[Video: {title}]");
-        inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), processor)?;
+        inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), converter)?;
         writeln!(self.writer_mut())?;
         if let Some(AttributeValueRef::Text(poster)) = video.attributes().get("poster")
             && !matches!(poster, "youtube" | "vimeo")

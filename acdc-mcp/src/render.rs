@@ -35,7 +35,7 @@ pub(super) fn kind(block: BlockRef<'_>) -> &'static str {
     match block.kind() {
         BlockKind::Section(_) => "section",
         BlockKind::Paragraph(_) => "paragraph",
-        BlockKind::DiscreteHeader(_) => "discrete_heading",
+        BlockKind::DiscreteHeading(_) => "discrete_heading",
         BlockKind::UnorderedList(_)
         | BlockKind::OrderedList(_)
         | BlockKind::DescriptionList(_)
@@ -88,8 +88,8 @@ pub(super) fn inline_text(nodes: ContentRef<'_>, format: Format) -> String {
             InlineKind::Highlight(t) => wrap(t.content(), "##", format),
             InlineKind::Subscript(t) => wrap(t.content(), "~", format),
             InlineKind::Superscript(t) => wrap(t.content(), "^", format),
-            InlineKind::CurvedQuotation(t) => format!("“{}”", inline_text(t.content(), format)),
-            InlineKind::CurvedApostrophe(t) => format!("‘{}’", inline_text(t.content(), format)),
+            InlineKind::DoubleQuotedSpan(t) => format!("“{}”", inline_text(t.content(), format)),
+            InlineKind::SingleQuotedSpan(t) => format!("‘{}’", inline_text(t.content(), format)),
             InlineKind::Symbol(symbol) => symbol.kind().text().into(),
             InlineKind::CharacterReference(reference) => {
                 let spelling = reference.kind().to_string();
@@ -145,7 +145,9 @@ fn labelled_link(target: &str, label: ContentRef<'_>, format: Format, prefix: &s
 fn macro_text(m: InlineKind<'_>, format: Format) -> String {
     match m {
         InlineKind::Link(l) => labelled_link(&l.target().to_string(), l.text(), format, "link:"),
-        InlineKind::Url(l) => labelled_link(&l.target().to_string(), l.text(), format, "link:"),
+        InlineKind::UrlMacro(l) => {
+            labelled_link(&l.target().to_string(), l.text(), format, "link:")
+        }
         InlineKind::Mailto(l) => {
             labelled_link(&l.target().to_string(), l.text(), format, "mailto:")
         }
@@ -161,7 +163,7 @@ fn macro_text(m: InlineKind<'_>, format: Format) -> String {
                 format!("[{text}]")
             }
         }
-        InlineKind::Pass(p) => {
+        InlineKind::Passthrough(p) => {
             if format == Format::Asciidoc {
                 format!("pass:[{}]", p.text().unwrap_or_default())
             } else {
@@ -176,12 +178,12 @@ fn macro_text(m: InlineKind<'_>, format: Format) -> String {
             }
         }
         InlineKind::Button(b) => inline_text(b.label(), format),
-        InlineKind::Keyboard(k) => k
+        InlineKind::KeyboardShortcut(k) => k
             .keys()
             .map(|key| inline_text(key, format))
             .collect::<Vec<_>>()
             .join("+"),
-        InlineKind::Menu(m) => std::iter::once(m.target())
+        InlineKind::MenuPath(m) => std::iter::once(m.target())
             .chain(m.items())
             .map(|item| inline_text(item, format))
             .collect::<Vec<_>>()
@@ -228,7 +230,7 @@ pub(super) fn render_block(
     let mut body = match block.kind() {
         BlockKind::Section(s) => return render_section(s, &title, format, include_subsections),
         BlockKind::Paragraph(p) => inline_text(p.content(), format),
-        BlockKind::DiscreteHeader(h) => {
+        BlockKind::DiscreteHeading(h) => {
             if format == Format::Asciidoc {
                 format!(
                     "[discrete]\n{} {title}",
@@ -296,13 +298,13 @@ pub(super) fn render_block(
         _ => "[unsupported block]".into(),
     };
     if format == Format::Asciidoc {
-        if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeader(_)) {
+        if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeading(_)) {
             body = format!(".{title}\n{body}");
         }
         if let Some(id) = block.id() {
             body = format!("[#{}]\n{body}", id.as_str());
         }
-    } else if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeader(_)) {
+    } else if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeading(_)) {
         body = format!("{title}\n{body}");
     }
     body

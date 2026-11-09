@@ -1,8 +1,9 @@
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, ElementAttributes, InlineMacro, InlineNode, Link,
-    Location, Mailto, Options, Source, Url,
+    Location, Mailto, Options, Source, UrlMacro,
     ast::{
-        AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlRef,
+        AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, LinkRef, MailtoRef,
+        UrlMacroRef,
     },
     parse_inline,
 };
@@ -82,7 +83,7 @@ fn hyperlink_reads_preserve_metadata_and_content(
     let kind = InlineRef::from(inline).kind();
     if let InlineKind::Link(node) = kind {
         check!(node);
-    } else if let InlineKind::Url(node) = kind {
+    } else if let InlineKind::UrlMacro(node) = kind {
         check!(node);
     } else if let InlineKind::Mailto(node) = kind {
         check!(node);
@@ -92,7 +93,7 @@ fn hyperlink_reads_preserve_metadata_and_content(
     let tree = serde_json::to_value(inline)?;
     let direct = if let InlineNode::Macro(InlineMacro::Link(node)) = inline {
         serde_json::to_value(node)?
-    } else if let InlineNode::Macro(InlineMacro::Url(node)) = inline {
+    } else if let InlineNode::Macro(InlineMacro::UrlMacro(node)) = inline {
         serde_json::to_value(node)?
     } else if let InlineNode::Macro(InlineMacro::Mailto(node)) = inline {
         serde_json::to_value(node)?
@@ -189,7 +190,7 @@ fn dedicated_hyperlink_attributes_cannot_be_shadowed(
         }};
     }
     check!(Link, LinkRef);
-    check!(Url, UrlRef);
+    check!(UrlMacro, UrlMacroRef);
     check!(Mailto, MailtoRef);
     let mut map = ElementAttributes::default();
     map.set(name.into(), "shadow".into());

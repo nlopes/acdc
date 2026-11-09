@@ -80,7 +80,7 @@ impl<'a> Link<'a> {
 /// A URL macro with optional label content.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Url<'a> {
+pub struct UrlMacro<'a> {
     /// Hover content supplied by `title=`.
     pub(crate) tooltip: Option<ContentAttribute<'a>>,
     pub(crate) text: Vec<InlineNode<'a>>,
@@ -91,7 +91,7 @@ pub struct Url<'a> {
     pub(crate) hide_uri_scheme: bool,
 }
 
-impl Url<'_> {
+impl UrlMacro<'_> {
     /// Whether fallback display text omits the target's URI scheme.
     #[must_use]
     pub fn hides_uri_scheme(&self) -> bool {
@@ -122,7 +122,7 @@ pub struct Mailto<'a> {
     pub(crate) location: Location,
 }
 
-impl<'a> Url<'a> {
+impl<'a> UrlMacro<'a> {
     /// Construct a URL macro with automatic display text.
     #[must_use]
     pub fn new(target: Source<'a>, location: Location) -> Self {
@@ -288,7 +288,7 @@ macro_rules! hyperlink_controls {
     )+ };
 }
 
-hyperlink_controls!(Link, Url, Mailto);
+hyperlink_controls!(Link, UrlMacro, Mailto);
 
 impl Link<'_> {
     /// Set whether automatic display text omits the URI scheme.
@@ -297,7 +297,7 @@ impl Link<'_> {
     }
 }
 
-impl Url<'_> {
+impl UrlMacro<'_> {
     /// Set whether automatic display text omits the URI scheme.
     pub fn set_hide_uri_scheme(&mut self, hide: bool) {
         self.hide_uri_scheme = hide;

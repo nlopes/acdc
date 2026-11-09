@@ -1,6 +1,7 @@
 use crate::{
-    CompatibilityMode, ContentAttribute, Document, Location, Options, Reference, Title, TocEntry,
-    ast::{ContentRef, DocumentRef, InlineKind, ReferenceRef, TocEntryRef},
+    CompatibilityMode, ContentAttribute, Document, Location, Options, ReferenceTarget, Title,
+    TocEntry,
+    ast::{ContentRef, DocumentRef, InlineKind, ReferenceTargetRef, TocEntryRef},
     parse,
 };
 type Error = Box<dyn std::error::Error>;
@@ -53,7 +54,7 @@ fn catalog_reads_match_registered_values_and_preserve_json(
                 original.location.absolute_start
             );
             assert_eq!(Location::from(reference.location()), original.location);
-            assert_eq!(reference.section_name(), original.section_name());
+            assert_eq!(reference.section_category(), original.section_category());
             assert_eq!(reference.section_number(), original.section_number());
             if let (Some(number), Some(original)) =
                 (reference.section_number(), original.section_number())
@@ -145,7 +146,7 @@ fn catalog_snapshots_preserve_registered_state_without_refreshing(
         let mut references = std::collections::HashMap::from(doc.references());
         for (id, reference) in doc.references().iter() {
             assert_eq!(
-                &Reference::from(reference),
+                &ReferenceTarget::from(reference),
                 references.get(id).ok_or("copied target")?
             );
         }
@@ -182,7 +183,7 @@ fn catalog_snapshots_preserve_registered_state_without_refreshing(
         let stale_doc = DocumentRef::from(&stale);
         for (id, reference) in stale_doc.references().iter() {
             assert_eq!(
-                &Reference::from(reference),
+                &ReferenceTarget::from(reference),
                 original.references.get(id).ok_or("original target")?
             );
         }
@@ -212,7 +213,7 @@ fn catalog_snapshots_keep_absent_and_explicitly_empty_content() -> Result<(), Er
                 .clone()
                 .map(|title| ContentAttribute::new(title.into_inlines()));
             owner.xreflabel = label;
-            let copied = Reference::from(ReferenceRef::from(&owner));
+            let copied = ReferenceTarget::from(ReferenceTargetRef::from(&owner));
             assert_eq!(copied, owner);
         }
     }

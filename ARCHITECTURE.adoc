@@ -314,7 +314,7 @@ HTML index catalog generation is an acdc extension enabled with `:acdc-index:`; 
 
 === Callout references
 
-Callout markers in verbatim blocks (`<1>`, `<2>`, or auto-numbering `<.>`) are parsed as `CalloutRef` with explicit or auto-numbered kinds.
+Callout markers in verbatim blocks (`<1>`, `<2>`, or auto-numbering `<.>`) are parsed as `CalloutMarker` with explicit or auto-numbered kinds.
 The parser resolves auto-numbered markers to their actual numbers during parsing.
 
 == Future directions

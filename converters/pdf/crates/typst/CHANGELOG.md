@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** select portrait or landscape with `PageOrientation`, renamed
+  from `PageLayout`. Append markup through `Writer::write_raw_markup()`,
+  `write_text()`, and `write_string_literal()` instead of `raw()`, `text()`,
+  and `string_literal()`. Escaping and generated markup are unchanged.
+
 ### Fixed
 
 - Italic text in custom captions stays italic when the caption theme already uses italic text, matching Asciidoctor PDF.

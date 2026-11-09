@@ -37,7 +37,8 @@ fn empty_quoted_attributes_preserve_original_source_spans() -> Result<(), Error>
                 );
                 let location = formatted.location();
                 assert_eq!(
-                    &parsed.source()[location.absolute_start()..=location.absolute_end()],
+                    &parsed.preprocessed_source()
+                        [location.absolute_start()..=location.absolute_end()],
                     quoted,
                     "{source:?}"
                 );

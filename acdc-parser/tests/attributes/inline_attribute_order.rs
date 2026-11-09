@@ -83,7 +83,7 @@ fn ordinary_order_preserves_single_registration_and_reference_ranges(
             if let InlineKind::Bold(value) = node.kind() {
                 assert!(matches!(
                     parsed
-                        .source()
+                        .preprocessed_source()
                         .get(value.location().absolute_start()..=value.location().absolute_end()),
                     Some("{wrapped}" | "{term-wrapped}")
                 ));

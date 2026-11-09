@@ -364,7 +364,10 @@ fn render_replay_asciicast<W: Write>(
     )
     .map(|ms| Duration::from_millis(ms as u64));
 
-    let recording = match asciicast::parse_inlines_with(content.inlines(), idle_limit) {
+    let recording = match asciicast::parse_from_inlines_with_idle_limit(
+        content.inlines(),
+        idle_limit,
+    ) {
         Ok(recording) => recording,
         Err(err) => {
             diagnostics.warn_with_advice(
@@ -1300,7 +1303,7 @@ mod tests {
     use acdc_parser::{Options as ParserOptions, SafeMode};
     use std::{collections::HashMap, error::Error};
 
-    use crate::{HtmlVariant, Processor, RenderOptions, terminal::resolved_usize};
+    use crate::{Converter, HtmlVariant, RenderOptions, terminal::resolved_usize};
 
     type TestResult = Result<(), Box<dyn Error>>;
 
@@ -1328,7 +1331,7 @@ mod tests {
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .safe_mode(safe_mode)
             .build();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             options,
             acdc_parser::Options::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
@@ -1339,7 +1342,7 @@ mod tests {
         let source = WarningSource::new("html").with_variant(variant.as_str());
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        processor.convert_to_writer(
+        converter.convert_to_writer(
             doc,
             &mut output,
             &RenderOptions::default(),

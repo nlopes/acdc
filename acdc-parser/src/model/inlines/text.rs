@@ -10,7 +10,7 @@ use super::InlineNode;
 /// The form of an inline formatting element (how it was expressed in the source)
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Form {
+pub enum FormattingForm {
     Constrained,
     Unconstrained,
 }
@@ -20,7 +20,7 @@ pub enum Form {
 pub struct Subscript<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
@@ -30,27 +30,27 @@ pub struct Subscript<'a> {
 pub struct Superscript<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
 
-/// A `CurvedQuotation` represents a curved quotation section of text in a document.
+/// A span enclosed in typographic double quotation marks.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CurvedQuotation<'a> {
+pub struct DoubleQuotedSpan<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
 
-/// A `CurvedApostrophe` represents a curved apostrophe section of text in a document.
+/// A span enclosed in typographic single quotation marks.
 #[derive(Clone, Debug, PartialEq)]
-pub struct CurvedApostrophe<'a> {
+pub struct SingleQuotedSpan<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
@@ -79,7 +79,7 @@ impl StandaloneCurvedApostrophe {
 pub struct Monospace<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
@@ -87,15 +87,15 @@ pub struct Monospace<'a> {
 /// A `Highlight` represents a highlighted section of text in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Highlight, Form, Location};
-/// let mut value = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+/// use acdc_parser::{Highlight, FormattingForm, Location};
+/// let mut value = Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
 /// value.role = Some("");
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Highlight<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
@@ -103,15 +103,15 @@ pub struct Highlight<'a> {
 /// A `Bold` represents a bold section of text in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Bold, Form, Location};
-/// let mut value = Bold::new(Vec::new(), Form::Constrained, Location::default());
+/// use acdc_parser::{Bold, FormattingForm, Location};
+/// let mut value = Bold::new(Vec::new(), FormattingForm::Constrained, Location::default());
 /// value.content.clear();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 pub struct Bold<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
@@ -121,7 +121,7 @@ pub struct Bold<'a> {
 pub struct Italic<'a> {
     pub(crate) role: Option<Role<'a>>,
     pub(crate) id: Option<ElementId<'a>>,
-    pub(crate) form: Form,
+    pub(crate) form: FormattingForm,
     pub(crate) content: Vec<InlineNode<'a>>,
     pub(crate) location: Location,
 }
@@ -309,7 +309,7 @@ impl<'a> Raw<'a> {
 /// Verbatim text inherits substitutions from its enclosing block like [`Plain`],
 /// but converters use literal or code presentation and preserve source whitespace
 /// unless a requested substitution transforms it. Parsed callout markers are
-/// represented by separate [`CalloutRef`] nodes rather than remaining in this text.
+/// represented by separate [`CalloutMarker`] nodes rather than remaining in this text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Verbatim<'a> {
     pub(crate) content: &'a str,
@@ -350,14 +350,14 @@ impl Serialize for StandaloneCurvedApostrophe {
 /// The kind of callout reference marker (how it was expressed in the source).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum CalloutRefKind {
+pub enum CalloutMarkerKind {
     /// Explicit callout: `<1>`, `<2>`, etc. - the number was specified directly.
     Explicit,
     /// Auto-numbered callout: `<.>` - the number was resolved automatically.
     Auto,
 }
 
-/// A `CalloutRef` represents a callout reference marker within verbatim content.
+/// A `CalloutMarker` represents a callout reference marker within verbatim content.
 ///
 /// Callout references appear at the end of lines in source/listing blocks and
 /// link to explanatory text in a subsequent callout list.
@@ -379,26 +379,26 @@ pub enum CalloutRefKind {
 /// numbering throughout a sequence.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{CalloutRef, Location};
-/// let mut marker = CalloutRef::auto(1, Location::default());
+/// use acdc_parser::{CalloutMarker, Location};
+/// let mut marker = CalloutMarker::auto(1, Location::default());
 /// marker.number = 2;
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CalloutRef {
+pub struct CalloutMarker {
     /// The kind of callout (explicit number vs auto-numbered).
-    pub(crate) kind: CalloutRefKind,
+    pub(crate) kind: CalloutMarkerKind,
     /// The assigned callout number.
     pub(crate) number: usize,
     /// Source location of this callout reference.
     pub(crate) location: Location,
 }
 
-impl CalloutRef {
+impl CalloutMarker {
     /// Creates a new explicit callout reference with the given number.
     #[must_use]
     pub fn explicit(number: usize, location: Location) -> Self {
         Self {
-            kind: CalloutRefKind::Explicit,
+            kind: CalloutMarkerKind::Explicit,
             number,
             location,
         }
@@ -408,13 +408,13 @@ impl CalloutRef {
     #[must_use]
     pub fn auto(number: usize, location: Location) -> Self {
         Self {
-            kind: CalloutRefKind::Auto,
+            kind: CalloutMarkerKind::Auto,
             number,
             location,
         }
     }
     /// Replace the marker form without renumbering its sequence.
-    pub fn set_kind(&mut self, kind: CalloutRefKind) {
+    pub fn set_kind(&mut self, kind: CalloutMarkerKind) {
         self.kind = kind;
     }
 
@@ -429,7 +429,7 @@ impl CalloutRef {
     }
 }
 
-impl Serialize for CalloutRef {
+impl Serialize for CalloutMarker {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -449,7 +449,7 @@ macro_rules! span_edits {
         impl<'a> $name<'a> {
             /// Construct a span from prepared inlines without parsing them.
             #[must_use]
-            pub fn new(content: Vec<InlineNode<'a>>, form: Form, location: Location) -> Self {
+            pub fn new(content: Vec<InlineNode<'a>>, form: FormattingForm, location: Location) -> Self {
                 Self { role: None, id: None, form, content, location }
             }
 
@@ -484,7 +484,7 @@ macro_rules! span_edits {
             }
 
             /// Set the retained source form without changing inline content.
-            pub fn set_form(&mut self, form: Form) {
+            pub fn set_form(&mut self, form: FormattingForm) {
                 self.form = form;
             }
 
@@ -503,6 +503,6 @@ span_edits!(
     Highlight,
     Subscript,
     Superscript,
-    CurvedQuotation,
-    CurvedApostrophe
+    DoubleQuotedSpan,
+    SingleQuotedSpan
 );

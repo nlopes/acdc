@@ -377,7 +377,7 @@ fn custom_caption_reference_content_stays_structured_in_exports(
     #[cfg(feature = "asg")]
     {
         let exported =
-            acdc_parser::asg::inlines_with_profile(prefix, acdc_parser::asg::Profile::Acdc)?;
+            acdc_parser::asg::export_inlines_with_profile(prefix, acdc_parser::asg::Profile::Acdc)?;
         assert_eq!(
             exported
                 .pointer("/0/variant")
@@ -390,7 +390,7 @@ fn custom_caption_reference_content_stays_structured_in_exports(
                 .and_then(serde_json::Value::as_str),
             Some("First")
         );
-        acdc_parser::asg::document_with_profile(
+        acdc_parser::asg::export_document_with_profile(
             parsed.document(),
             acdc_parser::asg::Profile::Acdc,
         )?;

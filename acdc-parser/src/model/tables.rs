@@ -419,21 +419,21 @@ impl<'a> Table<'a> {
 #[non_exhaustive]
 pub struct TableRow<'a> {
     /// The cells in this row (one per table column).
-    pub(crate) columns: Vec<TableColumn<'a>>,
+    pub(crate) columns: Vec<TableCell<'a>>,
 }
 
 impl<'a> TableRow<'a> {
-    /// Create a new table row with the given columns.
+    /// Create a new table row with the given cells.
     #[must_use]
-    pub fn new(columns: Vec<TableColumn<'a>>) -> Self {
-        Self { columns }
+    pub fn new(cells: Vec<TableCell<'a>>) -> Self {
+        Self { columns: cells }
     }
 }
 
-/// A `TableColumn` represents a column/cell in a table row.
+/// A cell within a table row.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
-pub struct TableColumn<'a> {
+pub struct TableCell<'a> {
     // Native occurrences own bodies; this marker preserves the catalog boundary.
     #[serde(
         rename = "footnote_scope",
@@ -482,7 +482,7 @@ const fn is_default_span(span: &usize) -> bool {
     *span == 1
 }
 
-impl<'a> TableColumn<'a> {
+impl<'a> TableCell<'a> {
     /// Attribute assignments applied before this `AsciiDoc` cell's content.
     ///
     /// These initialize the nested scope; they do not change the parent document.
@@ -577,24 +577,24 @@ impl<'a> Table<'a> {
 
 impl<'a> TableRow<'a> {
     /// Replace prepared cells in row order without filling span placeholders.
-    pub fn set_cells(&mut self, cells: impl IntoIterator<Item = TableColumn<'a>>) {
+    pub fn set_cells(&mut self, cells: impl IntoIterator<Item = TableCell<'a>>) {
         self.columns = cells.into_iter().collect();
     }
 
     /// Append a cell without recalculating neighboring cell positions.
-    pub fn push_cell(&mut self, cell: TableColumn<'a>) {
+    pub fn push_cell(&mut self, cell: TableCell<'a>) {
         self.columns.push(cell);
     }
 
     /// Remove cells, retaining their original source lifetimes and scope snapshots.
     pub fn take_cells(
         &mut self,
-    ) -> impl DoubleEndedIterator<Item = TableColumn<'a>> + ExactSizeIterator + use<'a> {
+    ) -> impl DoubleEndedIterator<Item = TableCell<'a>> + ExactSizeIterator + use<'a> {
         std::mem::take(&mut self.columns).into_iter()
     }
 }
 
-impl<'a> TableColumn<'a> {
+impl<'a> TableCell<'a> {
     /// Replace this cell's prepared footnote catalog without registering occurrences.
     /// `Some`, including an empty catalog, makes the cell an independent owner.
     /// `None` uses the containing owner. Style changes do not change this boundary.

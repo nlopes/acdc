@@ -69,7 +69,7 @@ fn anchor_macros_warn_on_duplicates_and_keep_first_label() -> Result<(), Error> 
         .document()
         .references()
         .get("same")
-        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::xreflabel)
         .ok_or("missing label")?;
     assert!(
         matches!(label.inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "First")

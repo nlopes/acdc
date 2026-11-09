@@ -36,7 +36,7 @@ pub(crate) fn collect_document_links(doc: &DocumentState, doc_uri: &Uri) -> Vec<
                             Some(InlineTextTransform::default().content_to_string(explicit.text()))
                         }
                         HyperlinkRef::Link(_)
-                        | HyperlinkRef::Url(_)
+                        | HyperlinkRef::UrlMacro(_)
                         | HyperlinkRef::Mailto(_)
                         | HyperlinkRef::Autolink(_)
                         | _ => None,

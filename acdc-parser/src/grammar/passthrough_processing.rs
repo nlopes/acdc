@@ -5,8 +5,8 @@ use std::{mem::take, rc::Rc};
 
 use crate::{
     CharacterReference, CharacterReferenceKind, IndexTerm, InlineMacro, InlineNode, LineBreak,
-    Location, ParseInlineResult, Pass, PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
-    SubstitutionSpec, Symbol, SymbolKind, Warning,
+    Location, ParseInlineResult, Passthrough, PassthroughKind, Plain, ProcessedContent, Raw,
+    Substitution, SubstitutionSpec, Symbol, SymbolKind, Warning,
     document_attribute::AssignmentState,
     model::substitution::{
         SubstitutionPlan, character_reference_end, resolve_passthrough_substitutions,
@@ -32,7 +32,7 @@ enum TextFragment<'a> {
         text: Raw<'a>,
         kind: SymbolKind,
     },
-    Reference {
+    ReferenceTarget {
         text: Raw<'a>,
         kind: CharacterReferenceKind<'a>,
     },
@@ -41,17 +41,19 @@ enum TextFragment<'a> {
 impl<'a> TextFragment<'a> {
     fn as_raw(&self) -> &Raw<'a> {
         match self {
-            Self::Raw(raw) | Self::Symbol { text: raw, .. } | Self::Reference { text: raw, .. } => {
-                raw
-            }
+            Self::Raw(raw)
+            | Self::Symbol { text: raw, .. }
+            | Self::ReferenceTarget { text: raw, .. } => raw,
         }
     }
 
     fn into_node(self) -> InlineNode<'a> {
         match self {
             Self::Raw(raw) => InlineNode::RawText(raw),
-            Self::Reference { text, kind } => CharacterReference::new(kind, text.location.clone())
-                .map_or(InlineNode::RawText(text), InlineNode::CharacterReference),
+            Self::ReferenceTarget { text, kind } => {
+                CharacterReference::new(kind, text.location.clone())
+                    .map_or(InlineNode::RawText(text), InlineNode::CharacterReference)
+            }
             Self::Symbol { text, kind } => InlineNode::Symbol(Symbol {
                 kind,
                 location: text.location,
@@ -83,7 +85,7 @@ pub(super) fn process_attribute_placeholder<'a>(
 /// Apply an inline passthrough's substitutions in source order.
 fn process_passthrough<'a>(
     content: &'a str,
-    passthrough: &Pass<'a>,
+    passthrough: &Passthrough<'a>,
     state: &ParserState<'a>,
     attribute_substitutions: SubstitutionPlan,
 ) -> Vec<InlineNode<'a>> {
@@ -342,7 +344,7 @@ fn process_intrinsic_attribute<'a>(
 
 fn process_passthrough_stages<'a>(
     content: &'a str,
-    passthrough: &Pass<'a>,
+    passthrough: &Passthrough<'a>,
     state: &ParserState<'a>,
     attribute_substitutions: SubstitutionPlan,
 ) -> Vec<InlineNode<'a>> {
@@ -480,7 +482,7 @@ fn process_attribute_fragment<'a>(
 }
 
 fn passthrough_content_location(
-    passthrough: &Pass<'_>,
+    passthrough: &Passthrough<'_>,
     content: &str,
     state: &ParserState<'_>,
 ) -> Location {
@@ -730,7 +732,7 @@ fn apply_inline_stage<'a>(
                 continue;
             }
             if let InlineNode::CharacterReference(reference) = node {
-                fragments.push(TextFragment::Reference {
+                fragments.push(TextFragment::ReferenceTarget {
                     text: Raw {
                         metadata: None,
                         content: state.intern_fmt(format_args!("{}", reference.kind())),
@@ -962,8 +964,8 @@ fn process_inline_children<'a>(
         InlineNode::HighlightText(value) => process_content!(value),
         InlineNode::SubscriptText(value) => process_content!(value),
         InlineNode::SuperscriptText(value) => process_content!(value),
-        InlineNode::CurvedQuotationText(value) => process_content!(value),
-        InlineNode::CurvedApostropheText(value) => process_content!(value),
+        InlineNode::DoubleQuotedSpan(value) => process_content!(value),
+        InlineNode::SingleQuotedSpan(value) => process_content!(value),
         InlineNode::Macro(macro_node) => {
             macro_node.for_each_content_attribute_mut(|nodes| {
                 *nodes = apply_inline_stage(take(nodes), step, state, Edges::default());
@@ -977,7 +979,7 @@ fn process_inline_children<'a>(
                         *nodes = apply_inline_stage(take(nodes), step, state, Edges::default());
                     });
                 }
-                InlineMacro::Url(value) => {
+                InlineMacro::UrlMacro(value) => {
                     value.text =
                         apply_inline_stage(take(&mut value.text), step, state, Edges::default());
                 }
@@ -997,11 +999,11 @@ fn process_inline_children<'a>(
                 InlineMacro::Footnote(_)
                 | InlineMacro::Icon(_)
                 | InlineMacro::Image(_)
-                | InlineMacro::Keyboard(_)
+                | InlineMacro::KeyboardShortcut(_)
                 | InlineMacro::Button(_)
-                | InlineMacro::Menu(_)
+                | InlineMacro::MenuPath(_)
                 | InlineMacro::Autolink(_)
-                | InlineMacro::Pass(_)
+                | InlineMacro::Passthrough(_)
                 | InlineMacro::Stem(_) => {}
             }
         }
@@ -1013,7 +1015,7 @@ fn process_inline_children<'a>(
         | InlineNode::CharacterReference(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_) => {}
+        | InlineNode::CalloutMarker(_) => {}
     }
 }
 
@@ -1071,7 +1073,7 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
         cursor = end;
         copied_until = end;
         if !resolved.inline_fragments().is_empty() {
-            let passthrough = Pass {
+            let passthrough = Passthrough {
                 attribute_fragments: resolved.inline_fragments().into(),
                 text: Some(state.intern_str(&value)),
                 substitutions: Vec::new(),
@@ -1315,7 +1317,7 @@ fn parse_raw_fragments<'a>(
             .into_iter()
             .flat_map(|fragment| match fragment {
                 TextFragment::Raw(raw) => parse_raw_stage(raw, plan, state),
-                resolved @ (TextFragment::Symbol { .. } | TextFragment::Reference { .. }) => {
+                resolved @ (TextFragment::Symbol { .. } | TextFragment::ReferenceTarget { .. }) => {
                     vec![resolved.into_node()]
                 }
             })
@@ -1332,7 +1334,7 @@ fn parse_raw_fragments<'a>(
         .filter_map(|fragment| {
             let start = cursor;
             cursor += fragment.as_raw().content.len();
-            matches!(fragment, TextFragment::Reference { .. }).then_some(start..cursor)
+            matches!(fragment, TextFragment::ReferenceTarget { .. }).then_some(start..cursor)
         })
         .collect();
     let Some((mut nodes, warnings)) =
@@ -1436,7 +1438,8 @@ fn restore_fragment_substitutions<'a>(
                                 ..raw.location.clone()
                             },
                         }));
-                    } else if let Some(TextFragment::Reference { kind, .. }) = sources.get(index)
+                    } else if let Some(TextFragment::ReferenceTarget { kind, .. }) =
+                        sources.get(index)
                         && left == span.start
                         && right == span.end
                     {
@@ -1450,7 +1453,8 @@ fn restore_fragment_substitutions<'a>(
                             },
                             subs: Vec::new(),
                         };
-                        result.push(TextFragment::Reference { text, kind: *kind }.into_node());
+                        result
+                            .push(TextFragment::ReferenceTarget { text, kind: *kind }.into_node());
                     } else {
                         result.push(InlineNode::RawText(Raw {
                             metadata: None,
@@ -1518,8 +1522,8 @@ fn for_each_inline_children<'a>(
         InlineNode::HighlightText(value) => visit(&mut value.content),
         InlineNode::SubscriptText(value) => visit(&mut value.content),
         InlineNode::SuperscriptText(value) => visit(&mut value.content),
-        InlineNode::CurvedQuotationText(value) => visit(&mut value.content),
-        InlineNode::CurvedApostropheText(value) => visit(&mut value.content),
+        InlineNode::DoubleQuotedSpan(value) => visit(&mut value.content),
+        InlineNode::SingleQuotedSpan(value) => visit(&mut value.content),
         InlineNode::Macro(macro_node) => {
             macro_node.for_each_content_attribute_mut(&mut *visit);
             match macro_node {
@@ -1528,7 +1532,7 @@ fn for_each_inline_children<'a>(
                         visit(content);
                     }
                 }
-                InlineMacro::Url(value) => visit(&mut value.text),
+                InlineMacro::UrlMacro(value) => visit(&mut value.text),
                 InlineMacro::Link(value) => visit(&mut value.text),
                 InlineMacro::Mailto(value) => visit(&mut value.text),
                 InlineMacro::CrossReference(value) => visit(&mut value.text),
@@ -1540,11 +1544,11 @@ fn for_each_inline_children<'a>(
                 }
                 InlineMacro::Icon(_)
                 | InlineMacro::Image(_)
-                | InlineMacro::Keyboard(_)
+                | InlineMacro::KeyboardShortcut(_)
                 | InlineMacro::Button(_)
-                | InlineMacro::Menu(_)
+                | InlineMacro::MenuPath(_)
                 | InlineMacro::Autolink(_)
-                | InlineMacro::Pass(_)
+                | InlineMacro::Passthrough(_)
                 | InlineMacro::Stem(_) => {}
             }
         }
@@ -1556,7 +1560,7 @@ fn for_each_inline_children<'a>(
         | InlineNode::CharacterReference(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_) => {}
+        | InlineNode::CalloutMarker(_) => {}
     }
 }
 
@@ -1564,7 +1568,7 @@ fn for_each_inline_children<'a>(
 ///
 /// Public entry point — returns a `ParseInlineResult` that owns the arena
 /// the resulting `InlineNode`s borrow from. Callers reach the nodes via
-/// `.inlines()`. Each call allocates a fresh arena; memory is reclaimed
+/// `.content().inlines()`. Each call allocates a fresh arena; memory is reclaimed
 /// when the returned value is dropped (no leaks). The returned
 /// `ParseInlineResult::warnings()` slice is always empty for this entry
 /// point — the quotes-only grammar never raises warnings.
@@ -1581,12 +1585,12 @@ fn for_each_inline_children<'a>(
 /// # Example
 ///
 /// ```
-/// use acdc_parser::parse_text_for_quotes;
+/// use acdc_parser::parse_inline_formatting;
 ///
-/// let parsed = parse_text_for_quotes("This has *bold* text.");
+/// let parsed = parse_inline_formatting("This has *bold* text.");
 /// assert_eq!(parsed.content().inlines().count(), 3); // "This has ", Bold("bold"), " text."
 /// ```
-pub fn parse_text_for_quotes(content: &str) -> ParseInlineResult {
+pub fn parse_inline_formatting(content: &str) -> ParseInlineResult {
     let owner = OwnedInput::new(content.into());
     ParseInlineResult::from_infallible(owner, |owner| {
         parse_text_for_quotes_in(&owner.arena, &owner.source)
@@ -1786,13 +1790,13 @@ mod tests {
 
     // === Divergence Prevention Tests ===
     //
-    // These tests verify that parse_text_for_quotes produces the same structural
+    // These tests verify that parse_inline_formatting produces the same structural
     // output as the main PEG parser for common inline formatting patterns.
-    // If these tests fail after grammar changes, update parse_text_for_quotes.
+    // If these tests fail after grammar changes, update parse_inline_formatting.
 
     #[test]
     fn test_constrained_bold_pattern() {
-        let parsed = parse_text_for_quotes("This is *bold* text.");
+        let parsed = parse_inline_formatting("This is *bold* text.");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(matches!(nodes[0], InlineNode::PlainText(_)));
@@ -1804,7 +1808,7 @@ mod tests {
 
     #[test]
     fn test_unconstrained_bold_pattern() {
-        let parsed = parse_text_for_quotes("This**bold**word");
+        let parsed = parse_inline_formatting("This**bold**word");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(
@@ -1814,7 +1818,7 @@ mod tests {
 
     #[test]
     fn test_constrained_italic_pattern() {
-        let parsed = parse_text_for_quotes("This is _italic_ text.");
+        let parsed = parse_inline_formatting("This is _italic_ text.");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(
@@ -1824,7 +1828,7 @@ mod tests {
 
     #[test]
     fn test_unconstrained_italic_pattern() {
-        let parsed = parse_text_for_quotes("This__italic__word");
+        let parsed = parse_inline_formatting("This__italic__word");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(
@@ -1834,7 +1838,7 @@ mod tests {
 
     #[test]
     fn test_constrained_monospace_pattern() {
-        let parsed = parse_text_for_quotes("Use `code` here.");
+        let parsed = parse_inline_formatting("Use `code` here.");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(
@@ -1844,7 +1848,7 @@ mod tests {
 
     #[test]
     fn test_superscript_pattern() {
-        let parsed = parse_text_for_quotes("E=mc^2^");
+        let parsed = parse_inline_formatting("E=mc^2^");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 2);
         assert!(
@@ -1854,7 +1858,7 @@ mod tests {
 
     #[test]
     fn test_subscript_pattern() {
-        let parsed = parse_text_for_quotes("H~2~O");
+        let parsed = parse_inline_formatting("H~2~O");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(
@@ -1864,7 +1868,7 @@ mod tests {
 
     #[test]
     fn test_highlight_pattern() {
-        let parsed = parse_text_for_quotes("This is #highlighted# text.");
+        let parsed = parse_inline_formatting("This is #highlighted# text.");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 3);
         assert!(
@@ -1875,7 +1879,7 @@ mod tests {
     #[test]
     fn test_escaped_superscript_not_parsed() {
         // Backslash-escaped markers should not be parsed as formatting
-        let parsed = parse_text_for_quotes(r"E=mc\^2^");
+        let parsed = parse_inline_formatting(r"E=mc\^2^");
         let nodes = parsed.inlines();
         // Should remain as plain text (escape prevents parsing)
         assert!(
@@ -1886,7 +1890,7 @@ mod tests {
 
     #[test]
     fn test_escaped_subscript_not_parsed() {
-        let parsed = parse_text_for_quotes(r"H\~2~O");
+        let parsed = parse_inline_formatting(r"H\~2~O");
         let nodes = parsed.inlines();
         assert!(
             nodes.iter().all(|n| matches!(n, InlineNode::PlainText(_))),
@@ -1896,7 +1900,7 @@ mod tests {
 
     #[test]
     fn test_multiple_formats_in_sequence() {
-        let parsed = parse_text_for_quotes("*bold* and _italic_ and `code`");
+        let parsed = parse_inline_formatting("*bold* and _italic_ and `code`");
         let nodes = parsed.inlines();
         assert!(nodes.iter().any(|n| matches!(n, InlineNode::BoldText(_))));
         assert!(nodes.iter().any(|n| matches!(n, InlineNode::ItalicText(_))));
@@ -1909,7 +1913,7 @@ mod tests {
 
     #[test]
     fn test_plain_text_only() {
-        let parsed = parse_text_for_quotes("Just plain text here.");
+        let parsed = parse_inline_formatting("Just plain text here.");
         let nodes = parsed.inlines();
         assert_eq!(nodes.len(), 1);
         assert!(matches!(nodes[0], InlineNode::PlainText(_)));
@@ -1917,7 +1921,7 @@ mod tests {
 
     #[test]
     fn test_empty_input() {
-        let parsed = parse_text_for_quotes("");
+        let parsed = parse_inline_formatting("");
         let nodes = parsed.inlines();
         assert_eq!(nodes, []);
     }

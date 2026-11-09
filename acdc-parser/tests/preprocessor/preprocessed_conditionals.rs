@@ -46,9 +46,9 @@ fn conditional_decisions_keep_source_order_and_recovery(
                 (22, None, true, false),
             ]
         );
-        assert!(parsed.source().contains("selected"));
-        assert!(!parsed.source().contains("omitted"));
-        assert!(!parsed.source().contains("nested"));
+        assert!(parsed.preprocessed_source().contains("selected"));
+        assert!(!parsed.preprocessed_source().contains("omitted"));
+        assert!(!parsed.preprocessed_source().contains("nested"));
         assert!(parsed.source_recovery().is_some());
         assert_eq!(parsed.take_warnings().len(), 1);
         assert_eq!(parsed.conditionals().len(), 6);
@@ -101,9 +101,9 @@ fn conditional_decisions_use_selected_include_attributes_and_original_lines(
             (Some(main.as_path()), 7, Some(9), false),
         ]
     );
-    assert!(parsed.source().contains("é😀 selected."));
-    assert!(parsed.source().contains("Included."));
-    assert!(!parsed.source().contains("Omitted."));
+    assert!(parsed.preprocessed_source().contains("é😀 selected."));
+    assert!(parsed.preprocessed_source().contains("Included."));
+    assert!(!parsed.preprocessed_source().contains("Omitted."));
     assert!(parsed.source_recovery().is_some());
     Ok(())
 }

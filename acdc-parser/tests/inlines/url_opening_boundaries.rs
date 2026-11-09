@@ -10,7 +10,7 @@ fn collect_links<'doc>(nodes: ContentRef<'doc>, links: &mut Vec<(String, Locatio
     for node in nodes.inlines() {
         if let InlineKind::Autolink(link) = node.kind() {
             links.push((link.target().to_string(), link.location()));
-        } else if let InlineKind::Url(link) = node.kind() {
+        } else if let InlineKind::UrlMacro(link) = node.kind() {
             links.push((link.target().to_string(), link.location()));
         } else if let InlineKind::Link(link) = node.kind() {
             links.push((link.target().to_string(), link.location()));
@@ -20,9 +20,9 @@ fn collect_links<'doc>(nodes: ContentRef<'doc>, links: &mut Vec<(String, Locatio
             collect_links(italic.content(), links);
         } else if let InlineKind::Monospace(code) = node.kind() {
             collect_links(code.content(), links);
-        } else if let InlineKind::CurvedQuotation(quote) = node.kind() {
+        } else if let InlineKind::DoubleQuotedSpan(quote) = node.kind() {
             collect_links(quote.content(), links);
-        } else if let InlineKind::CurvedApostrophe(quote) = node.kind() {
+        } else if let InlineKind::SingleQuotedSpan(quote) = node.kind() {
             collect_links(quote.content(), links);
         }
     }
@@ -347,7 +347,8 @@ fn enabled_code_links_use_the_same_boundaries() -> Result<(), Error> {
             collect_links(nodes, &mut links);
             assert_eq!(links.len(), expected, "{source:?}");
             for (_, location) in links {
-                let span = &parsed.source()[location.absolute_start()..=location.absolute_end()];
+                let span = &parsed.preprocessed_source()
+                    [location.absolute_start()..=location.absolute_end()];
                 assert!(span.starts_with("https://"), "{span:?}");
                 assert_eq!(location.start().line(), 3);
             }

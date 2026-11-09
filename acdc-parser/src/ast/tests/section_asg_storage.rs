@@ -13,7 +13,7 @@ fn section_policy_errors_identify_the_native_property() {
         let mut document = Document::default();
         document.push_block(Block::Section(section));
         assert!(
-            matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {
+            matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {
             path, construct: Some("section"), ..
         }) if path == format!("/blocks/0/{expected}"))
         );

@@ -1,8 +1,8 @@
 use acdc_parser::{
-    Anchor, CalloutRefKind, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Location,
-    Options, SafeMode,
+    Anchor, CalloutMarkerKind, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode,
+    Location, Options, SafeMode,
     ast::{
-        AnchorRef, BlockKind, CalloutRef, ContentRef, DocumentRef, FootnoteRef, InlineKind,
+        AnchorRef, BlockKind, CalloutMarkerRef, ContentRef, DocumentRef, FootnoteRef, InlineKind,
         LocationRef,
     },
     parse, parse_file, parse_inline,
@@ -246,13 +246,13 @@ fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error>
     assert_eq!(
         found,
         [
-            (CalloutRefKind::Auto, 1, Some("<.>")),
-            (CalloutRefKind::Explicit, 2, Some("<2>")),
-            (CalloutRefKind::Auto, 1, Some("<.>"))
+            (CalloutMarkerKind::Auto, 1, Some("<.>")),
+            (CalloutMarkerKind::Explicit, 2, Some("<2>")),
+            (CalloutMarkerKind::Auto, 1, Some("<.>"))
         ]
     );
-    let owner = acdc_parser::CalloutRef::explicit(9, Location::default());
-    assert_eq!(CalloutRef::from(&owner).number(), 9);
+    let owner = acdc_parser::CalloutMarker::explicit(9, Location::default());
+    assert_eq!(CalloutMarkerRef::from(&owner).number(), 9);
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
 }

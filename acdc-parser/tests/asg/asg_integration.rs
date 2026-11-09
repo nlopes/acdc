@@ -3,7 +3,7 @@
 use acdc_parser::{
     Anchor, Block, CompatibilityMode, ContentAttribute, Document, Footnote, FootnoteDefinition,
     IndexTerm, IndexTermKind, InlineMacro, InlineNode, Location, Options, Paragraph, Plain,
-    Reference, asg, parse, parse_file,
+    ReferenceTarget, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -41,7 +41,7 @@ fn captured(content: Vec<InlineNode<'static>>) -> InlineNode<'static> {
 }
 
 fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document.into(), asg::Profile::Acdc)
+    asg::export_document_with_profile(document.into(), asg::Profile::Acdc)
 }
 
 #[test]
@@ -53,12 +53,12 @@ fn combined_constructs_export_deterministically_without_mutation() -> Result<(),
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
         assert_eq!(
-            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
+            asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?,
             value
         );
         assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -85,7 +85,7 @@ fn scalar_attributes_cannot_impersonate_identities_or_footnotes() -> Result<(), 
         "= Guide\n:name: footnote\n:type: inline\n:number: 99\n:form: definition\n:id: real\n\n[#real]*Bold*",
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value.pointer("/attributes/id"), Some(&json!("real")));
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/id"),
@@ -163,7 +163,7 @@ fn historical_bodies_do_not_replace_canonical_bodies_or_resolve_zero() -> Result
 #[test]
 fn independent_labels_and_extra_anchors_cannot_hide_dangling_notes() -> Result<(), Error> {
     let parsed = parse("[#target]\nBody.", &Options::default())?;
-    let primary = Reference::from(
+    let primary = ReferenceTarget::from(
         parsed
             .document()
             .references()
@@ -183,7 +183,7 @@ fn independent_labels_and_extra_anchors_cannot_hide_dangling_notes() -> Result<(
     metadata.reftext = Some(ContentAttribute::new(text("Selected")));
     metadata.anchors = vec![
         Anchor::new("extra", Location::default())
-            .with_xreflabel(Some(ContentAttribute::new(vec![note(9, Some("missing"))]))),
+            .with_reftext(Some(ContentAttribute::new(vec![note(9, Some("missing"))]))),
     ];
     paragraph.set_metadata(metadata)?;
     let mut value = Document::default();
@@ -200,7 +200,7 @@ fn independent_labels_and_extra_anchors_cannot_hide_dangling_notes() -> Result<(
 fn standalone_catalog_notes_still_require_document_context() {
     let content = ContentAttribute::new(vec![captured(vec![note(0, Some("unresolved"))])]);
     assert!(matches!(
-        asg::inlines_with_profile((&content).into(), asg::Profile::Acdc),
+        asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc),
         Err(asg::Error::Unsupported {
             construct: Some("footnote"),
             ..
@@ -214,10 +214,10 @@ fn strict_and_extension_controls_distinguish_shape_from_meaning() -> Result<(), 
         "= Title\n\n// Source-only\n\n*Bold* and https://example.org[Link].",
         &Options::default(),
     )?;
-    let strict = asg::document(parsed.document())?;
+    let strict = asg::export_document(parsed.document())?;
     let upstream: Value = serde_json::from_str(include_str!("../../schemas/asg/schema.json"))?;
     assert!(jsonschema::validator_for(&upstream)?.is_valid(&strict));
-    let extended = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let extended = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&extended));
@@ -235,7 +235,7 @@ fn strict_and_extension_controls_distinguish_shape_from_meaning() -> Result<(), 
         "See <<sample>>.\n\n[[sample]]\n.Title\n====\nBody.\n====",
     ] {
         let parsed = parse(source, &Options::default())?;
-        assert!(asg::document(parsed.document()).is_err());
+        assert!(asg::export_document(parsed.document()).is_err());
     }
     Ok(())
 }

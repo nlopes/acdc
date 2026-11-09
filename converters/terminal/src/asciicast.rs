@@ -186,13 +186,13 @@ fn detect_version(input: &str) -> Result<u8, Error> {
 /// # Errors
 ///
 /// Returns the same errors as [`parse`].
-pub fn parse_inlines<'inline, I>(inlines: I) -> Result<Recording, Error>
+pub fn parse_from_inlines<'inline, I>(inlines: I) -> Result<Recording, Error>
 where
     I: IntoIterator,
     I::Item: Into<InlineRef<'inline>>,
     I::IntoIter: DoubleEndedIterator + ExactSizeIterator + Clone,
 {
-    parse_inlines_with(inlines, None)
+    parse_from_inlines_with_idle_limit(inlines, None)
 }
 
 /// Parse typed inlines or an owner slice, overriding the idle-gap cap.
@@ -203,8 +203,8 @@ where
 ///
 /// # Errors
 ///
-/// Returns the same errors as [`parse_inlines`].
-pub fn parse_inlines_with<'inline, I>(
+/// Returns the same errors as [`parse_from_inlines`].
+pub fn parse_from_inlines_with_idle_limit<'inline, I>(
     inlines: I,
     idle_limit: Option<Duration>,
 ) -> Result<Recording, Error>
@@ -389,8 +389,9 @@ mod tests {
                 Event::write_at("<λ>".as_bytes().to_vec(), Duration::ZERO),
                 Event::write_at(b"done".to_vec(), Duration::from_millis(500)),
             ];
-            let owned = parse_inlines_with(&inlines, Some(Duration::from_millis(500)))?;
-            let typed = parse_inlines_with(
+            let owned =
+                parse_from_inlines_with_idle_limit(&inlines, Some(Duration::from_millis(500)))?;
+            let typed = parse_from_inlines_with_idle_limit(
                 inlines.iter().map(InlineRef::from),
                 Some(Duration::from_millis(500)),
             )?;
@@ -399,7 +400,7 @@ mod tests {
             assert_eq!(owned.events, expected);
             assert_eq!(typed.events, expected);
             assert_eq!(
-                parse_inlines(&inlines)?.events.get(1),
+                parse_from_inlines(&inlines)?.events.get(1),
                 Some(&Event::write_at(b"done".to_vec(), Duration::from_secs(1)))
             );
         }

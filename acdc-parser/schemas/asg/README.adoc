@@ -94,8 +94,8 @@ schema to make native JSON pass.
 
 == Checked upstream export
 
-Enable the `asg` Cargo feature and call `asg::document(parsed.document())` or
-`asg::inlines(parsed.content())`. Export reads the AST directly, then validates
+Enable the `asg` Cargo feature and call `asg::export_document(parsed.document())` or
+`asg::export_inlines(parsed.content())`. Export reads the AST directly, then validates
 against this pin. It returns a complete JSON value or a typed error with a
 JSON Pointer path. Unsupported-value and invalid-location errors identify the
 nearest semantic owner and retain its coordinates when known. An unknown inner
@@ -182,10 +182,10 @@ adding a mapping also requires semantic assertions beyond schema validity.
 
 == acdc extension profile
 
-`asg::document_with_profile(document, asg::Profile::Acdc)` selects
+`asg::export_document_with_profile(document, asg::Profile::Acdc)` selects
 `acdc-v1.json`, identified by `urn:acdc:asg:1`. Each extended document includes
 that identifier in its required `profile` field. This is an acdc format, not
-upstream ASG conformance. `asg::document` and `Profile::Upstream` keep the strict
+upstream ASG conformance. `asg::export_document` and `Profile::Upstream` keep the strict
 upstream contract. Parser compatibility mode and output profile are independent.
 
 The schema is a separately named derivative of the pinned schema, under the
@@ -236,7 +236,7 @@ Images compose through supported spans, link labels, document/block titles,
 reference text, captions, attribution and citation content. Every recursive call
 uses the selected profile. Unsupported nested nodes and unknown or malformed
 image fields fail; an extension does not enable arbitrary macros.
-`asg::inlines_with_profile(content, Profile::Acdc)` applies the same checks to a
+`asg::export_inlines_with_profile(content, Profile::Acdc)` applies the same checks to a
 standalone array. Strict document and inline export keep their upstream errors.
 
 == References

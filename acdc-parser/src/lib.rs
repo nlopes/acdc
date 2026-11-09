@@ -178,28 +178,29 @@ pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline
 use preprocessor::Preprocessor;
 
 pub use error::{CaptionRepairError, Error, ReferenceRepairError, SourceLocation};
-pub use grammar::parse_text_for_quotes;
+pub use grammar::parse_inline_formatting;
 pub use model::{
     Admonition, AdmonitionForm, AdmonitionVariant, Anchor, AttributeName, AttributeValue,
     Attribution, Audio, Author, Autolink, Block, BlockMetadata, Bold, Button, CalloutList,
-    CalloutListItem, CalloutRef, CalloutRefKind, Caption, CaptionKind, CharacterReference,
+    CalloutListItem, CalloutMarker, CalloutMarkerKind, Caption, CaptionKind, CharacterReference,
     CharacterReferenceKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth, Comment,
-    CommentKind, ContentAttribute, CrossReference, CurvedApostrophe, CurvedQuotation,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListDefinition,
-    DescriptionListItem, DescriptionListTerm, DiscreteHeader, Document, DocumentAttribute,
-    DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, ElementAttributes,
-    ElementId, Footnote, FootnoteDefinition, Form, HEADER, Header, Highlight, HorizontalAlignment,
+    CommentKind, ContentAttribute, CrossReference, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DescriptionListDefinition, DescriptionListItem, DescriptionListTerm,
+    DiscreteHeading, Document, DocumentAttribute, DocumentAttributeAssignment,
+    DocumentAttributeValue, DocumentAttributes, DoubleQuotedSpan, ElementAttributes, ElementId,
+    Footnote, FootnoteDefinition, FormattingForm, HEADER, Header, Highlight, HorizontalAlignment,
     ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineImage,
-    InlineMacro, InlineMetadata, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
-    ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace,
-    NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw,
-    Reference, ReservedAttribute, Role, Section, SectionKind, Source, SourceUrl,
-    StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript, Substitution,
-    SubstitutionOp, SubstitutionSpec, Subtitle, Superscript, Symbol, SymbolKind, Table,
-    TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
-    ThematicBreak, Title, TocEntry, TokenAssignment, UNNUMBERED_SECTION_STYLES, UnorderedList, Url,
-    VERBATIM, Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefSignifier, XrefStyle,
-    substitute, substitute_attributes,
+    InlineMacro, InlineMetadata, InlineNode, Italic, KeyboardShortcut, LineBreak, Link, ListItem,
+    ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, MenuPath,
+    Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Passthrough, PassthroughKind, Plain,
+    Position, Raw, ReferenceTarget, ReservedAttribute, Role, Section, SectionKind,
+    SingleQuotedSpan, Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent,
+    StemNotation, Subscript, Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript,
+    Symbol, SymbolKind, Table, TableCell, TableFrame, TableGrid, TableOfContents,
+    TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry, TokenAssignment,
+    UNNUMBERED_SECTION_STYLES, UnorderedList, UrlMacro, VERBATIM, Verbatim, VerticalAlignment,
+    Video, XrefCaptionLabel, XrefSignifier, XrefStyle, apply_attribute_substitutions,
+    substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{ConditionalEvaluation, OwnedSource, ParseInlineResult, ParseResult};

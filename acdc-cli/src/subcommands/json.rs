@@ -47,9 +47,9 @@ pub(super) fn document(value: DocumentRef<'_>, format: Format) -> Result<Value, 
     match format {
         Format::NativeJson => Ok(serde_json::to_value(value)?),
         #[cfg(feature = "asg")]
-        Format::UpstreamAsg => Ok(acdc_parser::asg::document(value)?),
+        Format::UpstreamAsg => Ok(acdc_parser::asg::export_document(value)?),
         #[cfg(feature = "asg")]
-        Format::AcdcAsgV1 => Ok(acdc_parser::asg::document_with_profile(
+        Format::AcdcAsgV1 => Ok(acdc_parser::asg::export_document_with_profile(
             value,
             acdc_parser::asg::Profile::Acdc,
         )?),
@@ -62,9 +62,9 @@ pub(super) fn inlines(parsed: &ParseInlineResult, format: Format) -> Result<Valu
     match format {
         Format::NativeJson => Ok(serde_json::to_value(parsed.content())?),
         #[cfg(feature = "asg")]
-        Format::UpstreamAsg => Ok(acdc_parser::asg::inlines(parsed.content())?),
+        Format::UpstreamAsg => Ok(acdc_parser::asg::export_inlines(parsed.content())?),
         #[cfg(feature = "asg")]
-        Format::AcdcAsgV1 => Ok(acdc_parser::asg::inlines_with_profile(
+        Format::AcdcAsgV1 => Ok(acdc_parser::asg::export_inlines_with_profile(
             parsed.content(),
             acdc_parser::asg::Profile::Acdc,
         )?),

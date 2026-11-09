@@ -2,7 +2,7 @@
 
 use crate::{
     Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
-    DocumentAttributes, Header, InlineMacro, InlineNode, Location, Reference, Section, Title,
+    DocumentAttributes, Header, InlineMacro, InlineNode, Location, ReferenceTarget, Section, Title,
     TocEntry, Warning, WarningKind,
     grammar::{
         ParserState,
@@ -47,12 +47,12 @@ fn insert_reference<'a>(
     }
     refs.entries.insert(
         anchor.id,
-        Reference::for_anchor(anchor, label, title, caption),
+        ReferenceTarget::for_anchor(anchor, label, title, caption),
     );
 }
 
 pub(super) struct ReferenceCatalog<'a> {
-    pub(super) entries: HashMap<&'a str, Reference<'a>>,
+    pub(super) entries: HashMap<&'a str, ReferenceTarget<'a>>,
     pub(super) next_suffix: HashMap<(&'a str, Option<char>), usize>,
     pub(super) natural_targets: HashMap<&'a str, &'a str>,
 }
@@ -122,7 +122,7 @@ fn insert_untitled_reference<'a>(
     }
     refs.entries.insert(
         id,
-        Reference {
+        ReferenceTarget {
             occurrence: None,
             document_label: None,
             target: id,
@@ -382,7 +382,7 @@ pub(super) fn register_document_references<'a>(
     }
     document.references.insert(
         "",
-        Reference {
+        ReferenceTarget {
             occurrence: None,
             document_label: Some(origin),
             target: "",
@@ -440,7 +440,7 @@ fn register_section_reference<'a>(
         }
         refs.entries.insert(
             id,
-            Reference {
+            ReferenceTarget {
                 occurrence: None,
                 document_label: None,
                 target: id,
@@ -638,7 +638,7 @@ pub(super) fn normalize_bibliography_lists<'a>(state: &ParserState<'a>, blocks: 
                 | DelimitedBlockType::DelimitedStem(_) => {}
             },
             Block::Paragraph(_)
-            | Block::DiscreteHeader(_)
+            | Block::DiscreteHeading(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
             | Block::Image(_)

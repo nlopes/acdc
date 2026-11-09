@@ -328,7 +328,7 @@ mod tests {
         let mut options = profiles.get(ServerOptions::default()).clone();
         options.base_dir = Some(directory.to_path_buf());
         let result = acdc_parser::parse(source, &options)?;
-        assert_eq!(result.source(), source);
+        assert_eq!(result.preprocessed_source(), source);
         assert!(result.source_recovery().is_some());
         assert_eq!(options.safe_mode, acdc_parser::SafeMode::Server);
         Ok(())

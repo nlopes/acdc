@@ -1,8 +1,8 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ContentAttribute, Document, Options, Reference, SafeMode,
-    ast::{ContentRef, DocumentRef, InlineKind, ReferenceRef, ReferencesRef, TocEntryRef},
+    ContentAttribute, Document, Options, ReferenceTarget, SafeMode,
+    ast::{ContentRef, DocumentRef, InlineKind, ReferenceTargetRef, ReferencesRef, TocEntryRef},
     parse, parse_file,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -46,7 +46,7 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
     assert!(untitled.title().is_none());
     assert!(untitled.xreflabel().is_none());
     assert!(references.get("missing").is_none());
-    let mut owned = Reference::from(
+    let mut owned = ReferenceTarget::from(
         parsed
             .document()
             .references()
@@ -55,7 +55,7 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
     );
     owned.set_title(Some(ContentAttribute::new(Vec::new())));
     owned.set_xreflabel(Some(ContentAttribute::new(Vec::new())));
-    let empty_title = ReferenceRef::from(&owned);
+    let empty_title = ReferenceTargetRef::from(&owned);
     assert!(empty_title.title().is_some_and(ContentRef::is_empty));
     assert!(empty_title.xreflabel().is_some_and(ContentRef::is_empty));
     Ok(())
@@ -65,7 +65,7 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
 fn catalog_handles_are_shared_and_do_not_allocate_on_reads() -> Result<(), Error> {
     fn shared<T: Copy + Send + Sync>() {}
     shared::<ReferencesRef<'_>>();
-    shared::<ReferenceRef<'_>>();
+    shared::<ReferenceTargetRef<'_>>();
     shared::<TocEntryRef<'_>>();
     let parsed = parse("[#target]\n== Title\n", &Options::default())?;
     let doc = parsed.document();
@@ -90,7 +90,7 @@ fn catalog_handles_are_shared_and_do_not_allocate_on_reads() -> Result<(), Error
         black_box((
             reference.title(),
             reference.xreflabel(),
-            reference.section_name(),
+            reference.section_category(),
             reference.section_number(),
             reference.is_bibliography(),
             reference.has_automatic_citation(),

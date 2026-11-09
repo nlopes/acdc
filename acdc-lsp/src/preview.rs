@@ -8,8 +8,8 @@ use std::{
     sync::Arc,
 };
 
-use acdc_converters_core::{Converter, Diagnostics, Options};
-use acdc_converters_html::{HtmlVariant, Processor};
+use acdc_converters_core::{Converter as _, Diagnostics, Options};
+use acdc_converters_html::{Converter, HtmlVariant};
 use acdc_parser::{IncludeLoader, SafeMode};
 use lol_html::{RewriteStrSettings, element, html_content::ContentType, rewrite_str};
 use tempfile::{NamedTempFile, TempDir};
@@ -189,10 +189,10 @@ fn parser_options(input: &PreviewInput) -> acdc_parser::OptionsBuilder<'static> 
 
 fn convert<'a>(
     input: &PreviewInput,
-    processor: &impl Converter<'a>,
+    converter: &impl acdc_converters_core::Converter<'a>,
     source_file: Option<&Path>,
 ) -> Result<(Vec<u8>, Vec<String>), String> {
-    let mut parsed = acdc_parser::parse(&input.text, processor.parser_options())
+    let mut parsed = acdc_parser::parse(&input.text, converter.parser_options())
         .map_err(|error| format!("Could not parse preview: {error}"))?;
     let mut warnings: Vec<String> = parsed
         .take_warnings()
@@ -201,8 +201,8 @@ fn convert<'a>(
         .collect();
     let mut bytes = Vec::new();
     let mut converter_warnings = Vec::new();
-    let source = processor.warning_source();
-    processor
+    let source = converter.warning_source();
+    converter
         .write_to(
             parsed.document(),
             &mut bytes,
@@ -223,7 +223,7 @@ fn render_pdf(input: &PreviewInput) -> Result<(Vec<u8>, Vec<String>), String> {
     } else {
         SafeMode::Secure
     };
-    let processor = acdc_converters_pdf::Processor::new(
+    let converter = acdc_converters_pdf::Converter::new(
         Options::builder().safe_mode(safe_mode).build(),
         parser_options(input).with_attribute("allow-uri-read", false),
     )
@@ -232,7 +232,7 @@ fn render_pdf(input: &PreviewInput) -> Result<(Vec<u8>, Vec<String>), String> {
         .base_dir
         .as_ref()
         .and_then(|_| input.source_uri.to_file_path());
-    convert(input, &processor, source_file.as_deref())
+    convert(input, &converter, source_file.as_deref())
 }
 
 #[cfg(not(feature = "preview-pdf"))]
@@ -250,13 +250,13 @@ fn render_html(
         .with_attribute("linkcss", false)
         .with_attribute("docinfo", false)
         .with_attribute("csp", true);
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::builder().safe_mode(SafeMode::Secure).build(),
         parser_options,
         variant,
     )
     .map_err(|error| error.to_string())?;
-    let (bytes, warnings) = convert(input, &processor, None)?;
+    let (bytes, warnings) = convert(input, &converter, None)?;
     if input.base_dir.is_none() {
         return Ok((bytes, warnings));
     }

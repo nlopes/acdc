@@ -229,12 +229,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let converter = self.converter.clone();
         let attributes = block.attributes();
         let caption_kind = CaptionKind::for_block(block);
         match block.kind() {
             BlockKind::Quote(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
+                if converter.variant() == HtmlVariant::Semantic {
                     let has_title = data.title().is_some();
                     if has_title {
                         write_semantic_tag_open(
@@ -292,7 +292,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 }
             }
             BlockKind::Open(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
+                if converter.variant() == HtmlVariant::Semantic {
                     let is_abstract = data.style() == Some("abstract");
                     if is_abstract {
                         // Abstract style: render as quote-block abstract
@@ -386,7 +386,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 }
             }
             BlockKind::Example(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
+                if converter.variant() == HtmlVariant::Semantic {
                     self.write_example_block_semantic(traversal, data)?;
                 } else {
                     self.write_example_block(traversal, data)?;
@@ -402,8 +402,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
             // Handle tables
             BlockKind::Table(data) => {
-                let processor = self.processor.clone();
-                crate::table::render_table(traversal, data, self, &processor)?;
+                let converter = self.converter.clone();
+                crate::table::render_table(traversal, data, self, &converter)?;
             }
             BlockKind::Passthrough(data) => {
                 self.visit_content(traversal, data.content())?;
@@ -412,13 +412,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 self.render_listing_block(traversal, data, caption_kind)?;
             }
             BlockKind::Literal(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
+                if converter.variant() == HtmlVariant::Semantic {
                     return self.render_literal_block_semantic(traversal, data, caption_kind);
                 }
                 self.render_literal_block(traversal, data, caption_kind)?;
             }
             BlockKind::Stem(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
+                if converter.variant() == HtmlVariant::Semantic {
                     return self.render_stem_block_semantic(traversal, data);
                 }
                 write_block_div_open(&mut self.writer, attributes, "stemblock")?;
@@ -428,18 +428,18 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     "<div class=\"title\">",
                     "</div>\n",
                 )?;
-                let processor = self.processor.clone();
+                let converter = self.converter.clone();
                 render_stem_content(
                     data,
                     &mut self.writer,
-                    processor.variant() == HtmlVariant::Semantic,
+                    converter.variant() == HtmlVariant::Semantic,
                     traversal,
                 )?;
                 writeln!(self.writer, "</div>")?;
             }
             BlockKind::DelimitedComment(_) => {}
             BlockKind::Verse(data) => {
-                if processor.variant() == HtmlVariant::Semantic {
+                if converter.variant() == HtmlVariant::Semantic {
                     return self.render_verse_block_semantic(traversal, data);
                 }
                 write_block_div_open(&mut self.writer, attributes, "verseblock")?;
@@ -457,7 +457,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             }
             BlockKind::TableOfContents(_)
             | BlockKind::Admonition(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
@@ -533,8 +533,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let title = data.title();
         let attributes = Some(data.attributes());
 
-        let processor = self.processor.clone();
-        if processor.variant() == HtmlVariant::Semantic {
+        let converter = self.converter.clone();
+        if converter.variant() == HtmlVariant::Semantic {
             return self.render_listing_block_semantic(traversal, data, caption_kind);
         }
 
@@ -550,7 +550,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(processor.document_attributes(), data.attributes())
+        if crate::terminal::is_terminal_listing(converter.document_attributes(), data.attributes())
             && self.terminal_emulator_allowed()
         {
             return self.render_terminal_listing_block(
@@ -603,7 +603,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         #[cfg(feature = "terminal")]
         if crate::terminal::is_terminal_listing(
-            self.processor.document_attributes(),
+            self.converter.document_attributes(),
             data.attributes(),
         ) && self.terminal_emulator_allowed()
         {
@@ -646,7 +646,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     /// warning records why the preview is absent.
     #[cfg(feature = "terminal")]
     fn terminal_emulator_allowed(&mut self) -> bool {
-        let safe_mode = self.processor.options.safe_mode();
+        let safe_mode = self.converter.options.safe_mode();
         if safe_mode < acdc_parser::SafeMode::Server {
             return true;
         }
@@ -668,9 +668,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         caption_kind: Option<CaptionKind>,
         attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let attrs = processor.document_attributes();
-        let options = processor.options.clone();
+        let converter = self.converter.clone();
+        let attrs = converter.document_attributes();
+        let options = converter.options.clone();
         write_block_div_open(
             &mut self.writer,
             Some(attributes),
@@ -711,9 +711,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         caption_kind: Option<CaptionKind>,
         attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let attrs = processor.document_attributes();
-        let options = processor.options.clone();
+        let converter = self.converter.clone();
+        let attrs = converter.document_attributes();
+        let options = converter.options.clone();
         // Direct field access so the writer and diagnostics borrows stay
         // disjoint; `writer_mut()` would borrow all of `self`.
         if title.is_some() {
@@ -764,9 +764,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         caption_kind: Option<CaptionKind>,
         attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let attrs = processor.document_attributes();
-        let options = processor.options.clone();
+        let converter = self.converter.clone();
+        let attrs = converter.document_attributes();
+        let options = converter.options.clone();
         write_block_div_open(
             &mut self.writer,
             Some(attributes),
@@ -798,9 +798,9 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         caption_kind: Option<CaptionKind>,
         attributes: AttributesRef<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let attrs = processor.document_attributes();
-        let options = processor.options.clone();
+        let converter = self.converter.clone();
+        let attrs = converter.document_attributes();
+        let options = converter.options.clone();
         if title.is_some() {
             write_semantic_tag_open(
                 &mut self.writer,
@@ -838,7 +838,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         attributes: AttributesRef<'_>,
         body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             write_semantic_tag_open(&mut self.writer, "aside", Some(attributes), "sidebar")?;
             self.render_title_content(traversal, title, "<h6 class=\"block-title\">", "</h6>\n")?;
             body(self, traversal)?;
@@ -866,7 +866,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         #[cfg(feature = "terminal")]
         if is_terminal_session(data.attributes()) && self.terminal_emulator_allowed() {
-            if self.processor.variant() == HtmlVariant::Semantic {
+            if self.converter.variant() == HtmlVariant::Semantic {
                 self.render_terminal_session_block_semantic(
                     traversal,
                     content,
@@ -1092,12 +1092,12 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Processor, RenderOptions};
+    use crate::{Converter, RenderOptions};
     use acdc_parser::{DelimitedBlock, DelimitedBlockType};
 
     use std::{cell::Cell, rc::Rc};
 
-    use acdc_converters_core::{Converter, Diagnostics, Doctype, Options, WarningSource};
+    use acdc_converters_core::{Diagnostics, Doctype, Options, WarningSource};
     use acdc_parser::{
         BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
     };
@@ -1109,13 +1109,13 @@ mod tests {
         ))]
     }
 
-    fn create_test_processor_raw() -> Processor<'static> {
+    fn create_test_converter_raw() -> Converter<'static> {
         let options = Options::builder()
             .doctype(Doctype::Article)
             .safe_mode(SafeMode::Unsafe)
             .build();
         let document_attributes = DocumentAttributes::default();
-        Processor {
+        Converter {
             options,
             parser_options: acdc_parser::Options::default()
                 .with_document_attributes(document_attributes),
@@ -1134,8 +1134,8 @@ mod tests {
         }
     }
 
-    fn create_test_processor() -> Rc<Processor<'static>> {
-        Rc::new(create_test_processor_raw())
+    fn create_test_converter() -> Rc<Converter<'static>> {
+        Rc::new(create_test_converter_raw())
     }
 
     #[test]
@@ -1147,14 +1147,15 @@ mod tests {
         );
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1175,14 +1176,15 @@ mod tests {
         );
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1200,7 +1202,7 @@ mod tests {
         use acdc_parser::{AttributeValue, ElementAttributes};
 
         let mut attributes = ElementAttributes::default();
-        attributes.insert("language".into(), AttributeValue::String("bash".into()));
+        attributes.insert_if_absent("language".into(), AttributeValue::String("bash".into()));
 
         let metadata = BlockMetadata::new()
             .with_style(Some("source"))
@@ -1214,14 +1216,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1253,14 +1256,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1292,15 +1296,16 @@ mod tests {
         .with_title(title);
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor =
-            HtmlVisitor::new(output, processor.clone(), options, diagnostics.reborrow());
+            HtmlVisitor::new(output, converter.clone(), options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1314,7 +1319,7 @@ mod tests {
             "Should not contain numbering when listing-caption is not set, got: {html}",
         );
         assert_eq!(
-            processor.listing_counter.get(),
+            converter.listing_counter.get(),
             0,
             "Counter should not be incremented when listing-caption is not set"
         );
@@ -1349,8 +1354,8 @@ mod tests {
         .with_title(title2);
 
         let output = Vec::new();
-        let processor = {
-            let mut p = create_test_processor_raw();
+        let converter = {
+            let mut p = create_test_converter_raw();
             p.parser_options = p
                 .parser_options
                 .into_builder()
@@ -1363,11 +1368,12 @@ mod tests {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(
             output,
-            processor.clone(),
+            converter.clone(),
             options.clone(),
             diagnostics.reborrow(),
         );
@@ -1381,7 +1387,7 @@ mod tests {
             "Expected numbered title for first listing block, got: {html1}",
         );
         assert_eq!(
-            processor.listing_counter.get(),
+            converter.listing_counter.get(),
             1,
             "Counter should be incremented to 1"
         );
@@ -1391,10 +1397,11 @@ mod tests {
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor2 =
-            HtmlVisitor::new(output2, processor.clone(), options, diagnostics.reborrow());
+            HtmlVisitor::new(output2, converter.clone(), options, diagnostics.reborrow());
         traversal.visit_block(&mut visitor2, acdc_parser::ast::BlockRef::from(&block2))?;
         let html2 = String::from_utf8(visitor2.into_writer())?;
 
@@ -1403,7 +1410,7 @@ mod tests {
             "Expected numbered title for second listing block, got: {html2}",
         );
         assert_eq!(
-            processor.listing_counter.get(),
+            converter.listing_counter.get(),
             2,
             "Counter should be incremented to 2"
         );
@@ -1426,14 +1433,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1461,14 +1469,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1496,14 +1505,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1531,14 +1541,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1566,14 +1577,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1603,14 +1615,15 @@ mod tests {
         .with_title(title);
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1652,14 +1665,15 @@ mod tests {
         .with_title(title);
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1683,14 +1697,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1718,14 +1733,15 @@ mod tests {
         .with_metadata(metadata)?;
 
         let output = Vec::new();
-        let processor = create_test_processor();
+        let converter = create_test_converter();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(converter.as_ref()).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let mut visitor = HtmlVisitor::new(output, converter, options, diagnostics.reborrow());
 
         traversal.visit_block(&mut visitor, acdc_parser::ast::BlockRef::from(&block))?;
         let html = String::from_utf8(visitor.into_writer())?;

@@ -11,7 +11,7 @@ use serde_json::{Value, json};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn export(document: DocumentRef<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document, asg::Profile::Acdc)
+    asg::export_document_with_profile(document, asg::Profile::Acdc)
 }
 
 #[test]
@@ -59,16 +59,16 @@ fn inline_image_metadata_and_content_are_preserved() -> Result<(), Error> {
         };
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/alt"),
-            Some(&asg::inlines(image.alt().ok_or("alt")?)?)
+            Some(&asg::export_inlines(image.alt().ok_or("alt")?)?)
         );
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/tooltip"),
-            Some(&asg::inlines(image.tooltip().ok_or("tooltip")?)?)
+            Some(&asg::export_inlines(image.tooltip().ok_or("tooltip")?)?)
         );
         assert!(value.pointer("/blocks/0/inlines/0/location").is_some());
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path=="/blocks/0/inlines/0")
+            matches!(asg::export_document(parsed.document()),Err(asg::Error::Unsupported {path,construct:Some("inline image"),..}) if path=="/blocks/0/inlines/0")
         );
     }
     Ok(())
@@ -121,10 +121,10 @@ fn block_image_alternative_content_stays_separate_from_its_caption() -> Result<(
         };
         assert_eq!(
             value.pointer("/blocks/0/alt"),
-            Some(&asg::inlines(image.alt().ok_or("alt")?)?)
+            Some(&asg::export_inlines(image.alt().ok_or("alt")?)?)
         );
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
+            matches!(asg::export_document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/alt")
         );
     }
     Ok(())
@@ -165,18 +165,18 @@ fn standalone_image_export_checks_the_selected_profile() -> Result<(), Error> {
     else {
         return Err("paragraph".into());
     };
-    let value = asg::inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile(paragraph.content(), asg::Profile::Acdc)?;
     assert_eq!(
         Some(&value),
         export(parsed.document())?.pointer("/blocks/0/inlines")
     );
     assert!(
-        matches!(asg::inlines(paragraph.content()),Err(asg::Error::Unsupported {path,..}) if path=="/0")
+        matches!(asg::export_inlines(paragraph.content()),Err(asg::Error::Unsupported {path,..}) if path=="/0")
     );
     let mut image = InlineImage::new(Source::Name("photo.png"), Location::default());
     image.set_attribute("flag".into(), AttributeValue::Bool(true))?;
     image.set_attribute("width".into(), AttributeValue::String("003".into()))?;
-    let value = asg::inlines_with_profile(
+    let value = asg::export_inlines_with_profile(
         ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(
             InlineMacro::Image(Box::new(image)),
         )])),

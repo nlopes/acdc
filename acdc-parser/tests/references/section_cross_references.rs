@@ -8,7 +8,7 @@
 
 use acdc_parser::{
     Options, XrefSignifier, XrefStyle,
-    ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind, ReferenceRef, ReferencesRef},
+    ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind, ReferenceTargetRef, ReferencesRef},
     parse,
 };
 
@@ -34,10 +34,10 @@ fn cross_references<'a>(blocks: impl Iterator<Item = BlockRef<'a>>) -> Vec<Cross
 fn section_reference<'a>(
     references: ReferencesRef<'a>,
     id: &str,
-) -> Result<ReferenceRef<'a>, Error> {
+) -> Result<ReferenceTargetRef<'a>, Error> {
     references
         .get(id)
-        .filter(|reference| reference.section_name().is_some())
+        .filter(|reference| reference.section_category().is_some())
         .ok_or_else(|| format!("no section reference for {id}").into())
 }
 
@@ -57,7 +57,7 @@ fn a_section_reference_carries_its_name_and_number() -> Result<(), Error> {
         ("appsub", "section", "A.1"),
     ] {
         let section = section_reference(references, id)?;
-        assert_eq!(section.section_name(), Some(name), "{id}");
+        assert_eq!(section.section_category(), Some(name), "{id}");
         assert_eq!(section.section_number(), Some(number), "{id}");
     }
     Ok(())
@@ -70,7 +70,7 @@ fn an_article_level_one_section_is_a_section_not_a_chapter() -> Result<(), Error
         &Options::default(),
     )?;
     let section = section_reference(parsed.document().references(), "s1")?;
-    assert_eq!(section.section_name(), Some("section"));
+    assert_eq!(section.section_category(), Some("section"));
     Ok(())
 }
 
@@ -134,7 +134,7 @@ fn a_numbered_special_section_takes_its_style_as_its_name() -> Result<(), Error>
                   [[ch]]\n== Chapter\n\nx\n";
     let parsed = parse(source, &Options::default())?;
     let preface = section_reference(parsed.document().references(), "pre")?;
-    assert_eq!(preface.section_name(), Some("preface"));
+    assert_eq!(preface.section_category(), Some("preface"));
     assert_eq!(preface.section_number(), Some("1"));
     Ok(())
 }

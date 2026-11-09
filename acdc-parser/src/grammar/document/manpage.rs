@@ -5,7 +5,7 @@ use crate::{
     document_attribute::AttributeDeclaration,
     error::{Error, SourceLocation},
     grammar::{ParserState, document::doctype::is_manpage_doctype},
-    model::{substitute, substitution::HEADER},
+    model::{apply_attribute_substitutions, substitution::HEADER},
 };
 use std::rc::Rc;
 
@@ -40,12 +40,13 @@ pub(super) fn prepare_manpage_name_attributes<'input>(
             let _ = attributes.assign_document_value(name.into(), value, false, false, None);
         }
 
-        let name = substitute(&section.attributes.name, HEADER, &attributes);
+        let name = apply_attribute_substitutions(&section.attributes.name, HEADER, &attributes);
         let name = name.split(',').next().unwrap_or_default().trim();
         let name = state.intern_str(name);
-        let purpose = substitute(&section.attributes.purpose, HEADER, &attributes);
+        let purpose =
+            apply_attribute_substitutions(&section.attributes.purpose, HEADER, &attributes);
         let purpose = state.intern_str(&purpose);
-        let title = substitute(section.title, HEADER, &attributes);
+        let title = apply_attribute_substitutions(section.title, HEADER, &attributes);
         let title = state.intern_str(&title);
         set_manpage_name_attributes(state, name, Some(purpose), Some(title));
         return;
@@ -142,17 +143,17 @@ fn extract_plain_text(nodes: &[InlineNode]) -> String {
             }
             InlineNode::SubscriptText(sub) => result.push_str(&extract_plain_text(&sub.content)),
             InlineNode::SuperscriptText(sup) => result.push_str(&extract_plain_text(&sup.content)),
-            InlineNode::CurvedQuotationText(quoted) => {
+            InlineNode::DoubleQuotedSpan(quoted) => {
                 result.push_str(&extract_plain_text(&quoted.content));
             }
-            InlineNode::CurvedApostropheText(quoted) => {
+            InlineNode::SingleQuotedSpan(quoted) => {
                 result.push_str(&extract_plain_text(&quoted.content));
             }
             // These nodes don't contribute plain text
             InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::CalloutRef(_)
+            | InlineNode::CalloutMarker(_)
             | InlineNode::Macro(_) => {}
         }
     }

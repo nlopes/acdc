@@ -1,5 +1,5 @@
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_converters_manpage::Processor;
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
+use acdc_converters_manpage::Converter;
 use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
@@ -32,14 +32,14 @@ fn date_uses_the_resolved_header_snapshot(
             .build()?,
     )?;
     let before = Document::from(parsed.document());
-    let processor = Processor::new(
+    let converter = Converter::new(
         Options::builder().embedded(embedded).build(),
         ParserOptions::builder().with_compatibility_mode(mode),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("manpage");
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut output,
         None,

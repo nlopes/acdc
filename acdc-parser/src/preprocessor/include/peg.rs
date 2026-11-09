@@ -1,7 +1,7 @@
 use super::{ContentSelection, Include, IncludeParserInputs, Target};
 use crate::{
     error::Error,
-    model::{HEADER, substitute},
+    model::{HEADER, apply_attribute_substitutions},
 };
 use std::{path::Path, rc::Rc};
 
@@ -9,7 +9,7 @@ peg::parser! {
     pub(super) grammar include_parser<'a, 'b>(inputs: &'b IncludeParserInputs<'a, 'b>) for str {
         pub(in crate::preprocessor::include) rule include() -> Result<Include<'a>, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
-                let target_raw = substitute(&target, HEADER, &inputs.options.document_attributes);
+                let target_raw = apply_attribute_substitutions(&target, HEADER, &inputs.options.document_attributes);
                 let target_as_written = target_raw.into_owned();
                 let target = Target::parse(&target_as_written, inputs.source_origin)?;
 

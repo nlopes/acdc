@@ -29,9 +29,9 @@ fn visit_index_terms<E>(
                     InlineNode::HighlightText(mut span) => Some(span.take_content()),
                     InlineNode::SubscriptText(mut span) => Some(span.take_content()),
                     InlineNode::SuperscriptText(mut span) => Some(span.take_content()),
-                    InlineNode::CurvedQuotationText(mut span) => Some(span.take_content()),
-                    InlineNode::CurvedApostropheText(mut span) => Some(span.take_content()),
-                    InlineNode::Macro(InlineMacro::Url(mut link)) => Some(link.take_text()),
+                    InlineNode::DoubleQuotedSpan(mut span) => Some(span.take_content()),
+                    InlineNode::SingleQuotedSpan(mut span) => Some(span.take_content()),
+                    InlineNode::Macro(InlineMacro::UrlMacro(mut link)) => Some(link.take_text()),
                     InlineNode::Macro(InlineMacro::Link(mut link)) => Some(link.take_text()),
                     InlineNode::Macro(InlineMacro::Mailto(mut link)) => Some(link.take_text()),
                     InlineNode::Macro(InlineMacro::CrossReference(mut link)) => {
@@ -47,7 +47,7 @@ fn visit_index_terms<E>(
                     | InlineNode::LineBreak(_)
                     | InlineNode::InlineAnchor(_)
                     | InlineNode::Macro(_)
-                    | InlineNode::CalloutRef(_)
+                    | InlineNode::CalloutMarker(_)
                     | _ => None,
                 };
                 if let Some(children) = children {

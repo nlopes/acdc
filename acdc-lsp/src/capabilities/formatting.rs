@@ -158,7 +158,7 @@ fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<Pro
         | BlockKind::Sidebar(_)
         | BlockKind::Quote(_) => {}
         BlockKind::TableOfContents(_)
-        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DiscreteHeading(_)
         | BlockKind::DocumentAttribute(_)
         | BlockKind::ThematicBreak(_)
         | BlockKind::PageBreak(_)

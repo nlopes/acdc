@@ -1,6 +1,6 @@
 use acdc_parser::{
     Options,
-    ast::{BlockKind, BlockRef, FootnoteDefinitionRef, InlineKind, InlineRef, ReferenceRef},
+    ast::{BlockKind, BlockRef, FootnoteDefinitionRef, InlineKind, InlineRef, ReferenceTargetRef},
     parse,
 };
 
@@ -170,7 +170,7 @@ fn bibliography_counter_citations_remain_literal() -> Result<(), Error> {
         .document()
         .references()
         .get("literal-counter")
-        .and_then(ReferenceRef::xreflabel)
+        .and_then(ReferenceTargetRef::xreflabel)
         .ok_or("missing citation")?;
     let text = label
         .inlines()

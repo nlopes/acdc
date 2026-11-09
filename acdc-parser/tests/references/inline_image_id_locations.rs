@@ -20,8 +20,8 @@ fn content_ids<'a>(content: ContentRef<'a>, ids: &mut Vec<ElementIdRef<'a>>) {
             InlineKind::Highlight(span) => Some(span.content()),
             InlineKind::Subscript(span) => Some(span.content()),
             InlineKind::Superscript(span) => Some(span.content()),
-            InlineKind::CurvedQuotation(span) => Some(span.content()),
-            InlineKind::CurvedApostrophe(span) => Some(span.content()),
+            InlineKind::DoubleQuotedSpan(span) => Some(span.content()),
+            InlineKind::SingleQuotedSpan(span) => Some(span.content()),
             InlineKind::Footnote(note) => note.content(),
             InlineKind::Plain(_)
             | InlineKind::Raw(_)
@@ -32,15 +32,15 @@ fn content_ids<'a>(content: ContentRef<'a>, ids: &mut Vec<ElementIdRef<'a>>) {
             | InlineKind::Callout(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_)
             | InlineKind::IndexTerm(_)
             | _ => None,

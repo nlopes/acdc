@@ -21,7 +21,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
+    BackendProfile, Converter as _, Diagnostics, InlineTextTransform, Options, PrettyDuration,
     TraversalContext, Warning, document_attribute_text,
     icon::{
         IconMode, custom_image_source as admonition_icon_source, image_source as icon_image_source,
@@ -32,7 +32,7 @@ use acdc_converters_core::{
     xref::XrefGuard,
 };
 use acdc_parser::{
-    CaptionKind, DocumentAttributes, Location, Options as ParserOptions, Reference, SafeMode,
+    CaptionKind, DocumentAttributes, Location, Options as ParserOptions, ReferenceTarget, SafeMode,
     SourceLocation,
     ast::{
         AdmonitionRef, AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef,
@@ -44,7 +44,7 @@ use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
 };
 use acdc_pdf_render::{NamedDestination, RenderConfig, render_pdf};
-use acdc_pdf_theme::{PageNumberingStart, PageOrientation, Theme};
+use acdc_pdf_theme::{PageNumberingStart, PageOrientation as ThemePageOrientation, Theme};
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
@@ -58,7 +58,9 @@ mod pdf_visitor;
 mod theme_config;
 mod visitor;
 
-pub use acdc_pdf_typst::{PageDimensions, PageGeometryError, PageLayout, PageMargins, PageSize};
+pub use acdc_pdf_typst::{
+    PageDimensions, PageGeometryError, PageMargins, PageOrientation, PageSize,
+};
 pub use error::Error;
 
 /// Format used to load a PDF theme.
@@ -75,7 +77,7 @@ pub enum ThemeFormat {
 struct LoadedTheme {
     theme: Theme,
     page: Option<PageSize>,
-    layout: Option<PageLayout>,
+    layout: Option<PageOrientation>,
     margin: Option<PageMargins>,
 }
 
@@ -87,8 +89,8 @@ impl From<Theme> for LoadedTheme {
                 .size_pt
                 .and_then(|[width, height]| PageSize::try_custom(width, height).ok()),
             layout: theme.page.layout.map(|layout| match layout {
-                PageOrientation::Portrait => PageLayout::Portrait,
-                PageOrientation::Landscape => PageLayout::Landscape,
+                ThemePageOrientation::Portrait => PageOrientation::Portrait,
+                ThemePageOrientation::Landscape => PageOrientation::Landscape,
             }),
             margin: theme.page.margin_pt.and_then(|[top, right, bottom, left]| {
                 PageMargins::try_new(top, right, bottom, left).ok()
@@ -159,7 +161,7 @@ pub struct PdfOptions {
     /// Optional page size override. Document `:pdf-page-size:` is used next.
     pub page: Option<PageSize>,
     /// Optional initial page layout. Document `:pdf-page-layout:` is used next.
-    pub page_layout: Option<PageLayout>,
+    pub page_layout: Option<PageOrientation>,
     /// Optional page margin override. Document `:pdf-page-margin:` is used next.
     pub page_margin: Option<PageMargins>,
     /// Optional theme YAML file. Omission uses the selected format's bundled default.
@@ -185,7 +187,7 @@ pub struct PdfOptions {
 #[derive(Clone, Copy, Debug)]
 struct PageSetup {
     page: PageSize,
-    layout: PageLayout,
+    layout: PageOrientation,
     margin: PageMarginSelection,
 }
 
@@ -286,7 +288,7 @@ impl<'a> TypstSourceConfig<'a> {
 }
 
 impl PageSetup {
-    const fn with_theme_margin(page: PageSize, layout: PageLayout) -> Self {
+    const fn with_theme_margin(page: PageSize, layout: PageOrientation) -> Self {
         Self {
             page,
             layout,
@@ -294,7 +296,11 @@ impl PageSetup {
         }
     }
 
-    const fn with_margin(page: PageSize, layout: PageLayout, margin: PageMargins) -> Option<Self> {
+    const fn with_margin(
+        page: PageSize,
+        layout: PageOrientation,
+        margin: PageMargins,
+    ) -> Option<Self> {
         let dimensions = page.dimensions(layout);
         if margin.left_points() + margin.right_points() >= dimensions.width_points()
             || margin.top_points() + margin.bottom_points() >= dimensions.height_points()
@@ -316,15 +322,15 @@ impl PageSetup {
     }
 }
 
-/// PDF converter processor.
+/// A converter from `AsciiDoc` to PDF output.
 #[derive(Clone, Debug)]
-pub struct Processor<'a> {
+pub struct Converter<'a> {
     options: Options,
     parser_options: ParserOptions<'a>,
     /// Cross-reference targets keyed by id, cloned from `Document::references`.
     /// Shared so a resolved target's reference text can be borrowed while the
     /// visitor renders it.
-    references: Rc<HashMap<&'a str, Reference<'a>>>,
+    references: Rc<HashMap<&'a str, ReferenceTarget<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     xref_guard: XrefGuard,
     /// Fallback counter for example captions the parser did not number.
@@ -338,7 +344,7 @@ pub struct Processor<'a> {
     pdf_options: PdfOptions,
 }
 
-impl Processor<'_> {
+impl Converter<'_> {
     /// Override PDF-specific conversion options.
     #[must_use]
     pub fn with_pdf_options(mut self, pdf_options: PdfOptions) -> Self {
@@ -486,36 +492,36 @@ impl Processor<'_> {
         config: TypstSourceConfig<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
-        let mut processor = Processor::new(self.options.clone(), ParserOptions::builder())?
+        let mut converter = Converter::new(self.options.clone(), ParserOptions::builder())?
             .with_pdf_options(self.pdf_options.clone());
-        processor.parser_options =
+        converter.parser_options =
             ParserOptions::default().with_document_attributes(doc.attributes().into());
-        processor.references = Rc::new(doc.references().into());
+        converter.references = Rc::new(doc.references().into());
         // The parser numbers every caption it resolved. These counters only number a title it
         // could not — one on a caller-built block, or added after parsing — so they start past
         // every assigned ordinal instead of colliding with one. Assigning rather than raising
         // keeps a repeated render deterministic.
-        processor
+        converter
             .example_counter
             .set(doc.highest_caption_number(CaptionKind::Example));
-        processor
+        converter
             .figure_counter
             .set(doc.highest_caption_number(CaptionKind::Figure));
-        processor
+        converter
             .listing_counter
             .set(doc.highest_caption_number(CaptionKind::Listing));
-        processor
+        converter
             .table_counter
             .set(doc.highest_caption_number(CaptionKind::Table));
         let mut traversal = TraversalContext::new(doc.attributes());
-        let mut visitor = PdfVisitor::new(processor, assets, config, doc, diagnostics.reborrow())
+        let mut visitor = PdfVisitor::new(converter, assets, config, doc, diagnostics.reborrow())
             .with_populated_index_sections(preparation.populated_index_sections.clone());
         heading_index::visit_terms(doc, |traversal, term| {
             visitor.register_heading_index_term(traversal, term)
         })?;
         preamble::write(&mut visitor.writer, config.theme, config.emit_options);
         if preparation.has_unbreakable_blocks {
-            visitor.writer.raw(UNBREAKABLE_HELPER);
+            visitor.writer.write_raw_markup(UNBREAKABLE_HELPER);
         }
         if preparation.has_autofit_blocks {
             write_autofit_helper(&mut visitor.writer, config.theme);
@@ -712,22 +718,22 @@ impl Processor<'_> {
         doc: DocumentRef<'_>,
         theme: &LoadedTheme,
         diagnostics: &mut Diagnostics<'_>,
-    ) -> PageLayout {
+    ) -> PageOrientation {
         if let Some(layout) = self.pdf_options.page_layout {
             return layout;
         }
         let Some(value) = document_attribute_text(doc.attributes().get("pdf-page-layout")) else {
-            return theme.layout.unwrap_or(PageLayout::Portrait);
+            return theme.layout.unwrap_or(PageOrientation::Portrait);
         };
         match value.to_ascii_lowercase().as_str() {
-            "landscape" => PageLayout::Landscape,
-            "portrait" => PageLayout::Portrait,
+            "landscape" => PageOrientation::Landscape,
+            "portrait" => PageOrientation::Portrait,
             other => {
                 diagnostics.warn_with_advice(
                     format!("unsupported PDF page layout '{other}', using portrait"),
                     "Use `--page-layout` or `:pdf-page-layout:` with `portrait` or `landscape`.",
                 );
-                PageLayout::Portrait
+                PageOrientation::Portrait
             }
         }
     }
@@ -1051,7 +1057,7 @@ fn apply_pdf_page_labels(pdf: &mut Vec<u8>, arabic_start: NonZeroUsize) -> Resul
 fn code_wrap_columns(
     theme: &Theme,
     page: PageSize,
-    page_layout: PageLayout,
+    page_layout: PageOrientation,
     page_margin: Option<PageMargins>,
 ) -> usize {
     const CM_TO_PT: f64 = 72.0 / 2.54;
@@ -1100,7 +1106,7 @@ fn write_admonition_image_helper(writer: &mut Writer, theme: &Theme) {
         spacing.callout_pad_x_pt,
         spacing.border_pt,
     );
-    writer.string_literal(&theme.palette.border);
+    writer.write_string_literal(&theme.palette.border);
     let _ = writeln!(
         writer,
         ")), inset: (left: {}pt), body))))",
@@ -1159,10 +1165,10 @@ impl PdfTimings {
     fn write_report(&self, resolved_document_image_count: usize) {
         eprintln!(
             "  Resolved {resolved_document_image_count} document PDF image(s) in {}",
-            self.assets.pretty_print()
+            self.assets.format_human()
         );
-        eprintln!("  Emitted Typst markup in {}", self.emit.pretty_print());
-        eprintln!("  Rendered PDF in {}", self.render.pretty_print());
+        eprintln!("  Emitted Typst markup in {}", self.emit.format_human());
+        eprintln!("  Rendered PDF in {}", self.render.format_human());
     }
 }
 
@@ -1462,7 +1468,7 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
                 }
             }
             BlockKind::TableOfContents(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
@@ -1549,7 +1555,7 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
                     traversal.visit_blocks(self, item.blocks())?;
                 }
             }
-            BlockKind::DiscreteHeader(header) => {
+            BlockKind::DiscreteHeading(header) => {
                 collect_optional_preparation(header.title(), traversal, &mut self.preparation);
             }
             BlockKind::TableOfContents(_)
@@ -1712,8 +1718,8 @@ fn collect_inline_preparation(
             | InlineKind::Highlight(_)
             | InlineKind::Subscript(_)
             | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::CharacterReference(_)
             | InlineKind::Symbol(_)
@@ -1721,15 +1727,15 @@ fn collect_inline_preparation(
             | InlineKind::Anchor(_)
             | InlineKind::Callout(_)
             | InlineKind::Footnote(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_)
             | _ => {}
         }
@@ -1796,7 +1802,7 @@ fn encode_footnote_label(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use acdc_converters_core::{Converter, Warning, WarningSource};
+    use acdc_converters_core::{Warning, WarningSource};
     use acdc_parser::{
         Block, DelimitedBlock, DelimitedBlockType, Image, InlineNode, Location, Paragraph, Plain,
         Source, Title, parse,
@@ -1821,7 +1827,7 @@ mod tests {
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                 .build()?,
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::builder()
                 .safe_mode(acdc_parser::SafeMode::Unsafe)
                 .build(),
@@ -1836,7 +1842,7 @@ mod tests {
         let mut warnings = Vec::new();
         {
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+            let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
             assert!(rendered.pdf.starts_with(b"%PDF-"));
         }
         Ok(warnings)
@@ -1893,7 +1899,7 @@ mod tests {
 
     fn rendered_page_count(input: &str) -> Result<usize, Box<dyn StdError>> {
         let parsed = parse(input, &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -1902,7 +1908,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
@@ -1912,7 +1918,7 @@ mod tests {
 
     fn rendered_page_texts(input: &str) -> Result<Vec<String>, Box<dyn StdError>> {
         let parsed = parse(input, &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -1925,7 +1931,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf
             .get_pages()
@@ -1998,7 +2004,7 @@ mod tests {
             "= Numbered document\n:title-page:\n\nBody.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2008,7 +2014,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         assert_eq!(
@@ -2027,7 +2033,7 @@ mod tests {
             "= Numbered document\n:title-page:\n\nBody page one.\n\n<<<\n\nBody page two.\n\n<<<\n\nBody page three.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2041,7 +2047,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         assert_eq!(
@@ -2059,7 +2065,7 @@ mod tests {
             "= Numbered document\n:title-page:\n:toc:\n\n== First section\n\nBody.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2073,7 +2079,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let toc = typst
             .find("#let _acdc_toc_entry")
             .ok_or_else(|| IoError::other("automatic TOC helper was not emitted"))?;
@@ -2094,7 +2100,7 @@ mod tests {
             "= Mixed index labels\n:title-page:\n:media: print\n\nBody page one.\n\n<<<\n\n((term))Body page two.\n\n<<<\n\n((term))Body page three.\n\n<<<\n\n((term))Body page four.\n\n<<<\n\n((term))Body page five.\n\n<<<\n\n((term))Body page six.\n\n<<<\n\n((term))Body page seven.\n\n[index]\n== Index\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2109,7 +2115,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -2126,7 +2132,7 @@ mod tests {
             "[%reversed,start=5]\n. Five\n. Four\n. Three\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2136,7 +2142,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.contains(", start: 5, reversed: true)"));
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
@@ -2153,7 +2159,7 @@ mod tests {
         let separated_breaks = "= Separated page breaks\n\nFirst page.\n\n<<<\n\nSecond page.\n\n[%always]\n<<<\n\nThird page.\n";
 
         let parsed = parse(forced_break, &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2162,7 +2168,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             typst.contains("#pagebreak(weak: true)\n\n#pagebreak()\n#pagebreak()"),
@@ -2181,7 +2187,7 @@ mod tests {
             "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n\nWide content.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2191,7 +2197,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             typst.contains("#set page(paper: \"a3\", flipped: true"),
@@ -2219,7 +2225,7 @@ mod tests {
         ] {
             let input = format!("= Page setup\n:pdf-page-size: {attribute}\n\nContent.\n");
             let parsed = parse(&input, &ParserOptions::default())?;
-            let processor = Processor::new(
+            let converter = Converter::new(
                 Options::default(),
                 ParserOptions::builder().with_attributes(
                     acdc_parser::DocumentAttributes::from(parsed.document().attributes())
@@ -2230,7 +2236,7 @@ mod tests {
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-            let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+            let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
             assert!(
                 typst.contains(&format!("#set page(paper: \"{paper}\"")),
@@ -2248,7 +2254,7 @@ mod tests {
             "= Page setup\n:pdf-page-size: [8.5in, 11in]\n:pdf-page-layout: landscape\n:pdf-page-margin: [0.5in, 0.75in, 1in, 1.25in]\n\nContent.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2258,7 +2264,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.contains(concat!(
             "#set page(width: 792pt, height: 612pt, ",
@@ -2279,8 +2285,8 @@ mod tests {
         assert_eq!(parse_page_size("8.5in x 11in"), Some(custom));
         let metric = parse_page_size("[215.9mm, 27.94cm]")
             .ok_or_else(|| IoError::other("metric custom page size did not parse"))?;
-        assert!((metric.width_points(PageLayout::Portrait) - 612.0).abs() < 1e-9);
-        assert!((metric.height_points(PageLayout::Portrait) - 792.0).abs() < 1e-9);
+        assert!((metric.width_points(PageOrientation::Portrait) - 612.0).abs() < 1e-9);
+        assert!((metric.height_points(PageOrientation::Portrait) - 792.0).abs() < 1e-9);
         assert_eq!(
             parse_page_margin("36pt"),
             Some(PageMargins::try_new(36.0, 36.0, 36.0, 36.0)?)
@@ -2298,7 +2304,7 @@ mod tests {
             "= Page setup\n:pdf-page-size: 0in x 11in\n:pdf-page-margin: [-1in]\n\nContent.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2308,7 +2314,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             typst.contains("#set page(paper: \"a4\", margin: (x: 2.5cm, y: 2.5cm)"),
@@ -2334,7 +2340,7 @@ mod tests {
             "= Page setup\n:pdf-page-size: A5\n:pdf-page-margin: 300pt\n\nContent.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2344,7 +2350,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             typst.contains("#set page(paper: \"a5\", margin: (x: 2.5cm, y: 2.5cm)"),
@@ -2364,7 +2370,7 @@ mod tests {
             "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n:pdf-page-margin: 1in\n\nContent.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2372,7 +2378,7 @@ mod tests {
         )?
         .with_pdf_options(PdfOptions {
             page: Some(PageSize::A5),
-            page_layout: Some(PageLayout::Portrait),
+            page_layout: Some(PageOrientation::Portrait),
             page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
             ..PdfOptions::default()
         });
@@ -2380,7 +2386,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             typst.contains(concat!(
@@ -2407,7 +2413,7 @@ mod tests {
         )?;
 
         let render = |document: DocumentRef<'_>| -> Result<String, Box<dyn StdError>> {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 Options::default(),
                 ParserOptions::builder().with_attributes(
                     acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
@@ -2416,7 +2422,7 @@ mod tests {
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
+            let typst = converter.convert_to_typst_source(document, &mut diagnostics)?;
             Ok(typst)
         };
 
@@ -2454,7 +2460,7 @@ mod tests {
         )?;
 
         let render = |document: DocumentRef<'_>| -> Result<String, Box<dyn StdError>> {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 Options::default(),
                 ParserOptions::builder().with_attributes(
                     acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
@@ -2463,7 +2469,7 @@ mod tests {
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
+            let typst = converter.convert_to_typst_source(document, &mut diagnostics)?;
             assert!(warnings.is_empty(), "{warnings:?}");
             Ok(typst)
         };
@@ -2508,7 +2514,7 @@ mod tests {
             ":source-highlighter: rouge\n\n[source%autofit,rust,linenums,start=98,highlight=99]\n----\n{medium_line} <1>\nshort line\nthird line\n----\n<1> Callout explanation.\n\n[%autofit]\n....\n{oversized_line}\n....\n"
         );
         let parsed = parse(&input, &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2518,7 +2524,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.contains(&medium_line), "{typst}");
         assert!(typst.contains(&oversized_line), "{typst}");
@@ -2541,7 +2547,7 @@ mod tests {
             "[%autofit]\n----\na code line that requires the autofit helper\n----\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2555,16 +2561,16 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let emit_options = processor.emit_options(
+        let emit_options = converter.emit_options(
             parsed.document(),
             None,
             &[],
             &LoadedTheme::default(),
             &mut diagnostics,
         );
-        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
+        let page_numbering = converter.page_numbering_plan(parsed.document(), &theme);
 
-        let typst = processor.emit_typst_source(
+        let typst = converter.emit_typst_source(
             parsed.document(),
             &assets,
             &collect_pdf_preparation(parsed.document()),
@@ -2666,7 +2672,7 @@ mod tests {
     #[test]
     fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn StdError>> {
         let parsed = parse("text", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2676,7 +2682,7 @@ mod tests {
         let theme = Theme::default();
         let emit_options = EmitOptions {
             page: PageSize::A4,
-            page_layout: PageLayout::Portrait,
+            page_layout: PageOrientation::Portrait,
             ..EmitOptions::default()
         };
         let source = WarningSource::new("pdf");
@@ -2684,7 +2690,7 @@ mod tests {
         {
             let diagnostics = Diagnostics::new(&source, &mut warnings);
             let mut visitor = PdfVisitor::new(
-                processor,
+                converter,
                 &assets,
                 TypstSourceConfig::new(
                     &theme,
@@ -2751,7 +2757,7 @@ mod tests {
             "= Index columns\n\nVisible ((alpha)) and ((beta)).\n\n[index%notitle]\n== Hidden Index\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2761,7 +2767,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(!typst.contains("#heading(level: 1)[#text(\"Hidden Index\")]"));
         assert!(typst.contains(&format!(
@@ -2781,7 +2787,7 @@ mod tests {
             "= Section metadata\n:toc:\n:sectnums:\n\nSee <<hidden-section>>.\n\n[#hidden-section%notitle]\n== Hidden *Section*\n\nHidden section body.\n\n=== Child Section\n\nChild body.\n\n[discrete#visible-discrete%notitle]\n=== Visible Discrete\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2791,7 +2797,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let label = encode_label("hidden-section");
 
         assert!(
@@ -2847,7 +2853,7 @@ mod tests {
             "= Lead paragraphs\n\nAutomatic lead paragraph.\n\nSecond preamble paragraph.\n\n== Section\n\nNormal section paragraph.\n\n[.lead]\nExplicit lead paragraph.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2857,7 +2863,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             typst.contains("#text(size: 1.25em)[#text(\"Automatic lead paragraph.\")]"),
@@ -2883,7 +2889,7 @@ mod tests {
             "= Existing role\n\n[.other]\nRole prevents automatic lead.\n\n== Section\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2892,7 +2898,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
             !typst.contains("#text(size: 1.25em)[#text(\"Role prevents automatic lead.\")]"),
@@ -2908,7 +2914,7 @@ mod tests {
             "Visible ((alpha)) and ((beta)).\n\n[index]\n== Index\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2922,16 +2928,16 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let emit_options = processor.emit_options(
+        let emit_options = converter.emit_options(
             parsed.document(),
             None,
             &[],
             &LoadedTheme::default(),
             &mut diagnostics,
         );
-        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
+        let page_numbering = converter.page_numbering_plan(parsed.document(), &theme);
 
-        let typst_with_default_gap = processor.emit_typst_source(
+        let typst_with_default_gap = converter.emit_typst_source(
             parsed.document(),
             &assets,
             &collect_pdf_preparation(parsed.document()),
@@ -2941,7 +2947,7 @@ mod tests {
         assert!(typst_with_default_gap.contains("#columns(3, gutter: 12.5pt)["));
 
         theme.index.column_gap_pt = Some(18.5);
-        let typst = processor.emit_typst_source(
+        let typst = converter.emit_typst_source(
             parsed.document(),
             &assets,
             &collect_pdf_preparation(parsed.document()),
@@ -2953,7 +2959,7 @@ mod tests {
         assert!(rendered.pdf.starts_with(b"%PDF-"));
 
         theme.index.columns = 1;
-        let single_column_typst = processor.emit_typst_source(
+        let single_column_typst = converter.emit_typst_source(
             parsed.document(),
             &assets,
             &collect_pdf_preparation(parsed.document()),
@@ -2971,7 +2977,7 @@ mod tests {
             "= Print index\n:media: print\n:index-pagenum-sequence-style: page\n\nFirst ((term)) and same-page ((term)).\n\n<<<\n\nSecond ((term)).\n\n<<<\n\nA page without the indexed term.\n\n<<<\n\nFourth ((term)).\n\n[index]\n== Index\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2981,7 +2987,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.contains(
             "#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,<__indexterm-3>,<__indexterm-4>,), \"print\")"
@@ -3012,7 +3018,7 @@ mod tests {
             "= Audio fallbacks\n:imagesdir: media library\n\n.Local episode\n[[local-audio]]\naudio::clips/demo episode.mp3[]\n\naudio::https://example.com/podcast episode.mp3[start=5,end=10,opts=\"autoplay,loop,nocontrols\"]\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3022,7 +3028,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.contains(
             "#text(\"►\u{a0}\")#link(\"media%20library/clips/demo%20episode.mp3\")[#text(\"media%20library/clips/demo%20episode.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
@@ -3082,7 +3088,7 @@ mod tests {
             "= Video fallbacks\n:imagesdir: media\n\n.Local formats\n[[local-video]]\nvideo::clips/demo clip.mp4,clips/demo clip.webm[]\n\nvideo::https://media.example.test/demo clip.mp4[]\n\nvideo::dQw4w9WgXcQ[youtube,start=10,end=20,opts=\"autoplay,loop\"]\n\nvideo::76979871[vimeo,start=10,opts=muted]\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3092,7 +3098,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         for (target, kind) in [
             (
@@ -3152,7 +3158,7 @@ mod tests {
                 .build()?,
         )?;
         let typst_path = directory.path().join("video-poster.typ");
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::builder()
                 .safe_mode(acdc_parser::SafeMode::Unsafe)
                 .build(),
@@ -3171,7 +3177,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(
+        let rendered = converter.render_document(
             parsed.document(),
             Some(&directory.path().join("document.adoc")),
             &mut diagnostics,
@@ -3320,7 +3326,7 @@ mod tests {
             Block::DelimitedBlock(caller_built),
             Block::DelimitedBlock(title_added),
         ]);
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(
@@ -3333,7 +3339,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
+        let rendered = converter.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3370,7 +3376,7 @@ mod tests {
             Block::DelimitedBlock(listing),
             Block::Paragraph(styled_paragraph),
         ]);
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(
@@ -3383,7 +3389,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
+        let rendered = converter.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3417,7 +3423,7 @@ mod tests {
             Block::DelimitedBlock(parsed_table.clone()),
             Block::DelimitedBlock(caller_built),
         ]);
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(
@@ -3430,7 +3436,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
+        let rendered = converter.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3460,7 +3466,7 @@ mod tests {
             parsed.document().attributes(),
         ));
         document.set_blocks(vec![parsed_figure, Block::Image(caller_built)]);
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(
@@ -3473,7 +3479,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document((&document).into(), None, &mut diagnostics)?;
+        let rendered = converter.render_document((&document).into(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3489,7 +3495,7 @@ mod tests {
             "= Caption cross-references\n:figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: basic\n\nBasic: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::missing-reference-image.svg[Missing]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3499,7 +3505,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3527,7 +3533,7 @@ mod tests {
             "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3537,7 +3543,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         for expected in [
             "#link(\"Other.pdf\")[#text(\"Other.pdf\")]".to_string(),
             "#link(\"Other.pdf\")[#text(\"Other\")]".to_string(),
@@ -3569,7 +3575,7 @@ mod tests {
             "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\n\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3579,7 +3585,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let section_label = encode_label("_syntax_highlighting");
         assert!(
             typst.contains("#text(\"[Syntax Highlighting]\")"),
@@ -3627,7 +3633,7 @@ mod tests {
             "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3637,7 +3643,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         for (target, count) in [
             ("_pass_raw_title", 1),
             ("_plus_raw_title", 1),
@@ -3697,7 +3703,7 @@ mod tests {
             "= Formatted captions and references\n:subject-name: Ada\n:xrefstyle: basic\n\nBasic: <<table-target>>.\n\nExplicit: xref:table-target[Own *bold* _italic_ `mono` {subject-name} link:https://example.com[link]].\n\n:xrefstyle: full\n\nFull: <<table-target>>.\n\n[[table-target]]\n.Caption *bold* _italic_ `mono` {subject-name}\n|===\n|Cell\n|===\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3707,7 +3713,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         for expected in [
             "#context link(query(<id-7461626c652d746172676574>).first().location())[#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
             "#context link(query(<id-7461626c652d746172676574>).first().location())[#text(\"Own \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada \")#link(\"https://example.com\")[#text(\"link\")]]",
@@ -3717,7 +3723,7 @@ mod tests {
             assert!(typst.contains(expected), "expected {expected:?} in {typst}");
         }
 
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
@@ -3745,7 +3751,7 @@ mod tests {
         )?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
 
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3754,7 +3760,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         let (_, names) = pdf.dereference(pdf.catalog()?.get(b"Names")?)?;
@@ -3807,7 +3813,7 @@ mod tests {
             "= Main *Title*: Subtitle _Part_\n\nBody.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3821,7 +3827,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let options = processor.emit_options(
+        let options = converter.emit_options(
             parsed.document(),
             None,
             &[],
@@ -3881,7 +3887,7 @@ mod tests {
             "= Invalid Language\n:lang: english\n\nBody.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3891,7 +3897,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let options = processor.emit_options(
+        let options = converter.emit_options(
             parsed.document(),
             None,
             &[],
@@ -3933,7 +3939,7 @@ mod tests {
             [1, 2]
         );
 
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -3942,7 +3948,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
 
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
@@ -4012,7 +4018,7 @@ mod tests {
             [None, Some("single"), Some("multiple")]
         );
 
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4021,7 +4027,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
@@ -4061,7 +4067,7 @@ mod tests {
             ]
         );
 
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4070,7 +4076,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
@@ -4146,7 +4152,7 @@ mod tests {
         let theme_file = NamedTempFile::new()?;
         write(theme_file.path(), "palette: [")?;
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4161,7 +4167,7 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let Err(Error::ThemeParse { path, .. }) =
-            processor.convert_to_typst_source(parsed.document(), &mut diagnostics)
+            converter.convert_to_typst_source(parsed.document(), &mut diagnostics)
         else {
             return Err(IoError::other("invalid theme unexpectedly accepted").into());
         };
@@ -4172,7 +4178,7 @@ mod tests {
     #[test]
     fn emitted_typst_ends_with_one_newline() -> Result<(), Box<dyn StdError>> {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4182,7 +4188,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let typst = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.ends_with('\n'));
         assert!(!typst.ends_with("\n\n"));
@@ -4195,7 +4201,7 @@ mod tests {
             "image::one.svg[float=left]\n\nimage::two.svg[float=right]\n\nimage::three.svg[float=invalid]\n\nBefore image:four.svg[float=left] after.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4205,7 +4211,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let _ = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let _ = converter.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert_eq!(warnings.len(), 2);
         assert_eq!(
@@ -4241,7 +4247,7 @@ mod tests {
             .fallback
             .insert(0, hostile.to_owned());
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4252,15 +4258,15 @@ mod tests {
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let assets = ImageMap::new();
-        let emit_options = processor.emit_options(
+        let emit_options = converter.emit_options(
             parsed.document(),
             None,
             &[],
             &LoadedTheme::default(),
             &mut diagnostics,
         );
-        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
-        let typst = processor.emit_typst_source(
+        let page_numbering = converter.page_numbering_plan(parsed.document(), &theme);
+        let typst = converter.emit_typst_source(
             parsed.document(),
             &assets,
             &collect_pdf_preparation(parsed.document()),
@@ -4284,7 +4290,7 @@ mod tests {
         let input =
             "stem:[#panic() $ x \\\\ path]\n\n[stem]\n++++\n#panic() $ [y] \\\\ path\n++++\n";
         let parsed = parse(input, &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4294,7 +4300,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         assert_eq!(warnings.len(), 2);
         assert!(
@@ -4341,7 +4347,7 @@ mod tests {
     #[test]
     fn strict_assets_rejects_only_asset_failures() -> Result<(), Box<dyn StdError>> {
         let fallback = parse("stem:[x]\n", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(fallback.document().attributes())
@@ -4357,7 +4363,7 @@ mod tests {
         {
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
             let rendered =
-                processor.render_document(fallback.document(), None, &mut diagnostics)?;
+                converter.render_document(fallback.document(), None, &mut diagnostics)?;
             assert!(rendered.pdf.starts_with(b"%PDF-"));
         }
         assert_eq!(warnings.len(), 1);
@@ -4366,7 +4372,7 @@ mod tests {
             "image::missing-strict-asset.png[]\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(missing.document().attributes())
@@ -4378,7 +4384,7 @@ mod tests {
             ..PdfOptions::default()
         });
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let result = processor.render_document(missing.document(), None, &mut diagnostics);
+        let result = converter.render_document(missing.document(), None, &mut diagnostics);
 
         assert!(matches!(result, Err(Error::AssetResolution(_))));
         assert_eq!(warnings.len(), 1);
@@ -4408,12 +4414,12 @@ mod tests {
         assert!(resolved.assets.get("first.svg").is_some());
         assert!(resolved.assets.get("second.svg").is_none());
 
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let converter = Converter::new(Options::default(), ParserOptions::builder())?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         {
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            processor.report_image_failures(&preparation, resolved.failures, &mut diagnostics)?;
+            converter.report_image_failures(&preparation, resolved.failures, &mut diagnostics)?;
         }
         assert_eq!(warnings.len(), 1);
         let warning = warnings.first().ok_or("quota warning missing")?;
@@ -4432,14 +4438,14 @@ mod tests {
             Some("The PDF will render fallback text for that image.")
         );
 
-        let processor = processor.with_pdf_options(PdfOptions {
+        let converter = converter.with_pdf_options(PdfOptions {
             strict_assets: true,
             ..PdfOptions::default()
         });
         let resolved = resolve(&urls, &config);
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         assert!(matches!(
-            processor.report_image_failures(&preparation, resolved.failures, &mut diagnostics),
+            converter.report_image_failures(&preparation, resolved.failures, &mut diagnostics),
             Err(Error::AssetResolution(message)) if message.contains("document image source limit of 1 reached")
         ));
         assert_eq!(warnings.len(), 1);
@@ -4537,7 +4543,7 @@ mod tests {
             "= Title\n\n== Section\n\nA paragraph.\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4546,7 +4552,7 @@ mod tests {
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
 
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = PdfDocument::load_mem(&rendered.pdf)?;
@@ -4557,7 +4563,7 @@ mod tests {
     #[test]
     fn logo_failure_advice_describes_omission() -> Result<(), Box<dyn StdError>> {
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4571,7 +4577,7 @@ mod tests {
         let mut warnings = Vec::new();
         {
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-            let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+            let rendered = converter.render_document(parsed.document(), None, &mut diagnostics)?;
             assert!(rendered.pdf.starts_with(b"%PDF-"));
         }
 
@@ -4596,7 +4602,7 @@ mod tests {
                 .with_safe_mode(acdc_parser::SafeMode::Unsafe)
                 .build()?,
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::builder()
                 .safe_mode(acdc_parser::SafeMode::Unsafe)
                 .build(),
@@ -4611,7 +4617,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let rendered = processor.render_document(
+        let rendered = converter.render_document(
             parsed.document(),
             Some(&dir.path().join("document.adoc")),
             &mut diagnostics,
@@ -4638,7 +4644,7 @@ mod tests {
         std::fs::create_dir(&fonts)?;
         std::fs::set_permissions(&fonts, std::fs::Permissions::from_mode(0o000))?;
         let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4650,7 +4656,7 @@ mod tests {
         let source_file = dir.path().join("document.adoc");
 
         let result =
-            processor.render_document(parsed.document(), Some(&source_file), &mut diagnostics);
+            converter.render_document(parsed.document(), Some(&source_file), &mut diagnostics);
         std::fs::set_permissions(&fonts, std::fs::Permissions::from_mode(0o755))?;
         assert!(result?.pdf.starts_with(b"%PDF-"));
         Ok(())
@@ -4658,8 +4664,8 @@ mod tests {
     #[test]
     fn constructed_character_references_render_as_typst_text() -> Result<(), Box<dyn StdError>> {
         use acdc_parser::{
-            Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
-            Location, Paragraph,
+            Block, Bold, CharacterReference, CharacterReferenceKind, Document, FormattingForm,
+            InlineNode, Location, Paragraph,
         };
         let mut content = Vec::new();
         for kind in [
@@ -4673,7 +4679,7 @@ mod tests {
         }
         let bold = InlineNode::BoldText(Bold::new(
             content.clone(),
-            Form::Constrained,
+            FormattingForm::Constrained,
             Location::default(),
         ));
         content.push(bold);
@@ -4682,10 +4688,10 @@ mod tests {
             content,
             Location::default(),
         )));
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let converter = Converter::new(Options::default(), ParserOptions::builder())?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
-        let typst = processor.convert_to_typst_source(
+        let typst = converter.convert_to_typst_source(
             (&doc).into(),
             &mut Diagnostics::new(&source, &mut warnings),
         )?;
@@ -4702,14 +4708,14 @@ mod tests {
 
 #[cfg(test)]
 mod footnote_repair_tests {
-    use acdc_converters_core::{Converter, WarningSource};
+    use acdc_converters_core::{Converter as _, WarningSource};
     use acdc_parser::{
         Block, CompatibilityMode, Document, Footnote, InlineMacro, InlineNode, Location, Paragraph,
         ast::DocumentRef, parse,
     };
 
     use super::{
-        Diagnostics, ImageMap, Options, ParserOptions, Processor, RenderConfig, render_pdf,
+        Converter, Diagnostics, ImageMap, Options, ParserOptions, RenderConfig, render_pdf,
     };
 
     #[test]
@@ -4736,10 +4742,10 @@ mod footnote_repair_tests {
                 Location::default(),
             ))]);
             document.rebuild_footnotes()?;
-            let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+            let converter = Converter::new(Options::default(), ParserOptions::builder())?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
-            let typst = processor.convert_to_typst_source(
+            let typst = converter.convert_to_typst_source(
                 DocumentRef::from(&document),
                 &mut Diagnostics::new(&source, &mut warnings),
             )?;

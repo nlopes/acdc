@@ -42,7 +42,7 @@ fn duplicate_sections_keep_the_first_reference_text() -> Result<(), Error> {
         .document()
         .references()
         .get("same")
-        .and_then(acdc_parser::ast::ReferenceRef::title)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::title)
         .ok_or("missing reference title")?;
     assert!(
         matches!(title.inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "First")
@@ -72,7 +72,7 @@ fn duplicate_section_does_not_replace_an_earlier_block() -> Result<(), Error> {
         .document()
         .references()
         .get("same")
-        .and_then(acdc_parser::ast::ReferenceRef::title)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::title)
         .ok_or("missing reference title")?;
     assert!(
         matches!(title.inlines().map(InlineRef::kind).collect::<Vec<_>>().as_slice(), [InlineKind::Plain(text)] if text.text() == "First block")

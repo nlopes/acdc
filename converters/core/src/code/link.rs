@@ -53,7 +53,7 @@ pub fn resolve_code_link<'inline>(
         let target = link.target().to_string();
         let fallback = link_fallback(&target, link.hides_uri_scheme()).to_string();
         (target, link.text(), fallback)
-    } else if let InlineKind::Url(link) = kind {
+    } else if let InlineKind::UrlMacro(link) = kind {
         let target = link.target().to_string();
         let fallback = link_fallback(&target, link.hides_uri_scheme()).to_string();
         (target, link.text(), fallback)
@@ -140,7 +140,7 @@ pub fn resolve_code_link<'inline>(
 fn link_anchor(node: InlineRef<'_>, references: ReferencesRef<'_>) -> Option<String> {
     if !matches!(
         node.kind(),
-        InlineKind::Link(_) | InlineKind::Url(_) | InlineKind::Mailto(_)
+        InlineKind::Link(_) | InlineKind::UrlMacro(_) | InlineKind::Mailto(_)
     ) {
         return None;
     }
@@ -164,8 +164,8 @@ pub fn code_inline_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         InlineKind::Highlight(text) => Some(text.content()),
         InlineKind::Subscript(text) => Some(text.content()),
         InlineKind::Superscript(text) => Some(text.content()),
-        InlineKind::CurvedQuotation(text) => Some(text.content()),
-        InlineKind::CurvedApostrophe(text) => Some(text.content()),
+        InlineKind::DoubleQuotedSpan(text) => Some(text.content()),
+        InlineKind::SingleQuotedSpan(text) => Some(text.content()),
         InlineKind::IndexTerm(term) if term.is_visible() => Some(term.term()),
         InlineKind::Plain(_)
         | InlineKind::Raw(_)
@@ -179,15 +179,15 @@ pub fn code_inline_content(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         | InlineKind::Footnote(_)
         | InlineKind::Icon(_)
         | InlineKind::Image(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
-        | InlineKind::Url(_)
+        | InlineKind::MenuPath(_)
+        | InlineKind::UrlMacro(_)
         | InlineKind::Link(_)
         | InlineKind::Mailto(_)
         | InlineKind::Autolink(_)
         | InlineKind::CrossReference(_)
-        | InlineKind::Pass(_)
+        | InlineKind::Passthrough(_)
         | InlineKind::Stem(_)
         | InlineKind::IndexTerm(_)
         | _ => None,

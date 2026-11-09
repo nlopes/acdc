@@ -6,12 +6,12 @@ mod test_sources;
 
 use wasm_bindgen::prelude::*;
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{AttributeValue, CompatibilityMode};
 
-/// Result of a single parse operation: highlighted source + rendered preview.
-pub struct ParseResult {
+/// Highlighted source, rendered preview, and diagnostics for an editor update.
+pub struct EditorRenderResult {
     /// Source text with `<span class="adoc-*">` highlighting.
     pub highlight_html: String,
     /// Rendered HTML preview. This output is not sanitized.
@@ -76,7 +76,7 @@ pub fn init() -> Result<(), JsValue> {
 /// # Errors
 ///
 /// Returns an error string if parsing or conversion fails.
-pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
+pub fn parse_and_render(input: &str) -> Result<EditorRenderResult, String> {
     parse_and_render_with_mode(input, CompatibilityMode::default())
 }
 
@@ -89,7 +89,7 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
 pub fn parse_and_render_with_mode(
     input: &str,
     mode: CompatibilityMode,
-) -> Result<ParseResult, String> {
+) -> Result<EditorRenderResult, String> {
     parse_and_render_with_attributes(
         input,
         mode,
@@ -101,12 +101,12 @@ fn parse_and_render_with_attributes<'a, N, V>(
     input: &str,
     mode: CompatibilityMode,
     document_attributes: impl IntoIterator<Item = (N, V)>,
-) -> Result<ParseResult, String>
+) -> Result<EditorRenderResult, String>
 where
     N: Into<std::borrow::Cow<'a, str>>,
     V: Into<AttributeValue<'a>>,
 {
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::builder().embedded(true).build(),
         acdc_parser::Options::builder()
             .with_compatibility_mode(mode)
@@ -115,16 +115,16 @@ where
     )
     .map_err(|e| e.to_string())?;
     let parsed =
-        acdc_parser::parse(input, processor.parser_options()).map_err(|e| format!("{e}"))?;
+        acdc_parser::parse(input, converter.parser_options()).map_err(|e| format!("{e}"))?;
 
-    render_parsed(input, parsed, &processor)
+    render_parsed(input, parsed, &converter)
 }
 
 fn render_parsed(
     input: &str,
     mut parsed: acdc_parser::ParseResult,
-    processor: &Processor,
-) -> Result<ParseResult, String> {
+    converter: &Converter,
+) -> Result<EditorRenderResult, String> {
     let mut warnings: Vec<EditorWarning> = parsed
         .take_warnings()
         .into_iter()
@@ -146,7 +146,7 @@ fn render_parsed(
     let mut converter_warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut converter_warnings);
     let mut output = Vec::new();
-    processor
+    converter
         .convert_to_writer(document, &mut output, &render_options, &mut diagnostics)
         .map_err(|e| format!("{e}"))?;
     let preview_html = String::from_utf8(output).map_err(|e| format!("{e}"))?;
@@ -162,7 +162,7 @@ fn render_parsed(
 
     let has_stem = acdc_converters_html::uses_stem(document);
 
-    Ok(ParseResult {
+    Ok(EditorRenderResult {
         highlight_html,
         preview_html,
         has_stem,
@@ -246,7 +246,7 @@ mod tests {
                 assert_eq!(after.preview_html, before.preview_html);
                 assert_eq!(after.highlight_html, before.highlight_html);
                 assert_eq!(after.has_stem, before.has_stem);
-                let warnings = |result: &ParseResult| {
+                let warnings = |result: &EditorRenderResult| {
                     result
                         .warnings
                         .iter()
@@ -281,13 +281,13 @@ mod tests {
                 "Not selected.\n    Selected paragraph.\n\n    π 😀 <<included-missing>>\n",
             ),
         ])?;
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             Options::builder().embedded(true).build(),
             options.into_builder(),
             HtmlVariant::Semantic,
         )?;
-        let parsed = acdc_parser::parse(input, processor.parser_options())?;
-        let result = render_parsed(input, parsed, &processor)?;
+        let parsed = acdc_parser::parse(input, converter.parser_options())?;
+        let result = render_parsed(input, parsed, &converter)?;
         let included = result
             .warnings
             .iter()

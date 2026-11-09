@@ -1640,7 +1640,7 @@ impl<'a> ElementAttributes<'a> {
     }
 
     /// Insert an attribute without replacing an existing value.
-    pub fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
+    pub fn insert_if_absent(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         self.0.entry(name).or_insert(value);
     }
 
@@ -1667,9 +1667,9 @@ impl<'a> ElementAttributes<'a> {
     }
 
     /// Merge attributes without replacing existing values.
-    pub fn merge(&mut self, other: Self) {
+    pub fn merge_defaults(&mut self, other: Self) {
         for (key, value) in other.0 {
-            self.insert(key, value);
+            self.insert_if_absent(key, value);
         }
     }
 
@@ -1756,15 +1756,15 @@ mod element_attribute_tests {
     fn insert_set_and_merge_preserve_existing_value_rules() -> Result<(), Error> {
         let mut attributes = ElementAttributes::default();
         assert!(attributes.is_empty());
-        attributes.insert("role".into(), "first".into());
-        attributes.insert("role".into(), "ignored".into());
+        attributes.insert_if_absent("role".into(), "first".into());
+        attributes.insert_if_absent("role".into(), "ignored".into());
         assert_eq!(attributes.get_string("role").as_deref(), Some("first"));
 
         attributes.set("role".into(), "replacement".into());
         let mut defaults = ElementAttributes::default();
         defaults.set("role".into(), "default".into());
         defaults.set("width".into(), "50%".into());
-        attributes.merge(defaults);
+        attributes.merge_defaults(defaults);
         assert_eq!(attributes.iter().count(), 2);
         assert_eq!(
             to_value(&attributes)?,

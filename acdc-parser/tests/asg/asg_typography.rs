@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, CurvedQuotation, Document, ElementId, Form, InlineNode, Location,
-    Options, Paragraph, Plain, Subscript, Superscript, Title, asg, parse_file, parse_inline,
+    Block, CompatibilityMode, Document, DoubleQuotedSpan, ElementId, FormattingForm, InlineNode,
+    Location, Options, Paragraph, Plain, Subscript, Superscript, Title, asg, parse_file,
+    parse_inline,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -43,7 +44,7 @@ fn resolved_text_and_nested_span_meaning_are_preserved() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (index, expected) in [
             (0, "The formula E=mc2 and water H2O."),
@@ -83,27 +84,28 @@ fn resolved_text_and_nested_span_meaning_are_preserved() -> Result<(), Error> {
 
 #[test]
 fn prepared_spans_keep_metadata_empty_content_and_unknown_locations() -> Result<(), Error> {
-    let mut quotation = CurvedQuotation::new(Vec::new(), Form::Constrained, Location::default());
+    let mut quotation =
+        DoubleQuotedSpan::new(Vec::new(), FormattingForm::Constrained, Location::default());
     quotation.replace_role(Some("one two"));
     quotation.set_id(Some(ElementId::new("quoted", Location::default())));
     let subscript = Subscript::new(
         vec![InlineNode::PlainText(Plain::new("x", Location::default()))],
-        Form::Unconstrained,
+        FormattingForm::Unconstrained,
         Location::default(),
     );
     let superscript = Superscript::new(
         vec![InlineNode::SubscriptText(subscript)],
-        Form::Constrained,
+        FormattingForm::Constrained,
         Location::default(),
     );
     let paragraph = Paragraph::new(
-        vec![InlineNode::CurvedQuotationText(quotation)],
+        vec![InlineNode::DoubleQuotedSpan(quotation)],
         Location::default(),
     )
     .with_title(Title::new(vec![InlineNode::SuperscriptText(superscript)]));
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0"),
         Some(&json!({
@@ -129,15 +131,18 @@ fn literal_protection_and_strict_boundaries_stay_explicit() -> Result<(), Error>
     for source in ["^2^", "~2~", "\"`Double`\"", "'`Single`'"] {
         let parsed = parse_inline(source, &Options::default())?;
         assert!(
-            matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported{path,..}) if path == "/0"),
+            matches!(asg::export_inlines(parsed.content()), Err(asg::Error::Unsupported{path,..}) if path == "/0"),
             "{source}"
         );
-        assert!(asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc).is_ok());
+        assert!(asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc).is_ok());
     }
     let parsed = parse_inline("Olaf`'s", &Options::default())?;
-    assert_eq!(semantic_text(&asg::inlines(parsed.content())?), "Olaf’s");
+    assert_eq!(
+        semantic_text(&asg::export_inlines(parsed.content())?),
+        "Olaf’s"
+    );
     let parsed = parse_inline("+^caret^ ~tilde~+", &Options::default())?;
-    let value = asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
     assert_eq!(semantic_text(&value), "^caret^ ~tilde~");
     assert!(value.pointer("/0/variant").is_none());
     Ok(())
@@ -147,7 +152,7 @@ fn literal_protection_and_strict_boundaries_stay_explicit() -> Result<(), Error>
 fn quotation_schema_requires_bounded_pairs_only_on_quotations() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/typography.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

@@ -1,5 +1,5 @@
 use acdc_parser::{
-    CalloutRefKind, CompatibilityMode, ListItemCheckedStatus, Options, SafeMode,
+    CalloutMarkerKind, CompatibilityMode, ListItemCheckedStatus, Options, SafeMode,
     ast::{AttributeValueRef, BlockKind, ContentRef, InlineKind},
     parse, parse_file,
 };
@@ -170,7 +170,7 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
     let first = items.next().ok_or("first")?;
     let first_marker = markers.next().ok_or("first marker")?;
     assert_eq!(first.callout().number(), first_marker.number());
-    assert_eq!(first.callout().kind(), CalloutRefKind::Auto);
+    assert_eq!(first.callout().kind(), CalloutMarkerKind::Auto);
     assert_eq!(first.callout().number(), 1);
     assert_eq!(text(first.principal())?, "First explanation");
     assert_eq!(first.blocks().count(), 1);
@@ -180,7 +180,7 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
         second.callout().number(),
         markers.next().ok_or("second marker")?.number()
     );
-    assert_eq!(second.callout().kind(), CalloutRefKind::Explicit);
+    assert_eq!(second.callout().kind(), CalloutMarkerKind::Explicit);
     assert_eq!(second.callout().number(), 2);
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())

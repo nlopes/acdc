@@ -50,7 +50,7 @@ fn heading_styles_keep_their_selected_meaning(
         expected.map(AttributeValueRef::Text)
     );
     assert_eq!(
-        matches!(heading.kind(), BlockKind::DiscreteHeader(_)),
+        matches!(heading.kind(), BlockKind::DiscreteHeading(_)),
         matches!(expected, Some("discrete" | "float"))
     );
     assert_eq!(
@@ -84,7 +84,7 @@ fn discrete_boundaries_preserve_nesting_and_register_heading_content_once(
     if mode == CompatibilityMode::Asciidoctor {
         assert!(matches!(
             child.blocks().next().map(BlockRef::kind),
-            Some(BlockKind::DiscreteHeader(_))
+            Some(BlockKind::DiscreteHeading(_))
         ));
         assert!(matches!(
             child.blocks().nth(1).map(BlockRef::kind),

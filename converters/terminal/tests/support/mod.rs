@@ -1,15 +1,15 @@
 use std::{error::Error, path::Path};
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
 use acdc_converters_dev::fixtures::{FixtureOutput, parse_fixture};
-use acdc_converters_terminal::{Capabilities, Processor};
+use acdc_converters_terminal::{Capabilities, Converter};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions, SafeMode};
 
 pub(crate) fn render(path: &Path, osc8_links: bool) -> Result<FixtureOutput, Box<dyn Error>> {
     crossterm::style::force_color_output(true);
     let parsed = parse_fixture(path)?;
     let doc = parsed.document();
-    let processor = Processor::new(
+    let converter = Converter::new(
         Options::builder().safe_mode(SafeMode::Unsafe).build(),
         ParserOptions::builder()
             .with_safe_mode(SafeMode::Unsafe)
@@ -24,7 +24,7 @@ pub(crate) fn render(path: &Path, osc8_links: bool) -> Result<FixtureOutput, Box
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("terminal");
-    processor.write_to(
+    converter.write_to(
         doc,
         &mut output,
         Some(path),

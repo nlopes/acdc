@@ -1,7 +1,7 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Bold, ContentAttribute, Form, Icon, InlineImage, InlineNode, Location, Plain, Source,
+    Bold, ContentAttribute, FormattingForm, Icon, InlineImage, InlineNode, Location, Plain, Source,
     ast::{AttributeValueRef, BoldRef, IconRef, InlineImageRef},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -98,7 +98,7 @@ fn span_attribute_reads_split_role_text_without_allocating() {
                 "content",
                 Location::default(),
             ))],
-            Form::Unconstrained,
+            FormattingForm::Unconstrained,
             Location::default(),
         );
         prepared_span.replace_role(Some("one\ttwo\u{2003}one"));

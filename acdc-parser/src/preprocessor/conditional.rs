@@ -7,7 +7,7 @@ use std::path::Path;
 use crate::{
     DocumentAttributes, Location,
     error::{Error, SourceLocation},
-    model::{HEADER, Position, substitute},
+    model::{HEADER, Position, apply_attribute_substitutions},
 };
 
 #[derive(Debug)]
@@ -203,7 +203,7 @@ impl EvalValue {
         match self {
             EvalValue::String(s) => {
                 // First we substitute any attributes in the string with their values
-                let s = substitute(s, HEADER, attributes);
+                let s = apply_attribute_substitutions(s, HEADER, attributes);
 
                 // Quotes select string comparisons even for numbers and booleans.
                 if let Some(value) = Self::strip_quotes(&s) {

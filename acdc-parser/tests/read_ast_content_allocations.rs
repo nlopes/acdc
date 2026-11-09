@@ -1,7 +1,7 @@
 use std::{alloc::System, error::Error, hint::black_box};
 
 use acdc_parser::{
-    Block, Bold, Document, Form, InlineNode, Location, Options, Paragraph,
+    Block, Bold, Document, FormattingForm, InlineNode, Location, Options, Paragraph,
     ast::{BlockKind, BlockRef, DocumentRef, StructuralRef},
     parse,
 };
@@ -90,7 +90,7 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
             for _ in 0..4096 {
                 content = vec![InlineNode::BoldText(Bold::new(
                     content,
-                    Form::Constrained,
+                    FormattingForm::Constrained,
                     Location::default(),
                 ))];
             }

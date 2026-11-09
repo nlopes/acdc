@@ -3,9 +3,9 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ElementId, InlineMacro, InlineMetadata, InlineNode, Location, Pass, PassthroughKind, Raw,
-    Substitution,
-    ast::{ElementIdRef, PassRef, RawRef},
+    ElementId, InlineMacro, InlineMetadata, InlineNode, Location, Passthrough, PassthroughKind,
+    Raw, Substitution,
+    ast::{ElementIdRef, InlinePassthroughRef, RawRef},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -140,13 +140,15 @@ fn pass_copies_keep_optional_text_kind_and_substitutions() {
             PassthroughKind::Macro,
             PassthroughKind::AttributeRef,
         ] {
-            let pass = Pass::new(text, profile(), kind.clone(), Location::default());
-            let copy = Pass::from(PassRef::from(&pass));
+            let pass = Passthrough::new(text, profile(), kind.clone(), Location::default());
+            let copy = Passthrough::from(InlinePassthroughRef::from(&pass));
             assert_eq!(copy, pass);
-            assert_eq!(PassRef::from(&copy).text(), text);
-            assert_eq!(PassRef::from(&copy).kind(), kind);
+            assert_eq!(InlinePassthroughRef::from(&copy).text(), text);
+            assert_eq!(InlinePassthroughRef::from(&copy).kind(), kind);
             assert_eq!(
-                PassRef::from(&copy).substitutions().collect::<Vec<_>>(),
+                InlinePassthroughRef::from(&copy)
+                    .substitutions()
+                    .collect::<Vec<_>>(),
                 profile()
             );
         }
@@ -158,20 +160,25 @@ fn pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct() {
     let source = String::from("*original*");
     let replacement = String::from("image:literal[]");
     let old = {
-        let mut pass = Pass::new(
+        let mut pass = Passthrough::new(
             Some(&source),
             profile(),
             PassthroughKind::Macro,
             Location::default(),
         );
         let old = pass.replace_text(Some(&replacement));
-        assert_eq!(PassRef::from(&pass).text(), Some(replacement.as_str()));
-        assert_eq!(pass.replace_text(Some("")), Some(replacement.as_str()));
-        assert_eq!(PassRef::from(&pass).text(), Some(""));
-        assert_eq!(pass.replace_text(None), Some(""));
-        assert_eq!(PassRef::from(&pass).text(), None);
         assert_eq!(
-            PassRef::from(&pass).substitutions().collect::<Vec<_>>(),
+            InlinePassthroughRef::from(&pass).text(),
+            Some(replacement.as_str())
+        );
+        assert_eq!(pass.replace_text(Some("")), Some(replacement.as_str()));
+        assert_eq!(InlinePassthroughRef::from(&pass).text(), Some(""));
+        assert_eq!(pass.replace_text(None), Some(""));
+        assert_eq!(InlinePassthroughRef::from(&pass).text(), None);
+        assert_eq!(
+            InlinePassthroughRef::from(&pass)
+                .substitutions()
+                .collect::<Vec<_>>(),
             profile()
         );
         old
@@ -183,7 +190,7 @@ fn pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct() {
 fn pass_substitution_transfers_keep_vector_storage_order_and_duplicates() {
     let initial = profile();
     let original_pointer = initial.as_ptr();
-    let mut pass = Pass::new(
+    let mut pass = Passthrough::new(
         Some("<x>"),
         initial,
         PassthroughKind::Macro,
@@ -200,13 +207,13 @@ fn pass_substitution_transfers_keep_vector_storage_order_and_duplicates() {
         current,
         [Substitution::Attributes, Substitution::Attributes]
     );
-    assert_eq!(PassRef::from(&pass).substitutions().count(), 0);
-    assert_eq!(PassRef::from(&pass).text(), Some("<x>"));
+    assert_eq!(InlinePassthroughRef::from(&pass).substitutions().count(), 0);
+    assert_eq!(InlinePassthroughRef::from(&pass).text(), Some("<x>"));
 }
 
 #[test]
 fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
-    let mut pass = Pass::new(
+    let mut pass = Passthrough::new(
         Some("*{literal}*"),
         profile(),
         PassthroughKind::Single,
@@ -215,11 +222,22 @@ fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
     pass.set_kind(PassthroughKind::Triple);
     let span = Location::point(acdc_parser::Position::new(3, 4));
     pass.set_location(span.clone());
-    assert_eq!(PassRef::from(&pass).kind(), PassthroughKind::Triple);
-    assert_eq!(Location::from(PassRef::from(&pass).location()), span);
-    assert_eq!(PassRef::from(&pass).text(), Some("*{literal}*"));
     assert_eq!(
-        PassRef::from(&pass).substitutions().collect::<Vec<_>>(),
+        InlinePassthroughRef::from(&pass).kind(),
+        PassthroughKind::Triple
+    );
+    assert_eq!(
+        Location::from(InlinePassthroughRef::from(&pass).location()),
+        span
+    );
+    assert_eq!(
+        InlinePassthroughRef::from(&pass).text(),
+        Some("*{literal}*")
+    );
+    assert_eq!(
+        InlinePassthroughRef::from(&pass)
+            .substitutions()
+            .collect::<Vec<_>>(),
         profile()
     );
 }
@@ -227,7 +245,7 @@ fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
 #[test]
 fn undecorated_passthrough_copies_do_not_allocate() {
     let raw = Raw::new("raw", Vec::new(), Location::default());
-    let pass = Pass::new(
+    let pass = Passthrough::new(
         None,
         Vec::new(),
         PassthroughKind::Macro,
@@ -235,7 +253,7 @@ fn undecorated_passthrough_copies_do_not_allocate() {
     );
     let region = Region::new(ALLOCATOR);
     let raw_copy = black_box(Raw::from(RawRef::from(&raw)));
-    let pass_copy = black_box(Pass::from(PassRef::from(&pass)));
+    let pass_copy = black_box(Passthrough::from(InlinePassthroughRef::from(&pass)));
     let change = region.change();
     assert_eq!(change.allocations, 0);
     assert_eq!(change.reallocations, 0);
@@ -251,12 +269,12 @@ fn selected_passthrough_copies_keep_native_json() -> Result<(), Error> {
         serde_json::to_value(InlineNode::RawText(Raw::from(RawRef::from(&raw))))?,
         serde_json::to_value(InlineNode::RawText(raw))?
     );
-    let pass = Pass::new(None, profile(), PassthroughKind::Macro, Location::default());
+    let pass = Passthrough::new(None, profile(), PassthroughKind::Macro, Location::default());
     assert_eq!(
-        serde_json::to_value(InlineNode::Macro(InlineMacro::Pass(Pass::from(
-            PassRef::from(&pass)
-        ))))?,
-        serde_json::to_value(InlineNode::Macro(InlineMacro::Pass(pass)))?
+        serde_json::to_value(InlineNode::Macro(InlineMacro::Passthrough(
+            Passthrough::from(InlinePassthroughRef::from(&pass))
+        )))?,
+        serde_json::to_value(InlineNode::Macro(InlineMacro::Passthrough(pass)))?
     );
     Ok(())
 }

@@ -126,9 +126,9 @@ fn attribute_parts_uses_neutral_text_for_conditions_and_paths() -> Result<(), Er
         ":label: pass:c[A & <B>]\n:chapter: pass:c[A & B]\n\nifeval::[\"{label}\" == \"A & <B>\"]\nMatched.\nendif::[]\n\ninclude::{chapter}.adoc[]\n",
         &options,
     )?;
-    assert!(parsed.source().contains("Matched."));
-    assert!(parsed.source().contains("Included."));
-    assert!(!parsed.source().contains("include::"));
+    assert!(parsed.preprocessed_source().contains("Matched."));
+    assert!(parsed.preprocessed_source().contains("Included."));
+    assert!(!parsed.preprocessed_source().contains("include::"));
     assert_eq!(parsed.warnings(), []);
     Ok(())
 }

@@ -52,11 +52,18 @@ fn formatting_preserves_whitespace_and_its_source_span() -> Result<(), Error> {
                     );
                 };
                 assert_eq!(text.text(), expected, "{source:?}");
-                let start = parsed.source().find(marker).ok_or("missing marker")? + marker.len();
+                let start = parsed
+                    .preprocessed_source()
+                    .find(marker)
+                    .ok_or("missing marker")?
+                    + marker.len();
                 let end = start + body.char_indices().last().ok_or("empty body")?.0;
                 assert_eq!(text.location().absolute_start(), start, "{source:?}");
                 assert_eq!(text.location().absolute_end(), end, "{source:?}");
-                let prefix = parsed.source().get(..end).ok_or("invalid endpoint")?;
+                let prefix = parsed
+                    .preprocessed_source()
+                    .get(..end)
+                    .ok_or("invalid endpoint")?;
                 assert_eq!(
                     text.location().end().line(),
                     u32::try_from(prefix.bytes().filter(|byte| *byte == b'\n').count() + 1)?
@@ -265,7 +272,7 @@ fn macro_labels_keep_only_their_source_span(
             };
             let content = if let InlineKind::Link(link) = inline_macro {
                 link.text()
-            } else if let InlineKind::Url(url) = inline_macro {
+            } else if let InlineKind::UrlMacro(url) = inline_macro {
                 url.text()
             } else if let InlineKind::Mailto(mailto) = inline_macro {
                 mailto.text()

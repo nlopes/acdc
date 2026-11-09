@@ -16,7 +16,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         audio: AudioRef<'_>,
     ) -> Result<(), Error> {
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             return visit_audio_semantic(traversal, audio, self);
         }
 

@@ -4,16 +4,16 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
 use acdc_converters_dev::fixtures::FixtureOutput;
-use acdc_converters_pdf::{PdfOptions, Processor};
+use acdc_converters_pdf::{Converter, PdfOptions};
 use acdc_parser::{
     DocumentAttributes, Options as ParserOptions, OptionsBuilder, SafeMode, ast::DocumentRef,
     parse_file,
 };
 
-pub(crate) fn processor(builder: OptionsBuilder<'_>) -> Result<Processor<'_>, Box<dyn Error>> {
-    Ok(Processor::new(
+pub(crate) fn converter(builder: OptionsBuilder<'_>) -> Result<Converter<'_>, Box<dyn Error>> {
+    Ok(Converter::new(
         Options::builder().safe_mode(SafeMode::Unsafe).build(),
         builder.with_safe_mode(SafeMode::Unsafe),
     )?)
@@ -32,12 +32,12 @@ fn fixture_theme(doc: DocumentRef<'_>) -> Option<PathBuf> {
 }
 
 pub(crate) fn render(path: &Path) -> Result<(FixtureOutput, String), Box<dyn Error>> {
-    let bootstrap = processor(ParserOptions::builder())?;
+    let bootstrap = converter(ParserOptions::builder())?;
     let parsed = parse_file(path, bootstrap.parser_options())?;
     let doc = parsed.document();
     let directory = tempfile::tempdir()?;
     let typst_path = directory.path().join("fixture.typ");
-    let processor = processor(
+    let converter = converter(
         ParserOptions::builder()
             .with_attributes(DocumentAttributes::from(doc.attributes()).into_inputs()),
     )?
@@ -49,7 +49,7 @@ pub(crate) fn render(path: &Path) -> Result<(FixtureOutput, String), Box<dyn Err
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("pdf");
-    processor.write_to(
+    converter.write_to(
         doc,
         &mut output,
         Some(path),

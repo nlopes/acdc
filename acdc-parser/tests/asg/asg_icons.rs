@@ -20,7 +20,7 @@ fn document(icon: Icon<'static>) -> Document<'static> {
 }
 
 fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document.into(), asg::Profile::Acdc)
+    asg::export_document_with_profile(document.into(), asg::Profile::Acdc)
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn source_icon_modes_controls_and_content_are_preserved() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (path, expected) in [
             ("/attributes/icons", json!("font")),
@@ -168,7 +168,7 @@ fn canonical_note_icon_errors_and_strict_rejection_remain_explicit() -> Result<(
     );
     let parsed = parse("icon:star[]", &Options::default())?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("icon"),..}) if path == "/blocks/0/inlines/0")
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("icon"),..}) if path == "/blocks/0/inlines/0")
     );
     Ok(())
 }
@@ -177,7 +177,7 @@ fn canonical_note_icon_errors_and_strict_rejection_remain_explicit() -> Result<(
 fn icon_schema_is_closed_and_uses_content_and_metadata_contracts() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/icons.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

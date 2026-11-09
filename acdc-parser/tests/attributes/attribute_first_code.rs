@@ -67,7 +67,7 @@ fn attribute_first_code_checks_expanded_content_and_keeps_default_order() -> Res
                 if let Some(code) = code {
                     let span = code.location();
                     assert_eq!(
-                        &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                        &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                         format!("`{content}`"),
                         "{source:?}"
                     );
@@ -134,7 +134,7 @@ fn attribute_first_code_uses_a_later_valid_closer_with_complete_locations() -> R
                 .ok_or("missing code through the last backtick")?;
             let span = code.location();
             assert_eq!(
-                &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                 quote.replace("\r\n", "\n")
             );
             let word = code
@@ -144,7 +144,8 @@ fn attribute_first_code_uses_a_later_valid_closer_with_complete_locations() -> R
                 .ok_or("missing code content")?;
             let word_span = word.location();
             assert_eq!(
-                &parsed.source()[word_span.absolute_start()..=word_span.absolute_end()],
+                &parsed.preprocessed_source()
+                    [word_span.absolute_start()..=word_span.absolute_end()],
                 format!("{{word}}{{sp}}`{}tail", gap.replace("\r\n", "\n"))
             );
             let sibling = paragraph
@@ -154,7 +155,7 @@ fn attribute_first_code_uses_a_later_valid_closer_with_complete_locations() -> R
                 .ok_or("missing following bold span")?;
             let span = sibling.location();
             assert_eq!(
-                &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                 "**End**"
             );
         }
@@ -218,7 +219,7 @@ fn attribute_first_code_preserves_passthrough_and_macro_locations() -> Result<()
                 .ok_or("missing code span")?;
             let span = code.location();
             assert_eq!(
-                &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                 quote
             );
             let raw = code
@@ -231,7 +232,8 @@ fn attribute_first_code_preserves_passthrough_and_macro_locations() -> Result<()
             };
             assert_eq!(raw.text(), "{word}");
             assert_eq!(
-                &parsed.source()[raw.location().absolute_start()..=raw.location().absolute_end()],
+                &parsed.preprocessed_source()
+                    [raw.location().absolute_start()..=raw.location().absolute_end()],
                 "{word}"
             );
             assert_eq!(document.footnotes().count(), 1);
@@ -254,7 +256,7 @@ fn attribute_first_code_preserves_passthrough_and_macro_locations() -> Result<()
                     .ok_or_else(|| format!("missing {expected}"))?
                     .location();
                 assert_eq!(
-                    &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                    &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                     expected
                 );
             }

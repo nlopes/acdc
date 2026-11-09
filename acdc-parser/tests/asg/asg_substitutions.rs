@@ -43,7 +43,7 @@ fn substitution_effects_keep_body_escaping_and_independent_content_boundaries() 
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse_file(&source, &options)?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
@@ -100,8 +100,14 @@ fn resolved_settings_match_equivalent_prepared_text_and_raw_nodes() -> Result<()
             let prepared = parse(equivalent, &options)?;
             for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
                 assert_eq!(
-                    without_provenance(asg::document_with_profile(parsed.document(), profile)?),
-                    without_provenance(asg::document_with_profile(prepared.document(), profile)?),
+                    without_provenance(asg::export_document_with_profile(
+                        parsed.document(),
+                        profile
+                    )?),
+                    without_provenance(asg::export_document_with_profile(
+                        prepared.document(),
+                        profile
+                    )?),
                     "{mode:?} {profile:?} {settings}"
                 );
             }
@@ -117,7 +123,7 @@ fn unresolved_substitution_instructions_are_not_silently_omitted() -> Result<(),
         let parsed = parse("[subs=unknown]\n*source*", &options)?;
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
             assert!(
-                matches!(asg::document_with_profile(parsed.document(), profile), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/substitutions")
+                matches!(asg::export_document_with_profile(parsed.document(), profile), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/substitutions")
             );
         }
     }
@@ -143,7 +149,7 @@ fn typed_and_source_settings_share_the_same_output_semantics() -> Result<(), Err
         paragraph.set_metadata(metadata)?;
         let mut document = Document::default();
         document.set_blocks(vec![Block::Paragraph(paragraph)]);
-        let value = asg::document((&document).into())?;
+        let value = asg::export_document((&document).into())?;
         assert_eq!(
             value.pointer("/blocks/0/inlines/0/name"),
             Some(&json!("raw"))
@@ -154,7 +160,7 @@ fn typed_and_source_settings_share_the_same_output_semantics() -> Result<(), Err
         );
     }
     let parsed = parse("[subs=none]\n....\n<em>raw</em>\n....", &Options::default())?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(value.pointer("/blocks/0/name"), Some(&json!("literal")));
     assert_eq!(value.pointer("/blocks/0/form"), Some(&json!("delimited")));
     assert_eq!(value.pointer("/blocks/0/delimiter"), Some(&json!("....")));

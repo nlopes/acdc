@@ -27,7 +27,7 @@ cat document.adoc | acdc convert --backend markdown --stdin
 
 The CLI defaults to GFM. Pass `--variant commonmark` for plain CommonMark
 output. Library users can select the same behavior with
-`Processor::with_variant(MarkdownVariant::CommonMark)`.
+`Converter::with_variant(MarkdownVariant::CommonMark)`.
 
 == Features
 

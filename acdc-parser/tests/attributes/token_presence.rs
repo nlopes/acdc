@@ -121,7 +121,7 @@ fn inline_macro_token_presence_survives_parsing(
         node.attributes()
     } else if let InlineKind::Link(node) = node.kind() {
         node.attributes()
-    } else if let InlineKind::Url(node) = node.kind() {
+    } else if let InlineKind::UrlMacro(node) = node.kind() {
         node.attributes()
     } else if let InlineKind::Mailto(node) = node.kind() {
         node.attributes()
@@ -179,7 +179,7 @@ fn asg_keeps_block_token_presence_in_both_profiles(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         for profile in [Profile::Upstream, Profile::Acdc] {
-            let value = asg::document_with_profile(parsed.document(), profile)?;
+            let value = asg::export_document_with_profile(parsed.document(), profile)?;
             for field in ["roles", "options"] {
                 assert_eq!(
                     value.pointer(&format!("/blocks/0/metadata/{field}")),
@@ -210,10 +210,10 @@ fn asg_preserves_empty_inline_tokens_or_reports_the_unsupported_path(
     let path = format!("/blocks/0/inlines/0/metadata/{field}");
     let before = serde_json::to_value(parsed.document())?;
     assert_eq!(before.pointer(&path), Some(&serde_json::json!([])));
-    let value = asg::document_with_profile(parsed.document(), Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), Profile::Acdc)?;
     assert_eq!(value.pointer(&path), Some(&serde_json::json!([])));
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported { path: rejected, .. }) if rejected == path)
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported { path: rejected, .. }) if rejected == path)
     );
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
@@ -223,21 +223,21 @@ fn asg_preserves_empty_inline_tokens_or_reports_the_unsupported_path(
 #[test]
 fn empty_span_roles_stay_distinct_from_absence_in_asg() -> Result<(), Error> {
     use acdc_parser::{
-        Bold, ContentAttribute, Form, InlineNode,
+        Bold, ContentAttribute, FormattingForm, InlineNode,
         asg::{self, Profile},
         ast::ContentRef,
     };
 
-    let mut span = Bold::new(Vec::new(), Form::Constrained, Location::default());
+    let mut span = Bold::new(Vec::new(), FormattingForm::Constrained, Location::default());
     span.replace_role(Some(""));
     let content = ContentAttribute::new(vec![InlineNode::BoldText(span)]);
-    let value = asg::inlines_with_profile(ContentRef::from(&content), Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile(ContentRef::from(&content), Profile::Acdc)?;
     assert_eq!(
         value.pointer("/0/metadata/roles"),
         Some(&serde_json::json!([]))
     );
     assert!(
-        matches!(asg::inlines(ContentRef::from(&content)), Err(asg::Error::Unsupported { path, .. }) if path == "/0/role")
+        matches!(asg::export_inlines(ContentRef::from(&content)), Err(asg::Error::Unsupported { path, .. }) if path == "/0/role")
     );
     Ok(())
 }
@@ -258,7 +258,7 @@ fn asg_rejects_empty_passthrough_roles_without_a_mapping() {
     let content = ContentAttribute::new(vec![InlineNode::RawText(raw)]);
     for profile in [Profile::Upstream, Profile::Acdc] {
         assert!(
-            matches!(asg::inlines_with_profile(ContentRef::from(&content), profile), Err(asg::Error::Unsupported { path, .. }) if path == "/0/metadata/roles")
+            matches!(asg::export_inlines_with_profile(ContentRef::from(&content), profile), Err(asg::Error::Unsupported { path, .. }) if path == "/0/metadata/roles")
         );
     }
 }

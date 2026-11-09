@@ -9,7 +9,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     SectionKind,
-    ast::{DiscreteHeaderRef, SectionRef},
+    ast::{DiscreteHeadingRef, SectionRef},
 };
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class};
@@ -21,11 +21,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         section: SectionRef<'a>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let converter = self.converter.clone();
         let data = section;
 
         let is_index_section = data.kind() == SectionKind::Index;
-        let render_catalog = is_index_section && processor.generate_index();
+        let render_catalog = is_index_section && converter.generate_index();
 
         self.render_section_header(traversal, data)?;
 
@@ -49,7 +49,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         section: SectionRef<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let converter = self.converter.clone();
         let id = crate::inlines::escape_attribute(&section.resolve_id());
         let effective_level = effective_section_level(section.level(), section.kind());
 
@@ -71,7 +71,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 write!(self.writer, "{}", crate::inlines::escape_pcdata(&prefix))?;
             }
         } else {
-            if processor.variant() == HtmlVariant::Semantic {
+            if converter.variant() == HtmlVariant::Semantic {
                 let class = build_class(
                     &format!("doc-section level-{effective_level}"),
                     section.roles().iter(),
@@ -100,7 +100,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         writeln!(self.writer, "</h{heading_level}>")?;
 
         // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
-        if processor.variant() == HtmlVariant::Standard && effective_level == 1 {
+        if converter.variant() == HtmlVariant::Standard && effective_level == 1 {
             writeln!(self.writer, "<div class=\"sectionbody\">")?;
         }
         Ok(())
@@ -110,7 +110,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     ///
     /// Call this after walking the section's nested blocks.
     fn render_section_footer(&mut self, section: SectionRef<'_>) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let converter = self.converter.clone();
         let effective_level = effective_section_level(section.level(), section.kind());
         let is_part = section.level() == 0 && section.kind() == SectionKind::Normal;
 
@@ -119,7 +119,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        if processor.variant() == HtmlVariant::Semantic {
+        if converter.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "</section>")?;
         } else {
             // sect1 (or appendix demoted to sect1) has a sectionbody wrapper to close
@@ -138,7 +138,7 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
 
 pub(crate) fn visit_discrete_header<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    header: DiscreteHeaderRef<'_>,
+    header: DiscreteHeadingRef<'_>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let id = crate::inlines::escape_attribute(&header.resolve_id());

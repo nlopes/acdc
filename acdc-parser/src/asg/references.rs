@@ -38,7 +38,7 @@ pub(super) fn project(
                 settings,
             )
         }
-        InlineMacro::Url(link) => {
+        InlineMacro::UrlMacro(link) => {
             let target = target(&link.target, path)?;
             with_metadata(
                 reference(
@@ -87,9 +87,9 @@ pub(super) fn project(
         | InlineMacro::Icon(_)
         | InlineMacro::Footnote(_)
         | InlineMacro::Stem(_)
-        | InlineMacro::Keyboard(_)
+        | InlineMacro::KeyboardShortcut(_)
         | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
+        | InlineMacro::MenuPath(_)
             if settings.profile == Profile::Acdc =>
         {
             extension(value, path, settings)
@@ -97,10 +97,10 @@ pub(super) fn project(
         InlineMacro::Footnote(_)
         | InlineMacro::Icon(_)
         | InlineMacro::Image(_)
-        | InlineMacro::Keyboard(_)
+        | InlineMacro::KeyboardShortcut(_)
         | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
-        | InlineMacro::Pass(_)
+        | InlineMacro::MenuPath(_)
+        | InlineMacro::Passthrough(_)
         | InlineMacro::Stem(_)
         | InlineMacro::IndexTerm(_) => Err(unsupported(
             path,
@@ -122,16 +122,16 @@ fn extension(value: &InlineMacro<'_>, path: &str, settings: InlineContext) -> Re
             super::math::apply(&mut result, value.content, &value.notation, true);
             Ok(result)
         }
-        InlineMacro::Keyboard(_) | InlineMacro::Button(_) | InlineMacro::Menu(_) => {
+        InlineMacro::KeyboardShortcut(_) | InlineMacro::Button(_) | InlineMacro::MenuPath(_) => {
             super::ui::project(value, path, settings)
         }
         InlineMacro::Link(_)
-        | InlineMacro::Url(_)
+        | InlineMacro::UrlMacro(_)
         | InlineMacro::Mailto(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::CrossReference(_)
         | InlineMacro::Image(_)
-        | InlineMacro::Pass(_) => Err(unsupported(
+        | InlineMacro::Passthrough(_) => Err(unsupported(
             path,
             "this macro has no supported extension mapping",
         )),

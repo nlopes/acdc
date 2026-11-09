@@ -8,15 +8,15 @@ fn owner_json(owner: &InlineMacro<'_>) -> Result<Value, TestError> {
         InlineMacro::Footnote(value) => serde_json::to_value(value)?,
         InlineMacro::Icon(value) => serde_json::to_value(value)?,
         InlineMacro::Image(value) => serde_json::to_value(value)?,
-        InlineMacro::Keyboard(value) => serde_json::to_value(value)?,
+        InlineMacro::KeyboardShortcut(value) => serde_json::to_value(value)?,
         InlineMacro::Button(value) => serde_json::to_value(value)?,
-        InlineMacro::Menu(value) => serde_json::to_value(value)?,
-        InlineMacro::Url(value) => serde_json::to_value(value)?,
+        InlineMacro::MenuPath(value) => serde_json::to_value(value)?,
+        InlineMacro::UrlMacro(value) => serde_json::to_value(value)?,
         InlineMacro::Link(value) => serde_json::to_value(value)?,
         InlineMacro::Mailto(value) => serde_json::to_value(value)?,
         InlineMacro::Autolink(value) => serde_json::to_value(value)?,
         InlineMacro::CrossReference(value) => serde_json::to_value(value)?,
-        InlineMacro::Pass(value) => serde_json::to_value(value)?,
+        InlineMacro::Passthrough(value) => serde_json::to_value(value)?,
         InlineMacro::Stem(value) => serde_json::to_value(value)?,
         InlineMacro::IndexTerm(value) => serde_json::to_value(value)?,
         _ => return Err("uncovered macro family".into()),
@@ -76,7 +76,7 @@ fn macros_have_one_projection_at_each_serialization_boundary(
                 .then_some(true)
         );
     }
-    if let InlineMacro::Pass(pass) = owner {
+    if let InlineMacro::Passthrough(pass) = owner {
         let mut copy = pass.clone();
         let text = copy.replace_text(None);
         let substitutions = copy.take_substitutions();

@@ -13,9 +13,9 @@ use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
-    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
-    FootnoteDefinition, Location, Options, Pass, SourceLocation, TocEntry, Warning, WarningKind,
-    XrefCaptionLabel, XrefSignifier,
+    CalloutMarker, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
+    FootnoteDefinition, Location, Options, Passthrough, SourceLocation, TocEntry, Warning,
+    WarningKind, XrefCaptionLabel, XrefSignifier,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         LineMap,
@@ -112,7 +112,7 @@ pub(crate) struct ParserState<'a> {
     pub(super) ordinary_list_scope: Option<OrdinaryListScope<'a>>,
     pub(super) description_list_scope: Option<DescriptionListScope<'a>>,
     /// Verbatim callout references collected since the previous callout list.
-    pub(super) pending_callouts: Vec<CalloutRef>,
+    pub(super) pending_callouts: Vec<CalloutMarker>,
     /// The current file being parsed (`None` for inline/string parsing). Used as the
     /// fallback file for diagnostics (`create_error_source_location`) when an offset
     /// isn't covered by a recorded source range.
@@ -140,12 +140,12 @@ pub(crate) struct ParserState<'a> {
     pub(super) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
     /// markup (bold, italic, monospace, highlight, superscript, subscript, curved quotes)
-    /// and plain text. Used by `parse_text_for_quotes` to apply "quotes" substitution
+    /// and plain text. Used by `parse_inline_formatting` to apply "quotes" substitution
     /// without matching macros, xrefs, etc.
     pub(super) quotes_only: bool,
     /// Profiled attribute placeholders available to this inline grammar. Consume
     /// them in source order so their notes precede later literal references.
-    pub(super) attribute_passthroughs: Rc<[Pass<'a>]>,
+    pub(super) attribute_passthroughs: Rc<[Passthrough<'a>]>,
     // Resolved references cannot contribute syntax to a later stage.
     pub(super) resolved_reference_ranges: Vec<Range<usize>>,
     /// When parsing content extracted from a constrained formatting rule, holds

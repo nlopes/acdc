@@ -6,8 +6,8 @@ use crate::{
 };
 
 use super::{
-    AttributesRef, AudioRef, CommentRef, ContentRef, DiscreteHeaderRef, ElementIdRef, PageBreakRef,
-    TableOfContentsRef, ThematicBreakRef, TokensRef, VideoRef,
+    AttributesRef, AudioRef, CommentRef, ContentRef, DiscreteHeadingRef, ElementIdRef,
+    PageBreakRef, TableOfContentsRef, ThematicBreakRef, TokensRef, VideoRef,
 };
 
 macro_rules! metadata_reads {
@@ -63,7 +63,7 @@ metadata_reads!(
     AudioRef, Audio, audio;
     VideoRef, Video, video;
     TableOfContentsRef, TableOfContents, table_of_contents;
-    DiscreteHeaderRef, DiscreteHeader, discrete_header;
+    DiscreteHeadingRef, DiscreteHeading, discrete_header;
     PageBreakRef, PageBreak, page_break;
 );
 
@@ -84,7 +84,7 @@ macro_rules! title_reads {
 title_reads!(
     AudioRef,
     VideoRef,
-    DiscreteHeaderRef,
+    DiscreteHeadingRef,
     PageBreakRef,
     ThematicBreakRef
 );
@@ -119,7 +119,7 @@ impl<'doc> From<VideoRef<'doc>> for crate::Video<'doc> {
     }
 }
 
-impl<'doc> DiscreteHeaderRef<'doc> {
+impl<'doc> DiscreteHeadingRef<'doc> {
     /// Resolve the heading ID from the explicit ID, last anchor, or title.
     ///
     /// Title-derived fallbacks are not assigned or checked for collisions.

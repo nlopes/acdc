@@ -565,7 +565,7 @@ fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     }
 }
 
-/// Apply a sequence of substitutions to text.
+/// Apply attribute-expansion stages selected by a substitution sequence.
 ///
 /// Iterates through the substitution list and applies each in order:
 ///
@@ -579,17 +579,17 @@ fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
 /// # Example
 ///
 /// ```
-/// use acdc_parser::{Options, Substitution, substitute};
+/// use acdc_parser::{Options, Substitution, apply_attribute_substitutions};
 ///
 /// let options = Options::with_attributes([("version", "1.0")])?;
 /// let attrs = options.document_attributes();
 ///
-/// let result = substitute("Version {version}", &[Substitution::Attributes], attrs);
+/// let result = apply_attribute_substitutions("Version {version}", &[Substitution::Attributes], attrs);
 /// assert_eq!(result, "Version 1.0");
 /// # Ok::<(), acdc_parser::Error>(())
 /// ```
 #[must_use]
-pub fn substitute<'a, 'b>(
+pub fn apply_attribute_substitutions<'a, 'b>(
     text: &'b str,
     substitutions: &[Substitution],
     attributes: &DocumentAttributes<'a>,
@@ -610,7 +610,7 @@ where
             // These substitutions are handled elsewhere — the converter
             // (`SpecialChars`, `Quotes`, `Replacements`) or the grammar
             // (`Macros`, `PostReplacements`, `Callouts`). They are no-ops
-            // here in `substitute()`.
+            // here in `apply_attribute_substitutions()`.
             Substitution::SpecialChars
             | Substitution::Quotes
             | Substitution::Replacements
@@ -621,15 +621,19 @@ where
             Substitution::Normal => {
                 let current = std::mem::take(&mut result);
                 result = match current {
-                    Cow::Borrowed(s) => substitute(s, NORMAL, attributes),
-                    Cow::Owned(s) => Cow::Owned(substitute(&s, NORMAL, attributes).into_owned()),
+                    Cow::Borrowed(s) => apply_attribute_substitutions(s, NORMAL, attributes),
+                    Cow::Owned(s) => Cow::Owned(
+                        apply_attribute_substitutions(&s, NORMAL, attributes).into_owned(),
+                    ),
                 };
             }
             Substitution::Verbatim => {
                 let current = std::mem::take(&mut result);
                 result = match current {
-                    Cow::Borrowed(s) => substitute(s, VERBATIM, attributes),
-                    Cow::Owned(s) => Cow::Owned(substitute(&s, VERBATIM, attributes).into_owned()),
+                    Cow::Borrowed(s) => apply_attribute_substitutions(s, VERBATIM, attributes),
+                    Cow::Owned(s) => Cow::Owned(
+                        apply_attribute_substitutions(&s, VERBATIM, attributes).into_owned(),
+                    ),
                 };
             }
         }
@@ -1333,15 +1337,16 @@ mod tests {
         );
 
         // Resolve an attribute that is in the attributes map.
-        let resolved = substitute("{weight}", HEADER, &attributes);
+        let resolved = apply_attribute_substitutions("{weight}", HEADER, &attributes);
         assert_eq!(resolved, "weight");
 
         // Resolve two attributes that are in the attributes map.
-        let resolved = substitute("{weight} {mass}", HEADER, &attributes);
+        let resolved = apply_attribute_substitutions("{weight} {mass}", HEADER, &attributes);
         assert_eq!(resolved, "weight mass");
 
         // Resolve without attributes in the map
-        let resolved = substitute("value {attribute_volume}", HEADER, &attributes);
+        let resolved =
+            apply_attribute_substitutions("value {attribute_volume}", HEADER, &attributes);
         assert_eq!(resolved, attribute_volume_repeat);
     }
 
@@ -1349,7 +1354,7 @@ mod tests {
     fn test_resolve_typed_default_and_original_text() {
         let mut attributes = DocumentAttributes::default();
         assert_eq!(
-            substitute("depth={max-include-depth}", HEADER, &attributes),
+            apply_attribute_substitutions("depth={max-include-depth}", HEADER, &attributes),
             "depth=64"
         );
 
@@ -1359,7 +1364,7 @@ mod tests {
                 .is_ok()
         );
         assert_eq!(
-            substitute("depth={max-include-depth}", HEADER, &attributes),
+            apply_attribute_substitutions("depth={max-include-depth}", HEADER, &attributes),
             "depth=064"
         );
 
@@ -1369,20 +1374,20 @@ mod tests {
                 .is_ok()
         );
         assert_eq!(
-            substitute("before{present}after", HEADER, &attributes),
+            apply_attribute_substitutions("before{present}after", HEADER, &attributes),
             "beforeafter"
         );
     }
 
     #[test]
     fn test_substitute_single_pass_expansion() {
-        // Test that the substitute() function does single-pass expansion.
-        // When foo's value is "{bar}", substitute("{foo}") returns the literal
+        // Test that the apply_attribute_substitutions() function does single-pass expansion.
+        // When foo's value is "{bar}", apply_attribute_substitutions("{foo}") returns the literal
         // "{bar}" string - it does NOT recursively resolve {bar}.
         //
         // This is correct behavior because:
         // 1. Definition-time resolution is handled separately (in the grammar parser)
-        // 2. The substitute function just replaces one level of references
+        // 2. The apply_attribute_substitutions function just replaces one level of references
         let mut attributes = DocumentAttributes::default();
         assert!(attributes.insert("foo".into(), "{bar}".into()).is_ok());
         assert!(
@@ -1391,7 +1396,7 @@ mod tests {
                 .is_ok()
         );
 
-        let resolved = substitute("{foo}", HEADER, &attributes);
+        let resolved = apply_attribute_substitutions("{foo}", HEADER, &attributes);
         assert_eq!(resolved, "{bar}");
     }
 
@@ -1410,7 +1415,7 @@ mod tests {
             "{attrÔ}test",
         ];
         for value in values {
-            let resolved = substitute(value, HEADER, &attributes);
+            let resolved = apply_attribute_substitutions(value, HEADER, &attributes);
             assert_eq!(resolved, value);
         }
     }

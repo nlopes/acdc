@@ -2,8 +2,8 @@
 
 use std::{env, process::Command};
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_converters_terminal::{Capabilities, Processor};
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
+use acdc_converters_terminal::{Capabilities, Converter};
 use acdc_parser::{Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
@@ -45,7 +45,7 @@ fn render_index_image_probe() -> Result<(), Error> {
         input.push_str("\n[index]\n== Index\n");
     }
     let parsed = parse(&input, &ParserOptions::default())?;
-    let processor = Processor::new(Options::default(), ParserOptions::builder())?
+    let converter = Converter::new(Options::default(), ParserOptions::builder())?
         .with_terminal_width(80)
         .with_terminal_capabilities(Capabilities {
             unicode: true,
@@ -54,7 +54,7 @@ fn render_index_image_probe() -> Result<(), Error> {
     let source = WarningSource::new("terminal");
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut Vec::new(),
         None,

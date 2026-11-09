@@ -293,7 +293,7 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
                 walk_block_locations(child, visitor);
             }
         }
-        Block::DiscreteHeader(header) => {
+        Block::DiscreteHeading(header) => {
             for inline in header.title.as_inlines() {
                 walk_inline_locations(inline, visitor);
             }
@@ -399,12 +399,12 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::CurvedQuotationText(t) => {
+        InlineNode::DoubleQuotedSpan(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::CurvedApostropheText(t) => {
+        InlineNode::SingleQuotedSpan(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
@@ -419,7 +419,7 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_) => {}
+        | InlineNode::CalloutMarker(_) => {}
     }
 }
 
@@ -540,7 +540,7 @@ fn verify_block_monotonic(block: &Block) {
                 verify_monotonic_positions("CalloutList item child", &item.blocks);
             }
         }
-        Block::DiscreteHeader(header) => {
+        Block::DiscreteHeading(header) => {
             verify_inline_monotonic("DiscreteHeader title", header.title.as_inlines());
         }
         Block::TableOfContents(_)

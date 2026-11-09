@@ -1,16 +1,16 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Bold, CompatibilityMode, ContentAttribute, Document, ElementId, Form, Highlight, InlineMacro,
-    InlineNode, Link, Location, Options, Source, asg, ast::ContentRef, parse, parse_file,
-    parse_inline,
+    Bold, CompatibilityMode, ContentAttribute, Document, ElementId, FormattingForm, Highlight,
+    InlineMacro, InlineNode, Link, Location, Options, Source, asg, ast::ContentRef, parse,
+    parse_file, parse_inline,
 };
 use serde_json::{Value, json};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn extended(content: &ContentAttribute<'_>) -> Result<Value, asg::Error> {
-    asg::inlines_with_profile(ContentRef::from(content), asg::Profile::Acdc)
+    asg::export_inlines_with_profile(ContentRef::from(content), asg::Profile::Acdc)
 }
 
 #[test]
@@ -23,14 +23,14 @@ fn source_metadata_survives_checked_export_without_changing_native_values() -> R
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse_file(source, &options)?;
         let native = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value = serde_json::from_str(&std::fs::read_to_string(
             std::path::Path::new(source).with_extension("json"),
         )?)?;
         assert_eq!(value, expected, "{mode:?}");
         assert_eq!(serde_json::to_value(parsed.document())?, native);
         assert_eq!(
-            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
+            asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?,
             value
         );
         let text = serde_json::to_string(&value)?;
@@ -44,7 +44,7 @@ fn source_metadata_survives_checked_export_without_changing_native_values() -> R
             assert!(text.contains(expected), "{expected}: {text}");
         }
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported { path, .. }) if path.ends_with("/id"))
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported { path, .. }) if path.ends_with("/id"))
         );
     }
     Ok(())
@@ -53,7 +53,7 @@ fn source_metadata_survives_checked_export_without_changing_native_values() -> R
 #[test]
 fn empty_span_roles_preserve_generic_highlights_without_inventing_controls() -> Result<(), Error> {
     for role in [None, Some(""), Some(" \t"), Some("one one\u{a0}two")] {
-        let mut span = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+        let mut span = Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
         span.replace_role(role);
         let content = ContentAttribute::new(vec![InlineNode::HighlightText(span)]);
         let value = extended(&content)?;
@@ -77,11 +77,15 @@ fn empty_span_roles_preserve_generic_highlights_without_inventing_controls() -> 
                 .is_none()
         );
         assert_eq!(
-            asg::inlines(ContentRef::from(&content)).is_err(),
+            asg::export_inlines(ContentRef::from(&content)).is_err(),
             role.is_some()
         );
     }
-    let mut span = Bold::new(Vec::new(), Form::Unconstrained, Location::default());
+    let mut span = Bold::new(
+        Vec::new(),
+        FormattingForm::Unconstrained,
+        Location::default(),
+    );
     span.set_id(Some(ElementId::new("", Location::default())));
     let value = extended(&ContentAttribute::new(vec![InlineNode::BoldText(span)]))?;
     assert_eq!(value.pointer("/0/id"), Some(&json!("")));
@@ -95,7 +99,7 @@ fn nested_unsupported_values_still_report_their_own_path() -> Result<(), Error> 
         "link:https://example.org[Label,title='stem:[x]']",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0/tooltip/0/name"),
         Some(&json!("stem"))
@@ -176,14 +180,14 @@ fn inline_id_catalogs_keep_duplicate_and_stale_checks() -> Result<(), Error> {
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported { message, .. }) if message.contains("duplicate"))
+            matches!(asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported { message, .. }) if message.contains("duplicate"))
         );
     }
     let parsed = parse("link:one[One,id=target]", &Options::default())?;
     let mut document = Document::from(parsed.document());
     document.set_blocks(Vec::new());
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported { path, .. }) if path == "/references/target")
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported { path, .. }) if path == "/references/target")
     );
     Ok(())
 }
@@ -203,7 +207,7 @@ fn each_supported_span_form_retains_identity_and_roles() -> Result<(), Error> {
         for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = parse_inline(source, &options)?;
-            let value = asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
+            let value = asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
             assert_eq!(
                 value.pointer("/0/variant"),
                 Some(&json!(variant)),
@@ -216,7 +220,7 @@ fn each_supported_span_form_retains_identity_and_roles() -> Result<(), Error> {
                 Some(&json!(["one", "two"]))
             );
             assert!(
-                matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..}) if path == "/0/id")
+                matches!(asg::export_inlines(parsed.content()), Err(asg::Error::Unsupported {path, ..}) if path == "/0/id")
             );
         }
     }

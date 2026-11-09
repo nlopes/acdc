@@ -85,7 +85,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             BlockKind::DelimitedComment(_) => Ok(()),
             BlockKind::TableOfContents(_)
             | BlockKind::Admonition(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
@@ -258,8 +258,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             InlineKind::Highlight(text) => ("", text.content(), ""),
             InlineKind::Superscript(text) => ("", text.content(), ""),
             InlineKind::Subscript(text) => ("", text.content(), ""),
-            InlineKind::CurvedQuotation(text) => ("\\(lq", text.content(), "\\(rq"),
-            InlineKind::CurvedApostrophe(text) => ("\\(oq", text.content(), "\\(cq"),
+            InlineKind::DoubleQuotedSpan(text) => ("\\(lq", text.content(), "\\(rq"),
+            InlineKind::SingleQuotedSpan(text) => ("\\(oq", text.content(), "\\(cq"),
             InlineKind::IndexTerm(term) if term.is_visible() => ("", term.term(), ""),
             _ if contains_link(node) => {
                 // Link commands need their renderer; flattening keeps only the label.
@@ -272,15 +272,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             | InlineKind::Footnote(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_)
             | InlineKind::IndexTerm(_)
             | _ => {

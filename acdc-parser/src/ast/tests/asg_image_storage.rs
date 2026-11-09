@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document.into(), asg::Profile::Acdc)
+    asg::export_document_with_profile(document.into(), asg::Profile::Acdc)
 }
 
 #[test]
@@ -110,7 +110,7 @@ fn block_image_metadata_cannot_shadow_promoted_content() {
         document.push_block(Block::Image(image));
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
             assert!(
-                matches!(asg::document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/metadata/attributes/{name}"))
+                matches!(asg::export_document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,..}) if path==format!("/blocks/0/metadata/attributes/{name}"))
             );
         }
     }

@@ -108,7 +108,8 @@ fn formatted_attributes_register_footnotes_in_source_order() -> Result<(), Error
             .filter(|(index, _)| matches!(index, 1 | 2 | 4))
         {
             assert_eq!(
-                &parsed.source()[note.location().absolute_start()..=note.location().absolute_end()],
+                &parsed.preprocessed_source()
+                    [note.location().absolute_start()..=note.location().absolute_end()],
                 "{value}"
             );
         }
@@ -175,7 +176,7 @@ fn formatted_attributes_keep_complete_reference_spans() -> Result<(), Error> {
         std::iter::once(value.location()).chain(value.content().inlines().map(InlineRef::location))
     {
         assert_eq!(
-            &parsed.source()[location.absolute_start()..=location.absolute_end()],
+            &parsed.preprocessed_source()[location.absolute_start()..=location.absolute_end()],
             "{alias}"
         );
         assert_eq!((location.start().line(), location.end().line()), (5, 5));
@@ -237,8 +238,8 @@ fn formatted_attributes_have_backend_independent_text_conditions_and_nodes() -> 
                     .with_attribute("backend", backend)
                     .build()?,
             )?;
-            assert!(parsed.source().contains("Matched."));
-            assert!(!parsed.source().contains("Wrong."));
+            assert!(parsed.preprocessed_source().contains("Matched."));
+            assert!(!parsed.preprocessed_source().contains("Wrong."));
             assert_eq!(
                 parsed
                     .document()
@@ -352,8 +353,8 @@ fn formatted_attributes_use_source_text_in_include_paths() -> Result<(), Error> 
             .with_base_dir(path)
             .build()?,
     )?;
-    assert!(parsed.source().contains("Profile include."));
-    assert!(!parsed.source().contains("include::"));
+    assert!(parsed.preprocessed_source().contains("Profile include."));
+    assert!(!parsed.preprocessed_source().contains("include::"));
     Ok(())
 }
 

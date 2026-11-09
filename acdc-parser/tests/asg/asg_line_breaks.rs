@@ -33,7 +33,7 @@ fn semantic_breaks_keep_wrapping_literal_text_and_nested_locations() -> Result<(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         assert_eq!(count(&value), 4);
         assert_eq!(
@@ -51,7 +51,7 @@ fn semantic_breaks_keep_wrapping_literal_text_and_nested_locations() -> Result<(
         assert!(value.pointer("/blocks/0/inlines/1/location").is_some());
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/inlines/1")
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/inlines/1")
         );
     }
     Ok(())
@@ -74,7 +74,7 @@ fn prepared_content_attributes_keep_breaks_without_markup_or_fake_locations() ->
     .with_title(Title::new(nodes));
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     for path in [
         "/blocks/0/title/1",
         "/blocks/0/inlines/0/alt/1",
@@ -96,7 +96,7 @@ fn soft_wrapping_and_literal_plus_signs_do_not_become_breaks() -> Result<(), Err
         "....\nLiteral +\nnewline\n....",
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(count(&value), 0, "{source}");
         assert!(
             value
@@ -111,7 +111,7 @@ fn soft_wrapping_and_literal_plus_signs_do_not_become_breaks() -> Result<(), Err
 #[test]
 fn inline_break_schema_is_closed_and_distinct_from_page_breaks() -> Result<(), Error> {
     let parsed = parse("First +\nsecond", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

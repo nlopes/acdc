@@ -103,7 +103,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             }
             let guard = (substitutions
                 .precedes(&Substitution::Callouts, &Substitution::Replacements)
-                && matches!(inlines.peek(), Some(InlineNode::CalloutRef(_))))
+                && matches!(inlines.peek(), Some(InlineNode::CalloutMarker(_))))
             .then(|| callout_guard(text.content, comment_prefix))
             .flatten();
             let end = guard.unwrap_or(text.content.len());
@@ -137,7 +137,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             }
         } else {
             xml_tail = substitutions.precedes(&Substitution::Callouts, &Substitution::Replacements)
-                && matches!(node, InlineNode::CalloutRef(_))
+                && matches!(node, InlineNode::CalloutMarker(_))
                 && matches!(resolved.last(), Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--"));
             resolved.push(node);
         }

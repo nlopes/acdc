@@ -48,7 +48,7 @@ fn keyboard_boundaries_follow_attribute_substitution_order(
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph.content().inlines().find_map(|node| {
-                    if let InlineKind::Keyboard(keyboard) = node.kind() {
+                    if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
                         Some(keyboard)
                     } else {
                         None
@@ -85,7 +85,7 @@ fn menu_boundaries_follow_attribute_substitution_order(
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph.content().inlines().find_map(|node| {
-                    if let InlineKind::Menu(menu) = node.kind() {
+                    if let InlineKind::MenuPath(menu) = node.kind() {
                         Some(menu)
                     } else {
                         None
@@ -121,7 +121,7 @@ fn keyboard_passthroughs_stay_within_one_macro(
         })
         .flatten()
         .filter_map(|node| {
-            if let InlineKind::Keyboard(keyboard) = node.kind() {
+            if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
                 Some(keyboard.keys().map(text).collect::<Vec<_>>())
             } else {
                 None
@@ -146,7 +146,7 @@ fn expanded_keys_keep_the_authored_reference_location(
     for block in parsed.document().blocks() {
         if let BlockKind::Paragraph(paragraph) = block.kind() {
             for node in paragraph.content().inlines() {
-                if let InlineKind::Keyboard(keyboard) = node.kind() {
+                if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
                     for key in keyboard.keys() {
                         for node in key.inlines() {
                             locations.push((
@@ -178,7 +178,7 @@ fn retained_attribute_profiles_keep_rich_keys_together(
         .find_map(|block| {
             if let BlockKind::Paragraph(paragraph) = block.kind() {
                 paragraph.content().inlines().find_map(|node| {
-                    if let InlineKind::Keyboard(keyboard) = node.kind() {
+                    if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
                         Some(keyboard)
                     } else {
                         None

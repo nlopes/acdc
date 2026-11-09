@@ -76,7 +76,7 @@ fn incomplete_links_preserve_complete_nested_macros() -> Result<(), Error> {
         .content()
         .inlines()
         .filter_map(|node| {
-            if let InlineKind::Url(link) = node.kind() {
+            if let InlineKind::UrlMacro(link) = node.kind() {
                 Some(link)
             } else {
                 None
@@ -116,15 +116,15 @@ fn incomplete_links_cannot_be_completed_by_late_attributes() -> Result<(), Error
                     InlineKind::Footnote(_)
                         | InlineKind::Icon(_)
                         | InlineKind::Image(_)
-                        | InlineKind::Keyboard(_)
+                        | InlineKind::KeyboardShortcut(_)
                         | InlineKind::Button(_)
-                        | InlineKind::Menu(_)
-                        | InlineKind::Url(_)
+                        | InlineKind::MenuPath(_)
+                        | InlineKind::UrlMacro(_)
                         | InlineKind::Link(_)
                         | InlineKind::Mailto(_)
                         | InlineKind::Autolink(_)
                         | InlineKind::CrossReference(_)
-                        | InlineKind::Pass(_)
+                        | InlineKind::Passthrough(_)
                         | InlineKind::Stem(_)
                         | InlineKind::IndexTerm(_)
                 )),

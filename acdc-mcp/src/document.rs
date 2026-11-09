@@ -118,7 +118,7 @@ impl Document {
         if cancelled.is_cancelled() {
             return Err(Error::Cancelled);
         }
-        if parsed.source().len() > MAX_ASSEMBLED_BYTES {
+        if parsed.preprocessed_source().len() > MAX_ASSEMBLED_BYTES {
             return Err(Error::Input("assembled source exceeds 16 MiB".into()));
         }
         if strict && let Some(warning) = parsed.source_recovery() {

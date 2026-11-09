@@ -77,7 +77,7 @@ fn caller_option_captures_front_matter_before_parsing() -> TestResult {
         Some("layout: default\ntags: [one, two]")
     );
     assert_eq!(
-        parsed.source(),
+        parsed.preprocessed_source(),
         "= Document Title\n\nCaptured: {front-matter}"
     );
     assert_eq!(
@@ -152,7 +152,7 @@ fn source_cannot_enable_front_matter_processing() -> TestResult {
     let source = ":skip-front-matter:\n---\nvalue\n---\n";
     let parsed = parse(source, &Options::default())?;
 
-    assert_eq!(parsed.source(), source.trim_end());
+    assert_eq!(parsed.preprocessed_source(), source.trim_end());
     assert!(!parsed.document().attributes().contains("skip-front-matter"));
     assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
@@ -163,7 +163,7 @@ fn unterminated_front_matter_is_left_unchanged() -> TestResult {
     let source = "---\nvalue\n= Title\n";
     let parsed = parse(source, &options()?)?;
 
-    assert_eq!(parsed.source(), source.trim_end());
+    assert_eq!(parsed.preprocessed_source(), source.trim_end());
     assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }
@@ -263,7 +263,7 @@ fn include_front_matter_is_removed_before_indent_is_applied() -> TestResult {
             .build()?,
     )?;
 
-    assert_eq!(parsed.source(), "= Main\n\n  Child content");
+    assert_eq!(parsed.preprocessed_source(), "= Main\n\n  Child content");
     assert!(!parsed.document().attributes().contains("front-matter"));
     Ok(())
 }

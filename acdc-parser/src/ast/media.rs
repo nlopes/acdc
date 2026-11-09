@@ -138,7 +138,7 @@ impl<'doc> SourceRef<'doc> {
     /// A trailing URL slash or a non-UTF-8 filename returns `None`.
     #[must_use]
     pub fn file_name(self) -> Option<&'doc str> {
-        self.source.get_filename()
+        self.source.file_name()
     }
 
     /// The target's semantic kind and value.

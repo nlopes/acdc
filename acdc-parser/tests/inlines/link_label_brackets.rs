@@ -48,7 +48,7 @@ fn link_label_brackets_remove_one_escape_and_keep_source_spans() -> Result<(), E
             assert!(matches!(suffix.kind(), InlineKind::Plain(_)));
             let text = if let InlineKind::Link(link) = node.kind() {
                 link.text()
-            } else if let InlineKind::Url(url) = node.kind() {
+            } else if let InlineKind::UrlMacro(url) = node.kind() {
                 url.text()
             } else if let InlineKind::Mailto(mailto) = node.kind() {
                 mailto.text()

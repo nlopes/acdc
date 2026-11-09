@@ -79,7 +79,7 @@ pub fn contains_index_section<'doc>(mut blocks: impl Iterator<Item = BlockRef<'d
             .items()
             .any(|item| contains_index_section(item.blocks())),
         BlockKind::Paragraph(_)
-        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DiscreteHeading(_)
         | BlockKind::DocumentAttribute(_)
         | BlockKind::TableOfContents(_)
         | BlockKind::ThematicBreak(_)

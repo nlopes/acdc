@@ -36,7 +36,7 @@ pub(super) fn document(document: DocumentRef<'_>) -> Result<Value, Error> {
         })
         .collect::<Vec<_>>();
     copy.set_references(references);
-    let mut value = acdc_parser::asg::document((&copy).into())?;
+    let mut value = acdc_parser::asg::export_document((&copy).into())?;
     let mut required = HashSet::new();
     reference_targets(&value, &mut required);
     omit_generated_ids(&mut value, &generated, &required);
@@ -125,7 +125,7 @@ fn blocks<'doc>(values: impl IntoIterator<Item = Block<'doc>>) -> Result<Vec<Blo
                     list.set_items(items);
                 }
                 Block::TableOfContents(_)
-                | Block::DiscreteHeader(_)
+                | Block::DiscreteHeading(_)
                 | Block::DocumentAttribute(_)
                 | Block::ThematicBreak(_)
                 | Block::PageBreak(_)
@@ -199,7 +199,7 @@ mod tests {
         )?;
         let document = parsed.document();
         let native = serde_json::to_value(document)?;
-        let rich = asg::document_with_profile(document, asg::Profile::Acdc)?;
+        let rich = asg::export_document_with_profile(document, asg::Profile::Acdc)?;
         let smaller = super::document(document)?;
         assert_eq!(
             smaller.pointer("/blocks/0/id"),
@@ -209,10 +209,10 @@ mod tests {
         assert_eq!(native, serde_json::to_value(document)?);
         assert_eq!(
             rich,
-            asg::document_with_profile(document, asg::Profile::Acdc)?
+            asg::export_document_with_profile(document, asg::Profile::Acdc)?
         );
         assert!(
-            matches!(asg::document(document), Err(asg::Error::Unsupported { path, .. }) if path.ends_with("/caption"))
+            matches!(asg::export_document(document), Err(asg::Error::Unsupported { path, .. }) if path.ends_with("/caption"))
         );
         Ok(())
     }

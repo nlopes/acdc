@@ -54,7 +54,7 @@ fn document_reftext_overrides_the_header_label_for_both_targets() -> Result<(), 
             }
             #[cfg(feature = "asg")]
             {
-                let asg = acdc_parser::asg::document_with_profile(
+                let asg = acdc_parser::asg::export_document_with_profile(
                     parsed.document(),
                     acdc_parser::asg::Profile::Acdc,
                 )?;
@@ -122,7 +122,8 @@ fn authored_header_content_survives_export_and_reference_repair(
     let prepared_label = ContentAttribute::from(label);
     #[cfg(feature = "asg")]
     {
-        let asg = acdc_parser::asg::document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
+        let asg =
+            acdc_parser::asg::export_document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
         assert_eq!(
             asg.pointer("/header/reftext/0/inlines/0/value")
                 .and_then(serde_json::Value::as_str),

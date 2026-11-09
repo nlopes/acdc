@@ -6,14 +6,12 @@ use std::{
     time::Instant,
 };
 
-use acdc_converters_core::{
-    ConversionResult, Converter, Diagnostics, Options, PrettyDuration, WarningSource,
-};
+use acdc_converters_core::{ConversionResult, Diagnostics, Options, PrettyDuration, WarningSource};
 use acdc_parser::ast::DocumentRef;
 
-use crate::{Error, PDF_BACKEND, PdfOptions, Processor};
+use crate::{Converter, Error, PDF_BACKEND, PdfOptions};
 
-impl<'a> Converter<'a> for Processor<'a> {
+impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
     type Error = Error;
 
     fn new(
@@ -102,7 +100,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         )?;
         if let Some(start) = start {
             let elapsed = start.elapsed();
-            println!("  Time to convert document: {}", elapsed.pretty_print());
+            println!("  Time to convert document: {}", elapsed.format_human());
         }
         println!("Generated {} file: {}", self.name(), output_path.display());
         Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
@@ -120,28 +118,29 @@ impl<'a> Converter<'a> for Processor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_converters_core::Converter as _;
 
     #[test]
     fn constructor_applies_pdf_backend_profile() -> Result<(), Box<dyn std::error::Error>> {
-        let processor = Processor::new(Options::default(), acdc_parser::Options::builder())?;
+        let converter = Converter::new(Options::default(), acdc_parser::Options::builder())?;
 
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("pdf")
         );
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("basebackend")
                 .and_then(|value| value.text()),
             Some("html")
         );
-        assert!(processor.document_attributes().contains_key("backend-pdf"));
+        assert!(converter.document_attributes().contains_key("backend-pdf"));
         assert!(
-            !processor
+            !converter
                 .document_attributes()
                 .contains_key("part-signifier")
         );

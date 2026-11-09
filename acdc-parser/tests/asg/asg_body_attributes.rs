@@ -63,7 +63,7 @@ fn body_events_keep_header_snapshot_values_and_media_order() -> Result<(), Error
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse_file(&source, &options)?;
         let native = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
@@ -113,14 +113,14 @@ fn body_events_keep_header_snapshot_values_and_media_order() -> Result<(), Error
 fn strict_export_and_unresolved_value_errors_remain_explicit() -> Result<(), Error> {
     let parsed = parse("Before.\n\n:feature: false\n\nAfter.", &Options::default())?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1")
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1")
     );
     let parsed = parse(
         "Before.\n\n:feature: pass:[*protected*]\n\nAfter.",
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1/assignment/value")
+        matches!(asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/1/assignment/value")
     );
     Ok(())
 }
@@ -174,7 +174,7 @@ fn trailing_open_block_attributes_keep_source_order(
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let parsed = parse(&source, &options)?;
     let native = serde_json::to_value(parsed.document())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let blocks = value
         .get("blocks")
         .and_then(Value::as_array)

@@ -1,10 +1,10 @@
 use acdc_converters_core::{
-    Converter, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
+    Converter as _, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
     visitor::DocumentVisitor,
 };
 use acdc_parser::{Options as ParserOptions, parse};
 
-use crate::{Capabilities, Processor, TerminalVisitor};
+use crate::{Capabilities, Converter, TerminalVisitor};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -27,7 +27,7 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
         let source = format!("= T\n\n{wrapper}\n:imagesdir: inside\n\nContent.\n{close}\n");
         let parsed = parse(&source, &ParserOptions::default())?;
         let document = parsed.document();
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
@@ -38,7 +38,7 @@ fn buffered_blocks_share_attributes_but_asciidoc_cells_restore_them() -> Result<
         let source = WarningSource::new("terminal");
         let mut warnings = Vec::new();
         let diagnostics = Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(Vec::new(), &processor, diagnostics);
+        let mut visitor = TerminalVisitor::new(Vec::new(), &converter, diagnostics);
         visitor.visit_document(&mut traversal, document)?;
         drop(visitor);
         assert_eq!(
@@ -55,7 +55,7 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
     let doc = parsed.document();
     let block = doc.blocks().next().ok_or("missing test block")?;
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -66,9 +66,9 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     {
         let attribute_header =
-            acdc_converters_core::Converter::document_attributes(&processor).clone();
+            acdc_converters_core::Converter::document_attributes(&converter).clone();
         let mut traversal = TraversalContext::new(&attribute_header);
-        let mut visitor = TerminalVisitor::new(&mut output, &processor, diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(&mut output, &converter, diagnostics.reborrow());
         visitor.visit_unhandled_block(&mut traversal, block);
     }
 

@@ -119,7 +119,7 @@ fn document_attribute_text_pass_keeps_complete_reference_spans() -> Result<(), E
                 ) {
                     count += 1;
                     assert_eq!(
-                        &parsed.source()
+                        &parsed.preprocessed_source()
                             [node.location().absolute_start()..=node.location().absolute_end()],
                         "{raw}"
                     );
@@ -139,10 +139,14 @@ fn document_attribute_text_pass_preprocessor_handles_line_endings() -> Result<()
     for newline in ["\n", "\r\n"] {
         let source = source.replace('\n', newline);
         let parsed = parse(&source, &Options::default())?;
-        assert!(parsed.source().contains("T13 Definition-time condition."));
-        assert!(parsed.source().contains("T14 Empty is set."));
-        assert!(!parsed.source().contains("ifeval::"));
-        assert!(!parsed.source().contains("ifdef::"));
+        assert!(
+            parsed
+                .preprocessed_source()
+                .contains("T13 Definition-time condition.")
+        );
+        assert!(parsed.preprocessed_source().contains("T14 Empty is set."));
+        assert!(!parsed.preprocessed_source().contains("ifeval::"));
+        assert!(!parsed.preprocessed_source().contains("ifdef::"));
     }
     Ok(())
 }

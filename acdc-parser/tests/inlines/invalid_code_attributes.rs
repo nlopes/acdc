@@ -43,7 +43,7 @@ fn invalid_code_boundaries_do_not_hide_attribute_references() -> Result<(), Erro
                 assert_eq!(text.text(), body.replace("{word}", expected), "{source:?}");
                 assert_eq!(
                     parsed
-                        .source()
+                        .preprocessed_source()
                         .get(text.location().absolute_start()..=text.location().absolute_end()),
                     Some(body.as_str())
                 );

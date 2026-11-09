@@ -47,10 +47,10 @@
 //! the ID, including the authored reference when an attribute was expanded.
 //!
 //! ```
-//! use acdc_parser::{Form, Options, parse, ast::{BlockKind, BoldRef, InlineKind}};
+//! use acdc_parser::{FormattingForm, Options, parse, ast::{BlockKind, BoldRef, InlineKind}};
 //!
 //! fn has_warning_role(span: BoldRef<'_>) -> bool {
-//!     span.form() == Form::Constrained && span.roles().contains("warning")
+//!     span.form() == FormattingForm::Constrained && span.roles().contains("warning")
 //! }
 //!
 //! let parsed = parse("A [.warning]*bold* word.", &Options::default())?;
@@ -226,7 +226,7 @@ mod values;
 pub use attributes::AttributesRef;
 pub use blocks::*;
 pub use captions::CaptionRef;
-pub use catalogs::{ReferenceRef, ReferencesRef, TocEntryRef};
+pub use catalogs::{ReferenceTargetRef, ReferencesRef, TocEntryRef};
 pub use content::{ContentListRef, ContentRef};
 pub use content_fields::{ContentFieldRef, ContentOwnerRef, ContentRole};
 pub use content_occurrences::ContentOccurrences;

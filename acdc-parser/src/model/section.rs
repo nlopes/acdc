@@ -10,7 +10,7 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{
     Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
-    InlineNode, Location, MAX_SECTION_LEVELS, Reference, Table, TocEntry,
+    InlineNode, Location, MAX_SECTION_LEVELS, ReferenceTarget, Table, TocEntry,
     model::{DocumentAttributeStatus, SectionOccurrence, SectionReference},
 };
 
@@ -549,7 +549,7 @@ impl NumberingState {
 pub(crate) fn renumber_sections<'a>(
     blocks: &mut [Block<'a>],
     toc_entries: &mut [TocEntry<'a>],
-    references: &mut HashMap<&'a str, Reference<'a>>,
+    references: &mut HashMap<&'a str, ReferenceTarget<'a>>,
     is_book: bool,
 ) {
     let mut state = NumberingState::default();
@@ -622,7 +622,7 @@ fn update_section_reference(
     section: &Section<'_>,
     name: &'static str,
     numbers: &SectionNumbers,
-    references: &mut HashMap<&str, Reference<'_>>,
+    references: &mut HashMap<&str, ReferenceTarget<'_>>,
 ) {
     if let Some(reference) = references.get_mut(section.id().as_ref())
         && match (&section.occurrence, &reference.occurrence) {
@@ -645,7 +645,7 @@ fn update_section_reference(
 pub(crate) fn number_parsed_sections<'a>(
     blocks: &mut [Block<'a>],
     toc_entries: &mut [TocEntry<'a>],
-    references: &mut HashMap<&'a str, Reference<'a>>,
+    references: &mut HashMap<&'a str, ReferenceTarget<'a>>,
     is_book: bool,
 ) {
     let mut state = NumberingState::default();
@@ -795,7 +795,7 @@ fn renumber_blocks<'a, F>(
                 }
             }
             Block::Paragraph(_)
-            | Block::DiscreteHeader(_)
+            | Block::DiscreteHeading(_)
             | Block::PageBreak(_)
             | Block::ThematicBreak(_)
             | Block::TableOfContents(_)
@@ -1074,10 +1074,10 @@ impl<'a> Section<'a> {
                 InlineNode::SuperscriptText(text) => {
                     Self::append_id_from_inlines(&text.content, append);
                 }
-                InlineNode::CurvedQuotationText(text) => {
+                InlineNode::DoubleQuotedSpan(text) => {
                     Self::append_id_from_inlines(&text.content, append);
                 }
-                InlineNode::CurvedApostropheText(text) => {
+                InlineNode::SingleQuotedSpan(text) => {
                     Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::Symbol(symbol) => {
@@ -1093,7 +1093,7 @@ impl<'a> Section<'a> {
                 InlineNode::Macro(macro_node) => {
                     Self::append_id_from_macro(macro_node, append);
                 }
-                InlineNode::CalloutRef(callout) => {
+                InlineNode::CalloutMarker(callout) => {
                     append(&format!("<{}>", callout.number));
                 }
             }
@@ -1109,7 +1109,7 @@ impl<'a> Section<'a> {
                     Self::append_id_from_inlines(&link.text, append);
                 }
             }
-            InlineMacro::Url(url) => {
+            InlineMacro::UrlMacro(url) => {
                 if url.text.is_empty() {
                     append(&url.target.to_string());
                 } else {
@@ -1136,10 +1136,10 @@ impl<'a> Section<'a> {
             InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
                 Self::append_id_from_inlines(index_term.term(), append);
             }
-            InlineMacro::Pass(pass) => {
+            InlineMacro::Passthrough(pass) => {
                 append(pass.text.unwrap_or_default());
             }
-            InlineMacro::Keyboard(keyboard) => {
+            InlineMacro::KeyboardShortcut(keyboard) => {
                 for (index, key) in keyboard.keys.iter().enumerate() {
                     if index > 0 {
                         append("+");
@@ -1150,7 +1150,7 @@ impl<'a> Section<'a> {
             InlineMacro::Button(button) => {
                 Self::append_id_from_inlines(button.label.as_inlines(), append);
             }
-            InlineMacro::Menu(menu) => {
+            InlineMacro::MenuPath(menu) => {
                 for (index, item) in menu.items.iter().enumerate() {
                     if index > 0 {
                         append(" > ");
@@ -1218,7 +1218,7 @@ impl Serialize for Section<'_> {
         state.serialize_entry("type", "block")?;
         state.serialize_entry("title", &self.title)?;
         state.serialize_entry("level", &self.level)?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if !self.content.is_empty() {
@@ -1301,7 +1301,7 @@ mod tests {
             ("after", "chapter", "2"),
         ] {
             let reference = document.references.get(id).ok_or("missing reference")?;
-            assert_eq!(reference.section_name(), Some(name), "{id}");
+            assert_eq!(reference.section_category(), Some(name), "{id}");
             assert_eq!(reference.section_number(), Some(number), "{id}");
         }
         Ok(())
@@ -1328,7 +1328,11 @@ mod tests {
                 .references
                 .get(id)
                 .ok_or("missing reference")?;
-            assert_eq!(reference.section_name(), original.section_name(), "{id}");
+            assert_eq!(
+                reference.section_category(),
+                original.section_category(),
+                "{id}"
+            );
             assert_eq!(
                 reference.section_number(),
                 original.section_number(),

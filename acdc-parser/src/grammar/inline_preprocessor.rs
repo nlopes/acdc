@@ -18,7 +18,7 @@ use std::{
 };
 
 use crate::{
-    DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
+    DocumentAttributes, Error, Location, Passthrough, PassthroughKind, Position, SourceLocation,
     Substitution, Warning, WarningKind,
     grammar::{
         LineMap,
@@ -39,7 +39,7 @@ use crate::{
 #[derive(Debug)]
 pub(crate) struct InlinePreprocessorParserState<'a> {
     pass_found_count: Cell<usize>,
-    pub(super) passthroughs: RefCell<Vec<Pass<'a>>>,
+    pub(super) passthroughs: RefCell<Vec<Passthrough<'a>>>,
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
     /// Pre-computed line map for O(log n) offset→position lookups.
@@ -128,7 +128,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             placeholder.len(),
             ProcessedKind::Passthrough,
         );
-        self.passthroughs.borrow_mut().push(Pass {
+        self.passthroughs.borrow_mut().push(Passthrough {
             attribute_fragments: Box::default(),
             text: Some(source),
             substitutions: vec![Substitution::SpecialChars],
@@ -281,7 +281,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             placeholder.len(),
             ProcessedKind::Passthrough,
         );
-        self.passthroughs.borrow_mut().push(Pass {
+        self.passthroughs.borrow_mut().push(Passthrough {
             attribute_fragments: Box::default(),
             text: Some(content),
             substitutions,
@@ -358,7 +358,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
             let content = &source[start + 1..end];
             let location = self.location_from_offsets(source_start + start, source_start + end + 1);
-            self.passthroughs.borrow_mut().push(Pass {
+            self.passthroughs.borrow_mut().push(Passthrough {
                 attribute_fragments: Box::default(),
                 text: Some(content),
                 substitutions: vec![Substitution::SpecialChars],
@@ -474,7 +474,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         {
             let absolute_start = location.absolute_start;
             let absolute_end = location.absolute_end;
-            self.passthroughs.borrow_mut().push(Pass {
+            self.passthroughs.borrow_mut().push(Passthrough {
                 attribute_fragments: resolved.inline_fragments().into(),
                 text: Some(self.arena.alloc_str(value.as_ref())),
                 substitutions: Vec::new(),
@@ -547,7 +547,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 #[derive(Debug)]
 pub(crate) struct ProcessedContent<'a> {
     pub(crate) text: Cow<'a, str>,
-    pub(crate) passthroughs: Vec<Pass<'a>>,
+    pub(crate) passthroughs: Vec<Passthrough<'a>>,
     pub(super) source_map: SourceMap,
     pub(super) attribute_substitutions: crate::model::substitution::SubstitutionPlan,
 }

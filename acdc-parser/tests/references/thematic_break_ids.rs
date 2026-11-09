@@ -1,7 +1,7 @@
 use acdc_parser::{
     Anchor, Block, CompatibilityMode, ContentAttribute, Document, Location, Options, Plain,
     ThematicBreak, WarningKind,
-    ast::{AnchorRef, BlockRef, ContentRef, DocumentRef, InlineKind, ReferenceRef},
+    ast::{AnchorRef, BlockRef, ContentRef, DocumentRef, InlineKind, ReferenceTargetRef},
     parse,
 };
 
@@ -52,7 +52,8 @@ fn source_ids_and_labels_survive_reads_exports_and_repair(
     assert_eq!(parsed.warnings(), []);
     #[cfg(feature = "asg")]
     {
-        let value = acdc_parser::asg::document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
+        let value =
+            acdc_parser::asg::export_document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
         assert_eq!(
             value
                 .pointer("/blocks/0/id")
@@ -97,7 +98,7 @@ fn named_labels_resolve_natural_references(
                 .document()
                 .references()
                 .get("second")
-                .and_then(ReferenceRef::xreflabel)
+                .and_then(ReferenceTargetRef::xreflabel)
         )
         .as_deref(),
         Some("Selected label")
@@ -119,14 +120,15 @@ fn unused_declarations_do_not_reserve_another_blocks_id(
         label_text(
             read.references()
                 .get("shared")
-                .and_then(ReferenceRef::xreflabel)
+                .and_then(ReferenceTargetRef::xreflabel)
         )
         .as_deref(),
         Some("Paragraph label")
     );
     #[cfg(feature = "asg")]
     {
-        let value = acdc_parser::asg::document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
+        let value =
+            acdc_parser::asg::export_document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
         assert_eq!(
             value
                 .pointer("/references/shared/owner")
@@ -157,7 +159,7 @@ fn duplicate_primary_ids_keep_the_first_label(
                 .document()
                 .references()
                 .get("shared")
-                .and_then(ReferenceRef::xreflabel)
+                .and_then(ReferenceTargetRef::xreflabel)
         )
         .as_deref(),
         Some("First label")
@@ -172,12 +174,9 @@ fn prepared_selection_does_not_invent_registration_or_source_locations() -> Resu
     let mut rule = ThematicBreak::new(Location::default());
     rule.set_anchors([
         Anchor::new("first", Location::default()),
-        Anchor::new("second", Location::default()).with_xreflabel(Some(ContentAttribute::new(
-            vec![acdc_parser::InlineNode::PlainText(Plain::new(
-                "Selected",
-                Location::default(),
-            ))],
-        ))),
+        Anchor::new("second", Location::default()).with_reftext(Some(ContentAttribute::new(vec![
+            acdc_parser::InlineNode::PlainText(Plain::new("Selected", Location::default())),
+        ]))),
     ]);
     let mut document = Document::default();
     document.push_block(Block::ThematicBreak(rule));
@@ -196,7 +195,8 @@ fn prepared_selection_does_not_invent_registration_or_source_locations() -> Resu
     assert_catalog(read, Some("Selected"))?;
     #[cfg(feature = "asg")]
     {
-        let value = acdc_parser::asg::document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
+        let value =
+            acdc_parser::asg::export_document_with_profile(read, acdc_parser::asg::Profile::Acdc)?;
         assert!(value.pointer("/blocks/0/id_location").is_none());
         assert!(value.pointer("/blocks/0/anchors/0/location").is_none());
     }

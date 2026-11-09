@@ -196,7 +196,7 @@ fn block_to_symbol(block: BlockRef<'_>, range: Range) -> Option<DocumentSymbol> 
             range,
             Some("Video".to_string()),
         )),
-        BlockKind::DiscreteHeader(header) => Some(make_symbol(
+        BlockKind::DiscreteHeading(header) => Some(make_symbol(
             title_text(header.title()),
             SymbolKind::KEY,
             range,
@@ -307,7 +307,7 @@ fn delimited_block_to_symbol(block: BlockRef<'_>, range: Range) -> DocumentSymbo
         BlockKind::DelimitedComment(_)
         | BlockKind::TableOfContents(_)
         | BlockKind::Admonition(_)
-        | BlockKind::DiscreteHeader(_)
+        | BlockKind::DiscreteHeading(_)
         | BlockKind::DocumentAttribute(_)
         | BlockKind::ThematicBreak(_)
         | BlockKind::PageBreak(_)

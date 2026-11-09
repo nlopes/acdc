@@ -31,7 +31,7 @@ fn partial_identity_ranges_remain_visible_and_fail_export() -> Result<(), Error>
         Location::default(),
     )));
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::InvalidLocation{path,..}) if path == "/blocks/0/inlines/0/location/0")
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::InvalidLocation{path,..}) if path == "/blocks/0/inlines/0/location/0")
     );
     Ok(())
 }
@@ -113,7 +113,7 @@ fn generated_ids_have_no_token_spans_and_unknown_anchors_export_without_them() -
     use acdc_parser::{Block, Document, InlineNode, Options, Paragraph, asg, parse};
     use serde_json::json;
     let parsed = parse("== Generated\n\nBody.", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/blocks/0/id"), Some(&json!("_generated")));
     assert!(value.pointer("/blocks/0/id_location").is_none());
     assert!(value.pointer("/references/_generated/location").is_some());
@@ -125,7 +125,7 @@ fn generated_ids_have_no_token_spans_and_unknown_anchors_export_without_them() -
         ))],
         Location::default(),
     )));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0/id"),
         Some(&json!("caller"))

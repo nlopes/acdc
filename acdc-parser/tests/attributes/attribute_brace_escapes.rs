@@ -13,7 +13,7 @@ fn escaped_attribute_references_keep_complete_source_spans() -> Result<(), Error
             let source = format!("= T{newline}:value: *Bold*{newline}{newline}α {escaped} ω.");
             let parsed = parse(&source, &Options::default())?;
             // Byte offsets refer to the grammar input after line-ending normalization.
-            let source = parsed.source();
+            let source = parsed.preprocessed_source();
             let [BlockKind::Paragraph(paragraph)] = &*parsed
                 .document()
                 .blocks()

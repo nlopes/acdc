@@ -1,5 +1,5 @@
 use acdc_converters_core::Options;
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
@@ -17,12 +17,12 @@ fn convert(
             .build()?,
     )?;
     let before = Document::from(parsed.document());
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::default(),
         ParserOptions::builder().with_compatibility_mode(mode),
         variant,
     )?;
-    let output = processor.convert_to_string(
+    let output = converter.convert_to_string(
         parsed.document(),
         &RenderOptions {
             embedded,
@@ -160,14 +160,14 @@ fn suppressed_header_and_footer_keep_docinfo(
         "= Docinfo\n:docinfo: shared-header,shared-footer\n:noheader:\n:nofooter:\n\nContent.\n",
         &ParserOptions::default(),
     )?;
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::builder()
             .safe_mode(acdc_parser::SafeMode::Unsafe)
             .build(),
         ParserOptions::builder(),
         variant,
     )?;
-    let output = processor.convert_to_string(
+    let output = converter.convert_to_string(
         parsed.document(),
         &RenderOptions {
             source_dir: Some(directory.path().to_path_buf()),

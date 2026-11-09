@@ -20,7 +20,7 @@ fn notation_literal_formula_and_escaping_stay_resolved() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (index, text_name) in [(0, "text"), (1, "text"), (2, "raw"), (3, "raw")] {
             let owner = format!("/blocks/{index}");
@@ -76,7 +76,7 @@ fn prepared_formula_text_and_empty_presence_are_not_reparsed() -> Result<(), Err
                 "++++",
                 Location::default(),
             )));
-            let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+            let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
             assert_eq!(
                 value.pointer("/blocks/0/notation"),
                 Some(&json!(notation.to_string()))
@@ -100,18 +100,18 @@ fn prepared_formula_text_and_empty_presence_are_not_reparsed() -> Result<(), Err
 fn undelimited_styles_stay_paragraphs_and_strict_notation_rejects() -> Result<(), Error> {
     for style in ["stem", "latexmath", "asciimath"] {
         let parsed = parse(&format!("[{style}]\nx+y"), &Options::default())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value.pointer("/blocks/0/name"), Some(&json!("paragraph")));
         assert_eq!(
             value.pointer("/blocks/0/metadata/attributes/style"),
             Some(&json!(style))
         );
         assert!(value.pointer("/blocks/0/notation").is_none());
-        assert!(asg::document(parsed.document()).is_ok());
+        assert!(asg::export_document(parsed.document()).is_ok());
     }
     let parsed = parse("[stem]\n++++\nx+y\n++++", &Options::default())?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("STEM block"),..}) if path == "/blocks/0/notation")
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("STEM block"),..}) if path == "/blocks/0/notation")
     );
     let mut document = Document::default();
     document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
@@ -120,7 +120,7 @@ fn undelimited_styles_stay_paragraphs_and_strict_notation_rejects() -> Result<()
         Location::default(),
     )));
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/delimiter")
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/delimiter")
     );
     Ok(())
 }
@@ -128,7 +128,7 @@ fn undelimited_styles_stay_paragraphs_and_strict_notation_rejects() -> Result<()
 #[test]
 fn mathematical_schema_is_closed_and_rejects_prose_in_formula_bodies() -> Result<(), Error> {
     let parsed = parse("[stem]\n++++\nx+y\n++++", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

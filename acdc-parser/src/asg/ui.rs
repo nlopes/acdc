@@ -23,12 +23,12 @@ pub(super) fn project(
                 settings,
             )?,
         ),
-        InlineMacro::Keyboard(value) => (
+        InlineMacro::KeyboardShortcut(value) => (
             "keyboard",
             "keys",
             labels(&value.keys, &pointer(path, "keys"), settings)?,
         ),
-        InlineMacro::Menu(value) => {
+        InlineMacro::MenuPath(value) => {
             return Ok(Map::from_iter([
                 ("name".into(), "menu".into()),
                 ("type".into(), "inline".into()),
@@ -47,14 +47,14 @@ pub(super) fn project(
             ]));
         }
         InlineMacro::Link(_)
-        | InlineMacro::Url(_)
+        | InlineMacro::UrlMacro(_)
         | InlineMacro::Mailto(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::CrossReference(_)
         | InlineMacro::Footnote(_)
         | InlineMacro::Icon(_)
         | InlineMacro::Image(_)
-        | InlineMacro::Pass(_)
+        | InlineMacro::Passthrough(_)
         | InlineMacro::Stem(_)
         | InlineMacro::IndexTerm(_) => {
             return Err(unsupported(path, "expected a supported interface macro"));

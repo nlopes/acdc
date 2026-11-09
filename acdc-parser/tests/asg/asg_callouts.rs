@@ -1,8 +1,8 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CalloutList, CalloutListItem, CalloutRef, CompatibilityMode, ContentAttribute, Document,
-    InlineNode, Location, Options, asg, parse, parse_file,
+    Block, CalloutList, CalloutListItem, CalloutMarker, CompatibilityMode, ContentAttribute,
+    Document, InlineNode, Location, Options, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -34,7 +34,7 @@ fn source_markers_numbers_locations_and_literal_code_are_preserved() -> Result<(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         let mut code = before.pointer("/blocks/0/inlines").ok_or("code")?.clone();
         for inline in code.as_array_mut().ok_or("code")? {
@@ -61,7 +61,7 @@ fn source_markers_numbers_locations_and_literal_code_are_preserved() -> Result<(
         );
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("callout"),..}) if path == "/blocks/0/inlines/1")
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("callout"),..}) if path == "/blocks/0/inlines/1")
         );
     }
     Ok(())
@@ -71,7 +71,7 @@ fn source_markers_numbers_locations_and_literal_code_are_preserved() -> Result<(
 fn scoped_numbers_keep_repeated_and_unmatched_associations() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/callouts.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let numbers = markers(value.pointer("/blocks/0/inlines").ok_or("code")?)?;
     assert_eq!(numbers, [1, 2, 1, 9]);
     for (index, number, count) in [(0, 1, 2), (1, 2, 1), (2, 3, 0)] {
@@ -97,7 +97,7 @@ fn scoped_numbers_keep_repeated_and_unmatched_associations() -> Result<(), Error
         "----\nfirst <1>\n----\n\nBetween.\n\n----\nsecond <2>\n----\n<1> First\n<2> Second",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         markers(value.pointer("/blocks/0/inlines").ok_or("first")?)?,
         [1]
@@ -113,11 +113,11 @@ fn scoped_numbers_keep_repeated_and_unmatched_associations() -> Result<(), Error
 #[test]
 fn prepared_markers_do_not_renumber_or_invent_locations() -> Result<(), Error> {
     let content = ContentAttribute::new(vec![
-        InlineNode::CalloutRef(CalloutRef::auto(42, Location::default())),
-        InlineNode::CalloutRef(CalloutRef::explicit(0, Location::default())),
+        InlineNode::CalloutMarker(CalloutMarker::auto(42, Location::default())),
+        InlineNode::CalloutMarker(CalloutMarker::explicit(0, Location::default())),
     ]);
     assert_eq!(
-        asg::inlines_with_profile((&content).into(), asg::Profile::Acdc)?,
+        asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc)?,
         json!([
             {"name":"callout","type":"inline","form":"auto","number":42},
             {"name":"callout","type":"inline","form":"explicit","number":0},
@@ -126,13 +126,13 @@ fn prepared_markers_do_not_renumber_or_invent_locations() -> Result<(), Error> {
     let mut document = Document::default();
     document.push_block(Block::CalloutList(CalloutList::new(
         vec![CalloutListItem::new(
-            CalloutRef::auto(42, Location::default()),
+            CalloutMarker::auto(42, Location::default()),
             Vec::new(),
             Location::default(),
         )],
         Location::default(),
     )));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/blocks/0/items/0/number"), Some(&json!(42)));
     assert_eq!(
         value.pointer("/blocks/0/items/0/marker"),
@@ -144,7 +144,7 @@ fn prepared_markers_do_not_renumber_or_invent_locations() -> Result<(), Error> {
             .is_none()
     );
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/items/0/callout/number")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/items/0/callout/number")
     );
     Ok(())
 }
@@ -153,7 +153,7 @@ fn prepared_markers_do_not_renumber_or_invent_locations() -> Result<(), Error> {
 fn callout_schema_closes_markers_and_scopes_item_numbers() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/callouts.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

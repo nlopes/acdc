@@ -83,7 +83,7 @@ after_write() (post-conversion, file on disk)
 
 Document attributes use an "insert is no-op if key exists" pattern — the parser sets user-provided values first, then `document_attributes_defaults()` fills in missing keys. This means user attributes always win.
 
-The `convert_to_writer()` method rebuilds the processor with the document's own attributes (which may differ from construction-time attributes due to in-document attribute definitions). This ensures the stylesheet pipeline sees the final merged attributes.
+The `convert_to_writer()` method rebuilds the converter with the document's own attributes (which may differ from construction-time attributes due to in-document attribute definitions). This ensures the stylesheet pipeline sees the final merged attributes.
 
 Key attributes and their defaults:
 

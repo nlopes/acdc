@@ -61,9 +61,9 @@ impl NamedDestination {
     }
 }
 
-/// A successfully rendered document.
+/// PDF bytes and non-fatal rendering warnings.
 #[derive(Debug)]
-pub struct Rendered {
+pub struct RenderedPdf {
     /// The PDF file contents.
     pub pdf: Vec<u8>,
     /// Non-fatal compilation and missing-glyph warnings, if any.
@@ -80,11 +80,11 @@ pub fn render_pdf(
     markup: &str,
     assets: &ImageMap,
     config: &RenderConfig,
-) -> Result<Rendered, Error> {
+) -> Result<RenderedPdf, Error> {
     let fonts = fonts::load(&config.font_dirs)?;
     let (pdf, warnings) =
         engine::render(markup.to_owned(), fonts, assets, &config.named_destinations)?;
-    Ok(Rendered { pdf, warnings })
+    Ok(RenderedPdf { pdf, warnings })
 }
 
 #[cfg(test)]

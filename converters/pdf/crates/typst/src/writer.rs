@@ -21,17 +21,17 @@ impl Writer {
     }
 
     /// Append raw markup verbatim (function calls, punctuation you control).
-    pub fn raw(&mut self, markup: &str) {
+    pub fn write_raw_markup(&mut self, markup: &str) {
         self.buffer.push_str(markup);
     }
 
     /// Append literal text, escaped for a content block.
-    pub fn text(&mut self, text: &str, at_line_start: bool) {
+    pub fn write_text(&mut self, text: &str, at_line_start: bool) {
         escape_markup(&mut self.buffer, text, at_line_start);
     }
 
     /// Append a Typst string literal (`"…"`) with the given contents escaped.
-    pub fn string_literal(&mut self, text: &str) {
+    pub fn write_string_literal(&mut self, text: &str) {
         self.buffer.push('"');
         escape_string(&mut self.buffer, text);
         self.buffer.push('"');
@@ -45,7 +45,7 @@ impl Writer {
 
 impl std::fmt::Write for Writer {
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        self.raw(s);
+        self.write_raw_markup(s);
         Ok(())
     }
 }
@@ -57,7 +57,7 @@ mod tests {
     #[test]
     fn public_text_boundary_escapes_each_line_start() {
         let mut writer = Writer::new();
-        writer.text("first\n- second", false);
+        writer.write_text("first\n- second", false);
 
         assert_eq!(writer.into_string(), "first\n\\- second");
     }
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn public_string_boundary_escapes_controls() {
         let mut writer = Writer::new();
-        writer.string_literal("line\n\u{7f}");
+        writer.write_string_literal("line\n\u{7f}");
 
         assert_eq!(writer.into_string(), "\"line\\n\\u{7f}\"");
     }

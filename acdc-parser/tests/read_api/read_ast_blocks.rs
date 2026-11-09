@@ -382,7 +382,7 @@ fn typed_heading_ids_can_be_owned_past_temporary_sources(
                 };
                 if let BlockKind::Section(section) = block.kind() {
                     Some(section.resolve_id().into_owned())
-                } else if let BlockKind::DiscreteHeader(header) = block.kind() {
+                } else if let BlockKind::DiscreteHeading(header) = block.kind() {
                     Some(header.resolve_id().into_owned())
                 } else {
                     None

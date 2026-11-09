@@ -1,7 +1,7 @@
 //! Construction and detached edits for structural boundary blocks.
 
 use super::{
-    Anchor, BlockMetadata, Comment, CommentKind, DiscreteHeader, DocumentAttribute, Location,
+    Anchor, BlockMetadata, Comment, CommentKind, DiscreteHeading, DocumentAttribute, Location,
     PageBreak, TableOfContents, ThematicBreak, Title,
 };
 
@@ -50,7 +50,7 @@ macro_rules! metadata_edits {
     };
 }
 
-metadata_edits!(DiscreteHeader, PageBreak, TableOfContents);
+metadata_edits!(DiscreteHeading, PageBreak, TableOfContents);
 
 macro_rules! title_edits {
     ($($name:ident),+ $(,)?) => {
@@ -78,7 +78,7 @@ macro_rules! title_edits {
     };
 }
 
-title_edits!(DiscreteHeader, PageBreak, ThematicBreak);
+title_edits!(DiscreteHeading, PageBreak, ThematicBreak);
 
 macro_rules! location_edits {
     ($($name:ident),+ $(,)?) => {
@@ -94,7 +94,7 @@ macro_rules! location_edits {
 }
 
 location_edits!(
-    DiscreteHeader,
+    DiscreteHeading,
     PageBreak,
     TableOfContents,
     ThematicBreak,
@@ -102,7 +102,7 @@ location_edits!(
     DocumentAttribute
 );
 
-impl<'a> DiscreteHeader<'a> {
+impl<'a> DiscreteHeading<'a> {
     /// Construct a discrete heading without assigning an ID or registering a target.
     #[must_use]
     pub fn new(title: Title<'a>, level: u8, location: Location) -> Self {

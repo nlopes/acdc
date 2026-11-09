@@ -5,11 +5,11 @@ use acdc_converters_core::{
     visitor::InlineVisitor,
 };
 use acdc_parser::{
-    CalloutRef, Document, Form, Highlight, InlineMacro, InlineNode, Location, Options, Plain, Raw,
-    Substitution, Verbatim, parse_inline,
+    CalloutMarker, Document, FormattingForm, Highlight, InlineMacro, InlineNode, Location, Options,
+    Plain, Raw, Substitution, Verbatim, parse_inline,
 };
 
-use crate::{Error, HtmlVariant, HtmlVisitor, Processor, RenderOptions};
+use crate::{Converter, Error, HtmlVariant, HtmlVisitor, RenderOptions};
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -17,7 +17,7 @@ type TestError = Box<dyn std::error::Error>;
 fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
     let document = Document::default();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let processor = Rc::new(Processor::new_with_variant(
+        let converter = Rc::new(Converter::new_with_variant(
             ConverterOptions::default(),
             Options::builder(),
             variant,
@@ -26,7 +26,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
-            processor,
+            converter,
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -39,7 +39,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
             let verbatim = Verbatim::new(&text, Location::default());
             visitor.render_plain((&plain).into(), &options, &[Substitution::Replacements])?;
             visitor.render_verbatim((&verbatim).into(), &[])?;
-            let callout = CalloutRef::explicit(3, Location::default());
+            let callout = CalloutMarker::explicit(3, Location::default());
             visitor.render_callout_ref(&traversal, (&callout).into())?;
             let source = String::from(
                 r"pass:m[pass:[temporary-pass\]] latexmath:[x < y] https://example.test footnote:temporary[Note]",
@@ -49,7 +49,7 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
                 acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
             let mut macros = 0;
             for node in fragment_inlines.as_slice() {
-                if let InlineNode::Macro(InlineMacro::Pass(pass)) = node {
+                if let InlineNode::Macro(InlineMacro::Passthrough(pass)) = node {
                     visitor.render_pass(pass.into())?;
                     macros += 1;
                 } else if let InlineNode::Macro(InlineMacro::Stem(stem)) = node {
@@ -96,7 +96,7 @@ impl io::Write for RefusingWriter {
 
 #[test]
 fn raw_capture_owns_text_even_when_writing_its_placeholder_fails() -> Result<(), TestError> {
-    let processor = Rc::new(Processor::new_with_variant(
+    let converter = Rc::new(Converter::new_with_variant(
         ConverterOptions::default(),
         Options::builder(),
         HtmlVariant::Standard,
@@ -105,7 +105,7 @@ fn raw_capture_owns_text_even_when_writing_its_placeholder_fails() -> Result<(),
     let mut warnings = Vec::new();
     let mut visitor = HtmlVisitor::new(
         RefusingWriter,
-        processor,
+        converter,
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
@@ -133,7 +133,7 @@ fn raw_capture_owns_text_even_when_writing_its_placeholder_fails() -> Result<(),
 #[test]
 fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Result<(), TestError>
 {
-    let processor = Rc::new(Processor::new_with_variant(
+    let converter = Rc::new(Converter::new_with_variant(
         ConverterOptions::default(),
         Options::builder(),
         HtmlVariant::Standard,
@@ -142,13 +142,14 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
     let mut warnings = Vec::new();
     let mut visitor = HtmlVisitor::new(
         RefusingWriter,
-        processor,
+        converter,
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
     let fragment = parse_inline(r"pass:m[pass:[content\]]", &Options::default())?;
     let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
-    let Some(InlineNode::Macro(InlineMacro::Pass(pass))) = fragment_inlines.as_slice().first()
+    let Some(InlineNode::Macro(InlineMacro::Passthrough(pass))) =
+        fragment_inlines.as_slice().first()
     else {
         return Err("expected a retained passthrough".into());
     };
@@ -168,7 +169,7 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
 fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), TestError> {
     let document = Document::default();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let processor = Rc::new(Processor::new_with_variant(
+        let converter = Rc::new(Converter::new_with_variant(
             ConverterOptions::default(),
             Options::builder(),
             variant,
@@ -177,7 +178,7 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             RefusingWriter,
-            processor,
+            converter,
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -186,7 +187,8 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
         {
             let role = String::from("big \t small big");
             let node = InlineNode::HighlightText({
-                let mut span = Highlight::new(Vec::new(), Form::Constrained, Location::default());
+                let mut span =
+                    Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
                 span.replace_role(Some(&role));
                 span
             });
@@ -216,7 +218,7 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
 fn rich_inline_sequences_restore_context_after_write_errors() -> Result<(), TestError> {
     let document = Document::default();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let processor = Rc::new(Processor::new_with_variant(
+        let converter = Rc::new(Converter::new_with_variant(
             ConverterOptions::default(),
             Options::builder(),
             variant,
@@ -225,7 +227,7 @@ fn rich_inline_sequences_restore_context_after_write_errors() -> Result<(), Test
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             RefusingWriter,
-            processor,
+            converter,
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -259,7 +261,7 @@ fn typed_content_can_be_dropped_before_the_visitor_in_each_render_mode() -> Resu
     let document = Document::default();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for (basic, toc) in [(false, false), (true, false), (false, true)] {
-            let processor = Rc::new(Processor::new_with_variant(
+            let converter = Rc::new(Converter::new_with_variant(
                 ConverterOptions::default(),
                 Options::builder(),
                 variant,
@@ -268,7 +270,7 @@ fn typed_content_can_be_dropped_before_the_visitor_in_each_render_mode() -> Resu
             let mut warnings = Vec::new();
             let mut visitor = HtmlVisitor::new(
                 Vec::new(),
-                processor,
+                converter,
                 RenderOptions {
                     inlines_basic: basic,
                     toc_mode: toc,
@@ -341,7 +343,7 @@ fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result
 
     let document = Document::default();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let processor = Rc::new(Processor::new_with_variant(
+        let converter = Rc::new(Converter::new_with_variant(
             ConverterOptions::default(),
             Options::builder(),
             variant,
@@ -350,7 +352,7 @@ fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
-            processor,
+            converter,
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -384,7 +386,7 @@ fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result
 #[test]
 fn escaped_text_keeps_html_character_escaping() -> Result<(), TestError> {
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let processor = Rc::new(Processor::new_with_variant(
+        let converter = Rc::new(Converter::new_with_variant(
             ConverterOptions::default(),
             Options::builder(),
             variant,
@@ -393,7 +395,7 @@ fn escaped_text_keeps_html_character_escaping() -> Result<(), TestError> {
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
-            processor,
+            converter,
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -419,7 +421,7 @@ fn escaped_text_keeps_html_character_escaping() -> Result<(), TestError> {
 
 #[test]
 fn retained_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
-    let processor = Rc::new(Processor::new_with_variant(
+    let converter = Rc::new(Converter::new_with_variant(
         ConverterOptions::default(),
         Options::builder(),
         HtmlVariant::Standard,
@@ -428,14 +430,14 @@ fn retained_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
     let mut warnings = Vec::new();
     let mut visitor = HtmlVisitor::new(
         Vec::new(),
-        processor,
+        converter,
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
     let fragment = parse_inline(r"pass:m[pass:c[<tag> & raw\]]", &Options::default())?;
     let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
     let node = fragment_inlines.as_slice().first().ok_or("passthrough")?;
-    let InlineNode::Macro(InlineMacro::Pass(pass)) = node else {
+    let InlineNode::Macro(InlineMacro::Passthrough(pass)) = node else {
         return Err("unprocessed pass macro".into());
     };
     visitor.render_pass(pass.into())?;

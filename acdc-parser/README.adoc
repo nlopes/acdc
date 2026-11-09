@@ -158,7 +158,7 @@ references do not create definitions or bind to a later declaration.
 Native JSON marks a cell owner with `footnote_scope: true` and retains each body
 in its defining occurrence. Named ASG puts canonical bodies in the owning cell's
 `footnotes` array, including an empty array for an owner without definitions.
-Prepared edits can select an owner with `TableColumn::set_footnotes()`; changing
+Prepared edits can select an owner with `TableCell::set_footnotes()`; changing
 a cell's style does not change ownership. `rebuild_footnotes()` repairs each
 owner separately and can reuse its retained catalog after a definition is removed.
 Index terms keep display labels separate from registration-time labels.
@@ -504,8 +504,8 @@ Native JSON uses the same node form for an index term and its enclosing inline n
 
 == Native AST JSON
 
-With the optional `asg` feature, `asg::document(parsed.document())` and
-`asg::inlines(parsed.content())` export a separate, checked draft ASG value.
+With the optional `asg` feature, `asg::export_document(parsed.document())` and
+`asg::export_inlines(parsed.content())` export a separate, checked draft ASG value.
 Unsupported semantic values return typed errors with JSON Pointer paths; export
 never changes the AST. The current subset covers headers and authors, unnumbered
 ordinary sections, paragraphs, promoted titles/reftext/IDs, plain or raw content,
@@ -514,10 +514,10 @@ inline span types. Literal reference-shaped text stays text. See
 link:schemas/asg/README.adoc[the support contract] for exact limits.
 
 For the named acdc extension, call
-`asg::document_with_profile(parsed.document(), asg::Profile::Acdc)`.
+`asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)`.
 Its output identifies `urn:acdc:asg:1` and preserves resolved captions,
 attribution, citation content and images. Use
-`asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc)` for standalone
+`asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc)` for standalone
 inline content. This choice is independent of
 `CompatibilityMode`; unsupported nested values still fail export.
 
@@ -571,6 +571,38 @@ migration describes the last released API, 0.11.0.
 | Feature-controlled language behavior | `CompatibilityMode`; remove `pre-spec-subs` and `setext` from dependency feature lists
 |===
 
+Public names now identify cells, reference targets, formatting spans, and the
+scope of text operations explicitly. Update imports and calls as follows:
+
+[cols="1,1",options="header"]
+|===
+| Previous name | Current name
+| `TableColumn` | `TableCell`
+| `CurvedApostrophe` / `CurvedQuotation` | `SingleQuotedSpan` / `DoubleQuotedSpan`
+| `Reference` | `ReferenceTarget`
+| `Form` | `FormattingForm`
+| `Pass` | `Passthrough`
+| `DiscreteHeader` | `DiscreteHeading`
+| `Keyboard` / `Menu` / `Url` | `KeyboardShortcut` / `MenuPath` / `UrlMacro`
+| `CalloutRef` / `CalloutRefKind` | `CalloutMarker` / `CalloutMarkerKind`
+| `ParseResult::source()` / `ParseInlineResult::source()` | `preprocessed_source()` on both owners
+| `ElementAttributes::insert()` / `merge()` | `insert_if_absent()` / `merge_defaults()`
+| `BlockMetadata::is_default()` | `is_empty_for_serialization()`
+| `Reference::section_name()` | `ReferenceTarget::section_category()`
+| `Source::get_filename()` | `Source::file_name()`
+| `Anchor::with_xreflabel()` | `Anchor::with_reftext()`
+| `substitute()` | `apply_attribute_substitutions()`
+| `parse_text_for_quotes()` | `parse_inline_formatting()`
+|===
+
+The corresponding typed handles and enum variants use the same names. The inline
+passthrough handle is `InlinePassthroughRef`; `PassthroughRef` still reads a
+passthrough block. A callout marker is read through `CalloutMarkerRef`.
+`OptionsBuilder::with_strict()` remains the general strictness switch.
+ASG exports use `export_document()` / `export_inlines()` and their
+`_with_profile` variants. These name changes preserve parsing, rendered output,
+and serialized node names.
+
 Keep `ParseResult` alive for text borrowed by reads and selected copies.
 Use `DocumentRef::from(&document)` to read a constructed document. To edit a
 parsed tree independently:
@@ -618,7 +650,7 @@ Native JSON is a separate migration from the Rust layout:
   retain nonempty ordered substitution lists; an omitted list means none.
 
 Do not treat native JSON as upstream ASG. Enable `asg` for checked export with
-`asg::document(parsed.document())` or `asg::inlines(parsed.content())`. The default
+`asg::export_document(parsed.document())` or `asg::export_inlines(parsed.content())`. The default
 profile uses the pinned upstream subset and rejects unsupported meaning. Select
 `Profile::Acdc` explicitly for the versioned content/image extension. See
 schemas/asg/README.adoc[the schema support contract] for exact coverage and

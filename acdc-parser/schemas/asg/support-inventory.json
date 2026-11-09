@@ -207,7 +207,7 @@
       },
       "strict_export_group": "catalogs"
     },
-    "src/model/anchor.rs::Reference": {
+    "src/model/anchor.rs::ReferenceTarget": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -1155,7 +1155,7 @@
       },
       "strict_export_group": "references"
     },
-    "src/model/inlines/hyperlinks.rs::Url": {
+    "src/model/inlines/hyperlinks.rs::UrlMacro": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -1581,7 +1581,7 @@
       "properties": {},
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/macros.rs::Keyboard": {
+    "src/model/inlines/macros.rs::KeyboardShortcut": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -1604,7 +1604,7 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/macros.rs::Menu": {
+    "src/model/inlines/macros.rs::MenuPath": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -1631,7 +1631,7 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/macros.rs::Pass": {
+    "src/model/inlines/macros.rs::Passthrough": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -1901,7 +1901,7 @@
           "IndexTerm": [
             "0"
           ],
-          "Keyboard": [
+          "KeyboardShortcut": [
             "0"
           ],
           "Link": [
@@ -1910,16 +1910,16 @@
           "Mailto": [
             "0"
           ],
-          "Menu": [
+          "MenuPath": [
             "0"
           ],
-          "Pass": [
+          "Passthrough": [
             "0"
           ],
           "Stem": [
             "0"
           ],
-          "Url": [
+          "UrlMacro": [
             "0"
           ]
         }
@@ -1985,11 +1985,11 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:Keyboard": {
+        "variant:KeyboardShortcut": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "Keyboard.0": {
+        "KeyboardShortcut.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -2009,19 +2009,19 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:Menu": {
+        "variant:MenuPath": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "Menu.0": {
+        "MenuPath.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:Pass": {
+        "variant:Passthrough": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "Pass.0": {
+        "Passthrough.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -2033,11 +2033,11 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:Url": {
+        "variant:UrlMacro": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "Url.0": {
+        "UrlMacro.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         }
@@ -2052,16 +2052,16 @@
           "BoldText": [
             "0"
           ],
-          "CalloutRef": [
+          "CalloutMarker": [
             "0"
           ],
           "CharacterReference": [
             "0"
           ],
-          "CurvedApostropheText": [
+          "SingleQuotedSpan": [
             "0"
           ],
-          "CurvedQuotationText": [
+          "DoubleQuotedSpan": [
             "0"
           ],
           "HighlightText": [
@@ -2118,27 +2118,27 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:CalloutRef": {
+        "variant:CalloutMarker": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "CalloutRef.0": {
+        "CalloutMarker.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:CurvedApostropheText": {
+        "variant:SingleQuotedSpan": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "CurvedApostropheText.0": {
+        "SingleQuotedSpan.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:CurvedQuotationText": {
+        "variant:DoubleQuotedSpan": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "CurvedQuotationText.0": {
+        "DoubleQuotedSpan.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -2392,7 +2392,7 @@
       },
       "strict_export_group": "literal-content"
     },
-    "src/model/inlines/text.rs::CalloutRef": {
+    "src/model/inlines/text.rs::CalloutMarker": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -2419,7 +2419,7 @@
       },
       "strict_export_group": "lists"
     },
-    "src/model/inlines/text.rs::CalloutRefKind": {
+    "src/model/inlines/text.rs::CalloutMarkerKind": {
       "shape": {
         "kind": "enum",
         "fields": [],
@@ -2441,7 +2441,7 @@
       },
       "strict_export_group": "lists"
     },
-    "src/model/inlines/text.rs::CurvedApostrophe": {
+    "src/model/inlines/text.rs::SingleQuotedSpan": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -2478,7 +2478,7 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/text.rs::CurvedQuotation": {
+    "src/model/inlines/text.rs::DoubleQuotedSpan": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -2515,7 +2515,7 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/text.rs::Form": {
+    "src/model/inlines/text.rs::FormattingForm": {
       "shape": {
         "kind": "enum",
         "fields": [],
@@ -3962,7 +3962,7 @@
           "DescriptionList": [
             "0"
           ],
-          "DiscreteHeader": [
+          "DiscreteHeading": [
             "0"
           ],
           "DocumentAttribute": [
@@ -4050,11 +4050,11 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         },
-        "variant:DiscreteHeader": {
+        "variant:DiscreteHeading": {
           "policy": "candidate",
           "upstream": "#/$defs/block"
         },
-        "DiscreteHeader.0": {
+        "DiscreteHeading.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         },
@@ -4384,7 +4384,7 @@
       },
       "strict_export_group": "dispatch"
     },
-    "src/model/mod.rs::DiscreteHeader": {
+    "src/model/mod.rs::DiscreteHeading": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -5435,7 +5435,7 @@
       },
       "strict_export_group": "tables"
     },
-    "src/model/tables.rs::TableColumn": {
+    "src/model/tables.rs::TableCell": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -6473,7 +6473,7 @@
               "macro_attributes",
               "tooltip"
             ],
-            "Url": [
+            "UrlMacro": [
               "metadata",
               "macro_attributes",
               "tooltip"
@@ -6630,7 +6630,7 @@
             "TableRow": [
               "columns"
             ],
-            "TableColumn": [
+            "TableCell": [
               "content",
               "colspan",
               "rowspan",
@@ -6782,7 +6782,7 @@
         },
         "reference-registrations": {
           "owners": {
-            "Reference": [
+            "ReferenceTarget": [
               "target",
               "xreflabel",
               "title",
@@ -6807,7 +6807,7 @@
         },
         "callout-markers": {
           "owners": {
-            "CalloutRef": [
+            "CalloutMarker": [
               "kind",
               "number",
               "location"
@@ -6862,14 +6862,14 @@
               "id",
               "location"
             ],
-            "CurvedQuotation": [
+            "DoubleQuotedSpan": [
               "content",
               "form",
               "role",
               "id",
               "location"
             ],
-            "CurvedApostrophe": [
+            "SingleQuotedSpan": [
               "content",
               "form",
               "role",
@@ -6934,11 +6934,11 @@
               "label",
               "location"
             ],
-            "Keyboard": [
+            "KeyboardShortcut": [
               "keys",
               "location"
             ],
-            "Menu": [
+            "MenuPath": [
               "target",
               "items",
               "location"

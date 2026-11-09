@@ -30,7 +30,7 @@ fn bare_heading_markers_keep_one_paragraph_and_complete_source_spans() -> Result
                     assert_eq!(span.end().line(), 3, "{source:?}");
                     assert_eq!(span.end().column(), 6, "{source:?}");
                     assert_eq!(
-                        &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                        &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                         format!("Before.\n{marker}\nAfter."),
                         "{source:?}"
                     );
@@ -94,7 +94,7 @@ fn standalone_hashes_close_multiline_highlights() -> Result<(), Error> {
             .ok_or("missing highlighted span")?;
         let span = highlight.location();
         assert_eq!(
-            &parsed.source()[span.absolute_start()..=span.absolute_end()],
+            &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
             "##café\n##"
         );
         assert_eq!(span.start().line(), 1);

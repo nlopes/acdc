@@ -76,7 +76,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor =
-            TerminalVisitor::new(inner, self.processor, self.diagnostics.reborrow());
+            TerminalVisitor::new(inner, self.converter, self.diagnostics.reborrow());
 
         temp_visitor.write_content(traversal, para.content())?;
 
@@ -182,12 +182,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         acdc_converters_core::index::visit_index_inlines(
             para.content().inlines(),
-            &mut |term, _| crate::inlines::register_index_term(term, self.processor, traversal),
+            &mut |term, _| crate::inlines::register_index_term(term, self.converter, traversal),
         )?;
 
         let separator = "─"
             .repeat(20)
-            .with(self.processor.appearance.colors.label_listing);
+            .with(self.converter.appearance.colors.label_listing);
         let content =
             extract_plain_content(para.content(), crate::delimited::code_text_transform());
         let w = self.writer_mut();
@@ -313,18 +313,26 @@ fn extract_plain_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{Bold, Form, InlineNode, Italic, LineBreak, Location, Plain};
+    use acdc_parser::{Bold, FormattingForm, InlineNode, Italic, LineBreak, Location, Plain};
 
     fn plain(s: &str) -> InlineNode<'_> {
         InlineNode::PlainText(Plain::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold::new(nodes, Form::Constrained, Location::default()))
+        InlineNode::BoldText(Bold::new(
+            nodes,
+            FormattingForm::Constrained,
+            Location::default(),
+        ))
     }
 
     fn italic(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::ItalicText(Italic::new(nodes, Form::Constrained, Location::default()))
+        InlineNode::ItalicText(Italic::new(
+            nodes,
+            FormattingForm::Constrained,
+            Location::default(),
+        ))
     }
 
     #[test]

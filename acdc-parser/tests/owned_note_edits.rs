@@ -3,8 +3,8 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Anchor, CalloutRef, CalloutRefKind, CompatibilityMode, ContentAttribute, Footnote, InlineNode,
-    Location, Options, Plain, Position,
+    Anchor, CalloutMarker, CalloutMarkerKind, CompatibilityMode, ContentAttribute, Footnote,
+    InlineNode, Location, Options, Plain, Position,
     ast::{AnchorRef, BlockKind, ContentRef, FootnoteRef, InlineKind},
     parse,
 };
@@ -310,24 +310,27 @@ fn note_and_anchor_location_edits_keep_prepared_child_spans() -> Result<(), Erro
 #[test]
 fn callout_edits_keep_explicit_auto_and_zero_without_sequence_renumbering() -> Result<(), Error> {
     for mut callout in [
-        CalloutRef::explicit(0, Location::default()),
-        CalloutRef::auto(3, Location::default()),
+        CalloutMarker::explicit(0, Location::default()),
+        CalloutMarker::auto(3, Location::default()),
     ] {
-        let read = acdc_parser::ast::CalloutRef::from(&callout);
-        assert_eq!(CalloutRef::from(read), callout);
+        let read = acdc_parser::ast::CalloutMarkerRef::from(&callout);
+        assert_eq!(CalloutMarker::from(read), callout);
         let original = serde_json::to_value(&callout)?;
-        assert_eq!(serde_json::to_value(CalloutRef::from(read))?, original);
-        callout.set_kind(CalloutRefKind::Auto);
+        assert_eq!(serde_json::to_value(CalloutMarker::from(read))?, original);
+        callout.set_kind(CalloutMarkerKind::Auto);
         callout.set_number(9);
         let location = Location::point(Position::new(8, 2));
         callout.set_location(location.clone());
-        let read = acdc_parser::ast::CalloutRef::from(&callout);
-        assert_eq!(read.kind(), CalloutRefKind::Auto);
+        let read = acdc_parser::ast::CalloutMarkerRef::from(&callout);
+        assert_eq!(read.kind(), CalloutMarkerKind::Auto);
         assert_eq!(read.number(), 9);
         assert_eq!(Location::from(read.location()), location);
-        callout.set_kind(CalloutRefKind::Explicit);
+        callout.set_kind(CalloutMarkerKind::Explicit);
         callout.set_number(0);
-        assert_eq!(acdc_parser::ast::CalloutRef::from(&callout).number(), 0);
+        assert_eq!(
+            acdc_parser::ast::CalloutMarkerRef::from(&callout).number(),
+            0
+        );
     }
     Ok(())
 }
@@ -336,12 +339,12 @@ fn callout_edits_keep_explicit_auto_and_zero_without_sequence_renumbering() -> R
 fn empty_selected_note_anchor_and_callout_copies_allocate_nothing() {
     let anchor = Anchor::new("entry", Location::default());
     let note = Footnote::new(Vec::new(), 0, Location::default());
-    let callout = CalloutRef::auto(0, Location::default());
+    let callout = CalloutMarker::auto(0, Location::default());
     let region = Region::new(ALLOCATOR);
     let copies = black_box((
         Anchor::from(AnchorRef::from(&anchor)),
         Footnote::from(FootnoteRef::from(&note)),
-        CalloutRef::from(acdc_parser::ast::CalloutRef::from(&callout)),
+        CalloutMarker::from(acdc_parser::ast::CalloutMarkerRef::from(&callout)),
     ));
     let stats = region.change();
     assert_eq!(stats.allocations, 0);

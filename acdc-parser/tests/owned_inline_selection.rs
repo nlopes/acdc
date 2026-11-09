@@ -3,7 +3,8 @@
 use std::{alloc::System, hint::black_box, process::ExitCode};
 
 use acdc_parser::{
-    self as parser, ContentAttribute, Form, InlineMacro, InlineNode, Location, Options, Plain,
+    self as parser, ContentAttribute, FormattingForm, InlineMacro, InlineNode, Location, Options,
+    Plain,
     ast::{ContentRef, InlineKind, InlineRef},
 };
 use libtest_mimic::{Arguments, Trial};
@@ -82,11 +83,11 @@ fn atoms_and_spans(source: &str) -> Result<Vec<InlineNode<'_>>, Error> {
         )),
         InlineNode::LineBreak(parser::LineBreak::new(loc.clone())),
         InlineNode::InlineAnchor(parser::Anchor::new(source, loc.clone())),
-        InlineNode::CalloutRef(parser::CalloutRef::auto(3, loc.clone())),
+        InlineNode::CalloutMarker(parser::CalloutMarker::auto(3, loc.clone())),
     ];
     macro_rules! span {
         ($owner:ident, $variant:ident) => {
-            for form in [Form::Constrained, Form::Unconstrained] {
+            for form in [FormattingForm::Constrained, FormattingForm::Unconstrained] {
                 values.push(InlineNode::$variant(parser::$owner::new(
                     vec![plain(source)],
                     form,
@@ -101,8 +102,8 @@ fn atoms_and_spans(source: &str) -> Result<Vec<InlineNode<'_>>, Error> {
     span!(Highlight, HighlightText);
     span!(Subscript, SubscriptText);
     span!(Superscript, SuperscriptText);
-    span!(CurvedQuotation, CurvedQuotationText);
-    span!(CurvedApostrophe, CurvedApostropheText);
+    span!(DoubleQuotedSpan, DoubleQuotedSpan);
+    span!(SingleQuotedSpan, SingleQuotedSpan);
     Ok(values)
 }
 
@@ -123,20 +124,19 @@ fn macro_values(source: &str) -> Vec<InlineNode<'_>> {
             parser::Source::Name(source),
             loc.clone(),
         )))),
-        InlineNode::Macro(InlineMacro::Keyboard(parser::Keyboard::new(
-            vec![label(), ContentAttribute::default()],
-            loc.clone(),
-        ))),
+        InlineNode::Macro(InlineMacro::KeyboardShortcut(
+            parser::KeyboardShortcut::new(vec![label(), ContentAttribute::default()], loc.clone()),
+        )),
         InlineNode::Macro(InlineMacro::Button(parser::Button::new(
             label(),
             loc.clone(),
         ))),
-        InlineNode::Macro(InlineMacro::Menu(parser::Menu::new(
+        InlineNode::Macro(InlineMacro::MenuPath(parser::MenuPath::new(
             label(),
             vec![label(), ContentAttribute::default()],
             loc.clone(),
         ))),
-        InlineNode::Macro(InlineMacro::Url(Box::new(parser::Url::new(
+        InlineNode::Macro(InlineMacro::UrlMacro(Box::new(parser::UrlMacro::new(
             parser::Source::Name(source),
             loc.clone(),
         )))),
@@ -155,7 +155,7 @@ fn macro_values(source: &str) -> Vec<InlineNode<'_>> {
         InlineNode::Macro(InlineMacro::CrossReference(Box::new(
             parser::CrossReference::new(source, loc.clone()).with_text(vec![plain(source)]),
         ))),
-        InlineNode::Macro(InlineMacro::Pass(parser::Pass::new(
+        InlineNode::Macro(InlineMacro::Passthrough(parser::Passthrough::new(
             Some(source),
             vec![parser::Substitution::Quotes],
             parser::PassthroughKind::Macro,
@@ -250,9 +250,12 @@ fn inline_parse_content_keeps_native_shape_and_selected_lifetimes(
     #[cfg(feature = "asg")]
     {
         let parsed = parser::parse_inline("*ASG λ* and text", &options)?;
-        let before = parser::asg::inlines(parsed.content())?;
+        let before = parser::asg::export_inlines(parsed.content())?;
         let copied = ContentAttribute::from(parsed.content());
-        assert_eq!(parser::asg::inlines(ContentRef::from(&copied))?, before);
+        assert_eq!(
+            parser::asg::export_inlines(ContentRef::from(&copied))?,
+            before
+        );
     }
     Ok(())
 }

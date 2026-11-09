@@ -100,8 +100,8 @@ pub enum Error {
 /// partial output is returned. Success preserves the documented supported
 /// semantics and validates against [`SCHEMA_REVISION`]; it does not establish
 /// source round-trip fidelity or complete language conformance.
-pub fn document(document: DocumentRef<'_>) -> Result<Value, Error> {
-    document_with_profile(document, Profile::Upstream)
+pub fn export_document(document: DocumentRef<'_>) -> Result<Value, Error> {
+    export_document_with_profile(document, Profile::Upstream)
 }
 
 /// Export using an explicit schema profile.
@@ -113,7 +113,10 @@ pub fn document(document: DocumentRef<'_>) -> Result<Value, Error> {
 /// # Errors
 /// Returns an error for unsupported nested values, invalid locations, or output
 /// that does not validate against the selected schema. No partial output is returned.
-pub fn document_with_profile(document: DocumentRef<'_>, profile: Profile) -> Result<Value, Error> {
+pub fn export_document_with_profile(
+    document: DocumentRef<'_>,
+    profile: Profile,
+) -> Result<Value, Error> {
     let document = document.as_document();
     let value = projection::document(document, profile)
         .map_err(|error| error.with_context("document", &document.location))?;
@@ -130,7 +133,7 @@ pub fn document_with_profile(document: DocumentRef<'_>, profile: Profile) -> Res
 /// use acdc_parser::{Options, asg, parse_inline};
 ///
 /// let parsed = parse_inline("*A label*", &Options::default())?;
-/// let value = asg::inlines(parsed.content())?;
+/// let value = asg::export_inlines(parsed.content())?;
 /// assert_eq!(value.pointer("/0/variant").and_then(serde_json::Value::as_str), Some("strong"));
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
@@ -138,8 +141,8 @@ pub fn document_with_profile(document: DocumentRef<'_>, profile: Profile) -> Res
 /// # Errors
 /// Returns an error for unsupported content or locations, including unresolved
 /// passthrough operations and unsupported identity or controls on inline spans.
-pub fn inlines(inlines: ContentRef<'_>) -> Result<Value, Error> {
-    inlines_with_profile(inlines, Profile::Upstream)
+pub fn export_inlines(inlines: ContentRef<'_>) -> Result<Value, Error> {
+    export_inlines_with_profile(inlines, Profile::Upstream)
 }
 
 /// Export standalone inline content under the selected schema profile.
@@ -150,7 +153,10 @@ pub fn inlines(inlines: ContentRef<'_>) -> Result<Value, Error> {
 /// # Errors
 /// Returns an error for unsupported nested values or invalid locations. The
 /// returned array validates as inline content under the selected profile.
-pub fn inlines_with_profile(inlines: ContentRef<'_>, profile: Profile) -> Result<Value, Error> {
+pub fn export_inlines_with_profile(
+    inlines: ContentRef<'_>,
+    profile: Profile,
+) -> Result<Value, Error> {
     if profile == Profile::Acdc {
         footnotes::require_document(inlines.as_inlines())?;
     }

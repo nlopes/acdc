@@ -25,10 +25,10 @@ fn ranges_keep_absent_empty_nontext_and_quoted_values() -> Result<(), Box<dyn st
         let mut metadata = audio.take_metadata();
         metadata
             .attributes
-            .insert("start".into(), AttributeValue::Bool(true));
+            .insert_if_absent("start".into(), AttributeValue::Bool(true));
         metadata
             .attributes
-            .insert("end".into(), AttributeValue::None);
+            .insert_if_absent("end".into(), AttributeValue::None);
         audio.set_metadata(metadata)?;
         for (key, value) in [("start", start), ("end", end)] {
             if let Some(value) = value {

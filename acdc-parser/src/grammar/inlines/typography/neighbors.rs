@@ -110,13 +110,13 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
         | InlineNode::HighlightText(_)
         | InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::SingleQuotedSpan(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+        | InlineNode::CalloutMarker(_)
         | InlineNode::CharacterReference(_) => Edge::Boundary,
     }
 }

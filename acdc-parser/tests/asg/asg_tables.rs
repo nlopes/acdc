@@ -1,7 +1,7 @@
 #![cfg(feature = "asg")]
 use acdc_parser::{
     Block, ColumnFormat, ColumnStyle, ColumnWidth, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, Document, InlineNode, Location, Options, Paragraph, Table, TableColumn,
+    DelimitedBlockType, Document, InlineNode, Location, Options, Paragraph, Table, TableCell,
     TableRow, Verbatim, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
@@ -16,7 +16,7 @@ fn basic_tables_preserve_sections_cells_and_formatting() -> Result<(), Error> {
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
@@ -93,7 +93,7 @@ fn empty_table_parts_keep_presence_and_prepared_column_values() -> Result<(), Er
                     ColumnFormat::new().with_width(ColumnWidth::Auto),
                 ]);
             let document = with_table(table);
-            let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+            let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
             assert_eq!(value.pointer("/blocks/0/header").is_some(), header);
             assert_eq!(value.pointer("/blocks/0/footer").is_some(), footer);
             assert_eq!(value.pointer("/blocks/0/rows"), Some(&json!([])));
@@ -122,14 +122,14 @@ fn literal_column_context_preserves_prepared_verbatim_paragraphs() -> Result<(),
         Location::default(),
     );
     let table = Table::new(
-        vec![TableRow::new(vec![TableColumn::new(vec![
-            Block::Paragraph(paragraph),
-        ])])],
+        vec![TableRow::new(vec![TableCell::new(vec![Block::Paragraph(
+            paragraph,
+        )])])],
         Location::default(),
     )
     .with_columns(vec![ColumnFormat::new().with_style(ColumnStyle::Literal)]);
     let document = with_table(table);
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/rows/0/cells/0/blocks/0/name"),
         Some(&json!("paragraph"))
@@ -163,7 +163,7 @@ fn table_decoration_keeps_source_defaults_after_prepared_metadata_edits() -> Res
         block.set_metadata(metadata)?;
         let mut document = Document::default();
         document.push_block(Block::DelimitedBlock(block.clone()));
-        let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
         assert_eq!(
             value.pointer("/blocks/0/presentation/frame"),
             Some(&json!(expected))
@@ -176,10 +176,10 @@ fn table_decoration_keeps_source_defaults_after_prepared_metadata_edits() -> Res
 fn strict_tables_and_invalid_ordinary_cell_blocks_reject() -> Result<(), Error> {
     let parsed = parse("|===\n|Cell\n|===", &Options::default())?;
     assert!(
-        matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/inner")
+        matches!(asg::export_document(parsed.document()),Err(asg::Error::Unsupported {path,..}) if path=="/blocks/0/inner")
     );
     let parsed = parse("|===\n|icon:heart[]\n|===", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/rows/0/cells/0/blocks/0/inlines/0/target"),
         Some(&json!("heart"))
@@ -187,11 +187,11 @@ fn strict_tables_and_invalid_ordinary_cell_blocks_reject() -> Result<(), Error> 
     let parsed = parse("* Nested item", &Options::default())?;
     let child = Block::from(parsed.document().blocks().next().ok_or("list")?);
     let document = with_table(Table::new(
-        vec![TableRow::new(vec![TableColumn::new(vec![child])])],
+        vec![TableRow::new(vec![TableCell::new(vec![child])])],
         Location::default(),
     ));
     assert!(
-        matches!(asg::document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported {path,construct:Some("unordered list"),..}) if path=="/blocks/0/rows/0/cells/0/blocks/0")
+        matches!(asg::export_document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported {path,construct:Some("unordered list"),..}) if path=="/blocks/0/rows/0/cells/0/blocks/0")
     );
     let paragraph = Paragraph::new(
         vec![InlineNode::VerbatimText(Verbatim::new(
@@ -201,13 +201,13 @@ fn strict_tables_and_invalid_ordinary_cell_blocks_reject() -> Result<(), Error> 
         Location::default(),
     );
     let document = with_table(Table::new(
-        vec![TableRow::new(vec![TableColumn::new(vec![
-            Block::Paragraph(paragraph),
-        ])])],
+        vec![TableRow::new(vec![TableCell::new(vec![Block::Paragraph(
+            paragraph,
+        )])])],
         Location::default(),
     ));
     assert!(
-        matches!(asg::document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported {path,construct:Some("verbatim text"),..}) if path=="/blocks/0/rows/0/cells/0/blocks/0/inlines/0")
+        matches!(asg::export_document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported {path,construct:Some("verbatim text"),..}) if path=="/blocks/0/rows/0/cells/0/blocks/0/inlines/0")
     );
     Ok(())
 }
@@ -218,7 +218,7 @@ fn table_schema_rejects_unknown_fields_wrong_types_and_zero_spans() -> Result<()
     let validator = jsonschema::validator_for(&schema)?;
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/tables.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let valid = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let valid = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert!(validator.is_valid(&valid));
     for (path, field, value) in [
         ("/blocks/0", "unknown", json!(true)),

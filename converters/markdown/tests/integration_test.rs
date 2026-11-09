@@ -1,11 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{
-    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning, WarningSource,
+    Converter as _, Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning,
+    WarningSource,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_html::Processor as HtmlProcessor;
-use acdc_converters_markdown::{MarkdownVariant, Processor};
+use acdc_converters_html as html;
+use acdc_converters_markdown::{Converter, MarkdownVariant};
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 use pulldown_cmark::{
     Alignment, CodeBlockKind, Event, Options as MarkdownParserOptions, Parser as MarkdownParser,
@@ -27,14 +28,14 @@ fn decoded_media_links_keep_literal_values_in_markdown() -> Result<(), Error> {
                 .build()?,
         )?;
         for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
             .with_variant(variant);
             let mut output = Vec::new();
             let mut warnings = Vec::new();
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -82,14 +83,14 @@ fn literal_caption_markup_stays_text_in_both_markdown_variants() -> Result<(), E
                 .build()?,
         )?;
         for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
             .with_variant(variant);
             let mut output = Vec::new();
             let mut warnings = Vec::new();
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -131,14 +132,14 @@ fn link_tooltips_preserve_parser_selected_text() -> Result<(), Error> {
                 .build()?,
         )?;
         for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
             .with_variant(variant);
             let mut output = Vec::new();
             let mut warnings = Vec::new();
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -190,7 +191,7 @@ fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error>
                 .build()?,
         )?;
         for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
@@ -198,7 +199,7 @@ fn curved_quotes_preserve_punctuation_and_inline_identity() -> Result<(), Error>
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -248,7 +249,7 @@ fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(
                 .build()?,
         )?;
         for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
@@ -256,7 +257,7 @@ fn remaining_passthrough_profiles_keep_disabled_formatting_escapes() -> Result<(
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -296,7 +297,7 @@ fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error
                 .build()?,
         )?;
         for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
@@ -304,7 +305,7 @@ fn resolved_escapes_survive_markdown_parsing_in_both_modes() -> Result<(), Error
             let mut output = Vec::new();
             let mut warnings = Vec::new();
             let source = WarningSource::new("markdown");
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,
@@ -576,7 +577,7 @@ fn convert_str_with_variant(
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(
+    let converter = Converter::new(
         converter_options,
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -585,7 +586,7 @@ fn convert_str_with_variant(
     let mut warnings = Vec::new();
     let source = WarningSource::new("markdown");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
@@ -604,7 +605,7 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
         .embedded(false)
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = HtmlProcessor::new(
+    let converter = html::Converter::new(
         converter_options,
         ParserOptions::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -612,7 +613,7 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
     let mut warnings = Vec::new();
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
@@ -1399,8 +1400,8 @@ fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Resu
 #[test]
 fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
     use acdc_parser::{
-        Block, Bold, CharacterReference, CharacterReferenceKind, Document, Form, InlineNode,
-        Location, Paragraph,
+        Block, Bold, CharacterReference, CharacterReferenceKind, Document, FormattingForm,
+        InlineNode, Location, Paragraph,
     };
     let mut content = Vec::new();
     for kind in [
@@ -1414,7 +1415,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
     }
     let bold = InlineNode::BoldText(Bold::new(
         content.clone(),
-        Form::Constrained,
+        FormattingForm::Constrained,
         Location::default(),
     ));
     content.push(bold);
@@ -1423,14 +1424,14 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
         content,
         Location::default(),
     )));
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::builder().embedded(true).build(),
         ParserOptions::builder(),
     )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let warning_source = WarningSource::new("markdown");
-    processor.write_to(
+    converter.write_to(
         (&doc).into(),
         &mut output,
         None,
@@ -1452,14 +1453,14 @@ fn resolved_reference_display_text_preserves_escaped_literals() -> Result<(), Er
             .build()?;
         let parsed = parse(input, &options)?;
         for variant in [MarkdownVariant::CommonMark, MarkdownVariant::GitHubFlavored] {
-            let processor = Processor::new(
+            let converter = Converter::new(
                 ConverterOptions::default(),
                 ParserOptions::builder().with_compatibility_mode(mode),
             )?
             .with_variant(variant);
             let mut output = Vec::new();
             let mut warnings = Vec::new();
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut output,
                 None,

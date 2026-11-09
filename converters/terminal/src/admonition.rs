@@ -20,32 +20,32 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         use std::io::BufWriter;
 
-        let processor = self.processor;
+        let converter = self.converter;
 
         // Get icon, caption attribute, and theme color for this admonition type
         let (glyph, caption_attr, color) = match admon.variant() {
             AdmonitionVariant::Note => {
-                ("ℹ️", "note-caption", processor.appearance.colors.admon_note)
+                ("ℹ️", "note-caption", converter.appearance.colors.admon_note)
             }
-            AdmonitionVariant::Tip => ("💡", "tip-caption", processor.appearance.colors.admon_tip),
+            AdmonitionVariant::Tip => ("💡", "tip-caption", converter.appearance.colors.admon_tip),
             AdmonitionVariant::Important => (
                 "❗",
                 "important-caption",
-                processor.appearance.colors.admon_important,
+                converter.appearance.colors.admon_important,
             ),
             AdmonitionVariant::Warning => (
                 "⚠️",
                 "warning-caption",
-                processor.appearance.colors.admon_warning,
+                converter.appearance.colors.admon_warning,
             ),
             AdmonitionVariant::Caution => (
                 "🔥",
                 "caution-caption",
-                processor.appearance.colors.admon_caution,
+                converter.appearance.colors.admon_caution,
             ),
         };
         let icon = (IconMode::from_attributes(traversal) != IconMode::Text
-            && processor.appearance.capabilities.unicode)
+            && converter.appearance.capabilities.unicode)
             .then_some(glyph);
 
         let caption = traversal
@@ -56,7 +56,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         let caption = if let Some(content) = admon.caption_content() {
             let mut visitor =
-                TerminalVisitor::new(Vec::new(), processor, self.diagnostics.reborrow());
+                TerminalVisitor::new(Vec::new(), converter, self.diagnostics.reborrow());
             visitor.write_content(traversal, content)?;
             String::from_utf8(visitor.into_writer())?
         } else {
@@ -64,7 +64,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         };
 
         // Border character based on terminal capabilities
-        let border = if processor.appearance.capabilities.unicode {
+        let border = if converter.appearance.capabilities.unicode {
             "│"
         } else {
             "|"
@@ -84,10 +84,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         if admon.title().is_some() {
             write!(w, " ")?;
             let mut title_buffer = Vec::new();
-            let title_processor = processor;
+            let title_converter = converter;
             let mut title_visitor = TerminalVisitor::new(
                 &mut title_buffer,
-                title_processor,
+                title_converter,
                 self.diagnostics.reborrow(),
             );
             if let Some(title) = admon.title() {
@@ -106,7 +106,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
             let mut temp_visitor =
-                TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+                TerminalVisitor::new(inner, converter, self.diagnostics.reborrow());
             traversal.visit_block(&mut temp_visitor, block)?;
 
             let buffer = temp_visitor
@@ -117,7 +117,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             let content = String::from_utf8_lossy(&buffer);
 
             // Word-wrap content to fit within the "│ " prefix
-            let available = processor.terminal_width.saturating_sub(2);
+            let available = converter.terminal_width.saturating_sub(2);
             let wrapped = crate::wrap::wrap_ansi_text(&content, available);
 
             let w = self.writer_mut();

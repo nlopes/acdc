@@ -63,8 +63,8 @@ fn inline_attributes(node: InlineRef<'_>) -> Option<AttributesRef<'_>> {
         InlineKind::Highlight(node) => Some(node.attributes()),
         InlineKind::Subscript(node) => Some(node.attributes()),
         InlineKind::Superscript(node) => Some(node.attributes()),
-        InlineKind::CurvedQuotation(node) => Some(node.attributes()),
-        InlineKind::CurvedApostrophe(node) => Some(node.attributes()),
+        InlineKind::DoubleQuotedSpan(node) => Some(node.attributes()),
+        InlineKind::SingleQuotedSpan(node) => Some(node.attributes()),
         InlineKind::Image(node) => {
             content_law(node.attributes(), "alt", node.alt());
             content_law(node.attributes(), "title", node.tooltip());
@@ -79,7 +79,7 @@ fn inline_attributes(node: InlineRef<'_>) -> Option<AttributesRef<'_>> {
             content_law(node.attributes(), "title", node.tooltip());
             Some(node.attributes())
         }
-        InlineKind::Url(node) => {
+        InlineKind::UrlMacro(node) => {
             content_law(node.attributes(), "title", node.tooltip());
             Some(node.attributes())
         }
@@ -98,11 +98,11 @@ fn inline_attributes(node: InlineRef<'_>) -> Option<AttributesRef<'_>> {
         | InlineKind::Anchor(_)
         | InlineKind::Callout(_)
         | InlineKind::Footnote(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
+        | InlineKind::MenuPath(_)
         | InlineKind::Autolink(_)
-        | InlineKind::Pass(_)
+        | InlineKind::Passthrough(_)
         | InlineKind::Stem(_)
         | _ => None,
     }

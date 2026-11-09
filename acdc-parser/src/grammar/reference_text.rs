@@ -17,7 +17,7 @@ use crate::{
 #[derive(Debug)]
 pub(super) struct ReferenceTextContext<'a> {
     pub(super) input: &'a str,
-    pub(super) passthroughs: Rc<[crate::Pass<'a>]>,
+    pub(super) passthroughs: Rc<[crate::Passthrough<'a>]>,
 }
 
 #[derive(Clone, Debug)]

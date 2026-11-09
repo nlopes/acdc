@@ -1,9 +1,9 @@
 use crate::{
-    AttributeValue, Autolink, Link, Mailto, Url,
+    AttributeValue, Autolink, Link, Mailto, UrlMacro,
     ast::{AttributesRef, ContentRef, ElementIdRef, LocationRef, SourceRef, TokensRef},
 };
 
-use super::{AutolinkRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlRef};
+use super::{AutolinkRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlMacroRef};
 
 /// A hyperlink with shared destination and label reads, retaining its source form.
 /// Cross-references use separate reads because their targets need document resolution.
@@ -24,7 +24,7 @@ use super::{AutolinkRef, InlineKind, InlineRef, LinkRef, MailtoRef, UrlRef};
 #[non_exhaustive]
 pub enum HyperlinkRef<'doc> {
     Link(LinkRef<'doc>),
-    Url(UrlRef<'doc>),
+    UrlMacro(UrlMacroRef<'doc>),
     Mailto(MailtoRef<'doc>),
     Autolink(AutolinkRef<'doc>),
 }
@@ -35,7 +35,7 @@ impl<'doc> HyperlinkRef<'doc> {
     pub fn target(self) -> SourceRef<'doc> {
         match self {
             Self::Link(link) => link.target(),
-            Self::Url(link) => link.target(),
+            Self::UrlMacro(link) => link.target(),
             Self::Mailto(link) => link.target(),
             Self::Autolink(link) => link.target(),
         }
@@ -47,7 +47,7 @@ impl<'doc> HyperlinkRef<'doc> {
     pub fn text(self) -> ContentRef<'doc> {
         match self {
             Self::Link(link) => link.text(),
-            Self::Url(link) => link.text(),
+            Self::UrlMacro(link) => link.text(),
             Self::Mailto(link) => link.text(),
             Self::Autolink(_) => ContentRef::new(&[]),
         }
@@ -58,7 +58,7 @@ impl<'doc> HyperlinkRef<'doc> {
     pub fn location(self) -> LocationRef<'doc> {
         match self {
             Self::Link(link) => link.location(),
-            Self::Url(link) => link.location(),
+            Self::UrlMacro(link) => link.location(),
             Self::Mailto(link) => link.location(),
             Self::Autolink(link) => link.location(),
         }
@@ -71,7 +71,7 @@ impl<'doc> InlineRef<'doc> {
     pub fn as_hyperlink(self) -> Option<HyperlinkRef<'doc>> {
         if let InlineKind::Link(link) = self.kind() {
             Some(link.into())
-        } else if let InlineKind::Url(link) = self.kind() {
+        } else if let InlineKind::UrlMacro(link) = self.kind() {
             Some(link.into())
         } else if let InlineKind::Mailto(link) = self.kind() {
             Some(link.into())
@@ -159,7 +159,7 @@ macro_rules! hyperlink_reads {
 }
 
 hyperlink_reads!(Link, LinkRef, link);
-hyperlink_reads!(Url, UrlRef, url);
+hyperlink_reads!(UrlMacro, UrlMacroRef, url);
 hyperlink_reads!(Mailto, MailtoRef, mailto);
 
 impl LinkRef<'_> {
@@ -170,7 +170,7 @@ impl LinkRef<'_> {
     }
 }
 
-impl UrlRef<'_> {
+impl UrlMacroRef<'_> {
     /// Whether automatic display text omits the URI scheme.
     #[must_use]
     pub fn hides_uri_scheme(self) -> bool {

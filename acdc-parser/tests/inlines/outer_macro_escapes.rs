@@ -108,12 +108,10 @@ fn outer_macro_escapes_cannot_be_introduced_after_macro_substitution() -> Result
             })
             .count();
         assert_eq!(macros, expected_macros, "{subs}");
-        assert!(
-            !paragraph
-                .content()
-                .inlines()
-                .any(|node| matches!(node.kind(), InlineKind::Url(_) | InlineKind::Autolink(_)))
-        );
+        assert!(!paragraph.content().inlines().any(|node| matches!(
+            node.kind(),
+            InlineKind::UrlMacro(_) | InlineKind::Autolink(_)
+        )));
         assert_eq!(
             parsed.document().footnotes().count(),
             usize::from(expected_macros != 0)

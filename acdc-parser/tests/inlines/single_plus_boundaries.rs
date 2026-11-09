@@ -127,7 +127,7 @@ fn single_plus_invalid_candidates_keep_references_and_later_openers_visible() ->
             assert_eq!(protected.len(), usize::from(raw.is_some()), "{source:?}");
             if let (Some(expected_raw), [(content, location)]) = (raw, protected.as_slice()) {
                 assert_eq!(content, expected_raw, "{source:?}");
-                assert_source_span(parsed.source(), *location, expected_raw)?;
+                assert_source_span(parsed.preprocessed_source(), *location, expected_raw)?;
             }
             assert_eq!(parsed.document().footnotes().count(), 0);
             assert!(parsed.document().references().iter().next().is_none());
@@ -166,7 +166,7 @@ fn single_plus_content_edges_distinguish_ascii_whitespace_from_nbsp() -> Result<
                 assert_eq!(text, expected, "{source:?}");
                 assert_eq!(protected.len(), usize::from(recognized), "{source:?}");
                 for (content, location) in &protected {
-                    assert_source_span(parsed.source(), *location, content)?;
+                    assert_source_span(parsed.preprocessed_source(), *location, content)?;
                 }
             }
         }
@@ -205,7 +205,7 @@ fn escaped_single_plus_and_wrappers_use_the_same_closing_rules() -> Result<(), E
         collect_text(paragraph.content(), &mut text, &mut protected)?;
         assert_eq!(text, format!("α {expected} ω."), "{source:?}");
         for (content, location) in &protected {
-            assert_source_span(parsed.source(), *location, content)?;
+            assert_source_span(parsed.preprocessed_source(), *location, content)?;
         }
     }
     Ok(())
@@ -391,7 +391,7 @@ fn single_plus_unicode_word_boundaries_preserve_references() -> Result<(), Error
             );
             assert_eq!(protected.len(), usize::from(!word), "{source:?}");
             for (content, location) in &protected {
-                assert_source_span(parsed.source(), *location, content)?;
+                assert_source_span(parsed.preprocessed_source(), *location, content)?;
             }
         }
     }

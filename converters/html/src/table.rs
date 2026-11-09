@@ -11,7 +11,7 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, HtmlVariant, HtmlVisitor, Processor,
+    Converter, Error, HtmlVariant, HtmlVisitor,
     inlines::{escape_attribute, escape_pcdata},
 };
 
@@ -348,13 +348,13 @@ fn render_body_cell<'a, W: Write>(
     cell: TableCellRef<'a>,
     column: Option<ColumnFormatRef<'_>>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    processor: &Processor<'_>,
+    converter: &Converter<'_>,
 ) -> Result<(), Error> {
     let halign = halign_class(get_effective_halign(column, cell));
     let valign = valign_class(get_effective_valign(column, cell));
     let style = get_effective_style(column, cell);
     let span_attrs = format_span_attrs(cell);
-    let semantic = processor.variant() == HtmlVariant::Semantic;
+    let semantic = converter.variant() == HtmlVariant::Semantic;
 
     // Header-styled cells in body use <th> instead of <td>
     let tag = if style == Some(ColumnStyle::Header) {
@@ -382,16 +382,16 @@ pub(crate) fn render_table<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
     table: TableRef<'a>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    processor: &Processor<'_>,
+    converter: &Converter<'_>,
 ) -> Result<(), Error> {
     let attributes = Some(table.attributes());
-    let semantic = processor.variant() == HtmlVariant::Semantic;
+    let semantic = converter.variant() == HtmlVariant::Semantic;
     let writer = visitor.writer_mut();
 
     // Build table classes. Order matches asciidoctor:
     // frame, grid, stripes, sizing (stretch/fit-content), float, roles.
     let presentation = table.presentation().unwrap_or_else(|| {
-        TablePresentation::resolve(attributes, processor.document_attributes().into())
+        TablePresentation::resolve(attributes, converter.document_attributes().into())
     });
     let frame = frame_class(presentation.frame());
     let grid = grid_class(presentation.grid());
@@ -494,7 +494,7 @@ pub(crate) fn render_table<'a, W: Write>(
                 cell,
                 table.columns().nth(col_index),
                 visitor,
-                processor,
+                converter,
             )?;
         }
         let writer = visitor.writer_mut();

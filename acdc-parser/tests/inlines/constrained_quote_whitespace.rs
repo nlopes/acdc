@@ -1,5 +1,5 @@
 use acdc_parser::{
-    Form, Options,
+    FormattingForm, Options,
     ast::{BlockKind, BlockRef, InlineKind, InlineRef},
     parse,
 };
@@ -65,7 +65,7 @@ fn constrained_quotes_skip_invalid_closers_and_preserve_complete_source_spans() 
                 };
                 let span = quote.location();
                 assert_eq!(
-                    &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                    &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                     quoted.replace("\r\n", "\n"),
                     "{source:?}"
                 );
@@ -144,10 +144,10 @@ fn unconstrained_quotes_keep_multiline_content_and_complete_source_spans() -> Re
                 } else {
                     return Err("expected formatting".into());
                 };
-                assert_eq!(form, Form::Unconstrained, "{source:?}");
+                assert_eq!(form, FormattingForm::Unconstrained, "{source:?}");
                 let span = quote.location();
                 assert_eq!(
-                    &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                    &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                     quoted.replace("\r\n", "\n")
                 );
             }
@@ -186,7 +186,7 @@ fn constrained_quotes_check_whitespace_before_later_attribute_expansion() -> Res
                 .ok_or_else(|| format!("expected formatting before expansion: {source:?}"))?;
             let span = quote.location();
             assert_eq!(
-                &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                 format!("{marker}{content}{marker}"),
                 "{source:?}"
             );

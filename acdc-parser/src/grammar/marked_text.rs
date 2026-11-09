@@ -101,8 +101,8 @@ impl_marked_text!(
     Highlight,
     Subscript,
     Superscript,
-    CurvedQuotation,
-    CurvedApostrophe,
+    DoubleQuotedSpan,
+    SingleQuotedSpan,
 );
 
 pub(super) fn map_marked_text_locations<'a>(
@@ -116,14 +116,14 @@ pub(super) fn map_marked_text_locations<'a>(
         InlineNode::HighlightText(node) => node.map_locations(ctx),
         InlineNode::SubscriptText(node) => node.map_locations(ctx),
         InlineNode::SuperscriptText(node) => node.map_locations(ctx),
-        InlineNode::CurvedQuotationText(node) => node.map_locations(ctx),
-        InlineNode::CurvedApostropheText(node) => node.map_locations(ctx),
+        InlineNode::DoubleQuotedSpan(node) => node.map_locations(ctx),
+        InlineNode::SingleQuotedSpan(node) => node.map_locations(ctx),
         InlineNode::RawText(_)
         | InlineNode::PlainText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_)
+        | InlineNode::CalloutMarker(_)
         | InlineNode::Macro(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::Symbol(_)

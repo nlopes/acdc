@@ -9,7 +9,7 @@ use acdc_pdf_theme::{
 };
 
 use crate::{
-    DocumentMetadata, EmitOptions, PageLayout, PageSize,
+    DocumentMetadata, EmitOptions, PageOrientation, PageSize,
     escape::{escape_markup, escape_string},
     writer::Writer,
 };
@@ -26,7 +26,7 @@ pub fn write(writer: &mut Writer, theme: &Theme, options: &EmitOptions) {
     write_code(&mut out, theme, options);
     write_helpers(&mut out, theme);
     out.push('\n');
-    writer.raw(&out);
+    writer.write_raw_markup(&out);
 }
 
 /// `#set document(...)`: metadata embedded in the PDF without rendering it.
@@ -76,7 +76,7 @@ fn write_page(out: &mut String, theme: &Theme, options: &EmitOptions) {
 
     if let Some(paper_name) = typst_paper_name(options.page) {
         let _ = write!(out, "#set page(paper: \"{paper_name}\"");
-        if options.page_layout == PageLayout::Landscape {
+        if options.page_layout == PageOrientation::Landscape {
             out.push_str(", flipped: true");
         }
     } else {
@@ -630,7 +630,7 @@ mod tests {
     fn landscape_page_setup_flips_the_named_paper() {
         let options = EmitOptions {
             page: PageSize::Legal,
-            page_layout: PageLayout::Landscape,
+            page_layout: PageOrientation::Landscape,
             ..EmitOptions::default()
         };
         let mut out = String::new();
@@ -644,7 +644,7 @@ mod tests {
     fn custom_page_setup_emits_dimensions_and_margins() -> Result<(), PageGeometryError> {
         let options = EmitOptions {
             page: PageSize::try_custom(612.0, 792.0)?,
-            page_layout: PageLayout::Landscape,
+            page_layout: PageOrientation::Landscape,
             page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
             ..EmitOptions::default()
         };

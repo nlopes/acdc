@@ -34,7 +34,7 @@ fn verse_inline_locations_and_catalogs_follow_the_source(
             nodes.inlines().any(|node| {
                 let location = node.location();
                 parsed
-                    .source()
+                    .preprocessed_source()
                     .get(location.absolute_start()..=location.absolute_end())
                     == Some(expected)
             }),

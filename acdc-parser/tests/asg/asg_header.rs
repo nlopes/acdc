@@ -15,7 +15,7 @@ fn header_fields_remain_separate_and_references_are_reconstructible() -> Result<
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
@@ -52,7 +52,7 @@ fn subtitle_presence_and_prepared_content_are_not_combined_or_reparsed() -> Resu
         header.set_subtitle(subtitle.clone());
         let mut document = Document::default();
         document.set_header(Some(header));
-        let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
         assert_eq!(value.pointer("/header/title"), Some(&json!([])));
         match subtitle {
             None => assert!(value.pointer("/header/subtitle").is_none()),
@@ -77,11 +77,11 @@ fn strict_headers_and_unsupported_nested_content_keep_explicit_errors() -> Resul
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path: actual, ..}) if actual == path)
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path: actual, ..}) if actual == path)
         );
     }
     let parsed = parse("= Main: icon:heart[]", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/header/subtitle/0/target"),
         Some(&json!("heart"))
@@ -104,7 +104,7 @@ fn strict_headers_and_unsupported_nested_content_keep_explicit_errors() -> Resul
     document.set_header(Some(
         Header::new(Title::new(Vec::new()), Location::default()).with_metadata(metadata)?,
     ));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/header/reftext/0/target"),
         Some(&json!("heart"))
@@ -115,7 +115,7 @@ fn strict_headers_and_unsupported_nested_content_keep_explicit_errors() -> Resul
         Header::new(Title::default(), Location::default()).with_metadata(metadata)?,
     ));
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/header/title")
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/header/title")
     );
     Ok(())
 }
@@ -126,7 +126,7 @@ fn header_extension_is_closed_and_keeps_content_arrays() -> Result<(), Error> {
     let validator = jsonschema::validator_for(&schema)?;
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/header.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let valid = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let valid = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert!(validator.is_valid(&valid));
     for (field, value) in [
         ("subtitle", json!("flattened")),
@@ -157,17 +157,17 @@ fn header_catalogs_keep_stale_duplicate_and_independent_label_checks() -> Result
     header.set_subtitle(Some(Subtitle::new(Vec::new())));
     document.set_header(Some(header));
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/references/guide")
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/references/guide")
     );
     let parsed = parse("[#guide]\n= Main\n\n[#guide]\nBody.", &Options::default())?;
     assert!(
-        matches!(asg::document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/id")
+        matches!(asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/id")
     );
     let parsed = parse(
         "= Main: Subtitle\n:reftext: Other\n\nxref:#[].",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/references//owner"), Some(&json!("/header")));
     assert_eq!(
         value.pointer("/references//reftext/0/value"),

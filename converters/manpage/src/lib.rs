@@ -8,16 +8,16 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use acdc_converters_manpage::Processor;
-//! use acdc_converters_core::{Converter, Options};
+//! use acdc_converters_manpage::Converter;
+//! use acdc_converters_core::{Converter as _, Options};
 //!
 //! let options = Options::default();
-//! let processor = Processor::new(options, acdc_parser::Options::builder())?;
+//! let converter = Converter::new(options, acdc_parser::Options::builder())?;
 //! let parsed = acdc_parser::parse(
 //!     "= cmd(1)\n\n== Name\n\ncmd - run a command\n",
-//!     processor.parser_options(),
+//!     converter.parser_options(),
 //! )?;
-//! processor.convert(parsed.document(), Some(Path::new("cmd.adoc")))?;
+//! converter.convert(parsed.document(), Some(Path::new("cmd.adoc")))?;
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -41,12 +41,12 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, Doctype, Options, TraversalContext,
+    BackendProfile, Diagnostics, Doctype, Options, TraversalContext,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 
 use acdc_parser::{
-    AttributeValue, DocumentAttributes, Options as ParserOptions, Reference,
+    AttributeValue, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
     ast::{DocumentRef, TocEntryRef},
 };
 
@@ -90,12 +90,12 @@ enum IndexCatalogRelationship {
     SeeAlso(Vec<IndexTermLabel>),
 }
 
-/// Manpage converter processor.
+/// A converter from `AsciiDoc` to manpage output.
 #[derive(Clone, Debug)]
-pub struct Processor<'a> {
+pub struct Converter<'a> {
     options: Options,
     parser_options: ParserOptions<'a>,
-    references: Rc<HashMap<&'a str, Reference<'a>>>,
+    references: Rc<HashMap<&'a str, ReferenceTarget<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     xref_guard: XrefGuard,
     top_level_section_ids: Rc<HashSet<&'a str>>,
@@ -105,7 +105,7 @@ pub struct Processor<'a> {
     has_valid_index_section: bool,
 }
 
-impl Processor<'_> {
+impl Converter<'_> {
     /// Convert a document to manpage output, writing to the provided writer.
     /// Date fields use the document's resolved `docdate` unless `reproducible` is set.
     ///
@@ -122,8 +122,8 @@ impl Processor<'_> {
         let document = doc;
         let attrs: DocumentAttributes<'_> = document.attributes().into();
 
-        // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
-        let processor: Processor<'_> = Processor {
+        // This converter borrows from `doc`; its lifetime is independent of `self`.
+        let converter: Converter<'_> = Converter {
             options: self.options.clone(),
             parser_options: ParserOptions::default().with_document_attributes(attrs),
             references: Rc::new(doc.references().into()),
@@ -141,7 +141,7 @@ impl Processor<'_> {
             has_valid_index_section: contains_index_section(document.blocks()),
         };
         let mut traversal = TraversalContext::new(document.attributes());
-        let mut visitor = ManpageVisitor::new(writer, &processor, diagnostics.reborrow());
+        let mut visitor = ManpageVisitor::new(writer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, document)
     }
 
@@ -153,7 +153,7 @@ impl Processor<'_> {
     }
 }
 
-impl<'a> Converter<'a> for Processor<'a> {
+impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
     type Error = Error;
 
     fn document_attributes_defaults() -> &'static [(&'static str, AttributeValue<'static>)] {
@@ -232,34 +232,35 @@ impl<'a> Converter<'a> for Processor<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_converters_core::Converter as _;
 
     #[test]
     fn constructor_applies_manpage_backend_profile() -> Result<(), Box<dyn std::error::Error>> {
-        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
+        let converter = Converter::new(Options::default(), ParserOptions::builder())?;
 
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("backend")
                 .and_then(|value| value.text()),
             Some("manpage")
         );
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("doctype")
                 .and_then(|value| value.text()),
             Some("manpage")
         );
         assert_eq!(
-            processor
+            converter
                 .document_attributes()
                 .get("man-linkstyle")
                 .and_then(|value| value.text()),
             Some("blue R < >")
         );
         assert!(
-            processor
+            converter
                 .document_attributes()
                 .contains_key("backend-manpage-doctype-manpage")
         );
@@ -272,18 +273,18 @@ mod tests {
             "= attr-order(1)\n:doctype: manpage\n:manname: attr-order\n:manpurpose: show attribute source order\n:imagesdir: images/header\n\n== Name\n\naudio::before.mp3[]\n\n:imagesdir: images/body\n\naudio::after.mp3[]\n",
             &ParserOptions::default(),
         )?;
-        let processor = Processor::new(
+        let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
             ),
         )?;
-        let source = processor.warning_source();
+        let source = converter.warning_source();
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
 
-        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
 
         let manpage = String::from_utf8(output)?;
         assert!(manpage.contains("images/header/before.mp3"));

@@ -59,14 +59,14 @@ node_ref!(
     "A superscript span."
 );
 node_ref!(
-    CurvedQuotationRef<'doc>,
-    crate::CurvedQuotation<'doc>,
-    "A curved-quotation span."
+    DoubleQuotedSpanRef<'doc>,
+    crate::DoubleQuotedSpan<'doc>,
+    "A span enclosed in typographic double quotation marks."
 );
 node_ref!(
-    CurvedApostropheRef<'doc>,
-    crate::CurvedApostrophe<'doc>,
-    "A curved-apostrophe span."
+    SingleQuotedSpanRef<'doc>,
+    crate::SingleQuotedSpan<'doc>,
+    "A span enclosed in typographic single quotation marks."
 );
 node_ref!(
     StandaloneCurvedApostropheRef<'doc>,
@@ -79,7 +79,11 @@ node_ref!(
     "An inline line break."
 );
 node_ref!(AnchorRef<'doc>, crate::Anchor<'doc>, "An anchor.");
-node_ref!(CalloutRef<'doc>, crate::CalloutRef, "A callout reference.");
+node_ref!(
+    CalloutMarkerRef<'doc>,
+    crate::CalloutMarker,
+    "A callout marker."
+);
 node_ref!(
     FootnoteRef<'doc>,
     crate::Footnote<'doc>,
@@ -87,15 +91,15 @@ node_ref!(
 );
 node_ref!(IconRef<'doc>, crate::Icon<'doc>, "An icon macro.");
 node_ref!(
-    KeyboardRef<'doc>,
-    crate::Keyboard<'doc>,
+    KeyboardShortcutRef<'doc>,
+    crate::KeyboardShortcut<'doc>,
     "A keyboard shortcut."
 );
 node_ref!(ButtonRef<'doc>, crate::Button<'doc>, "A button macro.");
-node_ref!(MenuRef<'doc>, crate::Menu<'doc>, "A menu path.");
+node_ref!(MenuPathRef<'doc>, crate::MenuPath<'doc>, "A menu path.");
 node_ref!(
-    UrlRef<'doc>,
-    crate::Url<'doc>,
+    UrlMacroRef<'doc>,
+    crate::UrlMacro<'doc>,
     "A URL with optional label content."
 );
 node_ref!(LinkRef<'doc>, crate::Link<'doc>, "An explicit link.");
@@ -111,8 +115,8 @@ node_ref!(
     "A cross-reference."
 );
 node_ref!(
-    PassRef<'doc>,
-    crate::Pass<'doc>,
+    InlinePassthroughRef<'doc>,
+    crate::Passthrough<'doc>,
     "An inline passthrough macro."
 );
 node_ref!(
@@ -155,24 +159,24 @@ pub enum InlineKind<'doc> {
     Highlight(HighlightRef<'doc>),
     Subscript(SubscriptRef<'doc>),
     Superscript(SuperscriptRef<'doc>),
-    CurvedQuotation(CurvedQuotationRef<'doc>),
-    CurvedApostrophe(CurvedApostropheRef<'doc>),
+    DoubleQuotedSpan(DoubleQuotedSpanRef<'doc>),
+    SingleQuotedSpan(SingleQuotedSpanRef<'doc>),
     StandaloneCurvedApostrophe(StandaloneCurvedApostropheRef<'doc>),
     LineBreak(LineBreakRef<'doc>),
     Anchor(AnchorRef<'doc>),
-    Callout(CalloutRef<'doc>),
+    Callout(CalloutMarkerRef<'doc>),
     Footnote(FootnoteRef<'doc>),
     Icon(IconRef<'doc>),
     Image(InlineImageRef<'doc>),
-    Keyboard(KeyboardRef<'doc>),
+    KeyboardShortcut(KeyboardShortcutRef<'doc>),
     Button(ButtonRef<'doc>),
-    Menu(MenuRef<'doc>),
-    Url(UrlRef<'doc>),
+    MenuPath(MenuPathRef<'doc>),
+    UrlMacro(UrlMacroRef<'doc>),
     Link(LinkRef<'doc>),
     Mailto(MailtoRef<'doc>),
     Autolink(AutolinkRef<'doc>),
     CrossReference(CrossReferenceRef<'doc>),
-    Pass(PassRef<'doc>),
+    Passthrough(InlinePassthroughRef<'doc>),
     Stem(StemRef<'doc>),
     IndexTerm(IndexTermRef<'doc>),
 }
@@ -199,8 +203,8 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::Highlight(node) => node.location(),
             InlineKind::Subscript(node) => node.location(),
             InlineKind::Superscript(node) => node.location(),
-            InlineKind::CurvedQuotation(node) => node.location(),
-            InlineKind::CurvedApostrophe(node) => node.location(),
+            InlineKind::DoubleQuotedSpan(node) => node.location(),
+            InlineKind::SingleQuotedSpan(node) => node.location(),
             InlineKind::StandaloneCurvedApostrophe(node) => node.location(),
             InlineKind::LineBreak(node) => node.location(),
             InlineKind::Anchor(node) => node.location(),
@@ -208,15 +212,15 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::Footnote(node) => node.location(),
             InlineKind::Icon(node) => node.location(),
             InlineKind::Image(node) => node.location(),
-            InlineKind::Keyboard(node) => node.location(),
+            InlineKind::KeyboardShortcut(node) => node.location(),
             InlineKind::Button(node) => node.location(),
-            InlineKind::Menu(node) => node.location(),
-            InlineKind::Url(node) => node.location(),
+            InlineKind::MenuPath(node) => node.location(),
+            InlineKind::UrlMacro(node) => node.location(),
             InlineKind::Link(node) => node.location(),
             InlineKind::Mailto(node) => node.location(),
             InlineKind::Autolink(node) => node.location(),
             InlineKind::CrossReference(node) => node.location(),
-            InlineKind::Pass(node) => node.location(),
+            InlineKind::Passthrough(node) => node.location(),
             InlineKind::Stem(node) => node.location(),
             InlineKind::IndexTerm(node) => node.location(),
         }
@@ -239,18 +243,18 @@ impl<'doc> From<&'doc InlineNode<'doc>> for InlineRef<'doc> {
             InlineNode::HighlightText(node) => InlineKind::Highlight(HighlightRef::new(node)),
             InlineNode::SubscriptText(node) => InlineKind::Subscript(SubscriptRef::new(node)),
             InlineNode::SuperscriptText(node) => InlineKind::Superscript(SuperscriptRef::new(node)),
-            InlineNode::CurvedQuotationText(node) => {
-                InlineKind::CurvedQuotation(CurvedQuotationRef::new(node))
+            InlineNode::DoubleQuotedSpan(node) => {
+                InlineKind::DoubleQuotedSpan(DoubleQuotedSpanRef::new(node))
             }
-            InlineNode::CurvedApostropheText(node) => {
-                InlineKind::CurvedApostrophe(CurvedApostropheRef::new(node))
+            InlineNode::SingleQuotedSpan(node) => {
+                InlineKind::SingleQuotedSpan(SingleQuotedSpanRef::new(node))
             }
             InlineNode::StandaloneCurvedApostrophe(node) => {
                 InlineKind::StandaloneCurvedApostrophe(StandaloneCurvedApostropheRef::new(node))
             }
             InlineNode::LineBreak(node) => InlineKind::LineBreak(LineBreakRef::new(node)),
             InlineNode::InlineAnchor(node) => InlineKind::Anchor(AnchorRef::new(node)),
-            InlineNode::CalloutRef(node) => InlineKind::Callout(CalloutRef::new(node)),
+            InlineNode::CalloutMarker(node) => InlineKind::Callout(CalloutMarkerRef::new(node)),
             InlineNode::Macro(node) => return Self::from(node),
         };
         Self { kind }
@@ -263,17 +267,21 @@ impl<'doc> From<&'doc InlineMacro<'doc>> for InlineRef<'doc> {
             InlineMacro::Footnote(node) => InlineKind::Footnote(FootnoteRef::new(node)),
             InlineMacro::Icon(node) => InlineKind::Icon(IconRef::new(node)),
             InlineMacro::Image(node) => InlineKind::Image(InlineImageRef::new(node)),
-            InlineMacro::Keyboard(node) => InlineKind::Keyboard(KeyboardRef::new(node)),
+            InlineMacro::KeyboardShortcut(node) => {
+                InlineKind::KeyboardShortcut(KeyboardShortcutRef::new(node))
+            }
             InlineMacro::Button(node) => InlineKind::Button(ButtonRef::new(node)),
-            InlineMacro::Menu(node) => InlineKind::Menu(MenuRef::new(node)),
-            InlineMacro::Url(node) => InlineKind::Url(UrlRef::new(node)),
+            InlineMacro::MenuPath(node) => InlineKind::MenuPath(MenuPathRef::new(node)),
+            InlineMacro::UrlMacro(node) => InlineKind::UrlMacro(UrlMacroRef::new(node)),
             InlineMacro::Link(node) => InlineKind::Link(LinkRef::new(node)),
             InlineMacro::Mailto(node) => InlineKind::Mailto(MailtoRef::new(node)),
             InlineMacro::Autolink(node) => InlineKind::Autolink(AutolinkRef::new(node)),
             InlineMacro::CrossReference(node) => {
                 InlineKind::CrossReference(CrossReferenceRef::new(node))
             }
-            InlineMacro::Pass(node) => InlineKind::Pass(PassRef::new(node)),
+            InlineMacro::Passthrough(node) => {
+                InlineKind::Passthrough(InlinePassthroughRef::new(node))
+            }
             InlineMacro::Stem(node) => InlineKind::Stem(StemRef::new(node)),
             InlineMacro::IndexTerm(node) => InlineKind::IndexTerm(IndexTermRef::new(node)),
         };
@@ -314,10 +322,10 @@ impl<'doc> From<&'doc crate::Anchor<'doc>> for AnchorRef<'doc> {
     }
 }
 
-impl CalloutRef<'_> {
+impl CalloutMarkerRef<'_> {
     /// Whether the marker was explicit or automatically numbered.
     #[must_use]
-    pub fn kind(self) -> crate::CalloutRefKind {
+    pub fn kind(self) -> crate::CalloutMarkerKind {
         self.node.kind
     }
 
@@ -328,8 +336,8 @@ impl CalloutRef<'_> {
     }
 }
 
-impl<'doc> From<&'doc crate::CalloutRef> for CalloutRef<'doc> {
-    fn from(owner: &'doc crate::CalloutRef) -> Self {
+impl<'doc> From<&'doc crate::CalloutMarker> for CalloutMarkerRef<'doc> {
+    fn from(owner: &'doc crate::CalloutMarker) -> Self {
         Self::new(owner)
     }
 }
@@ -340,8 +348,8 @@ impl<'doc> From<AnchorRef<'doc>> for crate::Anchor<'doc> {
     }
 }
 
-impl From<CalloutRef<'_>> for crate::CalloutRef {
-    fn from(read: CalloutRef<'_>) -> Self {
+impl From<CalloutMarkerRef<'_>> for crate::CalloutMarker {
+    fn from(read: CalloutMarkerRef<'_>) -> Self {
         read.node.clone()
     }
 }
@@ -364,18 +372,20 @@ impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
             InlineKind::Superscript(node) => {
                 InlineNode::SuperscriptText(crate::Superscript::from(node))
             }
-            InlineKind::CurvedQuotation(node) => {
-                InlineNode::CurvedQuotationText(crate::CurvedQuotation::from(node))
+            InlineKind::DoubleQuotedSpan(node) => {
+                InlineNode::DoubleQuotedSpan(crate::DoubleQuotedSpan::from(node))
             }
-            InlineKind::CurvedApostrophe(node) => {
-                InlineNode::CurvedApostropheText(crate::CurvedApostrophe::from(node))
+            InlineKind::SingleQuotedSpan(node) => {
+                InlineNode::SingleQuotedSpan(crate::SingleQuotedSpan::from(node))
             }
             InlineKind::StandaloneCurvedApostrophe(node) => InlineNode::StandaloneCurvedApostrophe(
                 crate::StandaloneCurvedApostrophe::from(node),
             ),
             InlineKind::LineBreak(node) => InlineNode::LineBreak(crate::LineBreak::from(node)),
             InlineKind::Anchor(node) => InlineNode::InlineAnchor(crate::Anchor::from(node)),
-            InlineKind::Callout(node) => InlineNode::CalloutRef(crate::CalloutRef::from(node)),
+            InlineKind::Callout(node) => {
+                InlineNode::CalloutMarker(crate::CalloutMarker::from(node))
+            }
             InlineKind::Footnote(node) => {
                 InlineNode::Macro(InlineMacro::Footnote(crate::Footnote::from(node)))
             }
@@ -385,15 +395,17 @@ impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
             InlineKind::Image(node) => {
                 InlineNode::Macro(InlineMacro::Image(Box::new(crate::InlineImage::from(node))))
             }
-            InlineKind::Keyboard(node) => {
-                InlineNode::Macro(InlineMacro::Keyboard(crate::Keyboard::from(node)))
-            }
+            InlineKind::KeyboardShortcut(node) => InlineNode::Macro(InlineMacro::KeyboardShortcut(
+                crate::KeyboardShortcut::from(node),
+            )),
             InlineKind::Button(node) => {
                 InlineNode::Macro(InlineMacro::Button(crate::Button::from(node)))
             }
-            InlineKind::Menu(node) => InlineNode::Macro(InlineMacro::Menu(crate::Menu::from(node))),
-            InlineKind::Url(node) => {
-                InlineNode::Macro(InlineMacro::Url(Box::new(crate::Url::from(node))))
+            InlineKind::MenuPath(node) => {
+                InlineNode::Macro(InlineMacro::MenuPath(crate::MenuPath::from(node)))
+            }
+            InlineKind::UrlMacro(node) => {
+                InlineNode::Macro(InlineMacro::UrlMacro(Box::new(crate::UrlMacro::from(node))))
             }
             InlineKind::Link(node) => {
                 InlineNode::Macro(InlineMacro::Link(Box::new(crate::Link::from(node))))
@@ -407,7 +419,9 @@ impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
             InlineKind::CrossReference(node) => InlineNode::Macro(InlineMacro::CrossReference(
                 Box::new(crate::CrossReference::from(node)),
             )),
-            InlineKind::Pass(node) => InlineNode::Macro(InlineMacro::Pass(crate::Pass::from(node))),
+            InlineKind::Passthrough(node) => {
+                InlineNode::Macro(InlineMacro::Passthrough(crate::Passthrough::from(node)))
+            }
             InlineKind::Stem(node) => InlineNode::Macro(InlineMacro::Stem(crate::Stem::from(node))),
             InlineKind::IndexTerm(node) => InlineNode::Macro(InlineMacro::IndexTerm(Box::new(
                 crate::IndexTerm::from(node),

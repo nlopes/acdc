@@ -160,7 +160,7 @@ fn styled_paragraph_boundaries_preserve_source_and_macro_ownership() -> Result<(
         for node in paragraph.content().inlines() {
             if let InlineKind::Callout(callout) = node.kind() {
                 assert_eq!(
-                    parsed.source().get(
+                    parsed.preprocessed_source().get(
                         callout.location().absolute_start()..=callout.location().absolute_end()
                     ),
                     Some(if callout.number() == 1 { "<1>" } else { "<2>" })
@@ -237,7 +237,7 @@ fn indented_callouts_keep_source_spans_after_dedenting() -> Result<(), Error> {
                 {
                     assert_eq!(callout.number(), number);
                     assert_eq!(
-                        parsed.source().get(
+                        parsed.preprocessed_source().get(
                             callout.location().absolute_start()..=callout.location().absolute_end()
                         ),
                         Some(text),

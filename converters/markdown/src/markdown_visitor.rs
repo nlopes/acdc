@@ -3,7 +3,7 @@
 use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, mem::take, rc::Rc};
 
 use acdc_converters_core::{
-    Converter, Diagnostics, InlineTextTransform, TraversalContext, Warning,
+    Converter as _, Diagnostics, InlineTextTransform, TraversalContext, Warning,
     code::{SourceLineOptions, default_line_comment, source_language},
     document_attribute_text, icon,
     link::{autolink_fallback, link_fallback, mailto_fallback, mailto_target},
@@ -25,18 +25,18 @@ use acdc_parser::{
     ast::{
         AdmonitionRef, AnchorRef, AttributeValueRef, AttributesRef, AudioRef, AuthorRef,
         AutolinkRef, BlockKind, BlockRef, CalloutListRef, ColumnFormatRef, ContentRef,
-        CrossReferenceRef, DescriptionListDefinitionRef, DescriptionListRef, DiscreteHeaderRef,
+        CrossReferenceRef, DescriptionListDefinitionRef, DescriptionListRef, DiscreteHeadingRef,
         DocumentRef, ElementIdRef, FootnoteDefinitionRef, FootnoteRef, HeaderRef, IconRef,
         ImageRef, IndexTermRef, IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef,
-        KeyboardRef, LinkRef, ListItemRef, OrderedListRef, PageBreakRef, ParagraphRef,
-        ReferenceRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
+        KeyboardShortcutRef, LinkRef, ListItemRef, OrderedListRef, PageBreakRef, ParagraphRef,
+        ReferenceTargetRef, SectionRef, SourceRef, TableCellRef, TableOfContentsRef, TableRef,
         TableRowRef, ThematicBreakRef, TocEntryRef, UnorderedListRef, VideoRef,
     },
 };
 
 use crate::{
-    Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, MARKDOWN_BACKEND,
-    MarkdownVariant, Processor,
+    Converter, Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, MARKDOWN_BACKEND,
+    MarkdownVariant,
 };
 
 struct TocRenderConfig<'a> {
@@ -247,23 +247,23 @@ fn source_content<'inline>(
             | InlineKind::Highlight(_)
             | InlineKind::Subscript(_)
             | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::Symbol(_)
             | InlineKind::Anchor(_)
             | InlineKind::Footnote(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_)
             | InlineKind::IndexTerm(_) => {
                 let _ = InlineTextTransform::default()
@@ -302,7 +302,7 @@ fn strip_callout_guard<'a>(text: &'a str, language_prefix: Option<&str>) -> Cow<
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
 pub(crate) struct MarkdownVisitor<'a, 'd, W: Write> {
     writer: W,
-    pub(crate) processor: &'d Processor<'a>,
+    pub(crate) converter: &'d Converter<'a>,
 
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,
@@ -321,12 +321,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     /// Create a new Markdown visitor.
     pub(super) fn new(
         writer: W,
-        processor: &'d Processor<'a>,
+        converter: &'d Converter<'a>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         Self {
             writer,
-            processor,
+            converter,
 
             diagnostics,
             heading_level: 0,
@@ -341,7 +341,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     /// Get the Markdown variant being used.
     fn variant(&self) -> MarkdownVariant {
-        self.processor.variant()
+        self.converter.variant()
     }
 
     fn section_prefix(traversal: &TraversalContext<'a>, section: SectionRef<'a>) -> String {
@@ -440,7 +440,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         write!(self.writer, "<strong>")?;
         if let Some(content) = attribute_content(attributes, "caption") {
             self.write_content(traversal, content)?;
-        } else if let Some(caption) = self.processor.caption_prefix(attributes, fallback) {
+        } else if let Some(caption) = self.converter.caption_prefix(attributes, fallback) {
             write!(self.writer, "{}", Self::escape_attribute_text(&caption))?;
         }
         if let Some(title) = title {
@@ -521,8 +521,8 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | InlineKind::Highlight(_)
                 | InlineKind::Subscript(_)
                 | InlineKind::Superscript(_)
-                | InlineKind::CurvedQuotation(_)
-                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::DoubleQuotedSpan(_)
+                | InlineKind::SingleQuotedSpan(_)
                 | InlineKind::StandaloneCurvedApostrophe(_)
                 | InlineKind::CharacterReference(_)
                 | InlineKind::Symbol(_)
@@ -530,15 +530,15 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | InlineKind::Footnote(_)
                 | InlineKind::Icon(_)
                 | InlineKind::Image(_)
-                | InlineKind::Keyboard(_)
+                | InlineKind::KeyboardShortcut(_)
                 | InlineKind::Button(_)
-                | InlineKind::Menu(_)
-                | InlineKind::Url(_)
+                | InlineKind::MenuPath(_)
+                | InlineKind::UrlMacro(_)
                 | InlineKind::Link(_)
                 | InlineKind::Mailto(_)
                 | InlineKind::Autolink(_)
                 | InlineKind::CrossReference(_)
-                | InlineKind::Pass(_)
+                | InlineKind::Passthrough(_)
                 | InlineKind::Stem(_)
                 | InlineKind::IndexTerm(_)
                 | InlineKind::Callout(_)
@@ -638,7 +638,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 
     fn warn_once(&mut self, key: &'static str, message: &'static str, advice: &'static str) {
-        if self.processor.mark_fallback(key) {
+        if self.converter.mark_fallback(key) {
             self.diagnostics.warn_with_advice(message, advice);
         }
     }
@@ -650,7 +650,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         advice: &'static str,
         location: Option<&Location>,
     ) {
-        if self.processor.mark_fallback(key) {
+        if self.converter.mark_fallback(key) {
             let mut warning =
                 Warning::new(self.diagnostics.source().clone(), message).with_advice(advice);
             if let Some(location) = location {
@@ -878,7 +878,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         let mut buffer = Vec::new();
         {
             let mut visitor =
-                MarkdownVisitor::new(&mut buffer, self.processor, self.diagnostics.reborrow());
+                MarkdownVisitor::new(&mut buffer, self.converter, self.diagnostics.reborrow());
             visitor.heading_level = self.heading_level;
             visitor.list_depth = self.list_depth;
             visitor.collect_index_terms = self.collect_index_terms;
@@ -902,12 +902,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
             .decode_char_refs(true)
-            .references(self.processor.references.as_ref().into())
+            .references(self.converter.references.as_ref().into())
             .content_to_string(inlines);
         let mut output = Vec::new();
         {
             let mut visitor =
-                MarkdownVisitor::new(&mut output, self.processor, self.diagnostics.reborrow());
+                MarkdownVisitor::new(&mut output, self.converter, self.diagnostics.reborrow());
             visitor.collect_index_terms = false;
             visitor.in_link_text = true;
             visitor
@@ -927,7 +927,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         term: IndexTermRef<'_>,
     ) -> Result<(), Error> {
         let term = term.catalog();
-        if self.collect_index_terms && self.processor.generate_index() {
+        if self.collect_index_terms && self.converter.generate_index() {
             let primary = self.render_index_term_label(traversal, term.term())?;
             let secondary = term
                 .secondary()
@@ -951,7 +951,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 }
                 None | Some(_) => IndexCatalogRelationship::None,
             };
-            let anchor_id = self.processor.add_index_entry(IndexTermEntry {
+            let anchor_id = self.converter.add_index_entry(IndexTermEntry {
                 primary,
                 secondary,
                 tertiary,
@@ -1001,23 +1001,23 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | InlineKind::Highlight(_)
                 | InlineKind::Subscript(_)
                 | InlineKind::Superscript(_)
-                | InlineKind::CurvedQuotation(_)
-                | InlineKind::CurvedApostrophe(_)
+                | InlineKind::DoubleQuotedSpan(_)
+                | InlineKind::SingleQuotedSpan(_)
                 | InlineKind::StandaloneCurvedApostrophe(_)
                 | InlineKind::Symbol(_)
                 | InlineKind::Anchor(_)
                 | InlineKind::Footnote(_)
                 | InlineKind::Icon(_)
                 | InlineKind::Image(_)
-                | InlineKind::Keyboard(_)
+                | InlineKind::KeyboardShortcut(_)
                 | InlineKind::Button(_)
-                | InlineKind::Menu(_)
-                | InlineKind::Url(_)
+                | InlineKind::MenuPath(_)
+                | InlineKind::UrlMacro(_)
                 | InlineKind::Link(_)
                 | InlineKind::Mailto(_)
                 | InlineKind::Autolink(_)
                 | InlineKind::CrossReference(_)
-                | InlineKind::Pass(_)
+                | InlineKind::Passthrough(_)
                 | InlineKind::Stem(_)
                 | InlineKind::IndexTerm(_) => {
                     let _ = InlineTextTransform::default()
@@ -1062,7 +1062,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 
     fn write_revision(&mut self) -> Result<(), Error> {
-        let attributes = self.processor.document_attributes();
+        let attributes = self.converter.document_attributes();
         let number = document_attribute_text((attributes).get("revnumber")).map(str::to_owned);
         let date = document_attribute_text((attributes).get("revdate")).map(str::to_owned);
         let remark = document_attribute_text((attributes).get("revremark")).map(str::to_owned);
@@ -1103,7 +1103,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         feature: &str,
         fallback: &str,
     ) -> Result<(), Error> {
-        if self.processor.mark_fallback(key) {
+        if self.converter.mark_fallback(key) {
             self.diagnostics.warn_with_advice(
                 format!("{feature} not natively supported in Markdown, {fallback}"),
                 "Check whether the selected Markdown variant can represent this construct, or use a backend that preserves it.",
@@ -1154,7 +1154,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn toc_will_render(&self, toc_macro: Option<TableOfContentsRef<'_>>, placement: &str) -> bool {
         if self
-            .processor
+            .converter
             .document
             .is_none_or(|document| document.toc_entries().next().is_none())
         {
@@ -1162,7 +1162,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         }
         let config = TocConfig::resolve(
             toc_macro,
-            &TraversalContext::new(self.processor.document_attributes()),
+            &TraversalContext::new(self.converter.document_attributes()),
         );
         match placement {
             "auto" => matches!(
@@ -1260,7 +1260,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             return Ok(());
         }
 
-        let processor = self.processor;
+        let converter = self.converter;
         let config = TocConfig::resolve(toc_macro, traversal);
         let title = config
             .title()
@@ -1275,7 +1275,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             .and_then(|value| value.text());
         let chapter_signifier = book_chapter_signifier(traversal, None);
         let numbering_config = NumberingConfig::new(traversal, part_signifier, chapter_signifier);
-        let entries: Vec<_> = processor
+        let entries: Vec<_> = converter
             .document
             .into_iter()
             .flat_map(DocumentRef::toc_entries)
@@ -1345,7 +1345,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             | BlockKind::DocumentAttribute(_)
             | BlockKind::DelimitedComment(_) => false,
             BlockKind::Admonition(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
             | BlockKind::UnorderedList(_)
@@ -1534,7 +1534,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         let section_title = section.title().map_or_else(String::new, |title| {
             InlineTextTransform::default()
                 .decode_char_refs(true)
-                .references(self.processor.references.as_ref().into())
+                .references(self.converter.references.as_ref().into())
                 .content_to_string(title)
         });
         let previous_section_title = self.current_section_title.replace(section_title);
@@ -1573,9 +1573,9 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
 
             // Keep authored content before the generated catalog.
             self.visit_separated_blocks(traversal, section.blocks(), true)?;
-            if section.kind() == SectionKind::Index && self.processor.generate_index() {
-                let processor = self.processor;
-                crate::index::render(&mut self.writer, processor, self.heading_level + 1)?;
+            if section.kind() == SectionKind::Index && self.converter.generate_index() {
+                let converter = self.converter;
+                crate::index::render(&mut self.writer, converter, self.heading_level + 1)?;
             }
 
             self.heading_level = prev_level;
@@ -1817,7 +1817,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             BlockKind::DelimitedComment(_) => {}
             BlockKind::TableOfContents(_)
             | BlockKind::Admonition(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
@@ -1896,7 +1896,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn visit_discrete_header(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        header: DiscreteHeaderRef<'_>,
+        header: DiscreteHeadingRef<'_>,
     ) -> Result<(), Error> {
         self.write_block_anchor(&header.resolve_id())?;
 
@@ -2268,7 +2268,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     fn write_keyboard(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        keyboard: KeyboardRef<'_>,
+        keyboard: KeyboardShortcutRef<'_>,
     ) -> Result<(), Error> {
         for (index, key) in keyboard.keys().enumerate() {
             if index > 0 {
@@ -2386,14 +2386,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             self.write_content(traversal, text.content())?;
             write!(self.writer, "</sup>")?;
             self.write_role_end(role)?;
-        } else if let InlineKind::CurvedQuotation(text) = node.kind() {
+        } else if let InlineKind::DoubleQuotedSpan(text) = node.kind() {
             self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
             let role = self.write_role_start(text.role())?;
             write!(self.writer, "“")?;
             self.write_content(traversal, text.content())?;
             write!(self.writer, "”")?;
             self.write_role_end(role)?;
-        } else if let InlineKind::CurvedApostrophe(text) = node.kind() {
+        } else if let InlineKind::SingleQuotedSpan(text) = node.kind() {
             self.write_inline_anchor(text.id().map(ElementIdRef::as_str))?;
             let role = self.write_role_start(text.role())?;
             write!(self.writer, "‘")?;
@@ -2486,14 +2486,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             | InlineKind::Highlight(_)
             | InlineKind::Subscript(_)
             | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_) => {
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_) => {
                 self.write_formatting_span(traversal, node)?;
             }
             InlineKind::Link(link) => self.write_link_macro_node(traversal, link)?,
             InlineKind::Image(image) => self.write_inline_image(traversal, image)?,
             InlineKind::Icon(icon_macro) => self.write_inline_icon(traversal, icon_macro)?,
-            InlineKind::Keyboard(keyboard) => {
+            InlineKind::KeyboardShortcut(keyboard) => {
                 self.write_keyboard(traversal, keyboard)?;
             }
             InlineKind::Button(button) => {
@@ -2501,7 +2501,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 self.write_content(traversal, button.label())?;
                 write!(self.writer, "]</strong>")?;
             }
-            InlineKind::Menu(menu) => {
+            InlineKind::MenuPath(menu) => {
                 self.write_content(traversal, menu.target())?;
                 for item in menu.items() {
                     write!(self.writer, " > ")?;
@@ -2509,7 +2509,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 }
             }
             InlineKind::Footnote(footnote) => self.write_footnote(traversal, footnote)?,
-            InlineKind::Url(url) => {
+            InlineKind::UrlMacro(url) => {
                 let target = url.target().to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
                 self.write_macro_link(traversal, &target, fallback, url.text(), url.tooltip())?;
@@ -2528,7 +2528,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             InlineKind::Autolink(autolink) => self.write_autolink(autolink)?,
             InlineKind::CrossReference(xref) => self.visit_cross_reference(traversal, xref)?,
             InlineKind::IndexTerm(term) => self.visit_index_term(traversal, term)?,
-            InlineKind::Pass(pass) => {
+            InlineKind::Passthrough(pass) => {
                 if let Some(text) = pass.text() {
                     self.write_passthrough(text, || pass.substitutions())?;
                 }
@@ -2576,10 +2576,14 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
 
         // Clone the handles so the borrowed reference text and the resolution
         // guard both outlive the `&mut self` render calls.
-        let references = Rc::clone(&self.processor.references);
-        let guard = self.processor.xref_guard.clone();
+        let references = Rc::clone(&self.converter.references);
+        let guard = self.converter.xref_guard.clone();
         self.with_index_collection(false, |visitor| {
-            match resolve_reference(references.get(target).map(ReferenceRef::from), xref, &guard) {
+            match resolve_reference(
+                references.get(target).map(ReferenceTargetRef::from),
+                xref,
+                &guard,
+            ) {
                 XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                     visitor.write_anchor_link(target, |visitor| {
                         visitor.write_content(traversal, inlines)?;
@@ -3037,7 +3041,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         let mut buffer = Vec::new();
         let (result, emitted_anchors, footnotes) = {
             let mut visitor =
-                MarkdownVisitor::new(&mut buffer, self.processor, self.diagnostics.reborrow());
+                MarkdownVisitor::new(&mut buffer, self.converter, self.diagnostics.reborrow());
             visitor.heading_level = self.heading_level;
             visitor.emitted_anchors = take(&mut self.emitted_anchors);
             visitor.collect_index_terms = self.collect_index_terms;
@@ -3126,7 +3130,7 @@ impl<'a, W: Write> BlockVisitor<'a> for MarkdownVisitor<'a, '_, W> {
             BlockKind::DescriptionList(node) => self.visit_description_list(traversal, node),
             BlockKind::CalloutList(node) => self.visit_callout_list(traversal, node),
             BlockKind::Admonition(node) => self.visit_admonition(traversal, node),
-            BlockKind::DiscreteHeader(node) => self.visit_discrete_header(traversal, node),
+            BlockKind::DiscreteHeading(node) => self.visit_discrete_header(traversal, node),
             BlockKind::Image(node) => self.visit_image(traversal, node),
             BlockKind::Audio(node) => self.visit_audio(traversal, node),
             BlockKind::Video(node) => self.visit_video(traversal, node),

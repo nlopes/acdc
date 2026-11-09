@@ -157,7 +157,7 @@ impl IndexCatalog {
         columns: usize,
         column_gap_pt: f64,
     ) {
-        writer.raw(if sequence_style == PageSequenceStyle::Print {
+        writer.write_raw_markup(if sequence_style == PageSequenceStyle::Print {
             INDEX_PRINT_PAGE_HELPER
         } else {
             INDEX_PAGE_HELPER
@@ -179,11 +179,11 @@ impl IndexCatalog {
 
         for (category_index, (category, terms)) in categories.iter().enumerate() {
             if category_index > 0 {
-                writer.raw("#v(0.75em)\n");
+                writer.write_raw_markup("#v(0.75em)\n");
             }
-            writer.raw("#text(weight: \"bold\")[#text(");
-            writer.string_literal(category);
-            writer.raw(")]\n#v(0.25em)\n");
+            writer.write_raw_markup("#text(weight: \"bold\")[#text(");
+            writer.write_string_literal(category);
+            writer.write_raw_markup(")]\n#v(0.25em)\n");
             for (term, entry) in terms {
                 write_entry(
                     writer,
@@ -197,7 +197,7 @@ impl IndexCatalog {
             }
         }
         if columns > 1 {
-            writer.raw("]\n");
+            writer.write_raw_markup("]\n");
         }
     }
 }
@@ -252,32 +252,32 @@ fn write_entry(
     if let Some(definition) = definition
         && *definition == definition_label(term, catalog)
     {
-        writer.raw("#metadata(none) <");
-        writer.raw(definition);
-        writer.raw(">\n");
+        writer.write_raw_markup("#metadata(none) <");
+        writer.write_raw_markup(definition);
+        writer.write_raw_markup(">\n");
     }
     if depth > 0 {
         let _ = write!(writer, "#pad(left: {depth} * 1.25em)[");
     }
-    writer.raw("#par(hanging-indent: 1em)[");
-    writer.raw(&term.markup);
+    writer.write_raw_markup("#par(hanging-indent: 1em)[");
+    writer.write_raw_markup(&term.markup);
     if !matches!(entry.relationship, Some(IndexRelationship::See(_))) && !entry.anchors.is_empty() {
-        writer.raw("#_acdc_index_pages((");
+        writer.write_raw_markup("#_acdc_index_pages((");
         for anchor in &entry.anchors {
             let _ = write!(writer, "<__indexterm-{anchor}>,");
         }
         let _ = write!(writer, "), \"{}\")", sequence_style.typst());
     }
     if let Some(IndexRelationship::See(target)) = &entry.relationship {
-        writer.raw(" (see ");
+        writer.write_raw_markup(" (see ");
         write_relationship_target(writer, target, sequence_style, definitions);
-        writer.raw(")");
+        writer.write_raw_markup(")");
     }
-    writer.raw("]");
+    writer.write_raw_markup("]");
     if depth > 0 {
-        writer.raw("]");
+        writer.write_raw_markup("]");
     }
-    writer.raw("\n");
+    writer.write_raw_markup("\n");
 
     if let Some(IndexRelationship::SeeAlso(targets)) = &entry.relationship {
         for target in targets {
@@ -310,7 +310,7 @@ fn write_see_also(
         "#pad(left: {depth} * 1.25em)[#par(hanging-indent: 1em)[(see also "
     );
     write_relationship_target(writer, target, sequence_style, definitions);
-    writer.raw(")]]\n");
+    writer.write_raw_markup(")]]\n");
 }
 
 fn write_relationship_target(
@@ -322,13 +322,13 @@ fn write_relationship_target(
     if sequence_style != PageSequenceStyle::Print
         && let Some(definition) = definitions.get(&target.plain)
     {
-        writer.raw("#link(<");
-        writer.raw(definition);
-        writer.raw(">)[");
-        writer.raw(&target.markup);
-        writer.raw("]");
+        writer.write_raw_markup("#link(<");
+        writer.write_raw_markup(definition);
+        writer.write_raw_markup(">)[");
+        writer.write_raw_markup(&target.markup);
+        writer.write_raw_markup("]");
     } else {
-        writer.raw(&target.markup);
+        writer.write_raw_markup(&target.markup);
     }
 }
 

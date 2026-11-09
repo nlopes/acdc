@@ -161,7 +161,9 @@ pub(super) fn process_media_content<'a>(
     }
     if icon {
         if let Some(size) = metadata.style.take() {
-            metadata.attributes.insert("size".into(), size.into());
+            metadata
+                .attributes
+                .insert_if_absent("size".into(), size.into());
         }
     } else {
         metadata.style = None;
@@ -170,7 +172,9 @@ pub(super) fn process_media_content<'a>(
                 .take_next_positional_attribute()
                 .filter(|value| !value.value.is_empty())
             {
-                metadata.attributes.insert(name.into(), value.value.into());
+                metadata
+                    .attributes
+                    .insert_if_absent(name.into(), value.value.into());
             }
         }
     }

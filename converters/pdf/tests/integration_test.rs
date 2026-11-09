@@ -7,13 +7,15 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Diagnostics, Options as ConverterOptions, Warning, WarningSource,
+    Converter as _, Diagnostics, Options as ConverterOptions, Warning, WarningSource,
 };
-use acdc_converters_pdf::{PageLayout, PageMargins, PageSize, PdfOptions, Processor, ThemeFormat};
+use acdc_converters_pdf::{
+    Converter, PageMargins, PageOrientation, PageSize, PdfOptions, ThemeFormat,
+};
 
 mod support;
 
-use support::processor as cli_fixture_processor;
+use support::converter as cli_fixture_converter;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -102,7 +104,7 @@ fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
             &path,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let processor = cli_fixture_processor(
+        let converter = cli_fixture_converter(
             Options::builder()
                 .with_compatibility_mode(mode)
                 .with_attributes(
@@ -112,7 +114,7 @@ fn decoded_media_links_and_asset_names_reach_pdf() -> Result<(), Error> {
         )?;
         let mut output = Vec::new();
         let mut warnings = Vec::new();
-        processor.write_to(
+        converter.write_to(
             parsed.document(),
             &mut output,
             Some(&path),
@@ -167,7 +169,7 @@ fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Err
             &source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let processor = cli_fixture_processor(
+        let converter = cli_fixture_converter(
             Options::builder()
                 .with_compatibility_mode(mode)
                 .with_attributes(
@@ -178,7 +180,7 @@ fn caption_families_preserve_text_styles_links_and_numbering() -> Result<(), Err
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("pdf");
-        processor.write_to(
+        converter.write_to(
             parsed.document(),
             &mut output,
             None,
@@ -348,7 +350,7 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
     let mut rendered = Vec::new();
     for (name, document) in [("stored", &stored), ("unresolved", &unresolved)] {
         let typst = directory.path().join(name).with_extension("typ");
-        let processor = cli_fixture_processor(
+        let converter = cli_fixture_converter(
             Options::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(
                     acdc_parser::ast::DocumentRef::from(document).attributes(),
@@ -362,7 +364,7 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
         });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
-        processor.write_to(
+        converter.write_to(
             document.into(),
             &mut Vec::new(),
             None,
@@ -396,7 +398,7 @@ fn theme_config_export_rejects_library_input_and_output_collisions() -> Result<(
         std::fs::write(&theme, &theme_text)?;
         std::fs::write(&typst, "original Typst")?;
         std::fs::write(&pdf, "original PDF")?;
-        let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+        let converter = Converter::new(ConverterOptions::default(), Options::builder())?
             .with_pdf_options(PdfOptions {
                 theme: Some(theme.clone()),
                 emit_typst: Some(typst.clone()),
@@ -406,7 +408,7 @@ fn theme_config_export_rejects_library_input_and_output_collisions() -> Result<(
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut bytes = Vec::new();
-        let result = processor.write_to(
+        let result = converter.write_to(
             parsed.document(),
             &mut bytes,
             Some(&input),
@@ -435,25 +437,25 @@ fn theme_config_export_rejects_library_collisions_before_opening_pdf() -> Result
     let pdf = directory.path().join("document.pdf");
     std::fs::write(&pdf, "original PDF")?;
     let parsed = parse("Text.\n", &Options::default())?;
-    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+    let converter = Converter::new(ConverterOptions::default(), Options::builder())?
         .with_pdf_options(PdfOptions {
             emit_theme_config: Some(directory.path().join("./document.pdf")),
             ..PdfOptions::default()
         });
     assert!(
-        processor
+        converter
             .convert_to_file(parsed.document(), None, &pdf)
             .is_err()
     );
     assert_eq!(std::fs::read_to_string(pdf)?, "original PDF");
     let pdf = directory.path().join("new/document.pdf");
     std::fs::create_dir(directory.path().join("existing"))?;
-    let processor = processor.with_pdf_options(PdfOptions {
+    let converter = converter.with_pdf_options(PdfOptions {
         emit_theme_config: Some(directory.path().join("existing/../new/document.pdf")),
         ..PdfOptions::default()
     });
     assert!(
-        processor
+        converter
             .convert_to_file(parsed.document(), None, &pdf)
             .is_err()
     );
@@ -471,12 +473,12 @@ fn theme_config_export_library_conversion_writes_pdf_and_native_theme() -> Resul
     let input_text = "Text.\n";
     std::fs::write(&input, input_text)?;
     let parsed = parse(input_text, &Options::default())?;
-    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+    let converter = Converter::new(ConverterOptions::default(), Options::builder())?
         .with_pdf_options(PdfOptions {
             emit_theme_config: Some(config.clone()),
             ..PdfOptions::default()
         });
-    processor.convert_to_file(parsed.document(), Some(&input), &pdf)?;
+    converter.convert_to_file(parsed.document(), Some(&input), &pdf)?;
     assert!(std::fs::read(pdf)?.starts_with(b"%PDF-"));
     assert_eq!(std::fs::read_to_string(input)?, input_text);
     assert_eq!(
@@ -495,13 +497,13 @@ fn theme_config_export_rejects_library_symlink_collisions() -> Result<(), Error>
     std::fs::write(&pdf, "original PDF")?;
     std::os::unix::fs::symlink(&pdf, &config)?;
     let parsed = parse("Text.\n", &Options::default())?;
-    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+    let converter = Converter::new(ConverterOptions::default(), Options::builder())?
         .with_pdf_options(PdfOptions {
             emit_theme_config: Some(config.clone()),
             ..PdfOptions::default()
         });
     assert!(
-        processor
+        converter
             .convert_to_file(parsed.document(), None, &pdf)
             .is_err()
     );
@@ -522,7 +524,7 @@ fn asciidoctor_theme_heading_sizes_apply_to_pdf_section_levels() -> Result<(), E
         "= TitleMarker\n\n== SectionMarker\n\nText.\n\n=== SubsectionMarker\n\nText.\n",
         &Options::default(),
     )?;
-    let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+    let converter = Converter::new(ConverterOptions::default(), Options::builder())?
         .with_pdf_options(PdfOptions {
             theme: Some(theme),
             theme_format: ThemeFormat::Asciidoctor,
@@ -531,7 +533,7 @@ fn asciidoctor_theme_heading_sizes_apply_to_pdf_section_levels() -> Result<(), E
     let source = WarningSource::new("pdf");
     let mut warnings = Vec::new();
     let mut bytes = Vec::new();
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut bytes,
         None,
@@ -571,7 +573,7 @@ fn invalid_page_margin_overrides_keep_loaded_theme_margins() -> Result<(), Error
         ] {
             let input = format!(":pdf-page-margin: {value}\n\nMarginFallbackMarker.\n");
             let parsed = parse(&input, &Options::default())?;
-            let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+            let converter = Converter::new(ConverterOptions::default(), Options::builder())?
                 .with_pdf_options(PdfOptions {
                     theme: Some(theme.clone()),
                     theme_format: format,
@@ -584,7 +586,7 @@ fn invalid_page_margin_overrides_keep_loaded_theme_margins() -> Result<(), Error
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut bytes = Vec::new();
-            processor.write_to(
+            converter.write_to(
                 parsed.document(),
                 &mut bytes,
                 None,
@@ -619,19 +621,19 @@ fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Re
         "page:\n  size: A5\n  layout: landscape\n  margin: [36, 30, 24, 42]\n",
     )?;
     for (attributes, overrides, size, layout, margin) in [
-        ("", false, PageSize::A5, PageLayout::Landscape, 42.0),
+        ("", false, PageSize::A5, PageOrientation::Landscape, 42.0),
         (
             ":pdf-page-size: Letter\n:pdf-page-layout: portrait\n:pdf-page-margin: 18\n",
             false,
             PageSize::Letter,
-            PageLayout::Portrait,
+            PageOrientation::Portrait,
             18.0,
         ),
         (
             ":pdf-page-size: Letter\n:pdf-page-layout: landscape\n:pdf-page-margin: 18\n",
             true,
             PageSize::A4,
-            PageLayout::Portrait,
+            PageOrientation::Portrait,
             30.0,
         ),
     ] {
@@ -645,10 +647,10 @@ fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Re
         };
         if overrides {
             options.page = Some(PageSize::A4);
-            options.page_layout = Some(PageLayout::Portrait);
+            options.page_layout = Some(PageOrientation::Portrait);
             options.page_margin = Some(PageMargins::try_new(30.0, 30.0, 30.0, 30.0)?);
         }
-        let processor = Processor::new(
+        let converter = Converter::new(
             ConverterOptions::default(),
             Options::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -658,7 +660,7 @@ fn asciidoctor_theme_page_settings_respect_document_and_caller_overrides() -> Re
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut bytes = Vec::new();
-        processor.write_to(
+        converter.write_to(
             parsed.document(),
             &mut bytes,
             None,
@@ -681,12 +683,12 @@ fn page_break_layout_changes_preserve_pdf_structure() -> Result<(), Error> {
         &pdf,
         PageSize::A4,
         &[
-            PageLayout::Portrait,
-            PageLayout::Landscape,
-            PageLayout::Landscape,
-            PageLayout::Portrait,
-            PageLayout::Landscape,
-            PageLayout::Portrait,
+            PageOrientation::Portrait,
+            PageOrientation::Landscape,
+            PageOrientation::Landscape,
+            PageOrientation::Portrait,
+            PageOrientation::Landscape,
+            PageOrientation::Portrait,
         ],
     )?;
     assert_eq!(internal_link_pages(&pdf, 1)?, [2, 4]);
@@ -744,33 +746,33 @@ fn page_break_layout_changes_preserve_pdf_structure() -> Result<(), Error> {
 }
 
 #[rstest::rstest]
-#[case::empty_first("[.landscape]\n<<<\n\nContent.\n", &[PageLayout::Landscape])]
-#[case::end("Content.\n\n[.landscape]\n<<<\n", &[PageLayout::Portrait])]
-#[case::empty_switch("First.\n\n<<<\n\n[.landscape]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape])]
-#[case::empty_restore("First.\n\n[.landscape]\n<<<\n\n[.portrait]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Portrait])]
-#[case::force_switch("First.\n\n<<<\n\n[.landscape%always]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Portrait, PageLayout::Landscape])]
-#[case::force_restore("First.\n\n[.landscape]\n<<<\n\n[.portrait%always]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
-#[case::repeat_force("First.\n\n[.landscape%always]\n<<<\n\n[.portrait%always]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
-#[case::repeated_landscape_role("First.\n\n[.landscape.portrait.landscape]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Portrait])]
-#[case::repeated_portrait_role("First.\n\n[.portrait.landscape.portrait]\n<<<\n\nSecond.\n", &[PageLayout::Portrait, PageLayout::Landscape])]
+#[case::empty_first("[.landscape]\n<<<\n\nContent.\n", &[PageOrientation::Landscape])]
+#[case::end("Content.\n\n[.landscape]\n<<<\n", &[PageOrientation::Portrait])]
+#[case::empty_switch("First.\n\n<<<\n\n[.landscape]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Landscape])]
+#[case::empty_restore("First.\n\n[.landscape]\n<<<\n\n[.portrait]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Portrait])]
+#[case::force_switch("First.\n\n<<<\n\n[.landscape%always]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Portrait, PageOrientation::Landscape])]
+#[case::force_restore("First.\n\n[.landscape]\n<<<\n\n[.portrait%always]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Landscape, PageOrientation::Portrait])]
+#[case::repeat_force("First.\n\n[.landscape%always]\n<<<\n\n[.portrait%always]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Landscape, PageOrientation::Portrait])]
+#[case::repeated_landscape_role("First.\n\n[.landscape.portrait.landscape]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Portrait])]
+#[case::repeated_portrait_role("First.\n\n[.portrait.landscape.portrait]\n<<<\n\nSecond.\n", &[PageOrientation::Portrait, PageOrientation::Landscape])]
 fn page_break_layout_changes_preserve_empty_page_rules(
     #[case] source: &str,
-    #[case] layouts: &[PageLayout],
+    #[case] layouts: &[PageOrientation],
 ) -> Result<(), Error> {
     let pdf = render_input(source)?;
     assert_pdf_page_layouts(&pdf, PageSize::A4, layouts)
 }
 
 #[rstest::rstest]
-#[case::named_portrait("A3", "portrait", PageSize::A3, &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
-#[case::named_landscape("A5", "landscape", PageSize::A5, &[PageLayout::Landscape, PageLayout::Landscape, PageLayout::Portrait])]
-#[case::custom_portrait("[8.5in, 11in]", "portrait", PageSize::Letter, &[PageLayout::Portrait, PageLayout::Landscape, PageLayout::Portrait])]
-#[case::custom_landscape("[8.5in, 11in]", "landscape", PageSize::Letter, &[PageLayout::Landscape, PageLayout::Landscape, PageLayout::Portrait])]
+#[case::named_portrait("A3", "portrait", PageSize::A3, &[PageOrientation::Portrait, PageOrientation::Landscape, PageOrientation::Portrait])]
+#[case::named_landscape("A5", "landscape", PageSize::A5, &[PageOrientation::Landscape, PageOrientation::Landscape, PageOrientation::Portrait])]
+#[case::custom_portrait("[8.5in, 11in]", "portrait", PageSize::Letter, &[PageOrientation::Portrait, PageOrientation::Landscape, PageOrientation::Portrait])]
+#[case::custom_landscape("[8.5in, 11in]", "landscape", PageSize::Letter, &[PageOrientation::Landscape, PageOrientation::Landscape, PageOrientation::Portrait])]
 fn page_break_layout_changes_preserve_document_page_size(
     #[case] size: &str,
     #[case] initial: &str,
     #[case] expected_size: PageSize,
-    #[case] layouts: &[PageLayout],
+    #[case] layouts: &[PageOrientation],
 ) -> Result<(), Error> {
     let source = format!(
         "= Document page size\n:pdf-page-size: {size}\n:pdf-page-layout: {initial}\n\nFirst.\n\n[page-layout=landscape]\n<<<\n\nSecond.\n\n[page-layout=portrait]\n<<<\n\nThird.\n"
@@ -790,10 +792,10 @@ fn page_break_layout_changes_keep_layout_and_warn_on_invalid_values() -> Result<
         &pdf,
         PageSize::A4,
         &[
-            PageLayout::Landscape,
-            PageLayout::Landscape,
-            PageLayout::Portrait,
-            PageLayout::Landscape,
+            PageOrientation::Landscape,
+            PageOrientation::Landscape,
+            PageOrientation::Portrait,
+            PageOrientation::Landscape,
         ],
     )?;
     let [warning] = warnings.as_slice() else {
@@ -830,7 +832,7 @@ fn page_break_layout_changes_keep_layout_when_margins_do_not_fit() -> Result<(),
     assert_pdf_page_layouts(
         &pdf,
         PageSize::A5,
-        &[PageLayout::Landscape, PageLayout::Landscape],
+        &[PageOrientation::Landscape, PageOrientation::Landscape],
     )?;
     let [warning] = warnings.as_slice() else {
         return Err("expected one page-margin warning".into());
@@ -862,7 +864,7 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
     let parsed = parse(&input, &Options::default())?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("layout.typ");
-    let processor = cli_fixture_processor(Options::builder().with_attributes(
+    let converter = cli_fixture_converter(Options::builder().with_attributes(
         acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
     ))?
     .with_pdf_options(PdfOptions {
@@ -872,7 +874,7 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("pdf");
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut output,
         None,
@@ -901,9 +903,9 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
         &pdf,
         PageSize::A4,
         &[
-            PageLayout::Portrait,
-            PageLayout::Landscape,
-            PageLayout::Portrait,
+            PageOrientation::Portrait,
+            PageOrientation::Landscape,
+            PageOrientation::Portrait,
         ],
     )
 }
@@ -911,7 +913,7 @@ fn page_break_layout_changes_update_image_widths_and_code_wrapping() -> Result<(
 #[test]
 fn page_break_layout_changes_preserve_page_size_before_first_content() -> Result<(), Error> {
     let pdf = render_input(":pdf-page-size: A3\n\n[.landscape]\n<<<\n\nContent.\n")?;
-    assert_pdf_page_layouts(&pdf, PageSize::A3, &[PageLayout::Landscape])
+    assert_pdf_page_layouts(&pdf, PageSize::A3, &[PageOrientation::Landscape])
 }
 
 #[test]
@@ -923,10 +925,10 @@ fn page_break_layout_changes_keep_book_page_numbering() -> Result<(), Error> {
         &pdf,
         PageSize::A4,
         &[
-            PageLayout::Portrait,
-            PageLayout::Portrait,
-            PageLayout::Landscape,
-            PageLayout::Portrait,
+            PageOrientation::Portrait,
+            PageOrientation::Portrait,
+            PageOrientation::Landscape,
+            PageOrientation::Portrait,
         ],
     )?;
     for (page, number) in [(2, "1"), (3, "2"), (4, "3")] {
@@ -939,7 +941,7 @@ fn page_break_layout_changes_keep_book_page_numbering() -> Result<(), Error> {
 fn assert_pdf_page_layouts(
     pdf: &PdfDocument,
     size: PageSize,
-    layouts: &[PageLayout],
+    layouts: &[PageOrientation],
 ) -> Result<(), Error> {
     let pages = pdf.get_pages();
     assert_eq!(pages.len(), layouts.len());
@@ -1036,7 +1038,7 @@ fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(),
         (None, "IBMPlexSerif", "IBMPlexSerif-Regular"),
         (Some(theme_path), "IBMPlexSans", "IBMPlexSans"),
     ] {
-        let processor = Processor::new(ConverterOptions::default(), Options::builder())?
+        let converter = Converter::new(ConverterOptions::default(), Options::builder())?
             .with_pdf_options(PdfOptions {
                 theme,
                 ..PdfOptions::default()
@@ -1044,7 +1046,7 @@ fn nested_styles_use_combined_pdf_fonts_and_restore_outer_styles() -> Result<(),
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let warning_source = WarningSource::new("pdf");
-        processor.write_to(
+        converter.write_to(
             parsed.document(),
             &mut output,
             None,
@@ -3276,7 +3278,7 @@ fn render_document(document: acdc_parser::ast::DocumentRef<'_>) -> Result<PdfDoc
 fn render_document_with_warnings(
     document: acdc_parser::ast::DocumentRef<'_>,
 ) -> Result<(PdfDocument, Vec<Warning>), Error> {
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         Options::builder().with_attributes(
             acdc_parser::DocumentAttributes::from(document.attributes()).into_inputs(),
@@ -3286,7 +3288,7 @@ fn render_document_with_warnings(
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     let mut output = Vec::new();
-    processor.write_to(document, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(document, &mut output, None, None, &mut diagnostics)?;
     Ok((PdfDocument::load_mem(&output)?, warnings))
 }
 
@@ -3994,9 +3996,9 @@ fn literal_hyperlink_ids_are_named_pdf_destinations() -> Result<(), Error> {
 #[test]
 fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/link_macro_ids.adoc");
-    let bootstrap = Processor::new(ConverterOptions::default(), Options::builder())?;
+    let bootstrap = Converter::new(ConverterOptions::default(), Options::builder())?;
     let parsed = parse_file(path, bootstrap.parser_options())?;
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         Options::builder().with_attributes(
             acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -4006,7 +4008,7 @@ fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
     let mut warnings = Vec::new();
     let source = WarningSource::new("pdf");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut pdf,
         Some(path),
@@ -4045,14 +4047,14 @@ fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
 #[test]
 fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/image_accessibility_alt_text.adoc");
-    let bootstrap = Processor::new(
+    let bootstrap = Converter::new(
         ConverterOptions::builder()
             .safe_mode(acdc_parser::SafeMode::Unsafe)
             .build(),
         Options::builder().with_safe_mode(acdc_parser::SafeMode::Unsafe),
     )?;
     let parsed = parse_file(path, bootstrap.parser_options())?;
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::builder()
             .safe_mode(acdc_parser::SafeMode::Unsafe)
             .build(),
@@ -4066,7 +4068,7 @@ fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     let mut warnings = Vec::new();
     let source = WarningSource::new("pdf");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-    processor.write_to(
+    converter.write_to(
         parsed.document(),
         &mut pdf,
         Some(path),

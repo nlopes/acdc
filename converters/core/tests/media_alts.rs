@@ -50,12 +50,9 @@ fn image_and_icon_fallbacks_keep_distinct_target_policies() -> Result<(), TestEr
         let target = SourceRef::from(&source);
         assert_eq!(media::image_alt_from_content(target, None), image);
         assert_eq!(icon::alt_from_content(target, None), icon);
-        assert_eq!(target.file_name(), source.get_filename());
+        assert_eq!(target.file_name(), source.file_name());
         if let Some(filename) = target.file_name() {
-            assert_eq!(
-                Some(filename.as_ptr()),
-                source.get_filename().map(str::as_ptr)
-            );
+            assert_eq!(Some(filename.as_ptr()), source.file_name().map(str::as_ptr));
         }
     }
     Ok(())

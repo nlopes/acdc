@@ -3,9 +3,9 @@
 use std::alloc::System;
 
 use acdc_parser::{
-    Button, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Keyboard, Location, Menu,
-    Options, Plain,
-    ast::{ButtonRef, ContentRef, InlineKind, KeyboardRef, MenuRef},
+    Button, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, KeyboardShortcut,
+    Location, MenuPath, Options, Plain,
+    ast::{ButtonRef, ContentRef, InlineKind, KeyboardShortcutRef, MenuPathRef},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -66,10 +66,10 @@ fn menu_target_and_item_transfers_preserve_empty_positions() -> Result<(), Error
     let mut items = Vec::with_capacity(4);
     items.extend([label("Open"), ContentAttribute::default(), label("Close")]);
     let pointer = items.as_ptr();
-    let mut menu = Menu::new(label("File"), items, Location::default());
-    assert_eq!(text(MenuRef::from(&menu).target())?, "File");
+    let mut menu = MenuPath::new(label("File"), items, Location::default());
+    assert_eq!(text(MenuPathRef::from(&menu).target())?, "File");
     assert_eq!(
-        MenuRef::from(&menu)
+        MenuPathRef::from(&menu)
             .items()
             .map(text)
             .collect::<Result<Vec<_>, _>>()?,
@@ -77,16 +77,16 @@ fn menu_target_and_item_transfers_preserve_empty_positions() -> Result<(), Error
     );
     let target = menu.replace_target(ContentAttribute::default());
     assert_eq!(text(ContentRef::from(&target))?, "File");
-    assert!(MenuRef::from(&menu).target().is_empty());
+    assert!(MenuPathRef::from(&menu).target().is_empty());
     menu.push_item(label("Save"));
     let items = menu.take_items();
     assert_eq!(items.as_ptr(), pointer);
     assert_eq!(items.len(), 4);
-    assert_eq!(MenuRef::from(&menu).items().count(), 0);
+    assert_eq!(MenuPathRef::from(&menu).items().count(), 0);
     let empty = menu.replace_items(items);
     assert_eq!(empty, []);
     assert_eq!(
-        MenuRef::from(&menu)
+        MenuPathRef::from(&menu)
             .items()
             .map(text)
             .collect::<Result<Vec<_>, _>>()?,
@@ -100,14 +100,14 @@ fn keyboard_transfers_prepared_keys_without_splitting() -> Result<(), Error> {
     let mut keys = Vec::with_capacity(4);
     keys.extend([label("Ctrl+Alt"), ContentAttribute::default(), label("É")]);
     let pointer = keys.as_ptr();
-    let mut keyboard = Keyboard::new(keys, Location::default());
+    let mut keyboard = KeyboardShortcut::new(keys, Location::default());
     keyboard.push_key(label("Enter"));
     let keys = keyboard.take_keys();
     assert_eq!(keys.as_ptr(), pointer);
-    assert_eq!(KeyboardRef::from(&keyboard).keys().count(), 0);
+    assert_eq!(KeyboardShortcutRef::from(&keyboard).keys().count(), 0);
     assert_eq!(keyboard.replace_keys(keys), []);
     assert_eq!(
-        KeyboardRef::from(&keyboard)
+        KeyboardShortcutRef::from(&keyboard)
             .keys()
             .map(text)
             .collect::<Result<Vec<_>, _>>()?,
@@ -121,11 +121,11 @@ fn selected_ui_copies_keep_originals_and_source_lifetimes() -> Result<(), Error>
     let input = String::from("Shared *literal*");
     {
         let button = Button::new(label(&input), Location::default());
-        let menu = Menu::new(label(&input), vec![label(&input)], Location::default());
-        let keyboard = Keyboard::new(vec![label(&input)], Location::default());
+        let menu = MenuPath::new(label(&input), vec![label(&input)], Location::default());
+        let keyboard = KeyboardShortcut::new(vec![label(&input)], Location::default());
         let mut copied_button = Button::from(ButtonRef::from(&button));
-        let mut copied_menu = Menu::from(MenuRef::from(&menu));
-        let mut copied_keyboard = Keyboard::from(KeyboardRef::from(&keyboard));
+        let mut copied_menu = MenuPath::from(MenuPathRef::from(&menu));
+        let mut copied_keyboard = KeyboardShortcut::from(KeyboardShortcutRef::from(&keyboard));
         assert_eq!(copied_button, button);
         assert_eq!(copied_menu, menu);
         assert_eq!(copied_keyboard, keyboard);
@@ -133,8 +133,8 @@ fn selected_ui_copies_keep_originals_and_source_lifetimes() -> Result<(), Error>
         let menu_items = copied_menu.take_items();
         let keys = copied_keyboard.take_keys();
         assert_eq!(text(ButtonRef::from(&button).label())?, input);
-        assert_eq!(MenuRef::from(&menu).items().count(), 1);
-        assert_eq!(KeyboardRef::from(&keyboard).keys().count(), 1);
+        assert_eq!(MenuPathRef::from(&menu).items().count(), 1);
+        assert_eq!(KeyboardShortcutRef::from(&keyboard).keys().count(), 1);
         assert_eq!(text(ContentRef::from(&button_label))?, input);
         assert_eq!(
             menu_items
@@ -154,8 +154,8 @@ fn selected_ui_copies_keep_originals_and_source_lifetimes() -> Result<(), Error>
     }
     let (button, menu, keyboard) = {
         let mut button = Button::new(label(&input), Location::default());
-        let mut menu = Menu::new(label(&input), vec![label(&input)], Location::default());
-        let mut keyboard = Keyboard::new(vec![label(&input)], Location::default());
+        let mut menu = MenuPath::new(label(&input), vec![label(&input)], Location::default());
+        let mut keyboard = KeyboardShortcut::new(vec![label(&input)], Location::default());
         (
             button.replace_label(ContentAttribute::default()),
             menu.take_items(),
@@ -189,8 +189,8 @@ fn ui_span_edits_leave_child_locations_independent() -> Result<(), Error> {
     location.absolute_start = 42;
     location.absolute_end = 49;
     let mut button = Button::new(label(source), child_location.clone());
-    let mut menu = Menu::new(label(source), vec![label(source)], child_location.clone());
-    let mut keyboard = Keyboard::new(vec![label(source)], child_location.clone());
+    let mut menu = MenuPath::new(label(source), vec![label(source)], child_location.clone());
+    let mut keyboard = KeyboardShortcut::new(vec![label(source)], child_location.clone());
     button.set_location(location.clone());
     menu.set_location(location.clone());
     keyboard.set_location(location.clone());
@@ -198,9 +198,12 @@ fn ui_span_edits_leave_child_locations_independent() -> Result<(), Error> {
         Location::from(ButtonRef::from(&button).location()),
         location
     );
-    assert_eq!(Location::from(MenuRef::from(&menu).location()), location);
     assert_eq!(
-        Location::from(KeyboardRef::from(&keyboard).location()),
+        Location::from(MenuPathRef::from(&menu).location()),
+        location
+    );
+    assert_eq!(
+        Location::from(KeyboardShortcutRef::from(&keyboard).location()),
         location
     );
     assert_eq!(
@@ -216,7 +219,7 @@ fn ui_span_edits_leave_child_locations_independent() -> Result<(), Error> {
     );
     assert_eq!(
         Location::from(
-            MenuRef::from(&menu)
+            MenuPathRef::from(&menu)
                 .target()
                 .inlines()
                 .next()
@@ -227,7 +230,7 @@ fn ui_span_edits_leave_child_locations_independent() -> Result<(), Error> {
     );
     assert_eq!(
         Location::from(
-            KeyboardRef::from(&keyboard)
+            KeyboardShortcutRef::from(&keyboard)
                 .keys()
                 .next()
                 .ok_or("key")?
@@ -259,12 +262,14 @@ fn parsed_ui_copies_preserve_native_output_and_nested_content(
         let owned = if let InlineKind::Button(button) = node.kind() {
             kinds.push("button");
             InlineNode::Macro(InlineMacro::Button(Button::from(button)))
-        } else if let InlineKind::Keyboard(keyboard) = node.kind() {
+        } else if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
             kinds.push("keyboard");
-            InlineNode::Macro(InlineMacro::Keyboard(Keyboard::from(keyboard)))
-        } else if let InlineKind::Menu(menu) = node.kind() {
+            InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut::from(
+                keyboard,
+            )))
+        } else if let InlineKind::MenuPath(menu) = node.kind() {
             kinds.push("menu");
-            InlineNode::Macro(InlineMacro::Menu(Menu::from(menu)))
+            InlineNode::Macro(InlineMacro::MenuPath(MenuPath::from(menu)))
         } else {
             continue;
         };
@@ -281,8 +286,8 @@ fn parsed_ui_copies_preserve_native_output_and_nested_content(
 #[test]
 fn copying_empty_macro_owners_allocates_nothing() {
     let button = Button::new(ContentAttribute::default(), Location::default());
-    let menu = Menu::new(ContentAttribute::default(), Vec::new(), Location::default());
-    let keyboard = Keyboard::new(Vec::new(), Location::default());
+    let menu = MenuPath::new(ContentAttribute::default(), Vec::new(), Location::default());
+    let keyboard = KeyboardShortcut::new(Vec::new(), Location::default());
     let xref = acdc_parser::CrossReference::new("target", Location::default());
     let index = acdc_parser::IndexTerm::new(
         acdc_parser::IndexTermKind::Flow(Vec::new()),
@@ -291,8 +296,8 @@ fn copying_empty_macro_owners_allocates_nothing() {
     let region = Region::new(ALLOCATOR);
     let copies = std::hint::black_box((
         Button::from(ButtonRef::from(&button)),
-        Menu::from(MenuRef::from(&menu)),
-        Keyboard::from(KeyboardRef::from(&keyboard)),
+        MenuPath::from(MenuPathRef::from(&menu)),
+        KeyboardShortcut::from(KeyboardShortcutRef::from(&keyboard)),
         acdc_parser::CrossReference::from(acdc_parser::ast::CrossReferenceRef::from(&xref)),
         acdc_parser::IndexTerm::from(acdc_parser::ast::IndexTermRef::from(&index)),
     ));

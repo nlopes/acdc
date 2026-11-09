@@ -72,7 +72,7 @@ fn typed_heading_ids_keep_constructed_fallbacks_and_heading_precedence(
 ) -> Result<(), Error> {
     let options = Options::builder().with_compatibility_mode(mode).build()?;
     let parsed = parse("[discrete]\n== Heading\n", &options)?;
-    let Some(Block::DiscreteHeader(original)) = parsed.document_storage().blocks.first() else {
+    let Some(Block::DiscreteHeading(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected discrete heading".into());
     };
     for (text, expected) in [("", ""), ("!!!", ""), ("*Héading* _text_", "_héading_text")] {
@@ -105,7 +105,7 @@ fn typed_heading_ids_keep_constructed_fallbacks_and_heading_precedence(
             header.metadata = section.metadata.clone();
             let before = serde_json::to_value((&section, &header))?;
             let section_id = SectionRef::from(&section).resolve_id();
-            let header_id = crate::ast::DiscreteHeaderRef::from(&header).resolve_id();
+            let header_id = crate::ast::DiscreteHeadingRef::from(&header).resolve_id();
             assert_eq!(section_id, expected_id);
             assert_eq!(header_id, expected_id);
             assert_eq!(section_id, section.id());
@@ -124,7 +124,7 @@ fn typed_heading_ids_keep_constructed_fallbacks_and_heading_precedence(
             assert_eq!(serde_json::to_value((&section, &header))?, before);
             if primary.is_none() && !anchors {
                 assert!(SectionRef::from(&section).id().is_none());
-                assert!(crate::ast::DiscreteHeaderRef::from(&header).id().is_none());
+                assert!(crate::ast::DiscreteHeadingRef::from(&header).id().is_none());
             }
         }
     }

@@ -20,7 +20,7 @@ fn retained_declarations_preserve_primary_selection_labels_and_locations() -> Re
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (path, expected) in [
             ("/blocks/0/id", json!("para-last")),
@@ -41,7 +41,7 @@ fn retained_declarations_preserve_primary_selection_labels_and_locations() -> Re
         assert!(!parsed.document().references().contains("section-first"));
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported{path,..}) if path=="/blocks/0/metadata/anchors")
+            matches!(asg::export_document(parsed.document()),Err(asg::Error::Unsupported{path,..}) if path=="/blocks/0/metadata/anchors")
         );
     }
     Ok(())
@@ -50,7 +50,7 @@ fn retained_declarations_preserve_primary_selection_labels_and_locations() -> Re
 #[test]
 fn header_primary_uses_the_heading_anchor_selection() -> Result<(), Error> {
     let parsed = parse("[[first]]\n[[last]]\n= Guide", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/header/id"), Some(&json!("last")));
     assert_eq!(value.pointer("/header/anchors/0/id"), Some(&json!("first")));
     assert!(parsed.document().references().contains("last"));
@@ -65,7 +65,7 @@ fn prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_s
     let mut metadata = paragraph.take_metadata();
     metadata.id = Some(Anchor::new("id", Location::default()));
     metadata.anchors = vec![
-        Anchor::new("id", Location::default()).with_xreflabel(Some(ContentAttribute::default())),
+        Anchor::new("id", Location::default()).with_reftext(Some(ContentAttribute::default())),
     ];
     metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::PlainText(
         Plain::new("Selected", Location::default()),
@@ -73,7 +73,7 @@ fn prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_s
     paragraph.set_metadata(metadata)?;
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/blocks/0/id"), Some(&json!("id")));
     assert_eq!(
         value.pointer("/blocks/0/anchors"),
@@ -96,13 +96,13 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
         )
         .ok_or("numeric reference")?,
     )]);
-    let anchor = Anchor::new("inline", Location::default()).with_xreflabel(Some(invalid));
+    let anchor = Anchor::new("inline", Location::default()).with_reftext(Some(invalid));
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
         vec![InlineNode::InlineAnchor(anchor)],
         Location::default(),
     )));
-    let result = asg::document_with_profile((&document).into(), asg::Profile::Acdc);
+    let result = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc);
     assert!(
         matches!(&result,Err(asg::Error::Unsupported{path,..}) if path=="/blocks/0/inlines/0/reftext/0"),
         "{result:?}"
@@ -114,7 +114,7 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
         vec![InlineNode::InlineAnchor(anchor)],
         Location::default(),
     )));
-    let result = asg::document_with_profile((&document).into(), asg::Profile::Acdc);
+    let result = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc);
     assert!(
         matches!(
             &result,
@@ -139,14 +139,14 @@ fn unused_primary_anchor_label_does_not_replace_effective_reference_text() -> Re
     )]);
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
-    metadata.id = Some(Anchor::new("id", Location::default()).with_xreflabel(Some(invalid)));
+    metadata.id = Some(Anchor::new("id", Location::default()).with_reftext(Some(invalid)));
     metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::PlainText(
         Plain::new("Selected", Location::default()),
     )]));
     paragraph.set_metadata(metadata)?;
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/reftext/0/value"),
         Some(&json!("Selected"))
@@ -158,7 +158,7 @@ fn unused_primary_anchor_label_does_not_replace_effective_reference_text() -> Re
 fn anchor_schema_closes_declarations_and_inline_owners() -> Result<(), Error> {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/anchors.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

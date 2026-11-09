@@ -44,7 +44,7 @@ fn constrained_monospace_boundaries_preserve_separate_source_spans() -> Result<(
                     .ok_or_else(|| format!("missing monospace span: {source:?}"))?;
                 let span = mono.location();
                 assert_eq!(
-                    &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                    &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                     quoted,
                     "{source:?}"
                 );
@@ -54,7 +54,8 @@ fn constrained_monospace_boundaries_preserve_separate_source_spans() -> Result<(
                             matches!(node.kind(), InlineKind::Bold(_) | InlineKind::Highlight(_))
                                 && {
                                     let span = node.location();
-                                    &parsed.source()[span.absolute_start()..=span.absolute_end()]
+                                    &parsed.preprocessed_source()
+                                        [span.absolute_start()..=span.absolute_end()]
                                         == sibling
                                 }
                         }),

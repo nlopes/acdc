@@ -1,5 +1,5 @@
 use acdc_converters_core::Options;
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{CompatibilityMode, Options as ParserOptions, parse};
 
 type Error = Box<dyn std::error::Error>;
@@ -16,9 +16,9 @@ fn cell_notes_have_unique_destinations_and_repeated_links(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let processor =
-        Processor::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
-    let output = processor.convert_to_string(
+    let converter =
+        Converter::new_with_variant(Options::default(), ParserOptions::builder(), variant)?;
+    let output = converter.convert_to_string(
         parsed.document(),
         &RenderOptions {
             embedded: true,

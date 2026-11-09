@@ -155,7 +155,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         }
 
         // Regular paragraph rendering
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             let has_title = data.title().is_some();
             let has_id = data.id().is_some();
             let has_roles = !data.roles().is_empty();
@@ -224,7 +224,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         data: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let semantic = self.converter.variant() == HtmlVariant::Semantic;
         let has_title = data.title().is_some();
         let tag = if semantic && has_title {
             "section"
@@ -262,7 +262,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         data: ParagraphRef<'_>,
     ) -> Result<(), Error> {
-        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let semantic = self.converter.variant() == HtmlVariant::Semantic;
         let has_title = data.title().is_some();
         let tag = if semantic && has_title {
             "figure"
@@ -334,7 +334,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             true,
         );
 
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             if data.title().is_some() {
                 write!(self.writer, "<figure")?;
                 write_element_id(&mut self.writer, data.id())?;

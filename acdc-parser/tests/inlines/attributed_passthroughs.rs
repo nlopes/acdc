@@ -167,7 +167,7 @@ fn asg_reports_passthrough_identity_instead_of_dropping_it() -> Result<(), Error
             let parsed = parse(&source, &Options::default())?;
             let raw = raw_nodes(&parsed).into_iter().next().ok_or("raw")?;
             let node = acdc_parser::InlineNode::RawText(acdc_parser::Raw::from(raw));
-            let error = acdc_parser::asg::inlines_with_profile(
+            let error = acdc_parser::asg::export_inlines_with_profile(
                 acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(vec![node])),
                 profile,
             )

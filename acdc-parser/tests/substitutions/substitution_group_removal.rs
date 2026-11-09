@@ -112,7 +112,7 @@ fn removed_verbatim_group_controls_callouts_in_every_code_block_kind() -> Result
                 assert_eq!(callouts.len(), usize::from(expected), "{source}");
                 for callout in &callouts {
                     assert_eq!(
-                        parsed.source().get(
+                        parsed.preprocessed_source().get(
                             callout.location().absolute_start()..=callout.location().absolute_end()
                         ),
                         Some("<1>"),

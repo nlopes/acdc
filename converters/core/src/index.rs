@@ -63,9 +63,9 @@ fn index_children(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         InlineKind::Highlight(text) => text.content(),
         InlineKind::Subscript(text) => text.content(),
         InlineKind::Superscript(text) => text.content(),
-        InlineKind::CurvedQuotation(text) => text.content(),
-        InlineKind::CurvedApostrophe(text) => text.content(),
-        InlineKind::Url(link) => link.text(),
+        InlineKind::DoubleQuotedSpan(text) => text.content(),
+        InlineKind::SingleQuotedSpan(text) => text.content(),
+        InlineKind::UrlMacro(link) => link.text(),
         InlineKind::Link(link) => link.text(),
         InlineKind::Mailto(link) => link.text(),
         InlineKind::CrossReference(link) => link.text(),
@@ -81,11 +81,11 @@ fn index_children(node: InlineRef<'_>) -> Option<ContentRef<'_>> {
         | InlineKind::Callout(_)
         | InlineKind::Icon(_)
         | InlineKind::Image(_)
-        | InlineKind::Keyboard(_)
+        | InlineKind::KeyboardShortcut(_)
         | InlineKind::Button(_)
-        | InlineKind::Menu(_)
+        | InlineKind::MenuPath(_)
         | InlineKind::Autolink(_)
-        | InlineKind::Pass(_)
+        | InlineKind::Passthrough(_)
         | InlineKind::Stem(_)
         | InlineKind::IndexTerm(_)
         | _ => return None,

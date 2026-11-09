@@ -5,7 +5,7 @@ use std::{
 
 use acdc_converters_core::{Diagnostics, GeneratorMetadata, Options, WarningSource};
 use acdc_converters_dev::fixtures::FixtureOutput;
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions, SafeMode, ast::DocumentRef};
 
 pub(crate) fn has_highlighter(document: DocumentRef<'_>) -> bool {
@@ -30,7 +30,7 @@ pub(crate) fn render_document(
     variant: HtmlVariant,
     embedded: bool,
 ) -> Result<FixtureOutput, Box<dyn Error>> {
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         Options::builder()
             .safe_mode(SafeMode::Unsafe)
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
@@ -52,7 +52,7 @@ pub(crate) fn render_document(
     let mut output = Vec::new();
     let mut warnings = Vec::new();
     let source = WarningSource::new("html").with_variant(variant.as_str());
-    processor.convert_to_writer(
+    converter.convert_to_writer(
         doc,
         &mut output,
         &render_options,

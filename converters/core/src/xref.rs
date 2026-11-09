@@ -4,7 +4,7 @@ use std::{borrow::Cow, cell::Cell, rc::Rc};
 
 use acdc_parser::{
     ContentAttribute, InlineNode, XrefCaptionLabel, XrefSignifier, XrefStyle,
-    ast::{CaptionRef, ContentRef, CrossReferenceRef, InlineKind, ReferenceRef},
+    ast::{CaptionRef, ContentRef, CrossReferenceRef, InlineKind, ReferenceTargetRef},
 };
 
 /// Display content for an automatic cross-reference.
@@ -58,7 +58,7 @@ pub enum XrefDisplay<'r, Content> {
 /// cross-reference resolves to [`XrefDisplay::Nested`]. Asciidoctor guards the
 /// same case and renders the inner reference as `[refid]`.
 ///
-/// Clones share one flag: converters clone their processor freely — per inline
+/// Clones share one flag: converters clone their converter freely — per inline
 /// node, and for the sub-visitors that render into a buffer — and a nested
 /// render must see the resolution its parent started.
 #[derive(Clone, Debug, Default)]
@@ -94,7 +94,7 @@ impl Drop for XrefScope<'_> {
 /// The default reference label or title stored in the target catalog.
 /// [`resolve_reference`] also selects a document label captured at the occurrence.
 #[must_use]
-pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
+pub fn reference_text(reference: ReferenceTargetRef<'_>) -> Option<ContentRef<'_>> {
     reference.xreflabel().or_else(|| reference.title())
 }
 
@@ -119,14 +119,14 @@ pub fn reference_text(reference: ReferenceRef<'_>) -> Option<ContentRef<'_>> {
 /// for backend-specific links, even if the local catalog contains the same ID.
 #[must_use]
 pub fn resolve_reference<'doc, 'guard>(
-    reference: Option<ReferenceRef<'doc>>,
+    reference: Option<ReferenceTargetRef<'doc>>,
     xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
     let xref = xref.into();
     resolve_content(
         reference,
-        reference.and_then(ReferenceRef::title),
+        reference.and_then(ReferenceTargetRef::title),
         occurrence_label(reference, xref),
         xref,
         guard,
@@ -144,7 +144,7 @@ pub fn resolve_reference<'doc, 'guard>(
 /// [`resolve_reference`]; the occurrence remains unchanged.
 #[must_use]
 pub fn resolve_local_reference<'doc, 'guard>(
-    reference: Option<ReferenceRef<'doc>>,
+    reference: Option<ReferenceTargetRef<'doc>>,
     xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
@@ -152,7 +152,7 @@ pub fn resolve_local_reference<'doc, 'guard>(
     let target = local_reference_id(xref);
     resolve_local_content(
         reference,
-        reference.and_then(ReferenceRef::title),
+        reference.and_then(ReferenceTargetRef::title),
         occurrence_label(reference, xref).filter(|label| !label.is_empty()),
         &target,
         xref,
@@ -161,22 +161,22 @@ pub fn resolve_local_reference<'doc, 'guard>(
 }
 
 pub(crate) fn reference_text_at<'doc>(
-    reference: ReferenceRef<'doc>,
+    reference: ReferenceTargetRef<'doc>,
     xref: CrossReferenceRef<'doc>,
 ) -> Option<ContentRef<'doc>> {
     occurrence_label(Some(reference), xref).or_else(|| reference.title())
 }
 
 fn occurrence_label<'doc>(
-    reference: Option<ReferenceRef<'doc>>,
+    reference: Option<ReferenceTargetRef<'doc>>,
     xref: CrossReferenceRef<'doc>,
 ) -> Option<ContentRef<'doc>> {
-    if reference.is_some_and(ReferenceRef::is_document)
+    if reference.is_some_and(ReferenceTargetRef::is_document)
         && let Some(label) = xref.document_reftext()
     {
         return (!label.is_empty()).then_some(label);
     }
-    reference.and_then(ReferenceRef::xreflabel)
+    reference.and_then(ReferenceTargetRef::xreflabel)
 }
 
 /// Catalog key for displaying a reference without an interdocument link.
@@ -203,7 +203,7 @@ pub fn local_reference_id(xref: CrossReferenceRef<'_>) -> Cow<'_, str> {
 }
 
 fn resolve_content<'doc, 'guard>(
-    reference: Option<ReferenceRef<'doc>>,
+    reference: Option<ReferenceTargetRef<'doc>>,
     title: Option<ContentRef<'doc>>,
     label: Option<ContentRef<'doc>>,
     xref: CrossReferenceRef<'_>,
@@ -217,7 +217,7 @@ fn resolve_content<'doc, 'guard>(
 }
 
 fn resolve_local_content<'doc, 'guard>(
-    reference: Option<ReferenceRef<'doc>>,
+    reference: Option<ReferenceTargetRef<'doc>>,
     title: Option<ContentRef<'doc>>,
     label: Option<ContentRef<'doc>>,
     target: &str,
@@ -233,9 +233,11 @@ fn resolve_local_content<'doc, 'guard>(
     }
     if let Some(label) = label {
         XrefDisplay::Label(label, guard.enter())
-    } else if let (Some(title), Some(name), Some(number)) =
-        (title, reference.section_name(), reference.section_number())
-        && matches!(xref.xrefstyle(), XrefStyle::Short | XrefStyle::Full)
+    } else if let (Some(title), Some(name), Some(number)) = (
+        title,
+        reference.section_category(),
+        reference.section_number(),
+    ) && matches!(xref.xrefstyle(), XrefStyle::Short | XrefStyle::Full)
     {
         let prefix = section_prefix(name, number, xref.signifier());
         if xref.xrefstyle() == XrefStyle::Short {
@@ -247,7 +249,7 @@ fn resolve_local_content<'doc, 'guard>(
         }
     } else if let Some(title) = title
         && xref.xrefstyle() != XrefStyle::Default
-        && matches!(reference.section_name(), Some("chapter" | "appendix"))
+        && matches!(reference.section_category(), Some("chapter" | "appendix"))
     {
         XrefDisplay::Emphasized(None, title, guard.enter())
     } else if let (Some(title), Some(CaptionRef::CustomContent(prefix))) =
@@ -459,12 +461,12 @@ mod tests {
     };
 
     fn resolve_xref<'doc, 'guard>(
-        reference: Option<&'doc acdc_parser::Reference<'doc>>,
+        reference: Option<&'doc acdc_parser::ReferenceTarget<'doc>>,
         xref: impl Into<acdc_parser::ast::CrossReferenceRef<'doc>>,
         guard: &'guard XrefGuard,
     ) -> XrefDisplay<'guard, acdc_parser::ast::ContentRef<'doc>> {
         resolve_reference(
-            reference.map(acdc_parser::ast::ReferenceRef::from),
+            reference.map(acdc_parser::ast::ReferenceTargetRef::from),
             xref,
             guard,
         )

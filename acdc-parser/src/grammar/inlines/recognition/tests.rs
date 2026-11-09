@@ -1,6 +1,6 @@
 use super::{plain_text_end, plain_text_start};
 use crate::{
-    Location, Pass, PassthroughKind, Substitution, grammar::ParserState,
+    Location, Passthrough, PassthroughKind, Substitution, grammar::ParserState,
     model::AttributeInlineFragment,
 };
 
@@ -28,7 +28,7 @@ fn ordinary_runs_preserve_complete_and_incomplete_placeholders() {
 
 #[test]
 fn ordinary_runs_leave_profiled_attribute_effects_to_the_grammar() {
-    let mut pass = Pass::new(
+    let mut pass = Passthrough::new(
         Some("footnote:[note]"),
         vec![Substitution::Macros],
         PassthroughKind::AttributeRef,

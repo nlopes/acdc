@@ -1,6 +1,6 @@
 //! Callout markers in verbatim text.
 
-use crate::{CalloutRef, InlineNode, Location, Verbatim, grammar::ParserState};
+use crate::{CalloutMarker, InlineNode, Location, Verbatim, grammar::ParserState};
 use bumpalo::collections::String as BumpString;
 
 /// Splits trailing callout sequences into text and structured references with exact locations.
@@ -14,7 +14,7 @@ pub(super) fn resolve_verbatim_callouts<'a>(
     base_location: Location,
     callouts_enabled: bool,
     xml_callouts_enabled: bool,
-) -> (Vec<InlineNode<'a>>, Vec<CalloutRef>) {
+) -> (Vec<InlineNode<'a>>, Vec<CalloutMarker>) {
     let arena = state.arena;
     if !callouts_enabled {
         return verbatim_without_callouts(state, text, base_location);
@@ -80,15 +80,15 @@ pub(super) fn resolve_verbatim_callouts<'a>(
                     );
                     let callout_ref = match marker.number {
                         ParsedCalloutNumber::Auto => {
-                            let callout = CalloutRef::auto(auto_number, location);
+                            let callout = CalloutMarker::auto(auto_number, location);
                             auto_number += 1;
                             callout
                         }
                         ParsedCalloutNumber::Explicit(number) => {
-                            CalloutRef::explicit(number, location)
+                            CalloutMarker::explicit(number, location)
                         }
                     };
-                    inlines.push(InlineNode::CalloutRef(callout_ref.clone()));
+                    inlines.push(InlineNode::CalloutMarker(callout_ref.clone()));
                     callouts.push(callout_ref);
                     if marker.xml {
                         segment.push("-->", line_start + marker.end - 3, line_start + marker.end);
@@ -126,7 +126,7 @@ fn verbatim_without_callouts<'a>(
     state: &ParserState<'a>,
     text: &str,
     base_location: Location,
-) -> (Vec<InlineNode<'a>>, Vec<CalloutRef>) {
+) -> (Vec<InlineNode<'a>>, Vec<CalloutMarker>) {
     let location = if text.is_empty() {
         base_location
     } else {

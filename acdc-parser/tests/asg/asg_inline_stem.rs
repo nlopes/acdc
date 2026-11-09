@@ -21,7 +21,7 @@ fn inline_formulas_keep_placement_notation_and_literal_content() -> Result<(), E
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         for (path, notation, formula) in [
             ("/blocks/0/inlines/1", "latexmath", "{letter}^2"),
@@ -68,14 +68,14 @@ fn prepared_empty_and_literal_formulas_share_the_block_content_policy() -> Resul
             let content = ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Stem(
                 Stem::new(formula, notation.clone(), Location::default()),
             ))]);
-            let value = asg::inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
+            let value = asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
             let mut document = Document::default();
             document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
                 DelimitedBlockType::DelimitedStem(StemContent::new(formula, notation.clone())),
                 "++++",
                 Location::default(),
             )));
-            let block = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+            let block = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
             assert_eq!(
                 value.pointer("/0/inlines"),
                 block.pointer("/blocks/0/inlines")
@@ -91,7 +91,7 @@ fn prepared_empty_and_literal_formulas_share_the_block_content_policy() -> Resul
         }
     }
     let parsed = parse_inline("latexmath:[$x$]", &Options::default())?;
-    let value = asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/0/inlines/0/value"), Some(&json!("x")));
     Ok(())
 }
@@ -99,17 +99,17 @@ fn prepared_empty_and_literal_formulas_share_the_block_content_policy() -> Resul
 #[test]
 fn nested_formulas_keep_surrounding_formatting_and_strict_rejection() -> Result<(), Error> {
     let parsed = parse_inline("*Strong latexmath:[x]*", &Options::default())?;
-    let value = asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
+    let value = asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc)?;
     assert_eq!(value.pointer("/0/variant"), Some(&json!("strong")));
     assert_eq!(value.pointer("/0/inlines/1/name"), Some(&json!("stem")));
     assert!(
-        matches!(asg::inlines(parsed.content()), Err(asg::Error::Unsupported{path,construct:Some("STEM"),..}) if path == "/0/inlines/1")
+        matches!(asg::export_inlines(parsed.content()), Err(asg::Error::Unsupported{path,construct:Some("STEM"),..}) if path == "/0/inlines/1")
     );
     let parsed = parse(
         "[subs=macros]\nIsolated latexmath:[x < y & z].",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/inlines/0/name"),
         Some(&json!("raw"))
@@ -128,7 +128,7 @@ fn nested_formulas_keep_surrounding_formatting_and_strict_rejection() -> Result<
 #[test]
 fn inline_math_schema_rejects_block_fields_and_prose_content() -> Result<(), Error> {
     let parsed = parse("Math stem:[x].", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

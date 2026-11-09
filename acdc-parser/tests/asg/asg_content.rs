@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn export(document: DocumentRef<'_>) -> Result<Value, asg::Error> {
-    asg::document_with_profile(document, asg::Profile::Acdc)
+    asg::export_document_with_profile(document, asg::Profile::Acdc)
 }
 
 #[test]
@@ -90,10 +90,10 @@ fn programmatic_literal_content_is_not_parsed_again() -> Result<(), Error> {
 #[test]
 fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
     let parsed = parse("[reftext='*Label*']\n.Title\nText.", &Options::default())?;
-    let strict = asg::document(parsed.document())?;
+    let strict = asg::export_document(parsed.document())?;
     assert_eq!(
         strict,
-        asg::document_with_profile(parsed.document(), asg::Profile::Upstream)?
+        asg::export_document_with_profile(parsed.document(), asg::Profile::Upstream)?
     );
     let mut extended = export(parsed.document())?;
     assert_eq!(extended.get("profile"), Some(&json!(asg::ACDC_SCHEMA_ID)));
@@ -107,7 +107,7 @@ fn strict_export_is_unchanged_and_profiles_are_explicit() -> Result<(), Error> {
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attribution")
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/metadata/attribution")
     );
     assert_eq!(
         export(parsed.document())?.pointer("/blocks/0/attribution"),

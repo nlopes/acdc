@@ -1,11 +1,16 @@
 #![cfg(all(feature = "html", feature = "pdf", feature = "manpage"))]
 
-use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, WarningSource};
+use acdc_converters_core::{
+    Converter as _, Diagnostics, Options as ConverterOptions, WarningSource,
+};
 use acdc_parser::{Document, DocumentAttributes, Options, ast::DocumentRef, parse};
 
 type Error = Box<dyn std::error::Error>;
 
-fn render<'a, C: Converter<'a>>(converter: &C, doc: DocumentRef<'_>) -> Result<Vec<u8>, Error> {
+fn render<'a, C: acdc_converters_core::Converter<'a>>(
+    converter: &C,
+    doc: DocumentRef<'_>,
+) -> Result<Vec<u8>, Error> {
     let source = WarningSource::new(converter.name());
     let mut warnings = Vec::new();
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -27,13 +32,13 @@ fn formatted_attribute_document_can_be_parsed_once_for_three_backends() -> Resul
     let text = serde_json::to_value(DocumentAttributes::from(doc.attributes()))?;
     let tree = serde_json::to_value(doc)?;
     let notes = Document::from(doc).take_footnotes().collect::<Vec<_>>();
-    let html = acdc_converters_html::Processor::new(
+    let html = acdc_converters_html::Converter::new(
         ConverterOptions::builder().embedded(true).build(),
         Options::builder(),
     )?;
     let manpage =
-        acdc_converters_manpage::Processor::new(ConverterOptions::default(), Options::builder())?;
-    let pdf = acdc_converters_pdf::Processor::new(ConverterOptions::default(), Options::builder())?;
+        acdc_converters_manpage::Converter::new(ConverterOptions::default(), Options::builder())?;
+    let pdf = acdc_converters_pdf::Converter::new(ConverterOptions::default(), Options::builder())?;
     let output = render(&html, doc)?;
     assert!(String::from_utf8(output)?.contains("<strong>Early</strong>"));
     let output = render(&manpage, doc)?;

@@ -1,6 +1,6 @@
 use acdc_parser::{
     CrossReference, InlineMacro, InlineNode, Options, XrefCaptionLabel, XrefStyle,
-    ast::{BlockKind, BlockRef, InlineKind, InlineRef, ReferenceRef},
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef, ReferenceTargetRef},
     parse, parse_inline,
 };
 
@@ -284,7 +284,7 @@ fn reference_catalog_covers_rendered_header_title_credits_and_footnotes() -> Res
     let title = document
         .references()
         .get("document-header")
-        .and_then(ReferenceRef::title)
+        .and_then(ReferenceTargetRef::title)
         .ok_or("missing document-title reference text")?;
     assert!(
         title

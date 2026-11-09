@@ -118,7 +118,7 @@ fn colon_targets_export_without_changing_native_content(
             acdc_parser::asg::Profile::Upstream,
             acdc_parser::asg::Profile::Acdc,
         ] {
-            let value = acdc_parser::asg::inlines_with_profile(parsed.content(), profile)?;
+            let value = acdc_parser::asg::export_inlines_with_profile(parsed.content(), profile)?;
             assert_eq!(
                 value
                     .pointer("/0/target")

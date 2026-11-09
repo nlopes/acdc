@@ -8,8 +8,9 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, CalloutRefKind, Caption, ContentAttribute, DelimitedBlockType, Document,
-    DocumentAttributeAssignment, Header, InlineNode, Section, SectionKind, Substitution, Title,
+    Block, BlockMetadata, CalloutMarkerKind, Caption, ContentAttribute, DelimitedBlockType,
+    Document, DocumentAttributeAssignment, Header, InlineNode, Section, SectionKind, Substitution,
+    Title,
 };
 
 use super::{
@@ -150,8 +151,8 @@ fn inline_value(
         | InlineNode::HighlightText(_) => spans::project(value, path, settings)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::SingleQuotedSpan(_)
             if settings.profile == Profile::Acdc =>
         {
             spans::project(value, path, settings)?
@@ -164,14 +165,14 @@ fn inline_value(
         InlineNode::InlineAnchor(anchor) if settings.profile == Profile::Acdc => {
             super::identities::inline(anchor, path)?
         }
-        InlineNode::CalloutRef(value) if settings.profile == Profile::Acdc => {
+        InlineNode::CalloutMarker(value) if settings.profile == Profile::Acdc => {
             let mut result = node("callout", "inline");
             result.insert("number".into(), value.number.into());
             result.insert(
                 "form".into(),
                 match value.kind {
-                    CalloutRefKind::Explicit => "explicit",
-                    CalloutRefKind::Auto => "auto",
+                    CalloutMarkerKind::Explicit => "explicit",
+                    CalloutMarkerKind::Auto => "auto",
                 }
                 .into(),
             );
@@ -181,11 +182,11 @@ fn inline_value(
         InlineNode::Macro(value) => references::project(value, path, settings)?,
         InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::SingleQuotedSpan(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_) => {
+        | InlineNode::CalloutMarker(_) => {
             return Err(unsupported(
                 path,
                 "this inline form has no supported upstream mapping",
@@ -501,7 +502,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             Block::TableOfContents(toc) => {
                 self.block_macro("toc", None, None, &toc.metadata, at)?
             }
-            Block::DiscreteHeader(heading) => self.heading(heading, at)?,
+            Block::DiscreteHeading(heading) => self.heading(heading, at)?,
             Block::PageBreak(page) => {
                 let mut result = node("break", "block");
                 result.insert("variant".into(), "page".into());
@@ -633,13 +634,13 @@ impl<'a, 'doc> Export<'a, 'doc> {
                     | InlineNode::HighlightText(_)
                     | InlineNode::SubscriptText(_)
                     | InlineNode::SuperscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
+                    | InlineNode::DoubleQuotedSpan(_)
+                    | InlineNode::SingleQuotedSpan(_)
                     | InlineNode::StandaloneCurvedApostrophe(_)
                     | InlineNode::LineBreak(_)
                     | InlineNode::InlineAnchor(_)
                     | InlineNode::Macro(_)
-                    | InlineNode::CalloutRef(_) => true,
+                    | InlineNode::CalloutMarker(_) => true,
                 })
             });
             let independent_label = self.profile == Profile::Acdc
@@ -654,7 +655,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 || reference.is_bibliography()
                 || reference.has_automatic_citation()
                 || reference.section_number().is_some()
-                || reference.section_name()
+                || reference.section_category()
                     != target.section.map(|section| {
                         crate::model::section::reference_name(
                             section.kind,
@@ -751,7 +752,7 @@ fn raw_literal(raw: &crate::Raw<'_>, path: &str) -> Result<Node, Error> {
 #[cfg(test)]
 mod tests {
     use super::{Error, Profile, inlines};
-    use crate::{CalloutRef, InlineMacro, InlineNode, Location, Pass, PassthroughKind};
+    use crate::{CalloutMarker, InlineMacro, InlineNode, Location, Passthrough, PassthroughKind};
 
     #[test]
     fn pending_comment_events_are_rejected_instead_of_discarded() {
@@ -769,13 +770,13 @@ mod tests {
         let mut document = crate::Document::default();
         document.set_blocks([crate::Block::Comment(comment)]);
         assert!(
-            matches!(crate::asg::document((&document).into()), Err(Error::Unsupported { path, .. }) if path == "/blocks/0/prefix_events")
+            matches!(crate::asg::export_document((&document).into()), Err(Error::Unsupported { path, .. }) if path == "/blocks/0/prefix_events")
         );
     }
 
     #[test]
     fn unresolved_macro_and_callout_owners_are_rejected() {
-        let pass = InlineNode::Macro(InlineMacro::Pass(Pass {
+        let pass = InlineNode::Macro(InlineMacro::Passthrough(Passthrough {
             attribute_fragments: Box::default(),
             text: Some("literal"),
             substitutions: Vec::new(),
@@ -785,7 +786,7 @@ mod tests {
         for (node, owner) in [
             (pass, "passthrough"),
             (
-                InlineNode::CalloutRef(CalloutRef::explicit(1, Location::default())),
+                InlineNode::CalloutMarker(CalloutMarker::explicit(1, Location::default())),
                 "callout",
             ),
         ] {

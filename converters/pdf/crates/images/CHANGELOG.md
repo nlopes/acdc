@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `resolve()` returns `ImageResolutionReport`, renamed from
+  `Resolved`, to distinguish the report of assets and failures from a single
+  resolved image. Resolution behavior is unchanged.
+
 ### Fixed
 
 - Remote image timeouts during response-body reads now return `Timeout`,

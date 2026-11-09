@@ -136,7 +136,7 @@ impl<'a> Anchor<'a> {
 
     /// Set the cross-reference label.
     #[must_use]
-    pub fn with_xreflabel(mut self, xreflabel: Option<ContentAttribute<'a>>) -> Self {
+    pub fn with_reftext(mut self, xreflabel: Option<ContentAttribute<'a>>) -> Self {
         self.set_reftext(xreflabel);
         self
     }
@@ -294,22 +294,22 @@ pub(crate) struct SectionReference {
     pub(super) number: Option<SectionNumber>,
 }
 
-/// Reference metadata for a cross-reference target.
+/// Display and navigation metadata for a registered cross-reference target.
 ///
-/// Collected during parsing into the `id → Reference` map on
+/// Collected during parsing into the `id → ReferenceTarget` map on
 /// [`DocumentRef::references`](crate::ast::DocumentRef::references), so a `<<id>>` reference resolves
 /// to its target's text in O(1). Lookup keys can be aliases of the stored target.
 ///
 /// Use [`Self::set_title`] to edit the stored title.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, Reference};
-/// let mut reference = Reference::new("target", Location::default());
+/// use acdc_parser::{Location, ReferenceTarget};
+/// let mut reference = ReferenceTarget::new("target", Location::default());
 /// reference.title = None;
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Reference<'a> {
+pub struct ReferenceTarget<'a> {
     pub(crate) occurrence: Option<SectionOccurrence>,
     pub(crate) document_label: Option<DocumentReferenceLabel>,
     pub(crate) target: &'a str,
@@ -332,13 +332,13 @@ pub struct Reference<'a> {
     pub(crate) automatic_citation: bool,
 }
 
-impl Reference<'_> {
+impl ReferenceTarget<'_> {
     /// The section's cross-reference category, or `None` for other targets.
     ///
     /// This is `part`, `chapter`, `section`, `appendix`, or a special section's
     /// style such as `preface`. It selects the `<name>-refsig` attribute.
     #[must_use]
-    pub fn section_name(&self) -> Option<&str> {
+    pub fn section_category(&self) -> Option<&str> {
         self.section.as_ref().map(|section| section.name)
     }
 
@@ -352,7 +352,7 @@ impl Reference<'_> {
     ///
     /// let parsed = parse("= Guide\n:sectnums:\n\n[#intro]\n== Introduction\n", &Options::default())?;
     /// let reference = parsed.document().references().get("intro").ok_or("missing section")?;
-    /// assert_eq!(reference.section_name(), Some("section"));
+    /// assert_eq!(reference.section_category(), Some("section"));
     /// assert_eq!(reference.section_number(), Some("1"));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
@@ -378,7 +378,7 @@ impl Reference<'_> {
     }
 }
 
-impl<'a> Reference<'a> {
+impl<'a> ReferenceTarget<'a> {
     pub(crate) fn for_anchor(
         anchor: &Anchor<'a>,
         label: Option<&ContentAttribute<'a>>,
@@ -553,10 +553,10 @@ mod tests {
             }
         }
         let plain = document.references.get("plain").ok_or("missing section")?;
-        assert_eq!(plain.section_name(), Some("section"));
+        assert_eq!(plain.section_category(), Some("section"));
         assert_eq!(plain.section_number(), None);
         let block = document.references.get("block").ok_or("missing block")?;
-        assert_eq!(block.section_name(), None);
+        assert_eq!(block.section_category(), None);
         assert_eq!(block.section_number(), None);
         Ok(())
     }
@@ -621,7 +621,7 @@ mod prepared_anchor_tests {
         assert_eq!(anchor.take_reftext(), Some(ContentAttribute::default()));
         assert!(anchor.reftext_source.is_none());
         anchor.reftext_source = Some(11);
-        let anchor = anchor.with_xreflabel(Some(ContentAttribute::default()));
+        let anchor = anchor.with_reftext(Some(ContentAttribute::default()));
         assert!(anchor.reftext_source.is_none());
     }
 

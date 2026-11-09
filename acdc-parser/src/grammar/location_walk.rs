@@ -7,7 +7,7 @@ use std::{collections::HashMap, convert::Infallible, marker::PhantomData, sync::
 
 use crate::model::{
     Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlock, DelimitedBlockType, Document,
-    Header, InlineMacro, InlineNode, Location, TableColumn,
+    Header, InlineMacro, InlineNode, Location, TableCell,
 };
 
 /// Visit every location in a whole document.
@@ -185,7 +185,7 @@ pub(super) fn try_walk_document_inline_nodes_mut<'a, E>(
 
 pub(super) fn try_walk_table_cells_mut<'a, E>(
     blocks: &mut [Block<'a>],
-    visit: &mut impl FnMut(&mut TableColumn<'a>) -> Result<bool, E>,
+    visit: &mut impl FnMut(&mut TableCell<'a>) -> Result<bool, E>,
 ) -> Result<(), E> {
     let mut walker = AstWalker::new(|_| Ok(()), |_| Ok(()), |_, _| Ok(()), visit);
     walker.include_derived = false;
@@ -196,7 +196,7 @@ pub(super) fn try_walk_scoped_footnote_roots_mut<'a, E>(
     header: &mut Option<Header<'a>>,
     blocks: &mut [Block<'a>],
     visit: &mut impl FnMut(&mut crate::Footnote<'a>) -> Result<(), E>,
-    visit_owner: &mut impl FnMut(&mut TableColumn<'a>) -> Result<(), E>,
+    visit_owner: &mut impl FnMut(&mut TableCell<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
     let mut walker = AstWalker::new(
         |_| Ok(()),
@@ -263,7 +263,7 @@ where
     FL: FnMut(&mut Location) -> Result<(), E>,
     FI: FnMut(&mut InlineNode<'a>) -> Result<(), E>,
     FR: FnMut(&mut Option<ContentAttribute<'a>>, &mut Option<usize>) -> Result<(), E>,
-    FC: FnMut(&mut TableColumn<'a>) -> Result<bool, E>,
+    FC: FnMut(&mut TableCell<'a>) -> Result<bool, E>,
 {
     fn new(visit_location: FL, visit_inline: FI, visit_reference_text: FR, visit_cell: FC) -> Self {
         Self {
@@ -409,7 +409,7 @@ where
                 self.inlines(a.title.inlines_mut())?;
                 self.blocks(&mut a.blocks)?;
             }
-            Block::DiscreteHeader(h) => {
+            Block::DiscreteHeading(h) => {
                 self.metadata(&mut h.metadata)?;
                 self.inlines(h.title.inlines_mut())?;
             }
@@ -488,8 +488,8 @@ where
             InlineNode::HighlightText(t) => self.formatting(&mut t.id, &mut t.content)?,
             InlineNode::SubscriptText(t) => self.formatting(&mut t.id, &mut t.content)?,
             InlineNode::SuperscriptText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::CurvedQuotationText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::CurvedApostropheText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::DoubleQuotedSpan(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::SingleQuotedSpan(t) => self.formatting(&mut t.id, &mut t.content)?,
             InlineNode::Macro(m) => self.inline_macro(m)?,
             InlineNode::InlineAnchor(anchor) => {
                 self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
@@ -514,7 +514,7 @@ where
             | InlineNode::Symbol(_)
             | InlineNode::CharacterReference(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::CalloutRef(_) => {}
+            | InlineNode::CalloutMarker(_) => {}
         }
         Ok(())
     }
@@ -548,7 +548,7 @@ where
                 }
                 self.inlines(&mut l.text)?;
             }
-            InlineMacro::Url(u) => {
+            InlineMacro::UrlMacro(u) => {
                 if let Some(id) = &mut u.metadata.id {
                     (self.visit_location)(&mut id.location)?;
                 }
@@ -594,11 +594,11 @@ where
                     (self.visit_location)(&mut id.location)?;
                 }
             }
-            InlineMacro::Keyboard(_)
+            InlineMacro::KeyboardShortcut(_)
             | InlineMacro::Button(_)
-            | InlineMacro::Menu(_)
+            | InlineMacro::MenuPath(_)
             | InlineMacro::Autolink(_)
-            | InlineMacro::Pass(_)
+            | InlineMacro::Passthrough(_)
             | InlineMacro::Stem(_) => {}
         }
         Ok(())

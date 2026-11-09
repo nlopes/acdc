@@ -1,9 +1,9 @@
 use crate::{
-    Admonition, Audio, BlockMetadata, Bold, CalloutList, CrossReference, CurvedApostrophe,
-    CurvedQuotation, DelimitedBlock, DescriptionList, DiscreteHeader, ElementAttributes, Header,
-    Highlight, Icon, Image, IndexTerm, IndexTermRelationship, InlineImage, Italic, Link, Mailto,
-    Monospace, OrderedList, PageBreak, Paragraph, Raw, Section, Subscript, Superscript,
-    TableOfContents, ThematicBreak, UnorderedList, Url, Video,
+    Admonition, Audio, BlockMetadata, Bold, CalloutList, CrossReference, DelimitedBlock,
+    DescriptionList, DiscreteHeading, DoubleQuotedSpan, ElementAttributes, Header, Highlight, Icon,
+    Image, IndexTerm, IndexTermRelationship, InlineImage, Italic, Link, Mailto, Monospace,
+    OrderedList, PageBreak, Paragraph, Raw, Section, SingleQuotedSpan, Subscript, Superscript,
+    TableOfContents, ThematicBreak, UnorderedList, UrlMacro, Video,
 };
 
 use super::{
@@ -62,8 +62,8 @@ enum Owner<'doc> {
     Highlight(&'doc Highlight<'doc>),
     Subscript(&'doc Subscript<'doc>),
     Superscript(&'doc Superscript<'doc>),
-    CurvedQuotation(&'doc CurvedQuotation<'doc>),
-    CurvedApostrophe(&'doc CurvedApostrophe<'doc>),
+    DoubleQuotedSpan(&'doc DoubleQuotedSpan<'doc>),
+    SingleQuotedSpan(&'doc SingleQuotedSpan<'doc>),
 
     Header(&'doc Header<'doc>),
     Paragraph(&'doc Paragraph<'doc>),
@@ -80,12 +80,12 @@ enum Owner<'doc> {
     CrossReference(&'doc CrossReference<'doc>),
     IndexTerm(&'doc IndexTerm<'doc>),
     Link(&'doc Link<'doc>),
-    Url(&'doc Url<'doc>),
+    UrlMacro(&'doc UrlMacro<'doc>),
     Mailto(&'doc Mailto<'doc>),
     Audio(&'doc Audio<'doc>),
     Video(&'doc Video<'doc>),
     TableOfContents(&'doc TableOfContents<'doc>),
-    DiscreteHeader(&'doc DiscreteHeader<'doc>),
+    DiscreteHeading(&'doc DiscreteHeading<'doc>),
     PageBreak(&'doc PageBreak<'doc>),
     ThematicBreak(&'doc ThematicBreak<'doc>),
 }
@@ -161,9 +161,9 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    pub(super) fn url(owner: &'doc Url<'doc>) -> Self {
+    pub(super) fn url(owner: &'doc UrlMacro<'doc>) -> Self {
         Self {
-            owner: Owner::Url(owner),
+            owner: Owner::UrlMacro(owner),
         }
     }
 
@@ -215,15 +215,15 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    pub(super) fn curved_quotation(owner: &'doc CurvedQuotation<'doc>) -> Self {
+    pub(super) fn curved_quotation(owner: &'doc DoubleQuotedSpan<'doc>) -> Self {
         Self {
-            owner: Owner::CurvedQuotation(owner),
+            owner: Owner::DoubleQuotedSpan(owner),
         }
     }
 
-    pub(super) fn curved_apostrophe(owner: &'doc CurvedApostrophe<'doc>) -> Self {
+    pub(super) fn curved_apostrophe(owner: &'doc SingleQuotedSpan<'doc>) -> Self {
         Self {
-            owner: Owner::CurvedApostrophe(owner),
+            owner: Owner::SingleQuotedSpan(owner),
         }
     }
 
@@ -245,9 +245,9 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    pub(super) fn discrete_header(owner: &'doc DiscreteHeader<'doc>) -> Self {
+    pub(super) fn discrete_header(owner: &'doc DiscreteHeading<'doc>) -> Self {
         Self {
-            owner: Owner::DiscreteHeader(owner),
+            owner: Owner::DiscreteHeading(owner),
         }
     }
 
@@ -399,8 +399,8 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Highlight(_)
             | Owner::Subscript(_)
             | Owner::Superscript(_)
-            | Owner::CurvedQuotation(_)
-            | Owner::CurvedApostrophe(_) => &[Id, Roles],
+            | Owner::DoubleQuotedSpan(_)
+            | Owner::SingleQuotedSpan(_) => &[Id, Roles],
             Owner::Image(_) => &[
                 Title,
                 Id,
@@ -415,7 +415,7 @@ impl<'doc> AttributesRef<'doc> {
                 Substitutions,
             ],
             Owner::InlineImage(_) | Owner::Icon(_) => &[Title, Id, Roles, Options, Alt],
-            Owner::Link(_) | Owner::Url(_) | Owner::Mailto(_) => &[Title, Id, Roles, Options],
+            Owner::Link(_) | Owner::UrlMacro(_) | Owner::Mailto(_) => &[Title, Id, Roles, Options],
             Owner::CrossReference(_) => &[Id, Roles, Options, Field::XrefStyle],
             Owner::IndexTerm(_) => &[Id, Roles, Options, Field::Terms, Field::See, Field::SeeAlso],
             Owner::ThematicBreak(_) => &[Title, Id],
@@ -441,7 +441,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::CalloutList(_)
             | Owner::Audio(_)
             | Owner::Video(_)
-            | Owner::DiscreteHeader(_)
+            | Owner::DiscreteHeading(_)
             | Owner::PageBreak(_) => &[
                 Title,
                 Id,
@@ -553,7 +553,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Audio(node) => Some(&node.metadata),
             Owner::Video(node) => Some(&node.metadata),
             Owner::TableOfContents(node) => Some(&node.metadata),
-            Owner::DiscreteHeader(node) => Some(&node.metadata),
+            Owner::DiscreteHeading(node) => Some(&node.metadata),
             Owner::PageBreak(node) => Some(&node.metadata),
             Owner::Raw(_)
             | Owner::CrossReference(_)
@@ -561,7 +561,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::InlineImage(_)
             | Owner::Icon(_)
             | Owner::Link(_)
-            | Owner::Url(_)
+            | Owner::UrlMacro(_)
             | Owner::Mailto(_)
             | Owner::ThematicBreak(_)
             | Owner::Bold(_)
@@ -570,8 +570,8 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Highlight(_)
             | Owner::Subscript(_)
             | Owner::Superscript(_)
-            | Owner::CurvedQuotation(_)
-            | Owner::CurvedApostrophe(_) => None,
+            | Owner::DoubleQuotedSpan(_)
+            | Owner::SingleQuotedSpan(_) => None,
         }
     }
 
@@ -584,7 +584,7 @@ impl<'doc> AttributesRef<'doc> {
             Some(node.attributes())
         } else if let Owner::Link(node) = self.owner {
             Some(node.attributes())
-        } else if let Owner::Url(node) = self.owner {
+        } else if let Owner::UrlMacro(node) = self.owner {
             Some(node.attributes())
         } else if let Owner::Mailto(node) = self.owner {
             Some(node.attributes())
@@ -609,7 +609,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Image(node) => &node.title,
             Owner::Audio(node) => &node.title,
             Owner::Video(node) => &node.title,
-            Owner::DiscreteHeader(node) => &node.title,
+            Owner::DiscreteHeading(node) => &node.title,
             Owner::PageBreak(node) => &node.title,
             Owner::ThematicBreak(node) => &node.title,
             Owner::Raw(_)
@@ -622,12 +622,12 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Highlight(_)
             | Owner::Subscript(_)
             | Owner::Superscript(_)
-            | Owner::CurvedQuotation(_)
-            | Owner::CurvedApostrophe(_) => return None,
+            | Owner::DoubleQuotedSpan(_)
+            | Owner::SingleQuotedSpan(_) => return None,
             Owner::InlineImage(node) => return node.tooltip.as_ref().map(ContentRef::from),
             Owner::Icon(node) => return node.tooltip.as_ref().map(ContentRef::from),
             Owner::Link(node) => return node.tooltip.as_ref().map(ContentRef::from),
-            Owner::Url(node) => return node.tooltip.as_ref().map(ContentRef::from),
+            Owner::UrlMacro(node) => return node.tooltip.as_ref().map(ContentRef::from),
             Owner::Mailto(node) => return node.tooltip.as_ref().map(ContentRef::from),
         };
         title.content()
@@ -658,14 +658,14 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Highlight(node) => node.id.as_ref().map(ElementIdRef::from),
             Owner::Subscript(node) => node.id.as_ref().map(ElementIdRef::from),
             Owner::Superscript(node) => node.id.as_ref().map(ElementIdRef::from),
-            Owner::CurvedQuotation(node) => node.id.as_ref().map(ElementIdRef::from),
-            Owner::CurvedApostrophe(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::DoubleQuotedSpan(node) => node.id.as_ref().map(ElementIdRef::from),
+            Owner::SingleQuotedSpan(node) => node.id.as_ref().map(ElementIdRef::from),
             Owner::InlineImage(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Icon(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::CrossReference(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::IndexTerm(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Link(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
-            Owner::Url(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
+            Owner::UrlMacro(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Mailto(node) => node.metadata.id.as_ref().map(ElementIdRef::from),
             Owner::Section(node) => node
                 .metadata
@@ -696,7 +696,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Audio(_)
             | Owner::Video(_)
             | Owner::TableOfContents(_)
-            | Owner::DiscreteHeader(_)
+            | Owner::DiscreteHeading(_)
             | Owner::PageBreak(_) => self
                 .metadata()
                 .and_then(BlockMetadata::id_anchor)
@@ -739,14 +739,14 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Highlight(node) => TokensRef::from_text(node.role),
             Owner::Subscript(node) => TokensRef::from_text(node.role),
             Owner::Superscript(node) => TokensRef::from_text(node.role),
-            Owner::CurvedQuotation(node) => TokensRef::from_text(node.role),
-            Owner::CurvedApostrophe(node) => TokensRef::from_text(node.role),
+            Owner::DoubleQuotedSpan(node) => TokensRef::from_text(node.role),
+            Owner::SingleQuotedSpan(node) => TokensRef::from_text(node.role),
             Owner::InlineImage(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::Icon(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::CrossReference(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::IndexTerm(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::Link(node) => TokensRef::new(Some(&node.metadata.roles)),
-            Owner::Url(node) => TokensRef::new(Some(&node.metadata.roles)),
+            Owner::UrlMacro(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::Mailto(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::ThematicBreak(_) => TokensRef::new(None),
             Owner::Header(_)
@@ -762,7 +762,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Audio(_)
             | Owner::Video(_)
             | Owner::TableOfContents(_)
-            | Owner::DiscreteHeader(_)
+            | Owner::DiscreteHeading(_)
             | Owner::PageBreak(_) => {
                 TokensRef::new(self.metadata().map(|metadata| &metadata.roles))
             }
@@ -778,7 +778,7 @@ impl<'doc> AttributesRef<'doc> {
             Some(node.options())
         } else if let Owner::Link(node) = self.owner {
             Some(node.options())
-        } else if let Owner::Url(node) = self.owner {
+        } else if let Owner::UrlMacro(node) = self.owner {
             Some(node.options())
         } else if let Owner::Mailto(node) = self.owner {
             Some(node.options())

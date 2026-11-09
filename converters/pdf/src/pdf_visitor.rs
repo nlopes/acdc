@@ -29,7 +29,7 @@ use acdc_parser::{
         DescriptionListRef, DescriptionListTermRef, DocumentRef, ElementIdRef,
         FootnoteDefinitionRef, FootnoteRef, IconRef, ImageRef, IndexTermRef,
         IndexTermRelationshipRef, InlineImageRef, InlineKind, InlineRef, ListItemRef, LocationRef,
-        MenuRef, PageBreakRef, ParagraphRef, RawRef, ReferenceRef, SectionRef, SourceRef,
+        MenuPathRef, PageBreakRef, ParagraphRef, RawRef, ReferenceTargetRef, SectionRef, SourceRef,
         TableCellRef, TableOfContentsRef, TableRef, TableRowRef, TokensRef, UnorderedListRef,
     },
 };
@@ -37,11 +37,11 @@ use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
     Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, TableAlignment,
 };
-use acdc_pdf_typst::{PageLayout, PageSize, Writer};
+use acdc_pdf_typst::{PageOrientation, PageSize, Writer};
 use unicode_width::UnicodeWidthChar;
 
 use crate::{
-    Error, PageNumberingPlan, PageSetup, Processor, TypstSourceConfig,
+    Converter, Error, PageNumberingPlan, PageSetup, TypstSourceConfig,
     anchors::Anchors,
     code_wrap_columns, encode_bibliography_reference_label, encode_footnote_label, encode_label,
     has_autofit_option,
@@ -235,12 +235,12 @@ impl BlockImageAlignment {
 
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) writer: Writer,
-    pub(crate) processor: Processor<'a>,
+    pub(crate) converter: Converter<'a>,
     pub(crate) anchors: Anchors<'a>,
 
     assets: &'m ImageMap,
     config: TypstSourceConfig<'m>,
-    page_layout: PageLayout,
+    page_layout: PageOrientation,
     diagnostics: Diagnostics<'d>,
     pub(crate) heading: Heading,
     code_wrap_columns: usize,
@@ -298,7 +298,9 @@ impl PageNumberingState {
                 "#set page(numbering: (..nums) => {{\n  let n = nums.pos().first()\n  if n < {start} {{ numbering(\"i\", n) }} else {{ numbering(\"1\", n - {start} + 1) }}\n}})"
             );
         } else {
-            writer.raw("#let _acdc_arabic_page_start = none\n#set page(numbering: \"i\")\n");
+            writer.write_raw_markup(
+                "#let _acdc_arabic_page_start = none\n#set page(numbering: \"i\")\n",
+            );
         }
     }
 
@@ -306,7 +308,7 @@ impl PageNumberingState {
         if self.arabic_started {
             return;
         }
-        writer.raw("#set page(numbering: \"1\")\n#counter(page).update(1)\n");
+        writer.write_raw_markup("#set page(numbering: \"1\")\n#counter(page).update(1)\n");
         self.arabic_started = true;
     }
 }
@@ -419,7 +421,7 @@ fn anonymous_footnote_references(document: DocumentRef<'_>) -> HashSet<u32> {
 
 impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn new(
-        processor: Processor<'a>,
+        converter: Converter<'a>,
         assets: &'m ImageMap,
         config: TypstSourceConfig<'m>,
         document: DocumentRef<'a>,
@@ -435,7 +437,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             emit_options.page_layout,
             emit_options.page_margin,
         );
-        let doctype = processor
+        let doctype = converter
             .document_attributes()
             .get("doctype")
             .and_then(|value| {
@@ -445,17 +447,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     None
                 }
             })
-            .unwrap_or_else(|| processor.options().doctype());
+            .unwrap_or_else(|| converter.options().doctype());
         let is_book = doctype == Doctype::Book;
         let chapter_signifier = if is_book {
-            match processor
+            match converter
                 .document_attributes()
                 .get("chapter-signifier")
                 .and_then(|value| value.text())
             {
                 Some(signifier) if !signifier.is_empty() => Some(signifier.to_string()),
                 Some(_) => None,
-                None if processor
+                None if converter
                     .document_attributes()
                     .is_explicit("chapter-signifier") =>
                 {
@@ -473,8 +475,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         };
         Self {
             writer: Writer::new(),
-            anchors: Anchors::new(document.toc_entries(), &processor.references),
-            processor,
+            anchors: Anchors::new(document.toc_entries(), &converter.references),
+            converter,
 
             assets,
             config,
@@ -584,7 +586,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         let config = TocConfig::resolve(toc_macro, traversal);
         let configured_placement =
-            if config.placement() == "none" && self.processor.pdf_options().toc {
+            if config.placement() == "none" && self.converter.pdf_options().toc {
                 "auto"
             } else {
                 config.placement()
@@ -604,19 +606,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let suppress_header = toc_macro.is_some_and(|toc| toc.options().contains("noheader"));
         let suppress_footer = toc_macro.is_some_and(|toc| toc.options().contains("nofooter"));
         match (suppress_header, suppress_footer) {
-            (true, true) => self.writer.raw("#page(header: none, footer: none)[\n"),
-            (true, false) => self.writer.raw("#page(header: none)[\n"),
-            (false, true) => self.writer.raw("#page(footer: none)[\n"),
+            (true, true) => self
+                .writer
+                .write_raw_markup("#page(header: none, footer: none)[\n"),
+            (true, false) => self.writer.write_raw_markup("#page(header: none)[\n"),
+            (false, true) => self.writer.write_raw_markup("#page(footer: none)[\n"),
             (false, false) => {}
         }
         if let Some(title) = config.title().filter(|title| !title.is_empty()) {
             self.writer
-                .raw("#heading(outlined: false, bookmarked: false)[");
+                .write_raw_markup("#heading(outlined: false, bookmarked: false)[");
             self.write_text_expr(title);
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
 
-        self.writer.raw(
+        self.writer.write_raw_markup(
             "#let _acdc_toc_entry(target, depth, body) = context {\n  link(\n    target,\n    pad(\n      left: depth * 1.25em,\n      grid(\n        columns: (auto, 1fr, auto),\n        column-gutter: 0.5em,\n        body,\n        repeat[.],\n        counter(page).display(at: target),\n      ),\n    ),\n  )\n}\n",
         );
 
@@ -670,11 +674,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_text_expr(&number);
             }
             self.write_title_copy(traversal, entry.title())?;
-            self.writer.raw("])\n");
+            self.writer.write_raw_markup("])\n");
         }
-        self.writer.raw("#pagebreak()\n\n");
+        self.writer.write_raw_markup("#pagebreak()\n\n");
         if suppress_header || suppress_footer {
-            self.writer.raw("]\n\n");
+            self.writer.write_raw_markup("]\n\n");
         }
         if placement == "auto" && self.page_numbering.plan.starts_after_toc() {
             self.page_numbering.start_arabic(&mut self.writer);
@@ -725,11 +729,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 && block.title().is_some();
             if sticky_title {
                 self.writer
-                    .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
+                    .write_raw_markup("#block(sticky: true, above: 0pt, below: 0pt)[\n");
             }
             self.write_block_heading(traversal, block.title(), attributes, fallback)?;
             if sticky_title {
-                self.writer.raw("]\n");
+                self.writer.write_raw_markup("]\n");
             }
         }
         let result = self.write_delimited_body(traversal, block, collapsible_example);
@@ -801,7 +805,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             BlockKind::DelimitedComment(_) => Ok(()),
             BlockKind::TableOfContents(_)
             | BlockKind::Admonition(_)
-            | BlockKind::DiscreteHeader(_)
+            | BlockKind::DiscreteHeading(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
@@ -946,9 +950,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
                 start = position;
                 if position < *end && has_content {
-                    self.writer.raw(&span.prefix);
+                    self.writer.write_raw_markup(&span.prefix);
                     if let Some(replacement) = span.replacement.as_ref() {
-                        self.writer.raw(replacement);
+                        self.writer.write_raw_markup(replacement);
                     } else if let Some(target) = span.target.as_ref() {
                         self.write_inline_verbatim_link(
                             target,
@@ -959,7 +963,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     } else {
                         self.write_inline_verbatim_fragment(&code.source, position..*end, &breaks);
                     }
-                    self.writer.raw(&span.suffix);
+                    self.writer.write_raw_markup(&span.suffix);
                     start = *end;
                 }
             }
@@ -983,9 +987,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             CodeLinkTarget::External(target) => self.write_external_link(target, content),
             CodeLinkTarget::Internal(target) => self.write_labelled_link(target, content),
             CodeLinkTarget::DocumentTop => {
-                self.writer.raw("#link((page: 1, x: 0pt, y: 0pt))[");
+                self.writer
+                    .write_raw_markup("#link((page: 1, x: 0pt, y: 0pt))[");
                 content(self)?;
-                self.writer.raw("]");
+                self.writer.write_raw_markup("]");
                 Ok(())
             }
         }
@@ -1002,7 +1007,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .any(|word| word.start < range.start && range.start < word.end)
         {
             // Restore the break between clusters when a word crosses an annotation boundary.
-            self.writer.raw("#box(width: 0pt)");
+            self.writer.write_raw_markup("#box(width: 0pt)");
         }
         let ranges = breaks.iter().filter_map(|word| {
             let start = word.start.max(range.start);
@@ -1039,7 +1044,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 code.append(self.format_code_text(node, child));
             } else if let Some(link) = resolve_code_link(
                 node,
-                self.processor.references.as_ref().into(),
+                self.converter.references.as_ref().into(),
                 code_output_extension(traversal),
             ) {
                 let mut child = if let Some(children) =
@@ -1112,16 +1117,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if range.start > previous_end {
                 self.write_text_or_raw_expr(&text[previous_end..range.start], kind);
             }
-            self.writer.raw("#(");
-            self.writer.string_literal(&text[range.clone()]);
+            self.writer.write_raw_markup("#(");
+            self.writer.write_string_literal(&text[range.clone()]);
             if matches!(kind, TableTextKind::InlineVerbatim | TableTextKind::Literal) {
-                self.writer.raw(concat!(
+                self.writer.write_raw_markup(concat!(
                     ".clusters().map(value => raw(block: false, value))",
                     ".join(box(width: 0pt)))",
                 ));
             } else {
                 self.writer
-                    .raw(".clusters().map(text).join(box(width: 0pt)))");
+                    .write_raw_markup(".clusters().map(text).join(box(width: 0pt)))");
             }
             previous_end = range.end;
         }
@@ -1131,13 +1136,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_text_or_raw_expr(&mut self, text: &str, kind: TableTextKind) {
-        self.writer.raw(match kind {
+        self.writer.write_raw_markup(match kind {
             TableTextKind::Text => "#text(",
             TableTextKind::InlineVerbatim => "#raw(",
             TableTextKind::Literal => "#raw(block: false, ",
         });
-        self.writer.string_literal(text);
-        self.writer.raw(")");
+        self.writer.write_string_literal(text);
+        self.writer.write_raw_markup(")");
     }
 
     pub(crate) fn write_block_anchor(&mut self, anchor: Option<AnchorRef<'_>>) {
@@ -1184,7 +1189,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 _ => None,
             };
             if let Some(prefix) = prefix {
-                self.writer.raw(prefix);
+                self.writer.write_raw_markup(prefix);
                 wrappers += 1;
             } else if let Some(colour) = asciidoctor_foreground_colour(role) {
                 let _ = write!(self.writer, "#text(fill: rgb(\"{colour}\"))[");
@@ -1200,7 +1205,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_inline_span_end(&mut self, state: InlineSpanState) {
         for _ in 0..state.wrappers {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         self.pre_wrap_depth -= usize::from(state.pre_wrap);
     }
@@ -1273,9 +1278,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         suffix: &str,
     ) -> Result<(), Error> {
         let state = self.write_inline_span_start(id.map(ElementIdRef::as_str), role);
-        self.writer.raw(prefix);
+        self.writer.write_raw_markup(prefix);
         self.write_inline_refs(traversal, nodes)?;
-        self.writer.raw(suffix);
+        self.writer.write_raw_markup(suffix);
         self.write_inline_span_end(state);
         Ok(())
     }
@@ -1292,9 +1297,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let Some(title) = title else {
             return Ok(());
         };
-        self.writer.raw("#blocktitle[");
+        self.writer.write_raw_markup("#blocktitle[");
         self.write_title(traversal, Some(title))?;
-        self.writer.raw("]\n");
+        self.writer.write_raw_markup("]\n");
         Ok(())
     }
 
@@ -1319,23 +1324,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         title: Option<ContentRef<'_>>,
         write_body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.writer.raw("#block(width: 100%, below: 0.8em)[\n");
         self.writer
-            .raw("#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, ");
+            .write_raw_markup("#block(width: 100%, below: 0.8em)[\n");
         self.writer
-            .raw("[#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, ");
-        self.writer
-            .raw("rotate(90deg, origin: center, text(weight: \"bold\", size: 0.8em, \">\"))))], ");
-        self.writer.raw("[#captiontext[");
+            .write_raw_markup("#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, ");
+        self.writer.write_raw_markup(
+            "[#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, ",
+        );
+        self.writer.write_raw_markup(
+            "rotate(90deg, origin: center, text(weight: \"bold\", size: 0.8em, \">\"))))], ",
+        );
+        self.writer.write_raw_markup("[#captiontext[");
         if let Some(title) = title {
             self.write_title(traversal, Some(title))?;
         } else {
             self.write_text_expr("Details");
         }
         self.writer
-            .raw("]])\n#block(inset: (left: 1em), above: 0.3em)[\n");
+            .write_raw_markup("]])\n#block(inset: (left: 1em), above: 0.3em)[\n");
         write_body(self, traversal)?;
-        self.writer.raw("\n]\n]\n\n");
+        self.writer.write_raw_markup("\n]\n]\n\n");
         Ok(())
     }
 
@@ -1393,9 +1401,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let Some(title) = title else {
             return Ok(());
         };
-        self.writer.raw("#abstracttitle[");
+        self.writer.write_raw_markup("#abstracttitle[");
         self.write_title(traversal, Some(title))?;
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         Ok(())
     }
 
@@ -1409,11 +1417,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         if write_title {
             self.write_abstract_title(traversal, title)?;
-            self.writer.raw("\n");
+            self.writer.write_raw_markup("\n");
         }
-        self.writer.raw("#abstract[\n");
+        self.writer.write_raw_markup("#abstract[\n");
         self.write_paragraph_alignment(attributes, |visitor| write_body(visitor, traversal))?;
-        self.writer.raw("\n]\n\n");
+        self.writer.write_raw_markup("\n]\n\n");
         Ok(())
     }
 
@@ -1430,13 +1438,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         };
         let citetitle = attribute_content(attributes, "citetitle");
-        self.writer.raw("#attribution[");
+        self.writer.write_raw_markup("#attribution[");
         self.write_content(traversal, attribution)?;
         if let Some(citetitle) = citetitle {
             self.write_text_expr(", ");
             self.write_content(traversal, citetitle)?;
         }
-        self.writer.raw("]\n\n");
+        self.writer.write_raw_markup("]\n\n");
         Ok(())
     }
 
@@ -1447,11 +1455,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         let alignment = ParagraphAlignment::from_attributes(attributes);
         if let Some(alignment) = alignment {
-            self.writer.raw(alignment.typst_prefix());
+            self.writer.write_raw_markup(alignment.typst_prefix());
         }
         write_body(self)?;
         if alignment.is_some() {
-            self.writer.raw("\n]");
+            self.writer.write_raw_markup("\n]");
         }
         Ok(())
     }
@@ -1462,7 +1470,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.write_paragraph_alignment(attributes, write_body)?;
-        self.writer.raw("\n\n");
+        self.writer.write_raw_markup("\n\n");
         Ok(())
     }
 
@@ -1473,7 +1481,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> usize {
         let mut wrappers = 0;
         if automatic_lead {
-            self.writer.raw("#text(size: 1.25em)[");
+            self.writer.write_raw_markup("#text(size: 1.25em)[");
             wrappers += 1;
         }
         for role in attribute_tokens(attributes, "role") {
@@ -1489,7 +1497,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 _ => None,
             };
             if let Some(prefix) = prefix {
-                self.writer.raw(prefix);
+                self.writer.write_raw_markup(prefix);
                 wrappers += 1;
             }
         }
@@ -1498,7 +1506,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_paragraph_roles_end(&mut self, wrappers: usize) {
         for _ in 0..wrappers {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
     }
 
@@ -1508,14 +1516,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         attributes: Option<AttributesRef<'_>>,
         write_body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.writer.raw("#blockquote[\n");
+        self.writer.write_raw_markup("#blockquote[\n");
         write_body(self, traversal)?;
         if attribute_content(attributes, "attribution").is_some() {
-            self.writer.raw("\n#text(style: \"normal\")[\n");
+            self.writer
+                .write_raw_markup("\n#text(style: \"normal\")[\n");
             self.write_attribution(traversal, attributes)?;
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
-        self.writer.raw("]\n\n");
+        self.writer.write_raw_markup("]\n\n");
         Ok(())
     }
 
@@ -1524,12 +1533,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         nodes: impl DoubleEndedIterator<Item = InlineRef<'inline>> + ExactSizeIterator + Clone,
     ) -> Result<(), Error> {
-        self.writer.raw("#verse[");
+        self.writer.write_raw_markup("#verse[");
         // Verse has normal inline semantics, but its authored whitespace is layout.
         let previous = replace(&mut self.text_whitespace, TextWhitespace::Preserve);
         let result = self.write_inline_refs(traversal, nodes);
         self.text_whitespace = previous;
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         result
     }
 
@@ -1541,7 +1550,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         attributes: Option<AttributesRef<'_>>,
     ) -> Result<(), Error> {
         self.write_verse_content(traversal, nodes)?;
-        self.writer.raw("\n\n");
+        self.writer.write_raw_markup("\n\n");
         self.write_attribution(traversal, attributes)
     }
 
@@ -1577,9 +1586,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             ),
             Some("example") => {
                 self.write_aligned_paragraph_body(Some(para.attributes()), |visitor| {
-                    visitor.writer.raw("#examplebox[\n");
+                    visitor.writer.write_raw_markup("#examplebox[\n");
                     visitor.write_content(traversal, para.content())?;
-                    visitor.writer.raw("\n]");
+                    visitor.writer.write_raw_markup("\n]");
                     Ok(())
                 })
             }
@@ -1590,7 +1599,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     visitor.write_content(traversal, para.content())
                 })?;
                 self.write_paragraph_roles_end(wrappers);
-                self.writer.raw("\n\n");
+                self.writer.write_raw_markup("\n\n");
                 Ok(())
             }
         }
@@ -1628,7 +1637,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_text_expr(&prefix);
         }
         self.write_title(traversal, Some(title))?;
-        self.writer.raw("]\n");
+        self.writer.write_raw_markup("]\n");
         Ok(())
     }
 
@@ -1664,17 +1673,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Option<CaptionRef<'doc>> {
         CaptionRef::resolve(
             attributes?,
-            self.processor.document_attributes().into(),
+            self.converter.document_attributes().into(),
             fallback,
         )
     }
 
     fn next_caption_number(&self, kind: CaptionKind) -> u32 {
         let counter = match kind {
-            CaptionKind::Figure => &self.processor.figure_counter,
-            CaptionKind::Listing => &self.processor.listing_counter,
-            CaptionKind::Table => &self.processor.table_counter,
-            CaptionKind::Example | _ => &self.processor.example_counter,
+            CaptionKind::Figure => &self.converter.figure_counter,
+            CaptionKind::Listing => &self.converter.listing_counter,
+            CaptionKind::Table => &self.converter.table_counter,
+            CaptionKind::Example | _ => &self.converter.example_counter,
         };
         let number = counter.get() + 1;
         counter.set(number);
@@ -1716,14 +1725,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         title: Option<ContentRef<'_>>,
         body: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.writer.raw("#sidebarbox[\n");
+        self.writer.write_raw_markup("#sidebarbox[\n");
         if let Some(title) = title {
-            self.writer.raw("#sidebartitle[");
+            self.writer.write_raw_markup("#sidebartitle[");
             self.write_title(traversal, Some(title))?;
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
         body(self, traversal)?;
-        self.writer.raw("]\n\n");
+        self.writer.write_raw_markup("]\n\n");
         Ok(())
     }
 
@@ -1766,7 +1775,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if options.is_empty() {
                 self.write_autofit_open(traversal, &source, attributes, 0);
                 self.write_raw_block(traversal, &source, attributes, &annotations);
-                self.writer.raw("]\n\n");
+                self.writer.write_raw_markup("]\n\n");
                 return Ok(());
             }
 
@@ -1774,7 +1783,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if source_lines.is_empty() {
                 self.write_autofit_open(traversal, &source, attributes, 0);
                 self.write_raw_block(traversal, &source, attributes, &annotations);
-                self.writer.raw("]\n\n");
+                self.writer.write_raw_markup("]\n\n");
                 return Ok(());
             }
             let extra_width_tenths = if options.line_number_start.is_some() {
@@ -1791,7 +1800,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 &options,
                 &annotations,
             );
-            self.writer.raw("]\n\n");
+            self.writer.write_raw_markup("]\n\n");
             return Ok(());
         }
 
@@ -1828,11 +1837,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         attributes: Option<AttributesRef<'_>>,
         extra_width_tenths: usize,
     ) {
-        self.writer.raw("#_acdc_autofit_code(");
-        self.writer.string_literal(source);
+        self.writer.write_raw_markup("#_acdc_autofit_code(");
+        self.writer.write_string_literal(source);
         if let Some(language) = Self::source_language(traversal, attributes) {
-            self.writer.raw(", language: ");
-            self.writer.string_literal(language);
+            self.writer.write_raw_markup(", language: ");
+            self.writer.write_string_literal(language);
         }
         if extra_width_tenths > 0 {
             let _ = write!(
@@ -1842,7 +1851,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 extra_width_tenths % 10
             );
         }
-        self.writer.raw(")[\n");
+        self.writer.write_raw_markup(")[\n");
     }
 
     fn write_raw_block(
@@ -1853,33 +1862,34 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         annotations: &CodeAnnotations,
     ) {
         if !annotations.is_empty() {
-            self.writer.raw("#{\n");
+            self.writer.write_raw_markup("#{\n");
             self.write_code_annotations(annotations);
-            self.writer.raw("  show raw.line: line => ");
+            self.writer.write_raw_markup("  show raw.line: line => ");
             if !annotations.anchors.is_empty() {
                 self.writer
-                    .raw("index-anchors.at(line.number - 1, default: []) + ");
+                    .write_raw_markup("index-anchors.at(line.number - 1, default: []) + ");
             }
-            self.writer.raw(if annotations.links.is_empty() {
-                "line\n  "
-            } else {
-                "code-links(line)\n  "
-            });
+            self.writer
+                .write_raw_markup(if annotations.links.is_empty() {
+                    "line\n  "
+                } else {
+                    "code-links(line)\n  "
+                });
         }
-        self.writer.raw(if annotations.is_empty() {
+        self.writer.write_raw_markup(if annotations.is_empty() {
             "#raw(block: true"
         } else {
             "raw(block: true"
         });
         if let Some(language) = Self::source_language(traversal, attributes) {
-            self.writer.raw(", lang: ");
-            self.writer.string_literal(language);
+            self.writer.write_raw_markup(", lang: ");
+            self.writer.write_string_literal(language);
         }
-        self.writer.raw(", ");
-        self.writer.string_literal(source);
-        self.writer.raw(")\n");
+        self.writer.write_raw_markup(", ");
+        self.writer.write_string_literal(source);
+        self.writer.write_raw_markup(")\n");
         self.writer
-            .raw(if annotations.is_empty() { "\n" } else { "}\n" });
+            .write_raw_markup(if annotations.is_empty() { "\n" } else { "}\n" });
     }
 
     fn write_source_block_with_line_options(
@@ -1891,18 +1901,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         options: &SourceLineOptions,
         annotations: &CodeAnnotations,
     ) {
-        self.writer.raw("#{\n");
+        self.writer.write_raw_markup("#{\n");
         if !annotations.is_empty() {
             self.write_code_annotations(annotations);
         }
-        self.writer.raw("  let numbers = ");
+        self.writer.write_raw_markup("  let numbers = ");
         self.write_source_line_numbers(source_lines, options.line_number_start);
-        self.writer.raw("\n  let highlighted = (");
+        self.writer.write_raw_markup("\n  let highlighted = (");
         for source_line in source_lines {
             let highlighted = options.highlighted_lines.binary_search(source_line).is_ok();
             let _ = write!(self.writer, "{highlighted}, ");
         }
-        self.writer.raw(")\n");
+        self.writer.write_raw_markup(")\n");
 
         let gutter_tenths = source_gutter_tenths(source, options);
         let _ = writeln!(
@@ -1911,75 +1921,79 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             gutter_tenths / 10,
             gutter_tenths % 10
         );
-        self.writer.raw("  show raw.line: line => {\n");
-        self.writer.raw("    let index = line.number - 1\n");
+        self.writer.write_raw_markup("  show raw.line: line => {\n");
         self.writer
-            .raw("    let marked = highlighted.at(index, default: false)\n");
-        self.writer.raw(
+            .write_raw_markup("    let index = line.number - 1\n");
+        self.writer
+            .write_raw_markup("    let marked = highlighted.at(index, default: false)\n");
+        self.writer.write_raw_markup(
             "    let code-width = if numbers == none { 100% } else { 100% - gutter - 0.8em }\n",
         );
-        self.writer.raw("    let code = ");
+        self.writer.write_raw_markup("    let code = ");
         if !annotations.anchors.is_empty() {
-            self.writer.raw("index-anchors.at(index, default: []) + ");
+            self.writer
+                .write_raw_markup("index-anchors.at(index, default: []) + ");
         }
         self.writer
-            .raw("box(width: code-width, fill: if marked { rgb(");
-        self.writer.string_literal(&self.palette.accent);
-        self.writer.raw(") } else { none }, ");
-        self.writer.raw(if annotations.links.is_empty() {
-            "line.body)\n"
-        } else {
-            "code-links(line))\n"
-        });
+            .write_raw_markup("box(width: code-width, fill: if marked { rgb(");
+        self.writer.write_string_literal(&self.palette.accent);
+        self.writer.write_raw_markup(") } else { none }, ");
         self.writer
-            .raw("    if numbers == none {\n      code\n    } else {\n");
+            .write_raw_markup(if annotations.links.is_empty() {
+                "line.body)\n"
+            } else {
+                "code-links(line))\n"
+            });
         self.writer
-            .raw("      let number = numbers.at(index, default: none)\n");
-        self.writer.raw(
+            .write_raw_markup("    if numbers == none {\n      code\n    } else {\n");
+        self.writer
+            .write_raw_markup("      let number = numbers.at(index, default: none)\n");
+        self.writer.write_raw_markup(
             "      box(width: gutter, align(right + top, if number == none { [] } else { text(fill: rgb(",
         );
-        self.writer.string_literal(&self.palette.counter);
-        self.writer
-            .raw("), str(number)) })) + h(0.8em) + code\n    }\n  }\n  raw(block: true");
+        self.writer.write_string_literal(&self.palette.counter);
+        self.writer.write_raw_markup(
+            "), str(number)) })) + h(0.8em) + code\n    }\n  }\n  raw(block: true",
+        );
         if let Some(language) = Self::source_language(traversal, attributes) {
-            self.writer.raw(", lang: ");
-            self.writer.string_literal(language);
+            self.writer.write_raw_markup(", lang: ");
+            self.writer.write_string_literal(language);
         }
-        self.writer.raw(", ");
-        self.writer.string_literal(source);
-        self.writer.raw(")\n}\n\n");
+        self.writer.write_raw_markup(", ");
+        self.writer.write_string_literal(source);
+        self.writer.write_raw_markup(")\n}\n\n");
     }
 
     fn write_code_index_anchors(&mut self, lines: &[Vec<usize>]) {
-        self.writer.raw("  let index-anchors = (\n");
+        self.writer.write_raw_markup("  let index-anchors = (\n");
         for anchors in lines {
-            self.writer.raw("    [");
+            self.writer.write_raw_markup("    [");
             for anchor in anchors {
                 let _ = write!(self.writer, "#metadata(none)<__indexterm-{anchor}>");
             }
-            self.writer.raw("],\n");
+            self.writer.write_raw_markup("],\n");
         }
-        self.writer.raw("  )\n");
+        self.writer.write_raw_markup("  )\n");
     }
 
     fn write_source_line_numbers(&mut self, source_lines: &[usize], start: Option<usize>) {
         let Some(start) = start else {
-            self.writer.raw("none");
+            self.writer.write_raw_markup("none");
             return;
         };
 
-        self.writer.raw("(");
+        self.writer.write_raw_markup("(");
         let mut previous_source_line = None;
         for source_line in source_lines {
             if previous_source_line == Some(*source_line) {
-                self.writer.raw("none, ");
+                self.writer.write_raw_markup("none, ");
             } else {
                 let number = start.saturating_add(source_line.saturating_sub(1));
                 let _ = write!(self.writer, "{number}, ");
                 previous_source_line = Some(*source_line);
             }
         }
-        self.writer.raw(")");
+        self.writer.write_raw_markup(")");
     }
 
     fn code_tab_size(
@@ -2024,9 +2038,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     /// Write passthrough content as escaped, unframed monospace text.
     fn write_passthrough_block(&mut self, content: ContentRef<'_>) {
-        self.writer.raw("#block(width: 100%)[#raw(block: false, ");
+        self.writer
+            .write_raw_markup("#block(width: 100%)[#raw(block: false, ");
         self.write_verbatim_string(content);
-        self.writer.raw(")]\n\n");
+        self.writer.write_raw_markup(")]\n\n");
     }
 
     fn write_verbatim_string(&mut self, content: ContentRef<'_>) {
@@ -2035,7 +2050,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .line_break("\n")
             .rendered()
             .content_to_string(content);
-        self.writer.string_literal(&text);
+        self.writer.write_string_literal(&text);
     }
 
     fn code_text<'inline>(
@@ -2150,7 +2165,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 )?;
                 code.append(self.format_code_text(node, child));
             } else if let Some(link) =
-                resolve_code_link(node, self.processor.references.as_ref().into(), extension)
+                resolve_code_link(node, self.converter.references.as_ref().into(), extension)
             {
                 let mut child = if let Some(children) =
                     code_link_content(node).filter(|nodes| !nodes.is_empty())
@@ -2209,9 +2224,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn format_code_text(&mut self, node: InlineRef<'_>, mut text: CodeText) -> CodeText {
-        let quotes = if matches!(node.kind(), InlineKind::CurvedQuotation(_)) {
+        let quotes = if matches!(node.kind(), InlineKind::DoubleQuotedSpan(_)) {
             Some(("“", "”"))
-        } else if matches!(node.kind(), InlineKind::CurvedApostrophe(_)) {
+        } else if matches!(node.kind(), InlineKind::SingleQuotedSpan(_)) {
             Some(("‘", "’"))
         } else {
             None
@@ -2276,13 +2291,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 "#sub[",
                 "]",
             ),
-            InlineKind::CurvedQuotation(text) => (
+            InlineKind::DoubleQuotedSpan(text) => (
                 text.id().map(acdc_parser::ast::ElementIdRef::as_str),
                 text.role(),
                 "",
                 "",
             ),
-            InlineKind::CurvedApostrophe(text) => (
+            InlineKind::SingleQuotedSpan(text) => (
                 text.id().map(acdc_parser::ast::ElementIdRef::as_str),
                 text.role(),
                 "",
@@ -2300,15 +2315,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             | InlineKind::Footnote(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
-            | InlineKind::Url(_)
+            | InlineKind::MenuPath(_)
+            | InlineKind::UrlMacro(_)
             | InlineKind::Link(_)
             | InlineKind::Mailto(_)
             | InlineKind::Autolink(_)
             | InlineKind::CrossReference(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_)
             | InlineKind::IndexTerm(_)
             | _ => return None,
@@ -2317,9 +2332,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         // is split across lines or around nested links and footnotes.
         let output = replace(&mut self.writer, Writer::new());
         let state = self.write_inline_span_start(None, role);
-        self.writer.raw(prefix);
+        self.writer.write_raw_markup(prefix);
         let prefix = replace(&mut self.writer, Writer::new()).into_string();
-        self.writer.raw(suffix);
+        self.writer.write_raw_markup(suffix);
         self.write_inline_span_end(state);
         let suffix = replace(&mut self.writer, output).into_string();
         Some(CodeSpan {
@@ -2401,10 +2416,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if annotations.links.is_empty() {
             return;
         }
-        self.writer.raw(include_str!("code_links.typ"));
-        self.writer.raw("  let links = (\n");
+        self.writer.write_raw_markup(include_str!("code_links.typ"));
+        self.writer.write_raw_markup("  let links = (\n");
         for line in &annotations.links {
-            self.writer.raw("    (");
+            self.writer.write_raw_markup("    (");
             for span in line {
                 let _ = write!(
                     self.writer,
@@ -2415,20 +2430,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     let _ = write!(self.writer, "[#metadata(none)<{anchor}>] + ");
                 }
                 if !span.prefix.is_empty() {
-                    self.writer.raw("[");
-                    self.writer.raw(&span.prefix);
-                    self.writer.raw("#");
+                    self.writer.write_raw_markup("[");
+                    self.writer.write_raw_markup(&span.prefix);
+                    self.writer.write_raw_markup("#");
                 }
                 if let Some(replacement) = &span.replacement {
-                    self.writer.raw("[");
-                    self.writer.raw(replacement);
-                    self.writer.raw("]");
+                    self.writer.write_raw_markup("[");
+                    self.writer.write_raw_markup(replacement);
+                    self.writer.write_raw_markup("]");
                 } else {
                     match &span.target {
                         Some(CodeLinkTarget::External(target)) => {
-                            self.writer.raw("link(");
-                            self.writer.string_literal(target);
-                            self.writer.raw(", body)");
+                            self.writer.write_raw_markup("link(");
+                            self.writer.write_string_literal(target);
+                            self.writer.write_raw_markup(", body)");
                         }
                         Some(CodeLinkTarget::Internal(target)) => {
                             let _ = write!(
@@ -2438,20 +2453,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                             );
                         }
                         Some(CodeLinkTarget::DocumentTop) => {
-                            self.writer.raw("link((page: 1, x: 0pt, y: 0pt), body)");
+                            self.writer
+                                .write_raw_markup("link((page: 1, x: 0pt, y: 0pt), body)");
                         }
-                        None => self.writer.raw("body"),
+                        None => self.writer.write_raw_markup("body"),
                     }
                 }
                 if !span.prefix.is_empty() {
-                    self.writer.raw(&span.suffix);
-                    self.writer.raw("]");
+                    self.writer.write_raw_markup(&span.suffix);
+                    self.writer.write_raw_markup("]");
                 }
-                self.writer.raw("), ");
+                self.writer.write_raw_markup("), ");
             }
-            self.writer.raw("),\n");
+            self.writer.write_raw_markup("),\n");
         }
-        self.writer.raw("  )\n  let code-links(line) = {\n    let start = 0\n    let body = []\n    for (from, to, make-link) in links.at(line.number - 1, default: ()) {\n      body += code-slice(line.body, start, from).first()\n      body += make-link(code-slice(line.body, from, to).first())\n      start = to\n    }\n    body + code-slice(line.body, start, line.text.len()).first()\n  }\n");
+        self.writer.write_raw_markup("  )\n  let code-links(line) = {\n    let start = 0\n    let body = []\n    for (from, to, make-link) in links.at(line.number - 1, default: ()) {\n      body += code-slice(line.body, start, from).first()\n      body += make-link(code-slice(line.body, from, to).first())\n      start = to\n    }\n    body + code-slice(line.body, start, line.text.len()).first()\n  }\n");
     }
 
     fn code_index_anchor_lines(
@@ -2515,8 +2531,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .filter(|value| !value.is_empty())
         {
             match value {
-                "portrait" => Some(PageLayout::Portrait),
-                "landscape" => Some(PageLayout::Landscape),
+                "portrait" => Some(PageOrientation::Portrait),
+                "landscape" => Some(PageOrientation::Landscape),
                 _ => {
                     warn_with_advice_at(
                         &mut self.diagnostics,
@@ -2537,10 +2553,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let landscape = br.roles().iter().position(|role| role == "landscape");
             match (portrait, landscape) {
                 (Some(portrait), Some(landscape)) if portrait > landscape => {
-                    Some(PageLayout::Portrait)
+                    Some(PageOrientation::Portrait)
                 }
-                (_, Some(_)) => Some(PageLayout::Landscape),
-                (Some(_), None) => Some(PageLayout::Portrait),
+                (_, Some(_)) => Some(PageOrientation::Landscape),
+                (Some(_), None) => Some(PageOrientation::Portrait),
                 (None, None) => None,
             }
         };
@@ -2575,7 +2591,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = writeln!(
                 self.writer,
                 "#set page(flipped: {})\n",
-                layout == PageLayout::Landscape,
+                layout == PageOrientation::Landscape,
             );
         }
         self.page_layout = layout;
@@ -2591,11 +2607,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_stem_fallback(&mut self, content: &str, block: bool, location: Option<&Location>) {
         self.warn_unsupported("stem content", "rendering it as literal text", location);
         if block {
-            self.writer.raw("#block[");
+            self.writer.write_raw_markup("#block[");
         }
         self.write_text_expr(content);
         if block {
-            self.writer.raw("]\n\n");
+            self.writer.write_raw_markup("]\n\n");
         }
     }
 
@@ -2615,13 +2631,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = writeln!(self.writer, "#{frame}[");
         }
         if let Some(label) = label {
-            self.writer.raw("#text(weight: \"bold\")[");
+            self.writer.write_raw_markup("#text(weight: \"bold\")[");
             self.write_text_expr(label);
-            self.writer.raw("]#linebreak()\n");
+            self.writer.write_raw_markup("]#linebreak()\n");
         }
         self.write_blocks(traversal, blocks)?;
         if frame.is_some() {
-            self.writer.raw("]\n\n");
+            self.writer.write_raw_markup("]\n\n");
         }
         Ok(())
     }
@@ -2675,15 +2691,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_static_media_link(&mut self, target: &str, kind: &str) {
         self.write_text_expr("►\u{a0}");
-        self.writer.raw("#link(");
-        self.writer.string_literal(target);
-        self.writer.raw(")[");
+        self.writer.write_raw_markup("#link(");
+        self.writer.write_string_literal(target);
+        self.writer.write_raw_markup(")[");
         self.write_text_expr(target);
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         self.write_text_expr(" ");
-        self.writer.raw("#emph[");
+        self.writer.write_raw_markup("#emph[");
         self.write_text_expr(&format!("({kind})"));
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
     }
 
     pub(crate) fn static_media_source_target(
@@ -2715,9 +2731,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let Some(title) = title else {
             return Ok(());
         };
-        self.writer.raw("#imagecaption[");
+        self.writer.write_raw_markup("#imagecaption[");
         self.write_title(traversal, Some(title))?;
-        self.writer.raw("]\n");
+        self.writer.write_raw_markup("]\n");
         Ok(())
     }
 
@@ -2731,22 +2747,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let _ = write!(self.writer, "{indent}{marker} ");
         let has_blocks = item.blocks().next().is_some();
         if has_blocks {
-            self.writer.raw("#block(width: 100%)[");
+            self.writer.write_raw_markup("#block(width: 100%)[");
         }
         if let Some(checked) = item.checked() {
             match checked {
-                acdc_parser::ListItemCheckedStatus::Checked => self.writer.raw("#checkbox(true) "),
+                acdc_parser::ListItemCheckedStatus::Checked => {
+                    self.writer.write_raw_markup("#checkbox(true) ");
+                }
                 acdc_parser::ListItemCheckedStatus::Unchecked => {
-                    self.writer.raw("#checkbox(false) ");
+                    self.writer.write_raw_markup("#checkbox(false) ");
                 }
                 _ => {}
             }
         }
         self.write_content(traversal, item.principal())?;
-        self.writer.raw("\n");
+        self.writer.write_raw_markup("\n");
 
         if has_blocks {
-            self.writer.raw("\n");
+            self.writer.write_raw_markup("\n");
             self.list_depth += 1;
             for block in item.blocks() {
                 traversal.visit_block(self, block)?;
@@ -2768,8 +2786,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer,
             "{indent}#set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("
         );
-        self.writer.string_literal(&self.palette.bullet);
-        self.writer.raw("))))\n");
+        self.writer.write_string_literal(&self.palette.bullet);
+        self.writer.write_raw_markup("))))\n");
 
         self.list_depth += 1;
         for item in list.items() {
@@ -2779,14 +2797,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 visitor.write_bibliography_principal(traversal, item)
             })?;
             if item.blocks().next().is_some() {
-                self.writer.raw("\n\n");
+                self.writer.write_raw_markup("\n\n");
                 self.list_depth += 1;
                 for block in item.blocks() {
                     traversal.visit_block(self, block)?;
                 }
                 self.list_depth -= 1;
             }
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
         self.list_depth -= 1;
         let _ = writeln!(self.writer, "{indent}]\n");
@@ -2809,11 +2827,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return self.write_content(traversal, item.principal());
         }
         self.write_inline_anchor(anchor.id());
-        let references = Rc::clone(&self.processor.references);
+        let references = Rc::clone(&self.converter.references);
         let backlink = references
             .get(anchor.id())
-            .map(ReferenceRef::from)
-            .is_some_and(ReferenceRef::has_automatic_citation);
+            .map(ReferenceTargetRef::from)
+            .is_some_and(ReferenceTargetRef::has_automatic_citation);
         if backlink {
             let label = encode_bibliography_reference_label(anchor.id());
             let _ = write!(self.writer, "#link(<{label}>)[");
@@ -2828,7 +2846,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         if backlink {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         self.write_inline_refs(traversal, content)
     }
@@ -2843,9 +2861,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         self.writer
-            .raw("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
+            .write_raw_markup("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
         for item in list.items() {
-            self.writer.raw("measure([");
+            self.writer.write_raw_markup("measure([");
             // Measurement content is not displayed, so its anchors must not
             // consume destinations or index entries from the visible term.
             let previous = self.index_catalog.set_suspended(true);
@@ -2854,23 +2872,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.anchors.suspended = previous_anchors;
             self.index_catalog.set_suspended(previous);
             result?;
-            self.writer.raw("]).width,\n");
+            self.writer.write_raw_markup("]).width,\n");
         }
-        self.writer.raw(
+        self.writer.write_raw_markup(
             "), size.width * 50%)\ngrid(columns: (term-width, 1fr), column-gutter: 20pt, row-gutter: 0.5em, align: top,\n",
         );
 
         for item in list.items() {
-            self.writer.raw("[");
+            self.writer.write_raw_markup("[");
             self.write_horizontal_description_terms(traversal, item.terms(), true)?;
-            self.writer.raw("], [");
+            self.writer.write_raw_markup("], [");
             if let Some(definition) = item.definition() {
                 self.write_description_definition(traversal, definition)?;
             }
-            self.writer.raw("],\n");
+            self.writer.write_raw_markup("],\n");
         }
 
-        self.writer.raw(")\n})\n\n");
+        self.writer.write_raw_markup(")\n})\n\n");
         Ok(())
     }
 
@@ -2888,26 +2906,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             );
             for (index, term) in item.terms().enumerate() {
                 if index > 0 {
-                    self.writer.raw("#linebreak()");
+                    self.writer.write_raw_markup("#linebreak()");
                 }
                 for anchor in term.anchors() {
                     self.write_anchor_target(anchor);
                 }
-                self.writer.raw("#text(weight: \"bold\")[");
+                self.writer.write_raw_markup("#text(weight: \"bold\")[");
                 self.write_content(traversal, term.content())?;
-                self.writer.raw("]");
+                self.writer.write_raw_markup("]");
             }
             if let Some(definition) = item.definition() {
                 self.writer
-                    .raw("\n#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[");
+                    .write_raw_markup("\n#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[");
                 self.list_depth += 1;
                 self.write_description_definition(traversal, definition)?;
                 self.list_depth -= 1;
-                self.writer.raw("]");
+                self.writer.write_raw_markup("]");
             }
             let _ = writeln!(self.writer, "\n{indent}]");
         }
-        self.writer.raw("\n");
+        self.writer.write_raw_markup("\n");
         Ok(())
     }
 
@@ -2924,30 +2942,31 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let _ = writeln!(self.writer, "{indent}#[");
         let _ = write!(self.writer, "{indent}#set enum(numbering: ");
         self.write_ordered_list_numbering(OrderedListNumbering::Arabic);
-        self.writer.raw(", spacing: 1em)\n");
+        self.writer.write_raw_markup(", spacing: 1em)\n");
 
         for item in list.items() {
             let _ = write!(self.writer, "{indent}  + #block(width: 100%)[");
-            self.writer.raw("#block(width: 100%, breakable: false)[");
+            self.writer
+                .write_raw_markup("#block(width: 100%, breakable: false)[");
             self.write_paragraph_alignment(Some(list.attributes()), |visitor| {
                 visitor.write_qanda_description_terms(traversal, item.terms())?;
                 if let Some(principal) = item
                     .definition()
                     .and_then(DescriptionListDefinitionRef::principal)
                 {
-                    visitor.writer.raw("#linebreak()\n");
+                    visitor.writer.write_raw_markup("#linebreak()\n");
                     visitor.write_content(traversal, principal)?;
                 }
                 Ok(())
             })?;
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
             if let Some(definition) = item.definition()
                 && definition.blocks().next().is_some()
             {
-                self.writer.raw("\n\n");
+                self.writer.write_raw_markup("\n\n");
                 self.write_blocks(traversal, definition.blocks())?;
             }
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
 
         let _ = writeln!(self.writer, "{indent}]\n");
@@ -2975,14 +2994,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if ordered {
             let _ = write!(self.writer, "{indent}#set enum(numbering: ");
             self.write_ordered_list_numbering(OrderedListNumbering::Arabic);
-            self.writer.raw(")\n");
+            self.writer.write_raw_markup(")\n");
         } else {
             let _ = write!(
                 self.writer,
                 "{indent}#set list(marker: box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("
             );
-            self.writer.string_literal(&self.palette.bullet);
-            self.writer.raw("))))\n");
+            self.writer.write_string_literal(&self.palette.bullet);
+            self.writer.write_raw_markup("))))\n");
         }
 
         for item in list.items() {
@@ -2990,12 +3009,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, "{indent}  {marker} #block(width: 100%)[");
             for (index, subject) in item.terms().enumerate() {
                 if index > 0 {
-                    self.writer.raw("#linebreak()");
+                    self.writer.write_raw_markup("#linebreak()");
                 }
                 for anchor in subject.anchors() {
                     self.write_anchor_target(anchor);
                 }
-                self.writer.raw("#strong[");
+                self.writer.write_raw_markup("#strong[");
                 self.write_content(traversal, subject.content())?;
                 let subject_text = InlineTextTransform::default()
                     .decode_char_refs(true)
@@ -3009,20 +3028,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 {
                     self.write_text_expr(stop);
                 }
-                self.writer.raw("]");
+                self.writer.write_raw_markup("]");
             }
             if let Some(definition) = item.definition() {
                 if let Some(principal) = definition.principal() {
                     self.writer
-                        .raw(if stacked { "#linebreak()\n" } else { " " });
+                        .write_raw_markup(if stacked { "#linebreak()\n" } else { " " });
                     self.write_content(traversal, principal)?;
                 }
                 if definition.blocks().next().is_some() {
-                    self.writer.raw("\n\n");
+                    self.writer.write_raw_markup("\n\n");
                     self.write_blocks(traversal, definition.blocks())?;
                 }
             }
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
 
         let _ = writeln!(self.writer, "{indent}]\n");
@@ -3037,16 +3056,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         for (index, term) in terms.enumerate() {
             if index > 0 {
-                self.writer.raw("#linebreak()");
+                self.writer.write_raw_markup("#linebreak()");
             }
             if write_anchors {
                 for anchor in term.anchors() {
                     self.write_anchor_target(anchor);
                 }
             }
-            self.writer.raw("#text(weight: \"bold\")[");
+            self.writer.write_raw_markup("#text(weight: \"bold\")[");
             self.write_content(traversal, term.content())?;
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         Ok(())
     }
@@ -3058,14 +3077,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         for (index, term) in terms.enumerate() {
             if index > 0 {
-                self.writer.raw("#linebreak()");
+                self.writer.write_raw_markup("#linebreak()");
             }
             for anchor in term.anchors() {
                 self.write_anchor_target(anchor);
             }
-            self.writer.raw("#emph[");
+            self.writer.write_raw_markup("#emph[");
             self.write_content(traversal, term.content())?;
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         Ok(())
     }
@@ -3078,7 +3097,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if let Some(principal) = definition.principal() {
             self.write_content(traversal, principal)?;
             if definition.blocks().next().is_some() {
-                self.writer.raw("\n\n");
+                self.writer.write_raw_markup("\n\n");
             }
         }
         self.write_blocks(traversal, definition.blocks())
@@ -3097,9 +3116,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             Some("none" | "no-bullet" | "unnumbered" | "unstyled")
         );
         if attribute_style(attributes) == Some("none") {
-            self.writer.raw("(..numbers) => box(width: 0.5em)[]");
+            self.writer
+                .write_raw_markup("(..numbers) => box(width: 0.5em)[]");
         } else if markerless {
-            self.writer.raw("(..numbers) => none");
+            self.writer.write_raw_markup("(..numbers) => none");
         } else {
             let numbering = match attributes
                 .and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
@@ -3116,10 +3136,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_ordered_list_numbering(numbering);
         }
         if attribute_style(attributes) == Some("unstyled") {
-            self.writer.raw(", body-indent: 0pt");
+            self.writer.write_raw_markup(", body-indent: 0pt");
             self.ordered_unstyled_scope_depth += 1;
         } else if self.ordered_unstyled_scope_depth > 0 {
-            self.writer.raw(", body-indent: 0.5em");
+            self.writer.write_raw_markup(", body-indent: 0.5em");
         }
         if let Some(start) = attributes
             .and_then(|attributes| attributes.get("start").and_then(AttributeValueRef::as_str))
@@ -3129,9 +3149,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, ", start: {start}");
         }
         if has_attribute_token(attributes, "options", "reversed") {
-            self.writer.raw(", reversed: true");
+            self.writer.write_raw_markup(", reversed: true");
         }
-        self.writer.raw(")\n");
+        self.writer.write_raw_markup(")\n");
     }
 
     pub(crate) fn write_ordered_list_end(&mut self, attributes: Option<AttributesRef<'_>>) {
@@ -3165,19 +3185,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.unordered_list_depth
             );
             self.write_unordered_marker(style);
-            self.writer.raw(" } else { let markers = ");
+            self.writer.write_raw_markup(" } else { let markers = ");
             self.write_default_unordered_markers();
             self.writer
-                .raw("; markers.at(calc.rem(depth, markers.len())) }");
+                .write_raw_markup("; markers.at(calc.rem(depth, markers.len())) }");
         } else {
             self.write_default_unordered_markers();
         }
         if style == Some(UnorderedMarker::Unstyled) {
-            self.writer.raw(", body-indent: 0pt");
+            self.writer.write_raw_markup(", body-indent: 0pt");
         } else if self.unordered_style_scope_depth > 0 {
-            self.writer.raw(", body-indent: 0.5em");
+            self.writer.write_raw_markup(", body-indent: 0.5em");
         }
-        self.writer.raw(")\n");
+        self.writer.write_raw_markup(")\n");
         self.unordered_style_scope_depth += 1;
         true
     }
@@ -3187,7 +3207,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_default_unordered_markers(&mut self) {
-        self.writer.raw("(");
+        self.writer.write_raw_markup("(");
         for (index, style) in [
             UnorderedMarker::Disc,
             UnorderedMarker::Circle,
@@ -3197,47 +3217,52 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         .enumerate()
         {
             if index > 0 {
-                self.writer.raw(", ");
+                self.writer.write_raw_markup(", ");
             }
             self.write_unordered_marker(style);
         }
-        self.writer.raw(")");
+        self.writer.write_raw_markup(")");
     }
 
     fn write_unordered_marker(&mut self, style: UnorderedMarker) {
         match style {
             UnorderedMarker::Disc => {
                 self.writer
-                    .raw("box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb(");
-                self.writer.string_literal(&self.palette.bullet);
-                self.writer.raw(")))");
+                    .write_raw_markup("box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb(");
+                self.writer.write_string_literal(&self.palette.bullet);
+                self.writer.write_raw_markup(")))");
             }
             UnorderedMarker::Circle => {
-                self.writer
-                    .raw("box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb(");
-                self.writer.string_literal(&self.palette.bullet);
-                self.writer.raw(")))");
+                self.writer.write_raw_markup(
+                    "box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb(",
+                );
+                self.writer.write_string_literal(&self.palette.bullet);
+                self.writer.write_raw_markup(")))");
             }
             UnorderedMarker::Square => {
-                self.writer
-                    .raw("box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb(");
-                self.writer.string_literal(&self.palette.bullet);
-                self.writer.raw(")))");
+                self.writer.write_raw_markup(
+                    "box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb(",
+                );
+                self.writer.write_string_literal(&self.palette.bullet);
+                self.writer.write_raw_markup(")))");
             }
-            UnorderedMarker::None => self.writer.raw("box(width: 0.28em)[]"),
-            UnorderedMarker::NoBullet | UnorderedMarker::Unstyled => self.writer.raw("none"),
+            UnorderedMarker::None => self.writer.write_raw_markup("box(width: 0.28em)[]"),
+            UnorderedMarker::NoBullet | UnorderedMarker::Unstyled => {
+                self.writer.write_raw_markup("none");
+            }
         }
     }
 
     fn write_ordered_list_numbering(&mut self, numbering: OrderedListNumbering) {
-        self.writer.raw("(..numbers) => text(fill: rgb(");
-        self.writer.string_literal(&self.palette.counter);
-        self.writer.raw("), ");
+        self.writer
+            .write_raw_markup("(..numbers) => text(fill: rgb(");
+        self.writer.write_string_literal(&self.palette.counter);
+        self.writer.write_raw_markup("), ");
         let pattern = match numbering {
             // Typst treats `0` as literal text in a numbering pattern, so `01.`
             // would produce `010.` for item 10 instead of Asciidoctor's `10.`.
             OrderedListNumbering::Decimal => {
-                self.writer.raw(
+                self.writer.write_raw_markup(
                     "{ let number = numbers.pos().last(); (if number < 10 { \"0\" } else { \"\" }) + str(number) + \".\" }",
                 );
                 None
@@ -3245,7 +3270,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             // Asciidoctor PDF advances through lowercase Greek Unicode code points,
             // including final sigma, instead of using Typst's Greek numerals.
             OrderedListNumbering::LowerGreek => {
-                self.writer.raw(
+                self.writer.write_raw_markup(
                     "{ let number = numbers.pos().last(); str.from-unicode(944 + number) + \".\" }",
                 );
                 None
@@ -3257,11 +3282,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             OrderedListNumbering::UpperRoman => Some("I."),
         };
         if let Some(pattern) = pattern {
-            self.writer.raw("numbering(");
-            self.writer.string_literal(pattern);
-            self.writer.raw(", ..numbers.pos())");
+            self.writer.write_raw_markup("numbering(");
+            self.writer.write_string_literal(pattern);
+            self.writer.write_raw_markup(", ..numbers.pos())");
         }
-        self.writer.raw(")");
+        self.writer.write_raw_markup(")");
     }
 
     fn write_table(
@@ -3312,9 +3337,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             ),
         };
         if let Some(header) = grid.first().filter(|row| row.is_header) {
-            self.writer.raw(", table.header(repeat: true, ");
+            self.writer
+                .write_raw_markup(", table.header(repeat: true, ");
             self.write_table_row_cells(traversal, &context, header, 0, "")?;
-            self.writer.raw(")");
+            self.writer.write_raw_markup(")");
         }
 
         // Typst owns the merged geometry. Emit each real cell at its logical
@@ -3328,12 +3354,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         if let Some(footer) = grid.last().filter(|row| row.is_footer) {
-            self.writer.raw(", table.footer(repeat: false, ");
+            self.writer
+                .write_raw_markup(", table.footer(repeat: false, ");
             self.write_table_row_cells(traversal, &context, footer, grid.len() - 1, "")?;
-            self.writer.raw(")");
+            self.writer.write_raw_markup(")");
         }
 
-        self.writer.raw(")\n\n");
+        self.writer.write_raw_markup(")\n\n");
         Ok(())
     }
 
@@ -3374,7 +3401,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_intrinsic_table_start(&mut self) {
-        self.writer.raw("#context {\nlet acdc-table-body = [\n");
+        self.writer
+            .write_raw_markup("#context {\nlet acdc-table-body = [\n");
     }
 
     fn write_intrinsic_table_end(
@@ -3394,25 +3422,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             !has_attribute_token(attributes, "options", "unbreakable") && block.title().is_some();
         if sticky_title {
             self.writer
-                .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
+                .write_raw_markup("#block(sticky: true, above: 0pt, below: 0pt)[\n");
         }
         self.write_captioned_title(traversal, block.title(), attributes, fallback)?;
         if sticky_title {
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
-        self.writer.raw("]\n#acdc-table-body\n])\n}\n\n");
+        self.writer
+            .write_raw_markup("]\n#acdc-table-body\n])\n}\n\n");
         Ok(())
     }
 
     fn write_table_wrappers_end(&mut self, sized: bool, aligned: bool) {
         if sized {
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
         if aligned {
-            self.writer.raw("]\n");
+            self.writer.write_raw_markup("]\n");
         }
         if sized || aligned {
-            self.writer.raw("\n");
+            self.writer.write_raw_markup("\n");
         }
     }
 
@@ -3447,7 +3476,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 continue;
             };
             if let Some((_, ast_cell)) = source_cells.find(|(index, _)| index == cell_index) {
-                self.writer.raw(separator);
+                self.writer.write_raw_markup(separator);
                 self.write_table_cell(
                     traversal,
                     context,
@@ -3516,7 +3545,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         self.write_table_cell_stroke(context, cell_ref, position);
         self.write_table_cell_fill(context, position);
-        self.writer.raw(")[");
+        self.writer.write_raw_markup(")[");
         let outer_cell_state = replace(
             &mut self.table_cell_section_state,
             TableCellSectionState::Inside {
@@ -3526,7 +3555,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let result = self.write_table_cell_content(traversal, cell, style);
         self.table_cell_section_state = outer_cell_state;
         result?;
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         Ok(())
     }
 
@@ -3548,7 +3577,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let right = x.saturating_add(cell_ref.colspan()).min(column_count);
         let bottom = y.saturating_add(cell_ref.rowspan()).min(row_count);
 
-        self.writer.raw(", stroke: (");
+        self.writer.write_raw_markup(", stroke: (");
         self.write_table_stroke_side("left", if x == 0 { vertical_frame } else { column_rule });
         self.write_table_stroke_side(
             "right",
@@ -3583,7 +3612,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 },
             );
         }
-        self.writer.raw(")");
+        self.writer.write_raw_markup(")");
     }
 
     fn write_table_stroke_side(&mut self, side: &str, enabled: bool) {
@@ -3643,7 +3672,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             ColumnStyle::AsciiDoc | ColumnStyle::Default | _ => None,
         };
         if let Some(wrapper) = wrapper {
-            self.writer.raw(wrapper);
+            self.writer.write_raw_markup(wrapper);
         }
         if style == ColumnStyle::AsciiDoc {
             traversal.with_table_cell(cell, |traversal| {
@@ -3656,7 +3685,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_text_expr("");
         }
         if wrapper.is_some() {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         Ok(())
     }
@@ -3703,7 +3732,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         let has_caption = image.title().is_some();
         if has_caption {
-            self.writer.raw("#block(width: 100%, breakable: false)[\n");
+            self.writer
+                .write_raw_markup("#block(width: 100%, breakable: false)[\n");
         }
         let source = Self::static_media_source_target(traversal, image.source());
         let alt = block_image_alt(image);
@@ -3731,10 +3761,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     )
                 );
             if uses_doc_image {
-                self.writer.raw("#docimage(");
-                self.writer.string_literal(&asset.virtual_path);
-                self.writer.raw(", alt: ");
-                self.writer.string_literal(&alt);
+                self.writer.write_raw_markup("#docimage(");
+                self.writer.write_string_literal(&asset.virtual_path);
+                self.writer.write_raw_markup(", alt: ");
+                self.writer.write_string_literal(&alt);
                 match width {
                     Some(ImageWidth::Points { value, .. }) => {
                         let _ = write!(self.writer, ", width: {value}pt");
@@ -3745,10 +3775,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     Some(ImageWidth::IntrinsicRatio(_) | ImageWidth::ViewportRatio(_)) | None => {}
                 }
                 if let Some(target) = &link {
-                    self.writer.raw(", destination: ");
-                    self.writer.string_literal(target);
+                    self.writer.write_raw_markup(", destination: ");
+                    self.writer.write_string_literal(target);
                 }
-                self.writer.raw(")\n");
+                self.writer.write_raw_markup(")\n");
             } else {
                 self.write_positioned_block_image(
                     &asset.virtual_path,
@@ -3761,7 +3791,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         } else {
             self.write_block_image_fallback(traversal, image, &alt, link)?;
-            self.writer.raw("\n");
+            self.writer.write_raw_markup("\n");
         }
         if has_caption {
             self.write_captioned_title_with(
@@ -3771,9 +3801,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 Some(image.attributes()),
                 Some(CaptionKind::Figure),
             )?;
-            self.writer.raw("]\n\n");
+            self.writer.write_raw_markup("]\n\n");
         } else {
-            self.writer.raw("\n");
+            self.writer.write_raw_markup("\n");
         }
         Ok(())
     }
@@ -3786,9 +3816,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         link: Option<&str>,
     ) -> Result<(), Error> {
         if let Some(target) = link {
-            self.writer.raw("#link(");
-            self.writer.string_literal(target);
-            self.writer.raw(")[");
+            self.writer.write_raw_markup("#link(");
+            self.writer.write_string_literal(target);
+            self.writer.write_raw_markup(")[");
         }
         self.write_text_expr("[");
         if let Some(content) = image.alt() {
@@ -3798,7 +3828,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         self.write_text_expr("]");
         if link.is_some() {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         self.write_text_expr(&format!(" | {}", image.source()));
         Ok(())
@@ -3828,7 +3858,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             );
         if align_to_page {
             self.writer
-                .raw("#context layout(available => move(dx: -here().position().x, ");
+                .write_raw_markup("#context layout(available => move(dx: -here().position().x, ");
         }
         let block_prefix = if align_to_page { "" } else { "#" };
         let _ = write!(
@@ -3846,23 +3876,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, "#align({})[", alignment.typst());
         }
         if let Some(target) = link {
-            self.writer.raw("#link(");
-            self.writer.string_literal(target);
-            self.writer.raw(")[");
+            self.writer.write_raw_markup("#link(");
+            self.writer.write_string_literal(target);
+            self.writer.write_raw_markup(")[");
         }
         match width {
             Some(ImageWidth::Points { value, .. }) => {
-                self.writer.raw("#image(");
-                self.writer.string_literal(path);
-                self.writer.raw(", alt: ");
-                self.writer.string_literal(alt);
+                self.writer.write_raw_markup("#image(");
+                self.writer.write_string_literal(path);
+                self.writer.write_raw_markup(", alt: ");
+                self.writer.write_string_literal(alt);
                 let _ = write!(self.writer, ", width: {value}pt)");
             }
             Some(ImageWidth::ContainerRatio { value, .. }) => {
-                self.writer.raw("#image(");
-                self.writer.string_literal(path);
-                self.writer.raw(", alt: ");
-                self.writer.string_literal(alt);
+                self.writer.write_raw_markup("#image(");
+                self.writer.write_string_literal(path);
+                self.writer.write_raw_markup(", alt: ");
+                self.writer.write_string_literal(alt);
                 if align_to_page {
                     let _ = write!(self.writer, ", width: {value} * available.width)");
                 } else {
@@ -3879,29 +3909,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 );
             }
             Some(ImageWidth::ViewportRatio(ratio)) => {
-                self.writer.raw("#image(");
-                self.writer.string_literal(path);
-                self.writer.raw(", alt: ");
-                self.writer.string_literal(alt);
+                self.writer.write_raw_markup("#image(");
+                self.writer.write_string_literal(path);
+                self.writer.write_raw_markup(", alt: ");
+                self.writer.write_string_literal(alt);
                 let _ = write!(self.writer, ", width: {}pt)", ratio * self.page_width_pt);
             }
             None => {
-                self.writer.raw("#image(");
-                self.writer.string_literal(path);
-                self.writer.raw(", alt: ");
-                self.writer.string_literal(alt);
-                self.writer.raw(")");
+                self.writer.write_raw_markup("#image(");
+                self.writer.write_string_literal(path);
+                self.writer.write_raw_markup(", alt: ");
+                self.writer.write_string_literal(alt);
+                self.writer.write_raw_markup(")");
             }
         }
         if link.is_some() {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         if alignment != BlockImageAlignment::Left {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
-        self.writer.raw("]\n");
+        self.writer.write_raw_markup("]\n");
         if align_to_page {
-            self.writer.raw("))\n");
+            self.writer.write_raw_markup("))\n");
         }
     }
 
@@ -3932,14 +3962,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     Some(&image.location().into()),
                 );
             }
-            self.writer.raw("#box(");
+            self.writer.write_raw_markup("#box(");
             if fit_line {
-                self.writer.raw("context layout(size => { let body = ");
+                self.writer
+                    .write_raw_markup("context layout(size => { let body = ");
             }
             if let Some(target) = &link {
-                self.writer.raw("link(");
-                self.writer.string_literal(target);
-                self.writer.raw(")[#");
+                self.writer.write_raw_markup("link(");
+                self.writer.write_string_literal(target);
+                self.writer.write_raw_markup(")[#");
             }
             match image_width(image.attributes(), false) {
                 Some(ImageWidth::IntrinsicRatio(ratio)) => {
@@ -3952,10 +3983,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     );
                 }
                 width => {
-                    self.writer.raw("image(");
-                    self.writer.string_literal(&asset.virtual_path);
-                    self.writer.raw(", alt: ");
-                    self.writer.string_literal(&alt);
+                    self.writer.write_raw_markup("image(");
+                    self.writer.write_string_literal(&asset.virtual_path);
+                    self.writer.write_raw_markup(", alt: ");
+                    self.writer.write_string_literal(&alt);
                     match width {
                         Some(ImageWidth::Points { value, .. }) => {
                             let _ = write!(self.writer, ", width: {value}pt");
@@ -3969,23 +4000,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         }
                         Some(ImageWidth::IntrinsicRatio(_)) | None => {}
                     }
-                    self.writer.raw(")");
+                    self.writer.write_raw_markup(")");
                 }
             }
             if link.is_some() {
-                self.writer.raw("]");
+                self.writer.write_raw_markup("]");
             }
             if fit_line {
-                self.writer.raw(
+                self.writer.write_raw_markup(
                     "; let body-height = measure(body).height; let line-height = measure(box(height: 1em)).height; let target-height = calc.min(size.height, line-height); if body-height > target-height { let factor = target-height / body-height * 100%; scale(x: factor, y: factor, reflow: true, body) } else { body } })",
                 );
             }
-            self.writer.raw(")");
+            self.writer.write_raw_markup(")");
         } else {
             if let Some(target) = &link {
-                self.writer.raw("#link(");
-                self.writer.string_literal(target);
-                self.writer.raw(")[");
+                self.writer.write_raw_markup("#link(");
+                self.writer.write_string_literal(target);
+                self.writer.write_raw_markup(")[");
             }
             if let Some(content) = image.alt() {
                 self.write_content(traversal, content)?;
@@ -3993,7 +4024,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_text_expr(&inline_image_fallback_text(image));
             }
             if link.is_some() {
-                self.writer.raw("]");
+                self.writer.write_raw_markup("]");
             }
         }
         Ok(())
@@ -4014,9 +4045,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer,
             "{prefix}context layout(size => {{ let body = scale(x: {percentage}%, y: {percentage}%, reflow: true, image("
         );
-        self.writer.string_literal(path);
-        self.writer.raw(", alt: ");
-        self.writer.string_literal(alt);
+        self.writer.write_string_literal(path);
+        self.writer.write_raw_markup(", alt: ");
+        self.writer.write_string_literal(alt);
         let _ = write!(
             self.writer,
             ")); let body-width = measure(body).width; if body-width > {maximum_width} {{ let factor = {maximum_width} / body-width * 100%; scale(x: factor, y: factor, reflow: true, body) }} else {{ body }} }})"
@@ -4034,9 +4065,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .get("link")
             .and_then(AttributeValueRef::as_str);
         if let Some(target) = &link {
-            self.writer.raw("#link(");
-            self.writer.string_literal(target);
-            self.writer.raw(")[");
+            self.writer.write_raw_markup("#link(");
+            self.writer.write_string_literal(target);
+            self.writer.write_raw_markup(")[");
         }
         match IconMode::from_attributes(traversal) {
             IconMode::Font => {
@@ -4052,9 +4083,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         Some("5x") => self.write_sized_icon_glyph(glyph, "5em"),
                         Some("lg") => self.write_sized_icon_glyph(glyph, "1.333em"),
                         Some("fw") => {
-                            self.writer.raw("#box(width: 1em)[#align(center)[");
+                            self.writer
+                                .write_raw_markup("#box(width: 1em)[#align(center)[");
                             self.write_text_expr(glyph);
-                            self.writer.raw("]]");
+                            self.writer.write_raw_markup("]]");
                         }
                         _ => self.write_text_expr(glyph),
                     }
@@ -4072,11 +4104,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         |value| acdc_converters_core::icon::custom_image_source(traversal, value),
                     );
                 if let Some(asset) = self.assets.get(&source) {
-                    self.writer.raw("#box(image(");
-                    self.writer.string_literal(&asset.virtual_path);
-                    self.writer.raw(", alt: ");
-                    self.writer.string_literal(&alt);
-                    self.writer.raw(", height: 1em))");
+                    self.writer.write_raw_markup("#box(image(");
+                    self.writer.write_string_literal(&asset.virtual_path);
+                    self.writer.write_raw_markup(", alt: ");
+                    self.writer.write_string_literal(&alt);
+                    self.writer.write_raw_markup(", height: 1em))");
                 } else {
                     self.write_icon_alternative(traversal, icon, &alt)?;
                 }
@@ -4084,7 +4116,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             IconMode::Text | _ => self.write_icon_alternative(traversal, icon, &alt)?,
         }
         if link.is_some() {
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
         }
         Ok(())
     }
@@ -4106,11 +4138,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_sized_icon_glyph(&mut self, glyph: &str, size: &str) {
-        self.writer.raw("#text(size: ");
-        self.writer.raw(size);
-        self.writer.raw(")[");
+        self.writer.write_raw_markup("#text(size: ");
+        self.writer.write_raw_markup(size);
+        self.writer.write_raw_markup(")[");
         self.write_text_expr(glyph);
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
     }
 
     fn write_footnote(
@@ -4135,7 +4167,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 "#counter(footnote).update({})",
                 footnote.number().saturating_sub(1)
             );
-            self.writer.raw("#footnote[");
+            self.writer.write_raw_markup("#footnote[");
             if let Some(content) = traversal
                 .footnote_definition(footnote.number())
                 .map(FootnoteDefinitionRef::content)
@@ -4143,7 +4175,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             {
                 self.write_content(traversal, content)?;
             }
-            self.writer.raw("]");
+            self.writer.write_raw_markup("]");
             if let Some(label) = label {
                 let _ = write!(self.writer, "<{label}>");
             } else if self
@@ -4170,28 +4202,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             InlineKind::Footnote(footnote) => self.write_footnote(traversal, footnote)?,
             InlineKind::Icon(icon) => self.write_icon(traversal, icon)?,
             InlineKind::Image(image) => self.write_inline_image(traversal, image)?,
-            InlineKind::Keyboard(keyboard) => {
+            InlineKind::KeyboardShortcut(keyboard) => {
                 for (index, key) in keyboard.keys().enumerate() {
                     if index > 0 {
                         self.write_text_expr("\u{202f}+\u{202f}");
                     }
-                    self.writer.raw("#box(baseline: 15%, fill: rgb(");
-                    self.writer.string_literal(&self.palette.callout_bg);
-                    self.writer.raw("), stroke: 0.5pt + rgb(");
-                    self.writer.string_literal(&self.palette.border);
                     self.writer
-                        .raw("), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[");
+                        .write_raw_markup("#box(baseline: 15%, fill: rgb(");
+                    self.writer.write_string_literal(&self.palette.callout_bg);
+                    self.writer.write_raw_markup("), stroke: 0.5pt + rgb(");
+                    self.writer.write_string_literal(&self.palette.border);
+                    self.writer
+                        .write_raw_markup("), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[");
                     self.write_content(traversal, key)?;
-                    self.writer.raw("]");
+                    self.writer.write_raw_markup("]");
                 }
             }
             InlineKind::Button(button) => {
-                self.writer.raw("#strong[\\[\u{2009}");
+                self.writer.write_raw_markup("#strong[\\[\u{2009}");
                 self.write_content(traversal, button.label())?;
-                self.writer.raw("\u{2009}\\]]");
+                self.writer.write_raw_markup("\u{2009}\\]]");
             }
-            InlineKind::Menu(menu) => self.write_menu(traversal, menu)?,
-            InlineKind::Url(url) => {
+            InlineKind::MenuPath(menu) => self.write_menu(traversal, menu)?,
+            InlineKind::UrlMacro(url) => {
                 let target = url.target().to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
                 self.write_link(
@@ -4229,7 +4262,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             InlineKind::Autolink(autolink) => self.write_autolink(traversal, autolink)?,
             InlineKind::CrossReference(xref) => self.write_cross_reference(traversal, xref)?,
-            InlineKind::Pass(pass) => {
+            InlineKind::Passthrough(pass) => {
                 if let Some(text) = pass.text() {
                     self.write_text_expr(text);
                 }
@@ -4249,8 +4282,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             | InlineKind::Highlight(_)
             | InlineKind::Subscript(_)
             | InlineKind::Superscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::CharacterReference(_)
             | InlineKind::Symbol(_)
@@ -4351,23 +4384,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_menu(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        menu: MenuRef<'_>,
+        menu: MenuPathRef<'_>,
     ) -> Result<(), Error> {
-        self.writer.raw("#strong[");
+        self.writer.write_raw_markup("#strong[");
         for (index, part) in std::iter::once(menu.target())
             .chain(menu.items())
             .enumerate()
         {
             if index > 0 {
                 self.write_text_expr(" ");
-                self.writer.raw("#text(size: 1.15em, fill: rgb(");
-                self.writer.string_literal(&self.palette.accent);
-                self.writer.raw("))[\u{203a}]");
+                self.writer
+                    .write_raw_markup("#text(size: 1.15em, fill: rgb(");
+                self.writer.write_string_literal(&self.palette.accent);
+                self.writer.write_raw_markup("))[\u{203a}]");
                 self.write_text_expr(" ");
             }
             self.write_content(traversal, part)?;
         }
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         Ok(())
     }
 
@@ -4406,8 +4440,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         // Clone the handles so the borrowed reference text and the resolution
         // guard both outlive the `&mut self` render calls.
-        let references = Rc::clone(&self.processor.references);
-        let guard = self.processor.xref_guard.clone();
+        let references = Rc::clone(&self.converter.references);
+        let guard = self.converter.xref_guard.clone();
         let target = xref.target();
 
         if xref.target_is_local() && target.is_empty() {
@@ -4417,8 +4451,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if xref.text().is_empty()
             && references
                 .get(target)
-                .map(ReferenceRef::from)
-                .is_some_and(ReferenceRef::is_bibliography)
+                .map(ReferenceTargetRef::from)
+                .is_some_and(ReferenceTargetRef::is_bibliography)
             && self
                 .bibliography_backlinks_written
                 .insert(target.to_string())
@@ -4446,7 +4480,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         let previous = self.index_catalog.set_suspended(true);
         let previous_anchors = replace(&mut self.anchors.suspended, true);
-        let reference = references.get(target).map(ReferenceRef::from);
+        let reference = references.get(target).map(ReferenceTargetRef::from);
         let result = self.write_xref_display(
             traversal,
             target,
@@ -4554,17 +4588,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         text: ContentRef<'_>,
     ) -> Result<(), Error> {
-        if self.processor.xref_guard.is_resolving() {
+        if self.converter.xref_guard.is_resolving() {
             self.write_text_expr("[^top]");
             return Ok(());
         }
-        self.writer.raw("#link((page: 1, x: 0pt, y: 0pt))[");
+        self.writer
+            .write_raw_markup("#link((page: 1, x: 0pt, y: 0pt))[");
         if text.is_empty() {
             self.write_text_expr("[^top]");
         } else {
             self.write_content(traversal, text)?;
         }
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         Ok(())
     }
 
@@ -4590,11 +4625,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         target: &str,
         content: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.writer.raw("#link(");
-        self.writer.string_literal(target);
-        self.writer.raw(")[");
+        self.writer.write_raw_markup("#link(");
+        self.writer.write_string_literal(target);
+        self.writer.write_raw_markup(")[");
         content(self)?;
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         Ok(())
     }
 
@@ -4610,7 +4645,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "#context link(query(<{label}>).first().location())["
         );
         content(self)?;
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         Ok(())
     }
 
@@ -4634,10 +4669,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             })
             .filter(|id| {
                 location.is_some_and(|location| {
-                    self.processor
+                    self.converter
                         .references
                         .get(*id)
-                        .map(ReferenceRef::from)
+                        .map(ReferenceTargetRef::from)
                         .is_some_and(|reference| reference.location() == location)
                 })
             });
@@ -4670,15 +4705,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
         }
 
-        self.writer.raw("#link(");
-        self.writer.string_literal(target);
-        self.writer.raw(")[");
+        self.writer.write_raw_markup("#link(");
+        self.writer.write_string_literal(target);
+        self.writer.write_raw_markup(")[");
         if let Some(text) = text.filter(|text| !text.is_empty()) {
             self.write_content(traversal, text)?;
         } else {
             self.write_text_expr(fallback);
         }
-        self.writer.raw("]");
+        self.writer.write_raw_markup("]");
         self.write_inline_span_end(state);
         Ok(())
     }

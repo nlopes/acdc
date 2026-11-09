@@ -86,7 +86,7 @@ fn hidden_discrete_markers_do_not_change_section_ownership(
     assert_eq!(
         second
             .blocks()
-            .filter(|block| matches!(block.kind(), BlockKind::DiscreteHeader(_)))
+            .filter(|block| matches!(block.kind(), BlockKind::DiscreteHeading(_)))
             .count(),
         1
     );

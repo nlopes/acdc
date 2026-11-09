@@ -10,18 +10,18 @@ use crate::{
 
 pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 
-/// A `Pass` represents a passthrough macro in a document.
+/// An inline passthrough with its own substitution settings.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, Pass, PassthroughKind};
-/// let mut value = Pass::new(
+/// use acdc_parser::{Location, Passthrough, PassthroughKind};
+/// let mut value = Passthrough::new(
 ///     Some("text"), Vec::new(), PassthroughKind::Macro, Location::default(),
 /// );
 /// value.text = Some("changed");
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Pass<'a> {
+pub struct Passthrough<'a> {
     pub(crate) attribute_fragments: Box<[crate::model::AttributeInlineFragment]>,
     pub(crate) text: Option<&'a str>,
     pub(crate) substitutions: Vec<Substitution>,
@@ -29,7 +29,7 @@ pub struct Pass<'a> {
     pub(crate) kind: PassthroughKind,
 }
 
-impl<'a> Pass<'a> {
+impl<'a> Passthrough<'a> {
     /// Construct a passthrough value without processing its text or substitutions.
     #[must_use]
     pub fn new(
@@ -251,37 +251,37 @@ pub struct Button<'a> {
     pub(crate) location: Location,
 }
 
-/// A `Menu` represents an inline menu in a document.
+/// An inline menu navigation path.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Menu, ContentAttribute, Location};
-/// let mut owner = Menu::new(ContentAttribute::default(), Vec::new(), Location::default());
+/// use acdc_parser::{MenuPath, ContentAttribute, Location};
+/// let mut owner = MenuPath::new(ContentAttribute::default(), Vec::new(), Location::default());
 /// owner.items = Vec::new();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Menu<'a> {
+pub struct MenuPath<'a> {
     pub(crate) target: ContentAttribute<'a>,
     pub(crate) items: Vec<ContentAttribute<'a>>,
     pub(crate) location: Location,
 }
 
-/// A `Keyboard` represents an inline keyboard shortcut in a document.
+/// An inline keyboard shortcut.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Keyboard, ContentAttribute, Location};
-/// let mut owner = Keyboard::new(Vec::new(), Location::default());
+/// use acdc_parser::{KeyboardShortcut, ContentAttribute, Location};
+/// let mut owner = KeyboardShortcut::new(Vec::new(), Location::default());
 /// owner.keys = Vec::new();
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
-pub struct Keyboard<'a> {
+pub struct KeyboardShortcut<'a> {
     pub(crate) keys: Vec<Key<'a>>,
     pub(crate) location: Location,
 }
 
-impl<'a> Keyboard<'a> {
-    /// Creates a new `Keyboard` with the given keys.
+impl<'a> KeyboardShortcut<'a> {
+    /// Creates a new `KeyboardShortcut` with the given keys.
     #[must_use]
     pub fn new(keys: Vec<Key<'a>>, location: Location) -> Self {
         Self { keys, location }
@@ -306,7 +306,7 @@ impl<'a> Button<'a> {
     }
 }
 
-impl<'a> Menu<'a> {
+impl<'a> MenuPath<'a> {
     /// Construct a menu from a prepared target and ordered item labels.
     #[must_use]
     pub fn new(
@@ -347,7 +347,7 @@ impl<'a> Menu<'a> {
     }
 }
 
-impl<'a> Keyboard<'a> {
+impl<'a> KeyboardShortcut<'a> {
     /// Transfer prepared keys, retaining their allocation and empty positions.
     pub fn replace_keys(&mut self, keys: Vec<Key<'a>>) -> Vec<Key<'a>> {
         std::mem::replace(&mut self.keys, keys)
@@ -1256,10 +1256,10 @@ mod tests {
 #[cfg(test)]
 mod passthrough_edit_tests {
     use super::*;
-    use crate::{ast::PassRef, model::AttributeInlineFragment};
+    use crate::{ast::InlinePassthroughRef, model::AttributeInlineFragment};
 
-    fn expanded() -> Pass<'static> {
-        Pass {
+    fn expanded() -> Passthrough<'static> {
+        Passthrough {
             attribute_fragments: vec![AttributeInlineFragment {
                 range: 0..4,
                 substitutions: vec![Substitution::Quotes].into(),
@@ -1276,7 +1276,7 @@ mod passthrough_edit_tests {
     #[test]
     fn selected_copy_and_span_edits_keep_declaration_fragments() {
         let original = expanded();
-        let mut copy = Pass::from(PassRef::from(&original));
+        let mut copy = Passthrough::from(InlinePassthroughRef::from(&original));
         assert_eq!(copy.attribute_fragments, original.attribute_fragments);
         copy.set_location(Location::point(crate::Position::new(3, 4)));
         assert_eq!(copy.attribute_fragments, original.attribute_fragments);

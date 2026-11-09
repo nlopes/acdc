@@ -39,7 +39,7 @@ fn hide_uri_scheme_is_resolved_at_each_links_source_position() -> Result<(), Err
                 return None;
             };
             paragraph.content().inlines().find_map(|inline| {
-                if let InlineKind::Url(url) = inline.kind() {
+                if let InlineKind::UrlMacro(url) = inline.kind() {
                     Some(url.hides_uri_scheme())
                 } else if let InlineKind::Link(link) = inline.kind() {
                     Some(link.hides_uri_scheme())
@@ -96,7 +96,7 @@ fn xref_text_accepts_a_nested_link_macro() -> Result<(), Error> {
         let Some(link) = xref.text().inlines().find_map(|inline| {
             if let InlineKind::Link(link) = inline.kind() {
                 Some((link.target().to_string(), link.text()))
-            } else if let InlineKind::Url(url) = inline.kind() {
+            } else if let InlineKind::UrlMacro(url) = inline.kind() {
                 Some((url.target().to_string(), url.text()))
             } else {
                 None
@@ -180,9 +180,9 @@ fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
                         | ("icon", InlineKind::Icon(_))
                         | ("indexterm", InlineKind::IndexTerm(_))
                         | ("stem", InlineKind::Stem(_))
-                        | ("keyboard", InlineKind::Keyboard(_))
+                        | ("keyboard", InlineKind::KeyboardShortcut(_))
                         | ("button", InlineKind::Button(_))
-                        | ("menu", InlineKind::Menu(_))
+                        | ("menu", InlineKind::MenuPath(_))
                 )
             }),
             "expected a nested {expected_kind} macro in {:?}",

@@ -39,7 +39,7 @@ fn constrained_opening_punctuation_keeps_formatting_and_source_spans() -> Result
                 .ok_or_else(|| format!("missing {variant}: {source:?}"))?
                 .location();
             assert_eq!(
-                &parsed.source()[span.absolute_start()..=span.absolute_end()],
+                &parsed.preprocessed_source()[span.absolute_start()..=span.absolute_end()],
                 quoted,
                 "{source:?}"
             );
@@ -120,7 +120,8 @@ fn constrained_opening_after_raw_tags_keeps_nested_source_spans() -> Result<(), 
             })
             .ok_or("missing bold after raw tag")?;
         assert_eq!(
-            &parsed.source()[bold.location().absolute_start()..=bold.location().absolute_end()],
+            &parsed.preprocessed_source()
+                [bold.location().absolute_start()..=bold.location().absolute_end()],
             "*bold _café_*"
         );
         let italic = bold
@@ -130,7 +131,7 @@ fn constrained_opening_after_raw_tags_keeps_nested_source_spans() -> Result<(), 
             .ok_or("missing nested italic")?
             .location();
         assert_eq!(
-            &parsed.source()[italic.absolute_start()..=italic.absolute_end()],
+            &parsed.preprocessed_source()[italic.absolute_start()..=italic.absolute_end()],
             "_café_"
         );
     }

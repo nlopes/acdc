@@ -35,7 +35,7 @@ impl<'doc> LocationRef<'doc> {
     /// The start byte offset, normally in the original source file.
     ///
     /// Reindented includes can retain offsets in transformed text. Do not treat
-    /// these offsets as indices into [`crate::ParseResult::source`].
+    /// these offsets as indices into [`crate::ParseResult::preprocessed_source`].
     #[must_use]
     pub fn absolute_start(self) -> usize {
         self.location.absolute_start

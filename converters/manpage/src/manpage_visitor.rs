@@ -13,7 +13,7 @@ use acdc_parser::ast::{
 };
 
 use crate::{
-    Error, Processor,
+    Converter, Error,
     escape::{EscapeMode, escape_roff_macro_argument, manify},
     inlines::LinkLabel,
 };
@@ -33,7 +33,7 @@ pub(crate) enum IndexCollection {
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
 pub(crate) struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
-    pub(crate) processor: &'d Processor<'a>,
+    pub(crate) converter: &'d Converter<'a>,
 
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,
@@ -65,12 +65,12 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Create a new manpage visitor.
     pub(super) fn new(
         writer: W,
-        processor: &'d Processor<'a>,
+        converter: &'d Converter<'a>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         Self {
             writer,
-            processor,
+            converter,
 
             diagnostics,
             list_depth: 0,
@@ -184,8 +184,8 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         &mut self,
         writer: &'w mut W2,
     ) -> ManpageVisitor<'a, '_, &'w mut W2> {
-        let processor = self.processor;
-        let mut visitor = ManpageVisitor::new(writer, processor, self.diagnostics.reborrow());
+        let converter = self.converter;
+        let mut visitor = ManpageVisitor::new(writer, converter, self.diagnostics.reborrow());
         visitor.text_case = self.text_case;
         visitor.text_escape_mode = self.text_escape_mode;
         visitor.index_collection = self.index_collection;
@@ -240,7 +240,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
 
         let prefix = match CaptionRef::resolve(
             attributes,
-            self.processor.parser_options.document_attributes().into(),
+            self.converter.parser_options.document_attributes().into(),
             None,
         ) {
             Some(CaptionRef::Numbered {
@@ -288,7 +288,7 @@ impl<'a, W: Write> BlockVisitor<'a> for ManpageVisitor<'a, '_, W> {
             BlockKind::Image(node) => self.render_image(traversal, node),
             BlockKind::Audio(node) => self.render_audio(traversal, node),
             BlockKind::Video(node) => self.render_video(traversal, node),
-            BlockKind::DiscreteHeader(node) => {
+            BlockKind::DiscreteHeading(node) => {
                 self.write_sp()?;
                 self.render_font("\\fB", false, |visitor| {
                     visitor.render_title_inlines(traversal, node.title())
@@ -344,7 +344,7 @@ impl<'a, W: Write> DocumentVisitor<'a> for ManpageVisitor<'a, '_, W> {
         doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
         // In embedded mode, skip NOTES and AUTHOR(S) sections (matches asciidoctor --embedded)
-        if self.processor.options.embedded() {
+        if self.converter.options.embedded() {
             return Ok(());
         }
 

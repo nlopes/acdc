@@ -51,7 +51,7 @@ fn attribute_only_link_role_is_not_display_text() -> TestResult {
 fn attribute_only_url_role_is_not_display_text() -> TestResult {
     let parsed = parse_inline("https://example.com[role=include]", &Options::default())?;
     let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed_inlines.as_slice() else {
+    let [InlineNode::Macro(InlineMacro::UrlMacro(url))] = parsed_inlines.as_slice() else {
         return Err(unexpected(
             "expected one URL macro",
             parsed_inlines.as_slice(),
@@ -59,7 +59,7 @@ fn attribute_only_url_role_is_not_display_text() -> TestResult {
     };
 
     assert_eq!(
-        acdc_parser::ast::UrlRef::from(url.as_ref())
+        acdc_parser::ast::UrlMacroRef::from(url.as_ref())
             .target()
             .to_string(),
         "https://example.com"
@@ -181,7 +181,7 @@ fn url_with_text_and_attributes_parses_both() -> TestResult {
         &Options::default(),
     )?;
     let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed_inlines.as_slice() else {
+    let [InlineNode::Macro(InlineMacro::UrlMacro(url))] = parsed_inlines.as_slice() else {
         return Err(unexpected(
             "expected one URL macro",
             parsed_inlines.as_slice(),
@@ -189,7 +189,7 @@ fn url_with_text_and_attributes_parses_both() -> TestResult {
     };
 
     assert_eq!(
-        acdc_parser::ast::UrlRef::from(url.as_ref())
+        acdc_parser::ast::UrlMacroRef::from(url.as_ref())
             .target()
             .to_string(),
         "https://example.com"

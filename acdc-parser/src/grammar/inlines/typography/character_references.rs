@@ -86,13 +86,13 @@ fn needed(node: &InlineNode<'_>, ordinary: bool) -> bool {
     false
 }
 
-struct Reference<'a> {
+struct ReferenceTarget<'a> {
     range: Range<usize>,
     value: Value<'a>,
 }
 
 enum Value<'a> {
-    Reference(CharacterReferenceKind<'a>),
+    ReferenceTarget(CharacterReferenceKind<'a>),
     Literal(&'a str, bool),
 }
 
@@ -155,7 +155,7 @@ fn resolve_text<'a>(
         }
         let location = locate(reference.range.clone());
         match reference.value {
-            Value::Reference(kind) => {
+            Value::ReferenceTarget(kind) => {
                 if let Some(value) = CharacterReference::new(kind, location) {
                     result.push(InlineNode::CharacterReference(value));
                 } else {
@@ -188,7 +188,7 @@ fn reference_at<'a>(
     plan: SubstitutionPlan,
     ordinary: bool,
     state: &ParserState<'a>,
-) -> Option<Reference<'a>> {
+) -> Option<ReferenceTarget<'a>> {
     let from_attribute =
         source_start.is_some_and(|start| byte_came_from_attribute(state, start + amp));
     if ordinary && from_attribute {
@@ -226,9 +226,9 @@ fn reference_at<'a>(
             true,
         )
     } else {
-        Value::Reference(kind)
+        Value::ReferenceTarget(kind)
     };
-    Some(Reference {
+    Some(ReferenceTarget {
         range: start..end,
         value,
     })

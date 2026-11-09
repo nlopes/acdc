@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** `render_pdf()` returns `RenderedPdf`, renamed from `Rendered`.
+  PDF bytes and compilation warnings remain available through the same fields.
+
 ### Changed
 
 - PDF export explicitly keeps Typst's semantic structure tagging enabled. The

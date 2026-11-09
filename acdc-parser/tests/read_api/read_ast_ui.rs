@@ -1,8 +1,9 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Keyboard, Location, Options,
-    SafeMode, StemNotation,
+    CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, KeyboardShortcut, Location,
+    Options, SafeMode, StemNotation,
     ast::{
-        BlockKind, ButtonRef, ContentRef, DocumentRef, InlineKind, KeyboardRef, MenuRef, StemRef,
+        BlockKind, ButtonRef, ContentRef, DocumentRef, InlineKind, KeyboardShortcutRef,
+        MenuPathRef, StemRef,
     },
     parse, parse_file, parse_inline,
 };
@@ -62,7 +63,7 @@ fn ui_reads_preserve_structured_labels_and_source_ranges(
             );
             assert_eq!(button.location().start().column(), 3);
             families += 1;
-        } else if let InlineKind::Keyboard(keyboard) = inline.kind() {
+        } else if let InlineKind::KeyboardShortcut(keyboard) = inline.kind() {
             shared(keyboard);
             let keys = {
                 let copy = keyboard;
@@ -84,7 +85,7 @@ fn ui_reads_preserve_structured_labels_and_source_ranges(
                 InlineKind::Bold(_)
             ));
             families += 1;
-        } else if let InlineKind::Menu(menu) = inline.kind() {
+        } else if let InlineKind::MenuPath(menu) = inline.kind() {
             shared(menu);
             assert_eq!(text(menu.target())?, "File");
             assert!(matches!(
@@ -128,9 +129,9 @@ fn ui_payloads_keep_attribute_like_text_and_empty_values(
     for inline in paragraphs.next().ok_or("paragraph")?.inlines() {
         if let InlineKind::Button(button) = inline.kind() {
             found.push(text(button.label())?);
-        } else if let InlineKind::Keyboard(keyboard) = inline.kind() {
+        } else if let InlineKind::KeyboardShortcut(keyboard) = inline.kind() {
             found.extend(keyboard.keys().map(text).collect::<Result<Vec<_>, _>>()?);
-        } else if let InlineKind::Menu(menu) = inline.kind() {
+        } else if let InlineKind::MenuPath(menu) = inline.kind() {
             found.extend(menu.items().map(text).collect::<Result<Vec<_>, _>>()?);
         }
     }
@@ -143,16 +144,16 @@ fn ui_payloads_keep_attribute_like_text_and_empty_values(
         if let InlineKind::Button(button) = inline.kind() {
             assert!(button.label().is_empty());
             empty += 1;
-        } else if let InlineKind::Menu(menu) = inline.kind() {
+        } else if let InlineKind::MenuPath(menu) = inline.kind() {
             assert!(menu.items().next().is_none());
             empty += 1;
         }
     }
     assert_eq!(empty, 2);
-    let none = Keyboard::new(Vec::new(), Location::default());
-    let one = Keyboard::new(vec![ContentAttribute::default()], Location::default());
-    assert!(KeyboardRef::from(&none).keys().next().is_none());
-    let mut keys = KeyboardRef::from(&one).keys();
+    let none = KeyboardShortcut::new(Vec::new(), Location::default());
+    let one = KeyboardShortcut::new(vec![ContentAttribute::default()], Location::default());
+    assert!(KeyboardShortcutRef::from(&none).keys().next().is_none());
+    let mut keys = KeyboardShortcutRef::from(&one).keys();
     assert!(keys.next().ok_or("present empty key")?.is_empty());
     assert!(keys.next().is_none());
     Ok(())
@@ -215,22 +216,22 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
             owner.replace_label(ContentAttribute::default());
             assert!(ButtonRef::from(&owner).label().is_empty());
             families += 1;
-        } else if let InlineNode::Macro(InlineMacro::Keyboard(owner)) = inline {
+        } else if let InlineNode::Macro(InlineMacro::KeyboardShortcut(owner)) = inline {
             assert_eq!(
-                KeyboardRef::from(owner)
+                KeyboardShortcutRef::from(owner)
                     .keys()
                     .map(text)
                     .collect::<Result<Vec<_>, _>>()?,
                 ["Ctrl", "S"]
             );
             families += 1;
-        } else if let InlineNode::Macro(InlineMacro::Menu(owner)) = inline {
+        } else if let InlineNode::Macro(InlineMacro::MenuPath(owner)) = inline {
             let mut owner = owner.clone();
             owner.replace_target(ContentAttribute::default());
             owner.replace_items(vec![ContentAttribute::default()]);
-            assert!(MenuRef::from(&owner).target().is_empty());
+            assert!(MenuPathRef::from(&owner).target().is_empty());
             assert!(
-                MenuRef::from(&owner)
+                MenuPathRef::from(&owner)
                     .items()
                     .next()
                     .ok_or("empty item")?
@@ -287,7 +288,7 @@ fn payload_reads_preserve_includes_and_table_cells(
                 Some(include.clone())
             );
             count += 1;
-        } else if let InlineKind::Keyboard(keyboard) = inline.kind() {
+        } else if let InlineKind::KeyboardShortcut(keyboard) = inline.kind() {
             assert_eq!(keyboard.keys().count(), 2);
             assert_eq!(
                 parsed.resolve_location(keyboard.location()).file,
@@ -310,7 +311,7 @@ fn payload_reads_preserve_includes_and_table_cells(
         return Err("cell paragraph".into());
     };
     for inline in paragraph.content().inlines() {
-        if let InlineKind::Menu(menu) = inline.kind() {
+        if let InlineKind::MenuPath(menu) = inline.kind() {
             assert_eq!(text(menu.target())?, "File");
             assert_eq!(menu.items().count(), 1);
             assert_eq!(

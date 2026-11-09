@@ -28,7 +28,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         #[cfg(feature = "images")]
         let rendered_protocol_image = if let SourceKind::Path(path) = image.source().kind() {
-            let config = image_config(image, self.processor.terminal_width);
+            let config = image_config(image, self.converter.terminal_width);
             let path = resolve_target(&path.to_string_lossy(), traversal);
             self.writer_mut().flush()?;
             let displayed = viuer::print_from_file(&path, &config).is_ok();
@@ -50,15 +50,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             let rendered_alt = match image.alt() {
                 Some(content) => inlines::render_content_with_styles_to_owned(
                     content,
-                    self.processor,
+                    self.converter,
                     traversal,
                 )?,
                 None => alt.clone(),
             };
             let text = format!("[Image: {rendered_alt}]");
             if let Some(target) = link {
-                let processor = self.processor;
-                inlines::maybe_render_osc8_link(target, &text, self.writer_mut(), processor)?;
+                let converter = self.converter;
+                inlines::maybe_render_osc8_link(target, &text, self.writer_mut(), converter)?;
             } else {
                 self.writer_mut().queue(PrintStyledContent(text.italic()))?;
                 let source = resolve_target(&image.source().to_string(), traversal);

@@ -15,7 +15,7 @@ fn checklists_preserve_state_separately_from_item_content() -> Result<(), Error>
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
@@ -62,7 +62,7 @@ fn prepared_item_state_is_independent_of_marker_and_principal() -> Result<(), Er
             ".",
             Location::default(),
         )));
-        let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
         assert_eq!(
             value.pointer("/blocks/0/items/0/checked"),
             expected.map(|checked| json!(checked)).as_ref()
@@ -81,11 +81,11 @@ fn strict_checklists_reject_while_nested_icons_are_preserved() -> Result<(), Err
     for source in ["* [ ] Pending", "* [x] Done"] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported {path, construct:Some("list item"), ..}) if path == "/blocks/0/items/0/checked")
+            matches!(asg::export_document(parsed.document()),Err(asg::Error::Unsupported {path, construct:Some("list item"), ..}) if path == "/blocks/0/items/0/checked")
         );
     }
     let parsed = parse("* [x] icon:heart[]", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/items/0/principal/0/target"),
         Some(&json!("heart"))
@@ -98,7 +98,7 @@ fn checklist_schema_rejects_wrong_states_and_callout_checkboxes() -> Result<(), 
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     let parsed = parse("* [ ] Pending", &Options::default())?;
-    let valid = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let valid = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert!(validator.is_valid(&valid));
     for state in [
         json!("checked"),

@@ -597,7 +597,7 @@ fn collect_links(document: &Document, nodes: ContentRef<'_>, items: &mut Vec<Val
 fn collect_link(document: &Document, node: InlineRef<'_>, items: &mut Vec<Value>) {
     let link = match node.kind() {
         InlineKind::Link(link) => Some(("link", link.target().to_string())),
-        InlineKind::Url(link) => Some(("url", link.target().to_string())),
+        InlineKind::UrlMacro(link) => Some(("url", link.target().to_string())),
         InlineKind::Mailto(link) => Some(("mailto", link.target().to_string())),
         InlineKind::Autolink(link) => Some(("url", link.target().to_string())),
         InlineKind::CrossReference(link) => Some((

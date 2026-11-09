@@ -4,8 +4,8 @@ use std::{alloc::System, fmt::Write, hint::black_box};
 
 use acdc_parser::{
     Block, Caption, Comment, CommentKind, CompatibilityMode, ContentAttribute, Location, Options,
-    Reference, SectionKind, Title, TocEntry,
-    ast::{BlockKind, BlockRef, ReferenceRef, TocEntryRef},
+    ReferenceTarget, SectionKind, Title, TocEntry,
+    ast::{BlockKind, BlockRef, ReferenceTargetRef, TocEntryRef},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -42,12 +42,12 @@ fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
             .is_some()
     );
     for (_, reference) in references.iter() {
-        let mut copied = Reference::from(reference);
-        let copied_read = ReferenceRef::from(&copied);
+        let mut copied = ReferenceTarget::from(reference);
+        let copied_read = ReferenceTargetRef::from(&copied);
         assert_eq!(copied_read.target(), reference.target());
         assert_eq!(copied_read.title(), reference.title());
         assert_eq!(copied_read.xreflabel(), reference.xreflabel());
-        assert_eq!(copied_read.section_name(), reference.section_name());
+        assert_eq!(copied_read.section_category(), reference.section_category());
         assert_eq!(copied_read.section_number(), reference.section_number());
         assert_eq!(copied_read.is_bibliography(), reference.is_bibliography());
         assert_eq!(
@@ -58,9 +58,9 @@ fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
         let title = copied.take_title();
         let label = copied.take_xreflabel();
         let caption = copied.take_caption();
-        assert!(ReferenceRef::from(&copied).title().is_none());
-        assert!(ReferenceRef::from(&copied).xreflabel().is_none());
-        assert!(ReferenceRef::from(&copied).caption().is_none());
+        assert!(ReferenceTargetRef::from(&copied).title().is_none());
+        assert!(ReferenceTargetRef::from(&copied).xreflabel().is_none());
+        assert!(ReferenceTargetRef::from(&copied).caption().is_none());
         copied.set_title(title);
         copied.set_xreflabel(label);
         copied.set_caption(caption);
@@ -85,7 +85,7 @@ fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
 
 #[test]
 fn reference_presence_keeps_empty_titles_labels_and_captions() {
-    let mut reference = Reference::new("target", Location::default());
+    let mut reference = ReferenceTarget::new("target", Location::default());
     for (title, present) in [
         (None, None),
         (Some(Title::default()), Some(true)),
@@ -94,23 +94,23 @@ fn reference_presence_keeps_empty_titles_labels_and_captions() {
         let title = title.map(|title| ContentAttribute::new(title.into_inlines()));
         reference.set_title(title.clone());
         assert_eq!(
-            ReferenceRef::from(&reference).title().is_some(),
+            ReferenceTargetRef::from(&reference).title().is_some(),
             present.is_some()
         );
         assert_eq!(reference.take_title().as_ref().map(|_| true), present);
         reference.set_title(title);
-        if let Some(content) = ReferenceRef::from(&reference).title() {
+        if let Some(content) = ReferenceTargetRef::from(&reference).title() {
             assert!(content.is_empty());
         }
     }
     for label in [None, Some(ContentAttribute::new(Vec::new()))] {
         reference.set_xreflabel(label.clone());
         assert_eq!(
-            ReferenceRef::from(&reference).xreflabel().is_some(),
+            ReferenceTargetRef::from(&reference).xreflabel().is_some(),
             label.is_some()
         );
         assert_eq!(reference.take_xreflabel(), label);
-        assert!(ReferenceRef::from(&reference).xreflabel().is_none());
+        assert!(ReferenceTargetRef::from(&reference).xreflabel().is_none());
     }
     for caption in [
         None,
@@ -119,11 +119,11 @@ fn reference_presence_keeps_empty_titles_labels_and_captions() {
     ] {
         reference.set_caption(caption.clone());
         assert_eq!(
-            ReferenceRef::from(&reference).caption().is_some(),
+            ReferenceTargetRef::from(&reference).caption().is_some(),
             caption.is_some()
         );
         assert_eq!(reference.take_caption(), caption);
-        assert!(ReferenceRef::from(&reference).caption().is_none());
+        assert!(ReferenceTargetRef::from(&reference).caption().is_none());
     }
 }
 
@@ -140,7 +140,7 @@ fn reference_content_transfers_outlive_the_previous_record(
         .references()
         .get("picture")
         .ok_or("picture")?;
-    let original = Reference::from(source);
+    let original = ReferenceTarget::from(source);
     let (title, label, caption) = {
         let mut local = original.clone();
         (
@@ -149,7 +149,7 @@ fn reference_content_transfers_outlive_the_previous_record(
             local.take_caption(),
         )
     };
-    let mut rebuilt = Reference::new(source.target(), Location::from(source.location()));
+    let mut rebuilt = ReferenceTarget::new(source.target(), Location::from(source.location()));
     rebuilt.set_title(title);
     rebuilt.set_xreflabel(label);
     rebuilt.set_caption(caption);
@@ -240,7 +240,7 @@ fn selected_catalog_copy_cost_does_not_grow_with_unrelated_headings() -> Result<
             .references()
             .get("first")
             .ok_or("reference")?;
-        references.push(cost(|| Reference::from(reference)));
+        references.push(cost(|| ReferenceTarget::from(reference)));
         let entry = parsed.document().toc_entries().next().ok_or("entry")?;
         entries.push(cost(|| TocEntry::from(entry)));
     }

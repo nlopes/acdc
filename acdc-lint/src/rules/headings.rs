@@ -30,7 +30,7 @@ fn for_each_heading<'doc>(node: StructuralRef<'doc>, visit: &mut impl FnMut(Bloc
         }
         if matches!(
             block.kind(),
-            BlockKind::Section(_) | BlockKind::DiscreteHeader(_)
+            BlockKind::Section(_) | BlockKind::DiscreteHeading(_)
         ) {
             visit(block);
         }
@@ -146,7 +146,7 @@ pub(crate) fn lint_section_title_capitalization(
             && let Some(title) = section.title()
         {
             lint_title_capitalization(emitter, title, "section title");
-        } else if let BlockKind::DiscreteHeader(header) = block.kind()
+        } else if let BlockKind::DiscreteHeading(header) = block.kind()
             && let Some(title) = header.title()
         {
             lint_title_capitalization(emitter, title, "discrete heading");
@@ -197,8 +197,8 @@ fn first_alphabetic_inlines(content: ContentRef<'_>) -> Option<FirstAlphabetic<'
             InlineKind::Raw(text) => first_alphabetic_text(text.text(), text.location()),
             InlineKind::Verbatim(text) => first_alphabetic_text(text.text(), text.location()),
             InlineKind::Bold(text) => first_alphabetic_inlines(text.content()),
-            InlineKind::CurvedApostrophe(text) => first_alphabetic_inlines(text.content()),
-            InlineKind::CurvedQuotation(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::SingleQuotedSpan(text) => first_alphabetic_inlines(text.content()),
+            InlineKind::DoubleQuotedSpan(text) => first_alphabetic_inlines(text.content()),
             InlineKind::Highlight(text) => first_alphabetic_inlines(text.content()),
             InlineKind::Italic(text) => first_alphabetic_inlines(text.content()),
             InlineKind::Monospace(text) => {
@@ -211,16 +211,16 @@ fn first_alphabetic_inlines(content: ContentRef<'_>) -> Option<FirstAlphabetic<'
             InlineKind::Footnote(footnote) => footnote.content().and_then(first_alphabetic_inlines),
             InlineKind::Link(link) => first_alphabetic_inlines(link.text()),
             InlineKind::Mailto(mailto) => first_alphabetic_inlines(mailto.text()),
-            InlineKind::Menu(menu) => first_alphabetic_inlines(menu.target()),
-            InlineKind::Pass(pass) => pass
+            InlineKind::MenuPath(menu) => first_alphabetic_inlines(menu.target()),
+            InlineKind::Passthrough(pass) => pass
                 .text()
                 .and_then(|text| first_alphabetic_text(text, pass.location())),
-            InlineKind::Url(url) => first_alphabetic_inlines(url.text()),
+            InlineKind::UrlMacro(url) => first_alphabetic_inlines(url.text()),
             InlineKind::Autolink(_)
             | InlineKind::Icon(_)
             | InlineKind::Image(_)
             | InlineKind::IndexTerm(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Stem(_)
             | InlineKind::Callout(_)
             | InlineKind::Anchor(_)

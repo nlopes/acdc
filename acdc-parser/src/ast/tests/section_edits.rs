@@ -1,13 +1,13 @@
-use crate::{Block, Document, Options, Reference, parse};
+use crate::{Block, Document, Options, ReferenceTarget, parse};
 type Error = Box<dyn std::error::Error>;
 
 fn section_reference<'d, 'a>(
-    references: &'d std::collections::HashMap<&str, Reference<'a>>,
+    references: &'d std::collections::HashMap<&str, ReferenceTarget<'a>>,
     id: &str,
-) -> Result<&'d Reference<'a>, Error> {
+) -> Result<&'d ReferenceTarget<'a>, Error> {
     references
         .get(id)
-        .filter(|reference| reference.section_name().is_some())
+        .filter(|reference| reference.section_category().is_some())
         .ok_or_else(|| format!("no section reference for {id}").into())
 }
 

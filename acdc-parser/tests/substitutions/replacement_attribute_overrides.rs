@@ -77,7 +77,7 @@ fn explicit_replacement_values_resolve_arrows_and_keep_reference_spans(
             acdc_parser::asg::Profile::Upstream,
             acdc_parser::asg::Profile::Acdc,
         ] {
-            acdc_parser::asg::inlines_with_profile(content, profile)?;
+            acdc_parser::asg::export_inlines_with_profile(content, profile)?;
         }
         assert_eq!(serde_json::to_value(content)?, before);
     }

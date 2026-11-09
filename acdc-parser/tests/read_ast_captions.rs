@@ -1,8 +1,9 @@
 use std::{alloc::System, hint::black_box, num::NonZeroU32, ptr};
 
 use acdc_parser::{
-    Block, Caption, CaptionKind, CompatibilityMode, ContentAttribute, Document, Options, Reference,
-    ast::{CaptionRef, DocumentRef, ReferenceRef},
+    Block, Caption, CaptionKind, CompatibilityMode, ContentAttribute, Document, Options,
+    ReferenceTarget,
+    ast::{CaptionRef, DocumentRef, ReferenceTargetRef},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -50,7 +51,7 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
             .document()
             .references()
             .iter()
-            .map(|(id, reference)| (id, acdc_parser::Reference::from(reference))),
+            .map(|(id, reference)| (id, acdc_parser::ReferenceTarget::from(reference))),
     );
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
     references
@@ -133,7 +134,7 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
 #[test]
 fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let mut reference = Reference::from(
+    let mut reference = ReferenceTarget::from(
         parsed
             .document()
             .references()
@@ -141,19 +142,19 @@ fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Er
             .ok_or("figure")?,
     );
     reference.set_caption(None);
-    assert!(ReferenceRef::from(&reference).caption().is_none());
+    assert!(ReferenceTargetRef::from(&reference).caption().is_none());
     reference.set_caption(Some(Caption::Custom("".into())));
     assert_eq!(
-        ReferenceRef::from(&reference).caption(),
+        ReferenceTargetRef::from(&reference).caption(),
         Some(CaptionRef::Custom(""))
     );
     reference.set_caption(Some(Caption::CustomContent(ContentAttribute::default())));
     assert!(
-        matches!(ReferenceRef::from(&reference).caption(), Some(CaptionRef::CustomContent(content)) if content.is_empty())
+        matches!(ReferenceTargetRef::from(&reference).caption(), Some(CaptionRef::CustomContent(content)) if content.is_empty())
     );
     reference.set_caption(Some(Caption::Unnumbered));
     assert_eq!(
-        ReferenceRef::from(&reference).caption(),
+        ReferenceTargetRef::from(&reference).caption(),
         Some(CaptionRef::Unnumbered)
     );
     for number in [None, NonZeroU32::new(7)] {
@@ -192,7 +193,7 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
             .document()
             .references()
             .iter()
-            .map(|(id, reference)| (id, acdc_parser::Reference::from(reference))),
+            .map(|(id, reference)| (id, acdc_parser::ReferenceTarget::from(reference))),
     );
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
     references.insert(

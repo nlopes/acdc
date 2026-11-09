@@ -1,5 +1,5 @@
-use acdc_converters_core::{Converter, Options as ConverterOptions};
-use acdc_converters_terminal::Processor;
+use acdc_converters_core::{Converter as _, Options as ConverterOptions};
+use acdc_converters_terminal::Converter;
 use acdc_parser::Options as ParserOptions;
 use libghostty_vt::{
     RenderState, Terminal,
@@ -109,7 +109,7 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
     let parsed = acdc_parser::parse(asciidoc, &parser_options)?;
     let doc = parsed.document();
 
-    let processor = Processor::new(
+    let converter = Converter::new(
         ConverterOptions::default(),
         acdc_parser::Options::builder()
             .with_attributes(acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs()),
@@ -119,7 +119,7 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut warnings = Vec::new();
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    converter.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     let mut terminal = Terminal::new(cols, rows)?;
     terminal.set_scrollback_max_bytes(Some(0))?;

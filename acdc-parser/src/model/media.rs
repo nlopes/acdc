@@ -120,7 +120,7 @@ impl Source<'_> {
     /// For paths, this returns the file name component. For URLs, it returns the last path
     /// segment. For names, it returns the name itself.
     #[must_use]
-    pub fn get_filename(&self) -> Option<&str> {
+    pub fn file_name(&self) -> Option<&str> {
         match self {
             Source::Path(path) => path.file_name().and_then(|os_str| os_str.to_str()),
             Source::Url(url) => url
@@ -603,7 +603,7 @@ impl Serialize for Audio<'_> {
         state.serialize_entry("name", "audio")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "macro")?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if self.title.is_present() {
@@ -627,7 +627,7 @@ impl Serialize for Image<'_> {
         state.serialize_entry("name", "image")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "macro")?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if self.title.is_present() {
@@ -651,7 +651,7 @@ impl Serialize for Video<'_> {
         state.serialize_entry("name", "video")?;
         state.serialize_entry("type", "block")?;
         state.serialize_entry("form", "macro")?;
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if self.title.is_present() {

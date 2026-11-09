@@ -10,7 +10,7 @@ fn absent_header_title_reports_the_required_property() {
     let mut document = Document::default();
     document.set_header(Some(Header::new(Title::default(), Location::default())));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/header/title")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/header/title")
     );
 }
 
@@ -33,7 +33,7 @@ fn unsupported_nested_content_keeps_its_own_source() -> Result<(), Error> {
             construct,
             location,
             ..
-        }) = asg::document(parsed.document())
+        }) = asg::export_document(parsed.document())
         else {
             return Err("wrong error category".into());
         };
@@ -67,7 +67,7 @@ fn unknown_inline_source_does_not_borrow_the_parents_coordinates() {
     paragraph.set_location(location);
     document.push_block(Block::Paragraph(paragraph));
     assert!(matches!(
-        asg::document((&document).into()),
+        asg::export_document((&document).into()),
         Err(asg::Error::Unsupported {
             construct: Some("verbatim text"),
             location: None,
@@ -83,7 +83,7 @@ fn invalid_locations_are_distinct_from_unsupported_values() {
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(Vec::new(), location)));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::InvalidLocation {
+        matches!(asg::export_document((&document).into()), Err(asg::Error::InvalidLocation {
         path, construct: Some("paragraph"), location: None, ..
     }) if path == "/blocks/0/location/1")
     );
@@ -96,7 +96,7 @@ fn omitted_comments_do_not_shift_error_paths() -> Result<(), Error> {
         &acdc_parser::Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {
         path, construct: Some("block image"), location: Some(_), ..
     }) if path == "/blocks/0/alt")
     );
@@ -120,7 +120,7 @@ fn unsupported_source_keeps_include_chains() -> Result<(), Error> {
         construct,
         location,
         ..
-    }) = asg::document(parsed.document())
+    }) = asg::export_document(parsed.document())
     else {
         return Err("wrong error category".into());
     };
@@ -144,7 +144,7 @@ fn protected_document_values_have_no_invented_declaration_range() -> Result<(), 
         &acdc_parser::Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {
         path, construct: Some("document attribute"), location: None, ..
     }) if path == "/attributes/protected")
     );

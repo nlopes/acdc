@@ -9,7 +9,7 @@ use acdc_converters_core::{InlineTextTransform, TraversalContext};
 use acdc_parser::ast::{ContentRef, IndexTermRef, IndexTermRelationshipRef};
 
 use crate::{
-    Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, ManpageVisitor, Processor,
+    Converter, Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, ManpageVisitor,
     manpage_visitor::IndexCollection,
 };
 
@@ -114,7 +114,7 @@ fn render_entries<W: Write + ?Sized>(
     Ok(())
 }
 
-impl Processor<'_> {
+impl Converter<'_> {
     fn add_index_entry(&self, entry: IndexTermEntry) {
         self.index_entries.borrow_mut().push(entry);
     }
@@ -128,7 +128,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
             .decode_char_refs(true)
-            .references(self.processor.references.as_ref().into())
+            .references(self.converter.references.as_ref().into())
             .content_to_string(inlines);
         let mut output = Vec::new();
         {
@@ -151,7 +151,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let term = term.catalog();
         if self.index_collection == IndexCollection::Enabled
-            && self.processor.has_valid_index_section
+            && self.converter.has_valid_index_section
         {
             let primary = self.render_index_term_label(traversal, term.term())?;
             let secondary = term
@@ -176,7 +176,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 }
                 None | Some(_) => IndexCatalogRelationship::None,
             };
-            self.processor.add_index_entry(IndexTermEntry {
+            self.converter.add_index_entry(IndexTermEntry {
                 primary,
                 secondary,
                 tertiary,
@@ -208,7 +208,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         inlines: ContentRef<'_>,
     ) -> Result<(), Error> {
-        if !self.processor.has_valid_index_section {
+        if !self.converter.has_valid_index_section {
             return Ok(());
         }
         acdc_converters_core::index::visit_index_inlines(inlines.inlines(), &mut |term, _| {
@@ -217,7 +217,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     pub(crate) fn render_index_catalog(&mut self) -> Result<(), Error> {
-        let entries = self.processor.index_entries.borrow().clone();
+        let entries = self.converter.index_entries.borrow().clone();
         if entries.is_empty() {
             return Ok(());
         }

@@ -6,12 +6,12 @@ use acdc_converters_core::{
 };
 use acdc_parser::{Document, Header, Location, Options, parse};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, Processor, RenderOptions};
+use crate::{Converter, Error, HtmlVariant, HtmlVisitor, RenderOptions};
 
 type TestError = Box<dyn std::error::Error>;
 
 #[test]
-fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
+fn frame_preserves_document_converter_and_replay_snapshots_after_owner_edits()
 -> Result<(), TestError> {
     let parsed = parse(
         "[[first]]\n[[last]]\n= Frame\n:lang: fr\n:toc: left\n:toc-class: header-toc\n:revnumber: 1.0\n\nBody.\n",
@@ -43,7 +43,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
             metadata.roles = vec!["alpha", "beta", "alpha"].into();
             header.set_metadata(metadata)?;
             document.set_header(Some(header));
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 Options::builder()
                     .with_attribute("lang", "de")
@@ -62,7 +62,7 @@ fn frame_preserves_document_processor_and_replay_snapshots_after_owner_edits()
             let mut warnings = Vec::new();
             let mut visitor = HtmlVisitor::new(
                 Vec::new(),
-                Rc::new(processor),
+                Rc::new(converter),
                 RenderOptions::default(),
                 Diagnostics::new(&source, &mut warnings),
             );
@@ -89,7 +89,7 @@ fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
     let parsed_stored = Document::from(parsed.document());
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for embedded in [false, true] {
-            let processor = Processor::new_with_variant(
+            let converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 Options::builder()
                     .with_attribute("css-signature", "old-id")
@@ -101,7 +101,7 @@ fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
             let mut warnings = Vec::new();
             let mut visitor = HtmlVisitor::new(
                 Vec::new(),
-                Rc::new(processor),
+                Rc::new(converter),
                 RenderOptions {
                     embedded,
                     ..RenderOptions::default()
@@ -146,7 +146,7 @@ impl io::Write for RefusingWriter {
 fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(), TestError> {
     let parsed = parse("= Frame\n\nBody.\n", &Options::default())?;
     let parsed_stored = Document::from(parsed.document());
-    let processor = Processor::new_with_variant(
+    let converter = Converter::new_with_variant(
         ConverterOptions::default(),
         Options::builder().with_attribute("css-signature", "old-id"),
         HtmlVariant::Standard,
@@ -155,7 +155,7 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
     let mut warnings = Vec::new();
     let mut visitor = HtmlVisitor::new(
         RefusingWriter,
-        Rc::new(processor),
+        Rc::new(converter),
         RenderOptions::default(),
         Diagnostics::new(&source, &mut warnings),
     );
@@ -166,7 +166,7 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
 }
 
 #[test]
-fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(), TestError> {
+fn headerless_frame_uses_converter_toc_placement_for_its_wrapper() -> Result<(), TestError> {
     let parsed = parse("== Section\n\nBody.\n", &Options::default())?;
     let parsed_stored = acdc_parser::Document::from(parsed.document());
     assert!(
@@ -176,21 +176,21 @@ fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(),
     );
     assert_eq!(parsed.document().toc_entries().len(), 1);
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        for (processor_placement, replay_placement, has_wrapper) in
+        for (converter_placement, replay_placement, has_wrapper) in
             [("left", "preamble", true), ("preamble", "left", false)]
         {
             let replay = parse(
                 &format!(":toc: {replay_placement}\n\nBody.\n"),
                 &Options::default(),
             )?;
-            let mut processor = Processor::new_with_variant(
+            let mut converter = Converter::new_with_variant(
                 ConverterOptions::default(),
                 Options::builder()
                     .with_attribute("toc", true)
-                    .with_attribute("toc-placement", processor_placement),
+                    .with_attribute("toc-placement", converter_placement),
                 variant,
             )?;
-            processor.toc_entries.clone_from(
+            converter.toc_entries.clone_from(
                 &parsed
                     .document()
                     .toc_entries()
@@ -201,7 +201,7 @@ fn headerless_frame_uses_processor_toc_placement_for_its_wrapper() -> Result<(),
             let mut warnings = Vec::new();
             let mut visitor = HtmlVisitor::new(
                 Vec::new(),
-                Rc::new(processor),
+                Rc::new(converter),
                 RenderOptions::default(),
                 Diagnostics::new(&source, &mut warnings),
             );

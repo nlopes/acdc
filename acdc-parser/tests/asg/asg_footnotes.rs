@@ -36,10 +36,10 @@ fn registered_bodies_have_one_owner_and_occurrences_keep_identity() -> Result<()
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         assert_eq!(
-            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
+            asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?,
             value
         );
         assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -78,7 +78,7 @@ fn registered_bodies_have_one_owner_and_occurrences_keep_identity() -> Result<()
                 .any(|text| text.contains("[missing]"))
         );
         assert!(
-            matches!(asg::document(parsed.document()),Err(asg::Error::Unsupported{path,..}) if path=="/footnotes/0")
+            matches!(asg::export_document(parsed.document()),Err(asg::Error::Unsupported{path,..}) if path=="/footnotes/0")
         );
     }
     Ok(())
@@ -98,7 +98,7 @@ fn empty_and_catalog_only_definitions_keep_number_and_presence() -> Result<(), E
             Footnote::reference(Some("empty"), 0, Location::default()),
         ],
     );
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.get("footnotes"),
         Some(&json!([{"number":7,"id":"empty","inlines":[]}]))
@@ -114,7 +114,7 @@ fn empty_and_catalog_only_definitions_keep_number_and_presence() -> Result<(), E
     assert_eq!(value.pointer("/blocks/0/inlines/2/number"), Some(&json!(0)));
     let mut only = Document::default();
     only.set_footnotes([definition]);
-    let only = asg::document_with_profile((&only).into(), asg::Profile::Acdc)?;
+    let only = asg::export_document_with_profile((&only).into(), asg::Profile::Acdc)?;
     assert_eq!(only.get("footnotes"), value.get("footnotes"));
     Ok(())
 }
@@ -162,7 +162,7 @@ fn stale_and_duplicate_registrations_reject_without_repair() -> Result<(), Error
     ] {
         let before = serde_json::to_value(&document)?;
         assert!(
-            matches!(asg::document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported{path,..}) if path.starts_with("/footnotes"))
+            matches!(asg::export_document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported{path,..}) if path.starts_with("/footnotes"))
         );
         assert_eq!(serde_json::to_value(&document)?, before);
     }
@@ -175,7 +175,7 @@ fn selected_titles_and_nested_cells_preserve_existing_registration_order() -> Re
         "[title='Old footnote:discard[Discarded]']\n.Title footnote:keep[Kept]\nText.\n\n[cols=a]\n|===\n|Cell footnote:cell[Cell note.] and footnote:keep[].\n|===",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let definitions = value
         .get("footnotes")
         .and_then(Value::as_array)
@@ -197,14 +197,14 @@ fn selected_titles_and_nested_cells_preserve_existing_registration_order() -> Re
 #[test]
 fn canonical_body_icons_and_standalone_context_are_explicit() -> Result<(), Error> {
     let parsed = parse("Text footnote:[icon:heart[]].", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/footnotes/0/inlines/0/target"),
         Some(&json!("heart"))
     );
     let parsed = parse_inline("*Text footnote:[Note]*", &Options::default())?;
     assert!(matches!(
-        asg::inlines_with_profile(parsed.content(), asg::Profile::Acdc),
+        asg::export_inlines_with_profile(parsed.content(), asg::Profile::Acdc),
         Err(asg::Error::Unsupported {
             construct: Some("footnote"),
             ..
@@ -216,7 +216,7 @@ fn canonical_body_icons_and_standalone_context_are_explicit() -> Result<(), Erro
 #[test]
 fn footnote_schema_keeps_closed_bodies_and_linked_occurrences() -> Result<(), Error> {
     let parsed = parse("Text footnote:[Note].", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

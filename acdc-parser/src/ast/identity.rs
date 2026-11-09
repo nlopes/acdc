@@ -1,6 +1,6 @@
 use super::{
     AdmonitionRef, AnchorRef, AttributesRef, AudioRef, BlockKind, BlockRef, CalloutListRef,
-    ContentRef, DelimitedCommentRef, DescriptionListRef, DiscreteHeaderRef, DocumentRef,
+    ContentRef, DelimitedCommentRef, DescriptionListRef, DiscreteHeadingRef, DocumentRef,
     ElementIdRef, ExampleRef, HeaderRef, ImageRef, InlineKind, InlineRef, ListingRef, LiteralRef,
     OpenRef, OrderedListRef, PageBreakRef, ParagraphRef, PassthroughRef, QuoteRef, SectionRef,
     SidebarRef, StemBlockRef, TableOfContentsRef, TableRef, ThematicBreakRef, UnorderedListRef,
@@ -62,7 +62,7 @@ impl<'doc> BlockRef<'doc> {
             BlockKind::Paragraph(node) => Some(node.attributes()),
             BlockKind::Admonition(node) => Some(node.attributes()),
             BlockKind::TableOfContents(node) => Some(node.attributes()),
-            BlockKind::DiscreteHeader(node) => Some(node.attributes()),
+            BlockKind::DiscreteHeading(node) => Some(node.attributes()),
             BlockKind::ThematicBreak(node) => Some(node.attributes()),
             BlockKind::PageBreak(node) => Some(node.attributes()),
             BlockKind::UnorderedList(node) => Some(node.attributes()),
@@ -107,7 +107,7 @@ primary_anchor_reads!(
     ParagraphRef,
     AdmonitionRef,
     TableOfContentsRef,
-    DiscreteHeaderRef,
+    DiscreteHeadingRef,
     ThematicBreakRef,
     PageBreakRef,
     UnorderedListRef,
@@ -197,12 +197,12 @@ impl<'doc> InlineRef<'doc> {
             InlineKind::Highlight(node) => node.id(),
             InlineKind::Subscript(node) => node.id(),
             InlineKind::Superscript(node) => node.id(),
-            InlineKind::CurvedQuotation(node) => node.id(),
-            InlineKind::CurvedApostrophe(node) => node.id(),
+            InlineKind::DoubleQuotedSpan(node) => node.id(),
+            InlineKind::SingleQuotedSpan(node) => node.id(),
             InlineKind::Image(node) => node.id(),
             InlineKind::Icon(node) => node.id(),
             InlineKind::Link(node) => node.id(),
-            InlineKind::Url(node) => node.id(),
+            InlineKind::UrlMacro(node) => node.id(),
             InlineKind::Mailto(node) => node.id(),
             InlineKind::CrossReference(node) => node.id(),
             InlineKind::IndexTerm(node) => node.id(),
@@ -215,11 +215,11 @@ impl<'doc> InlineRef<'doc> {
             | InlineKind::LineBreak(_)
             | InlineKind::Callout(_)
             | InlineKind::Footnote(_)
-            | InlineKind::Keyboard(_)
+            | InlineKind::KeyboardShortcut(_)
             | InlineKind::Button(_)
-            | InlineKind::Menu(_)
+            | InlineKind::MenuPath(_)
             | InlineKind::Autolink(_)
-            | InlineKind::Pass(_)
+            | InlineKind::Passthrough(_)
             | InlineKind::Stem(_) => None,
         }
     }

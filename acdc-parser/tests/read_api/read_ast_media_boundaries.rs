@@ -119,7 +119,7 @@ fn toc_discrete_and_page_break_reads_keep_ids_and_aliases(
         Some(AttributeValueRef::Text("2"))
     );
     assert!(!toc.attributes().contains("title"));
-    let BlockKind::DiscreteHeader(heading) = blocks.next().ok_or("heading")?.kind() else {
+    let BlockKind::DiscreteHeading(heading) = blocks.next().ok_or("heading")?.kind() else {
         return Err("discrete heading".into());
     };
     assert_eq!(heading.level(), 1);

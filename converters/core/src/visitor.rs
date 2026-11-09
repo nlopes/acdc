@@ -26,7 +26,7 @@ pub fn is_formatting_span<'inline>(node: impl Into<InlineRef<'inline>>) -> bool 
             | InlineKind::Highlight(_)
             | InlineKind::Superscript(_)
             | InlineKind::Subscript(_)
-            | InlineKind::CurvedQuotation(_)
-            | InlineKind::CurvedApostrophe(_)
+            | InlineKind::DoubleQuotedSpan(_)
+            | InlineKind::SingleQuotedSpan(_)
     )
 }

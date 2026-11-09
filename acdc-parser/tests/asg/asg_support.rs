@@ -25,7 +25,7 @@ fn unsupported_block_owners_do_not_acquire_invented_forms() -> Result<(), Error>
         ] {
             let parsed = parse(source, &options)?;
             assert!(
-                matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {
+                matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {
                 path, construct: Some(actual), ..
             }) if path == format!("/blocks/0/{suffix}") && actual == owner),
                 "{mode:?}: {owner}: {source}"
@@ -65,7 +65,7 @@ fn unsupported_inline_owners_are_rejected_inside_supported_paragraphs() -> Resul
                 return Err(format!("missing paragraph: {source}").into());
             };
             assert!(
-                matches!(asg::inlines(paragraph.content()), Err(asg::Error::Unsupported {
+                matches!(asg::export_inlines(paragraph.content()), Err(asg::Error::Unsupported {
                 construct: Some(actual), ..
             }) if actual == owner),
                 "{mode:?}: {owner}: {source}"
@@ -90,7 +90,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
     let mut document = Document::default();
     paragraph.set_metadata(metadata)?;
     document.push_block(Block::Paragraph(paragraph));
-    let projected = asg::document((&document).into())?;
+    let projected = asg::export_document((&document).into())?;
     assert_eq!(
         projected.pointer("/blocks/0/metadata/attributes"),
         Some(&json!({"empty":"", "flag":""}))
@@ -113,7 +113,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
         paragraph.set_metadata(metadata)?;
         document.set_blocks(vec![Block::Paragraph(paragraph)]);
         assert!(
-            matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/metadata/attributes/{property}"))
         );
     }
@@ -146,7 +146,7 @@ fn supported_metadata_preserves_presence_and_rejects_extra_meaning() -> Result<(
         paragraph.set_metadata(metadata)?;
         document.set_blocks(vec![Block::Paragraph(paragraph)]);
         assert!(
-            matches!(asg::document((&document).into()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/metadata/{property}"))
         );
     }
@@ -160,7 +160,7 @@ fn source_comments_are_omitted_without_dropping_their_neighbors() -> Result<(), 
         "////\ncomment\n////\n\nBefore.\n\nAfter.",
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::export_document(parsed.document())?;
         let blocks = value
             .get("blocks")
             .and_then(serde_json::Value::as_array)
@@ -192,7 +192,7 @@ fn styled_comment_metadata_cannot_disappear_with_source_comments() -> Result<(),
     ] {
         let parsed = parse(source, &Options::default())?;
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, ..})
             if path == format!("/blocks/0/{property}"))
         );
     }

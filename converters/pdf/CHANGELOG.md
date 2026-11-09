@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** use `Converter` in place of `Processor` and
+  `PageOrientation` in place of `PageLayout`. PDF settings and output are unchanged.
+  Import the shared `acdc_converters_core::Converter` trait as `_` when
+  calling its methods alongside the concrete type.
+
 - Explicit TOC macros read `toc-title` changes at their position in the body,
   including retained literal and raw attribute text. Asciidoctor PDF can instead
   use a later title assignment; acdc preserves the value at the macro.

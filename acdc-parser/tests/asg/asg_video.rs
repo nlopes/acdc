@@ -17,11 +17,11 @@ fn complete_video_targets_and_provider_controls_survive_both_profiles() -> Resul
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
-        let mut upstream = asg::document(parsed.document())?;
+        let mut upstream = asg::export_document(parsed.document())?;
         upstream
             .as_object_mut()
             .ok_or("document")?
@@ -67,7 +67,7 @@ fn video_source_variants_preserve_original_target_text() -> Result<(), Error> {
         let mut document = Document::default();
         document.push_block(Block::Video(Video::new(source, Location::default())));
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
-            let value = asg::document_with_profile((&document).into(), profile)?;
+            let value = asg::export_document_with_profile((&document).into(), profile)?;
             assert_eq!(value.pointer("/blocks/0/target"), Some(&json!(expected)));
         }
     }
@@ -83,7 +83,7 @@ fn non_utf8_video_paths_are_rejected_without_replacement_characters() {
     document.push_block(Block::Video(Video::new(source, Location::default())));
     for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
         assert!(
-            matches!(asg::document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,construct:Some("video"),..}) if path=="/blocks/0/target")
+            matches!(asg::export_document_with_profile((&document).into(),profile),Err(asg::Error::Unsupported {path,construct:Some("video"),..}) if path=="/blocks/0/target")
         );
     }
 }

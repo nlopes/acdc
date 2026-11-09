@@ -7,7 +7,7 @@ use super::InlineRef;
 /// Optional content uses `Option<ContentRef>`: `None` is absent, while an empty
 /// `Some` remains present.
 ///
-/// Serde serialization produces acdc's native inline array. Use `asg::inlines`
+/// Serde serialization produces acdc's native inline array. Use `asg::export_inlines`
 /// for checked ASG export.
 ///
 /// Content cannot outlive its owner:

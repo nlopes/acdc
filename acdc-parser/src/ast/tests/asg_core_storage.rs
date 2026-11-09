@@ -46,7 +46,7 @@ fn asg_reads_retained_positional_slots() -> Result<(), Error> {
             .metadata
             .clone()
             .with_attributes(crate::ElementAttributes::default())?;
-        let value = asg::document((&document).into())?;
+        let value = asg::export_document((&document).into())?;
         assert_eq!(
             value.pointer("/blocks/0/metadata/attributes/$1"),
             Some(&json!("alpha"))
@@ -75,7 +75,7 @@ fn asg_preserves_formatted_titles_reftext_and_ids() -> Result<(), Error> {
         let before = serde_json::to_value(parsed.document_storage())?;
         let references = parsed.document_storage().references.clone();
         let toc = parsed.document_storage().toc_entries.clone();
-        let value = asg::document(parsed.document())?;
+        let value = asg::export_document(parsed.document())?;
         assert_eq!(
             value.pointer("/header/title/0/variant"),
             Some(&json!("strong"))
@@ -98,7 +98,7 @@ fn asg_preserves_formatted_titles_reftext_and_ids() -> Result<(), Error> {
                 .pointer("/blocks/0/blocks/0/metadata/attributes/title")
                 .is_none()
         );
-        assert_eq!(asg::document(parsed.document())?, value);
+        assert_eq!(asg::export_document(parsed.document())?, value);
         assert_eq!(serde_json::to_value(parsed.document_storage())?, before);
         assert_eq!(parsed.document_storage().references, references);
         assert_eq!(parsed.document_storage().toc_entries, toc);
@@ -116,7 +116,7 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
         let parsed = parse(source, &Options::default())?;
         assert!(
             matches!(
-                asg::document(parsed.document()),
+                asg::export_document(parsed.document()),
                 Err(asg::Error::Unsupported { .. })
             ),
             "{source}"
@@ -124,14 +124,14 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
     }
     let parsed = parse("[#one]\n== Heading\n\nText.", &Options::default())?;
     let mut document = owned_blocks(&parsed);
-    asg::document((&document).into())?;
+    asg::export_document((&document).into())?;
     document
         .references
         .get_mut("one")
         .ok_or("missing reference")?
         .title = Some(ContentAttribute::new(Vec::new()));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/references/one")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/references/one")
     );
     let mut document = owned_blocks(&parsed);
     document
@@ -140,7 +140,7 @@ fn asg_rejects_independent_header_and_catalog_values() -> Result<(), Error> {
         .ok_or("missing TOC entry")?
         .level = 4;
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/toc_entries/0")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/toc_entries/0")
     );
     Ok(())
 }

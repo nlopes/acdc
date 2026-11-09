@@ -11,7 +11,7 @@ use crossterm::{
 };
 use std::io::Write;
 
-use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
+use crate::{Converter, Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel};
 
 #[derive(Debug, Default)]
 struct IndexEntry {
@@ -91,8 +91,8 @@ fn group_by_letter(
 }
 
 /// Render the index catalog for an `[index]` section.
-pub(crate) fn render<W: Write + ?Sized>(w: &mut W, processor: &Processor<'_>) -> Result<(), Error> {
-    let entries = processor.index_entries.borrow();
+pub(crate) fn render<W: Write + ?Sized>(w: &mut W, converter: &Converter<'_>) -> Result<(), Error> {
+    let entries = converter.index_entries.borrow();
 
     if entries.is_empty() {
         return Ok(());
@@ -108,7 +108,7 @@ pub(crate) fn render<W: Write + ?Sized>(w: &mut W, processor: &Processor<'_>) ->
             letter
                 .to_string()
                 .bold()
-                .with(processor.appearance.colors.section_h3),
+                .with(converter.appearance.colors.section_h3),
         ))?;
         writeln!(w)?;
 

@@ -28,7 +28,7 @@ fn asg_preserves_present_empty_header_titles() -> Result<(), Error> {
         Title::new(Vec::new()),
         Location::from(acdc_parser::ast::DocumentRef::from(&document).location()),
     )));
-    let value = asg::document((&document).into())?;
+    let value = asg::export_document((&document).into())?;
     assert_eq!(value.pointer("/header/title"), Some(&json!([])));
     Ok(())
 }
@@ -40,7 +40,7 @@ fn asg_preserves_explicit_unsets_and_numeric_spelling() -> Result<(), Error> {
             "= Title\n:flag!:\n:toclevels: 03\n:text: 001\n\nText.\n",
             &options,
         )?;
-        let value = asg::document(parsed.document())?;
+        let value = asg::export_document(parsed.document())?;
         assert_eq!(value.pointer("/attributes/flag"), Some(&Value::Null));
         assert_eq!(value.pointer("/attributes/toclevels"), Some(&json!("03")));
         assert_eq!(value.pointer("/attributes/text"), Some(&json!("001")));
@@ -54,7 +54,7 @@ fn asg_preserves_literal_text_raw_text_and_resolved_typography() -> Result<(), E
         "Text +<literal>+ and +++<b>raw</b>+++ ... (C).",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     let content = value
         .pointer("/blocks/0/inlines")
         .and_then(Value::as_array)
@@ -106,7 +106,7 @@ fn asg_rejects_unsupported_meaning_at_any_depth() -> Result<(), Error> {
         ] {
             let parsed = parse(source, &options)?;
             let before = serde_json::to_value(parsed.document())?;
-            let Err(error) = asg::document(parsed.document()) else {
+            let Err(error) = asg::export_document(parsed.document()) else {
                 return Err(format!("unsupported source was accepted: {source}").into());
             };
             let asg::Error::Unsupported { path, .. } = error else {
@@ -127,7 +127,7 @@ fn asg_does_not_run_pending_passthrough_operations() {
         Location::default(),
     ))];
     assert!(
-        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0/substitutions")
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0/substitutions")
     );
 }
 
@@ -138,7 +138,7 @@ fn asg_omits_unknown_optional_locations_and_rejects_partial_ones() -> Result<(),
         Vec::new(),
         Location::default(),
     )));
-    let value = asg::document((&document).into())?;
+    let value = asg::export_document((&document).into())?;
     assert!(value.get("location").is_none());
     assert!(value.pointer("/blocks/0/location").is_none());
     let mut blocks: Vec<_> = document.take_blocks().collect();
@@ -151,7 +151,7 @@ fn asg_omits_unknown_optional_locations_and_rejects_partial_ones() -> Result<(),
     paragraph.set_location(location);
     document.set_blocks(blocks);
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::InvalidLocation { path, .. }) if path == "/blocks/0/location/1")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::InvalidLocation { path, .. }) if path == "/blocks/0/location/1")
     );
     Ok(())
 }
@@ -168,7 +168,7 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
     let nodes = [acdc_parser::InlineNode::PlainText(
         acdc_parser::Plain::new("α", source.clone()).with_escaped(true),
     )];
-    let value = asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec())))?;
+    let value = asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec())))?;
     assert_eq!(
         value.pointer("/0/location/0/file"),
         Some(&json!(["outer.adoc", "α.adoc"]))
@@ -183,7 +183,7 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
         acdc_parser::Plain::new("α", source).with_escaped(true),
     )];
     assert!(matches!(
-        asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))),
+        asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))),
         Err(asg::Error::InvalidLocation { .. })
     ));
     Ok(())
@@ -196,13 +196,13 @@ fn asg_rejects_attribute_protection_and_preserves_literal_quotes() -> Result<(),
         &Options::default(),
     )?;
     assert!(
-        matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported { path, .. }) if path == "/attributes/protected")
+        matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported { path, .. }) if path == "/attributes/protected")
     );
     let parsed = parse(
         "= Title\n:quoted: \"literal\"\n:enabled:\n\nText.",
         &Options::default(),
     )?;
-    let value = asg::document(parsed.document())?;
+    let value = asg::export_document(parsed.document())?;
     assert_eq!(
         value.pointer("/attributes/quoted"),
         Some(&json!("\"literal\""))
@@ -221,7 +221,7 @@ fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error>
             (r"\&copy;", "text", "&copy;"),
         ] {
             let parsed = parse(source, &options)?;
-            let exported = asg::document(parsed.document())?;
+            let exported = asg::export_document(parsed.document())?;
             assert_eq!(
                 exported.pointer("/blocks/0/inlines/0/name"),
                 Some(&json!(name))
@@ -234,7 +234,7 @@ fn asg_reads_classified_references_and_literal_ampersands() -> Result<(), Error>
     }
     let parsed = parse("[custom,alpha]\nText.", &Options::default())?;
     assert!(matches!(
-        asg::document(parsed.document()),
+        asg::export_document(parsed.document()),
         Err(asg::Error::Unsupported { .. })
     ));
     Ok(())
@@ -263,7 +263,7 @@ fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Err
             Vec::new(),
             Location::default(),
         )));
-        let result = asg::document((&document).into());
+        let result = asg::export_document((&document).into());
         if present {
             assert_eq!(result?.pointer("/blocks/0/title"), Some(&json!([])));
         } else {
@@ -281,7 +281,7 @@ fn asg_rejects_verbatim_without_a_literal_block_mapping() {
         acdc_parser::Verbatim::new("  literal\ntext  ", Location::default()),
     )];
     assert!(
-        matches!(asg::inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0")
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0")
     );
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
@@ -289,6 +289,6 @@ fn asg_rejects_verbatim_without_a_literal_block_mapping() {
         Location::default(),
     )));
     assert!(
-        matches!(asg::document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/blocks/0/inlines/0")
+        matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported { path, .. }) if path == "/blocks/0/inlines/0")
     );
 }

@@ -2,8 +2,8 @@
 
 use std::path::Path;
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_converters_html::{Processor, RenderOptions};
+use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
+use acdc_converters_html::{Converter, RenderOptions};
 use acdc_parser::{
     Block, Document, InlineNode, Location, Paragraph, Plain, ast::DocumentRef, parse,
 };
@@ -11,11 +11,11 @@ use acdc_parser::{
 #[test]
 fn parsed_and_constructed_documents_share_conversion_entrypoints()
 -> Result<(), Box<dyn std::error::Error>> {
-    let processor = Processor::new(
+    let converter = Converter::new(
         Options::builder().embedded(true).build(),
         acdc_parser::Options::builder(),
     )?;
-    let parsed = parse("Hello.", processor.parser_options())?;
+    let parsed = parse("Hello.", converter.parser_options())?;
     let mut constructed = Document::default();
     constructed.push_block(Block::Paragraph(Paragraph::new(
         vec![InlineNode::PlainText(Plain::new(
@@ -28,20 +28,20 @@ fn parsed_and_constructed_documents_share_conversion_entrypoints()
         embedded: true,
         ..RenderOptions::default()
     };
-    let expected = processor.convert_to_string(parsed.document(), &options)?;
+    let expected = converter.convert_to_string(parsed.document(), &options)?;
     for document in [parsed.document(), DocumentRef::from(&constructed)] {
-        assert_eq!(processor.convert_to_string(document, &options)?, expected);
+        assert_eq!(converter.convert_to_string(document, &options)?, expected);
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let mut output = Vec::new();
-        processor.convert_to_writer(document, &mut output, &options, &mut diagnostics)?;
+        converter.convert_to_writer(document, &mut output, &options, &mut diagnostics)?;
         assert_eq!(String::from_utf8(output)?, expected);
         let mut output = Vec::new();
-        processor.write_to(document, &mut output, None, None, &mut diagnostics)?;
+        converter.write_to(document, &mut output, None, None, &mut diagnostics)?;
         assert_eq!(String::from_utf8(output)?, expected);
         assert_eq!(
-            processor.derive_output_path(Path::new("sample.adoc"), document)?,
+            converter.derive_output_path(Path::new("sample.adoc"), document)?,
             Some(Path::new("sample.html").to_path_buf())
         );
         assert!(warnings.is_empty(), "{warnings:?}");

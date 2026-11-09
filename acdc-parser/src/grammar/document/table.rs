@@ -6,7 +6,7 @@ mod tests;
 use crate::{
     AttributeName, AttributeValue, Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock,
     DelimitedBlockType, DocumentAttribute, DocumentAttributeAssignment, Error, HorizontalAlignment,
-    InlineNode, Location, Paragraph, Table, TableColumn, TablePresentation, TableRow, Verbatim,
+    InlineNode, Location, Paragraph, Table, TableCell, TablePresentation, TableRow, Verbatim,
     VerticalAlignment, Warning, WarningKind,
     blocks::table::{CellSpecifier, MAX_TABLE_COLUMNS},
     grammar::{
@@ -561,13 +561,13 @@ fn simple_cell_nodes(nodes: &[InlineNode<'_>]) -> bool {
         | InlineNode::HighlightText(_)
         | InlineNode::SubscriptText(_)
         | InlineNode::SuperscriptText(_)
-        | InlineNode::CurvedQuotationText(_)
-        | InlineNode::CurvedApostropheText(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::SingleQuotedSpan(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_) => false,
+        | InlineNode::CalloutMarker(_) => false,
     })
 }
 
@@ -610,7 +610,7 @@ fn parse_table_cell<'a>(
     cell_start_offset: usize,
     spec: &CellSpecifier,
     prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
-) -> Result<TableColumn<'a>, Error> {
+) -> Result<TableCell<'a>, Error> {
     // Literal cells keep their source text intact. Unlike listing blocks, they
     // do not run attribute, macro, quote, or callout substitutions.
     if spec.style == Some(ColumnStyle::Literal) {
@@ -626,7 +626,7 @@ fn parse_table_cell<'a>(
             })],
             location,
         ))];
-        return Ok(TableColumn::with_format(
+        return Ok(TableCell::with_format(
             blocks,
             spec.colspan,
             spec.rowspan,
@@ -706,7 +706,7 @@ fn parse_table_cell<'a>(
         );
         Ok(Vec::new())
     })?;
-    let mut column = TableColumn::with_format(
+    let mut column = TableCell::with_format(
         blocks,
         spec.colspan,
         spec.rowspan,

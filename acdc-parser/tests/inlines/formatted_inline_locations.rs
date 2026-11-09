@@ -70,7 +70,7 @@ fn formatted_inline_locations_map_anchor_catalogs_to_source() -> Result<(), Erro
                     .references()
                     .get("target")
                     .ok_or("missing target")?;
-                assert_span(parsed.source(), target.location(), anchor)?;
+                assert_span(parsed.preprocessed_source(), target.location(), anchor)?;
             }
         }
     }
@@ -104,10 +104,10 @@ fn formatted_inline_locations_map_breaks_and_apostrophes() -> Result<(), Error> 
                 };
                 for child in children.inlines() {
                     if let InlineKind::StandaloneCurvedApostrophe(apostrophe) = child.kind() {
-                        assert_span(parsed.source(), apostrophe.location(), "`'")?;
+                        assert_span(parsed.preprocessed_source(), apostrophe.location(), "`'")?;
                         found += 1;
                     } else if let InlineKind::LineBreak(line_break) = child.kind() {
-                        assert_span(parsed.source(), line_break.location(), " +")?;
+                        assert_span(parsed.preprocessed_source(), line_break.location(), " +")?;
                         found += 1;
                     }
                 }

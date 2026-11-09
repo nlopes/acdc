@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking since 0.11:** public names now distinguish table cells, reference
+  targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
+  `Reference` with `ReferenceTarget`, `CurvedApostrophe` / `CurvedQuotation` with
+  `SingleQuotedSpan` / `DoubleQuotedSpan`, and update the corresponding handles
+  and variants. Text reads use `preprocessed_source()`; attribute defaults use
+  `insert_if_absent()` / `merge_defaults()`. See the README migration table for
+  all renamed types and operations. Checked ASG exports use `export_document()` /
+  `export_inlines()` and their `_with_profile` variants. Parsing and serialized
+  node names are preserved.
+
 - **Breaking since 0.11:** `pass:c[...]` attribute text, native JSON, and raw
   inline text retain unencoded characters. Read displayed attribute pieces through
   `DocumentAttributeValue::parts()` and apply their retained substitutions

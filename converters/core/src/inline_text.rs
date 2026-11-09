@@ -198,12 +198,12 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineKind::Highlight(span) => self.write_content(w, span.content()),
             InlineKind::Subscript(span) => self.write_content(w, span.content()),
             InlineKind::Superscript(span) => self.write_content(w, span.content()),
-            InlineKind::CurvedQuotation(span) => {
+            InlineKind::DoubleQuotedSpan(span) => {
                 w.write_char('“')?;
                 self.write_content(w, span.content())?;
                 w.write_char('”')
             }
-            InlineKind::CurvedApostrophe(span) => {
+            InlineKind::SingleQuotedSpan(span) => {
                 w.write_char('‘')?;
                 self.write_content(w, span.content())?;
                 w.write_char('’')
@@ -213,13 +213,13 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineKind::LineBreak(_) => w.write_str(self.line_break),
             InlineKind::Callout(callout) => write!(w, "<{}>", callout.number()),
             InlineKind::Link(link) => self.write_link_text(w, link.text(), &link.target()),
-            InlineKind::Url(url) => self.write_link_text(w, url.text(), &url.target()),
+            InlineKind::UrlMacro(url) => self.write_link_text(w, url.text(), &url.target()),
             InlineKind::Mailto(mailto) => self.write_link_text(w, mailto.text(), &mailto.target()),
             InlineKind::Autolink(autolink) => write!(w, "{}", autolink.target()),
             InlineKind::CrossReference(xref) => self.write_xref_text(w, xref),
             InlineKind::IndexTerm(term) if term.is_visible() => self.write_content(w, term.term()),
-            InlineKind::Pass(pass) => w.write_str(pass.text().unwrap_or_default()),
-            InlineKind::Keyboard(keyboard) => {
+            InlineKind::Passthrough(pass) => w.write_str(pass.text().unwrap_or_default()),
+            InlineKind::KeyboardShortcut(keyboard) => {
                 for (index, key) in keyboard.keys().enumerate() {
                     if index > 0 {
                         w.write_char('+')?;
@@ -229,7 +229,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
                 Ok(())
             }
             InlineKind::Button(button) => self.write_content(w, button.label()),
-            InlineKind::Menu(menu) => {
+            InlineKind::MenuPath(menu) => {
                 self.write_content(w, menu.target())?;
                 for item in menu.items() {
                     w.write_str(" > ")?;

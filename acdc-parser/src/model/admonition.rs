@@ -244,7 +244,7 @@ impl Serialize for Admonition<'_> {
                 state.serialize_entry("delimiter", delimiter)?;
             }
         }
-        if !self.metadata.is_default() {
+        if !self.metadata.is_empty_for_serialization() {
             state.serialize_entry("metadata", &self.metadata)?;
         }
         if self.title.is_present() {

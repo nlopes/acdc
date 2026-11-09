@@ -233,7 +233,7 @@ impl ParseResult {
     /// resolution and other preprocessor transforms — not the original
     /// caller input.
     #[must_use]
-    pub fn source(&self) -> &str {
+    pub fn preprocessed_source(&self) -> &str {
         &self.cell.borrow_owner().source
     }
 
@@ -320,7 +320,7 @@ impl ParseInlineResult {
     }
 
     /// Build inline content without fallible parsing or diagnostics.
-    /// Used by [`crate::parse_text_for_quotes`].
+    /// Used by [`crate::parse_inline_formatting`].
     pub(crate) fn from_infallible(
         owner: OwnedInput,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Vec<InlineNode<'a>>,
@@ -340,7 +340,7 @@ impl ParseInlineResult {
 
     /// Borrow the preprocessed source the nodes were parsed from.
     #[must_use]
-    pub fn source(&self) -> &str {
+    pub fn preprocessed_source(&self) -> &str {
         &self.cell.borrow_owner().source
     }
 

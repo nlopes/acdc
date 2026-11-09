@@ -39,7 +39,7 @@ pub(crate) fn extract_workspace_symbols(doc: DocumentRef<'_>) -> Vec<IndexedSymb
 fn extract_block_symbols(block: BlockRef<'_>, symbols: &mut Vec<IndexedSymbol>) {
     match block.kind() {
         BlockKind::Section(section) => extract_section_symbols(block, section, symbols),
-        BlockKind::DiscreteHeader(header) => {
+        BlockKind::DiscreteHeading(header) => {
             let title = title_text(header.title());
             if !title.is_empty() {
                 symbols.push(IndexedSymbol {

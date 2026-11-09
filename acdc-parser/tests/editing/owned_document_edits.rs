@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, Document, DocumentAttributes, Location, Options,
-    Reference, SafeMode, Title,
+    ReferenceTarget, SafeMode, Title,
     ast::{BlockKind, DocumentRef, StructuralRef},
     parse, parse_file,
 };
@@ -148,8 +148,9 @@ fn reference_transfer_preserves_prepared_values_and_last_duplicate_key(
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let first = Reference::from(parsed.document().references().get("one").ok_or("first")?);
-    let mut second = Reference::from(parsed.document().references().get("two").ok_or("second")?);
+    let first = ReferenceTarget::from(parsed.document().references().get("one").ok_or("first")?);
+    let mut second =
+        ReferenceTarget::from(parsed.document().references().get("two").ok_or("second")?);
     second.set_title(Some(ContentAttribute::new(Title::default().into_inlines())));
     let expected = second.clone();
     let mut document = Document::default();

@@ -14,7 +14,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         admon: AdmonitionRef<'a>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let converter = self.converter.clone();
 
         // Get the appropriate caption attribute for this admonition type
         // Note: Parser sets defaults, so these attributes are guaranteed to exist
@@ -46,7 +46,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         };
         let icon = self.admonition_icon(traversal, admon, &plain_caption);
 
-        if processor.variant() == HtmlVariant::Semantic {
+        if converter.variant() == HtmlVariant::Semantic {
             return visit_admonition_semantic(traversal, self, admon, &caption, icon.as_deref());
         }
 

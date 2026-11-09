@@ -104,7 +104,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             style::{PrintStyledContent, Stylize},
         };
 
-        let processor = self.processor;
+        let converter = self.converter;
         let config = TocConfig::resolve(toc_macro, traversal);
         let should_render = match placement {
             "auto" => matches!(
@@ -113,7 +113,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             ),
             other => config.placement() == other,
         };
-        let Some(document) = processor.document else {
+        let Some(document) = converter.document else {
             return Ok(());
         };
         let entries: Vec<_> = document.toc_entries().collect();

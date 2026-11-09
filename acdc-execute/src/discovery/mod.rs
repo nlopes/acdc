@@ -1154,7 +1154,7 @@ mod tests {
             acdc_parser::AttributeValue::String("bad\0name".into()),
         ] {
             let mut attributes = acdc_parser::ElementAttributes::default();
-            attributes.insert("interpreter".into(), value);
+            attributes.insert_if_absent("interpreter".into(), value);
             let metadata = acdc_parser::BlockMetadata::default()
                 .with_attributes(attributes)
                 .unwrap();

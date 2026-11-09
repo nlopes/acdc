@@ -189,8 +189,8 @@ pub(super) fn map_inner_content_locations<'a>(
             | InlineNode::HighlightText(_)
             | InlineNode::SubscriptText(_)
             | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, ctx)?,
+            | InlineNode::DoubleQuotedSpan(_)
+            | InlineNode::SingleQuotedSpan(_)) => map_marked_text_locations(marked_text, ctx)?,
             InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx)?,
             InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, ctx)?,
             InlineNode::CharacterReference(reference) => {
@@ -213,7 +213,7 @@ pub(super) fn map_inner_content_locations<'a>(
             InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::CalloutRef(_) => {
+            | InlineNode::CalloutMarker(_) => {
                 *node.location_mut() = ctx.map_location(node.location())?;
             }
         }
@@ -314,8 +314,8 @@ fn map_locations<'a>(
             | InlineNode::HighlightText(_)
             | InlineNode::SubscriptText(_)
             | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, &ctx)?,
+            | InlineNode::DoubleQuotedSpan(_)
+            | InlineNode::SingleQuotedSpan(_)) => map_marked_text_locations(marked_text, &ctx)?,
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
                 standalone.location = ctx.map_location(&standalone.location)?;
             }
@@ -362,7 +362,7 @@ fn map_locations<'a>(
                 verbatim.location = ctx.map_location(&verbatim.location)?;
             }
             InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, &ctx)?,
-            InlineNode::CalloutRef(callout) => {
+            InlineNode::CalloutMarker(callout) => {
                 callout.location = ctx.map_location(&callout.location)?;
             }
         }
@@ -525,7 +525,7 @@ fn restore_macro_attributes<'a>(
             restore_inline_metadata(&mut link.metadata, &mut link.macro_attributes, ctx);
             &mut link.macro_attributes.attributes
         }
-        InlineMacro::Url(url) => {
+        InlineMacro::UrlMacro(url) => {
             restore_inline_metadata(&mut url.metadata, &mut url.macro_attributes, ctx);
             &mut url.macro_attributes.attributes
         }
@@ -550,11 +550,11 @@ fn restore_macro_attributes<'a>(
             &mut image.macro_attributes.attributes
         }
         InlineMacro::Footnote(_)
-        | InlineMacro::Keyboard(_)
+        | InlineMacro::KeyboardShortcut(_)
         | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
+        | InlineMacro::MenuPath(_)
         | InlineMacro::Autolink(_)
-        | InlineMacro::Pass(_)
+        | InlineMacro::Passthrough(_)
         | InlineMacro::Stem(_) => return,
     };
 
@@ -589,17 +589,17 @@ fn restore_macro_passthroughs<'a>(
 
     let target = match inline_macro {
         InlineMacro::Link(link) => Some(&mut link.target),
-        InlineMacro::Url(url) => Some(&mut url.target),
+        InlineMacro::UrlMacro(url) => Some(&mut url.target),
         InlineMacro::Mailto(mailto) => Some(&mut mailto.target),
         InlineMacro::Autolink(autolink) => Some(&mut autolink.url),
         InlineMacro::Icon(icon) => Some(&mut icon.target),
         InlineMacro::Image(image) => Some(&mut image.source),
         InlineMacro::Footnote(_)
-        | InlineMacro::Keyboard(_)
+        | InlineMacro::KeyboardShortcut(_)
         | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
+        | InlineMacro::MenuPath(_)
         | InlineMacro::CrossReference(_)
-        | InlineMacro::Pass(_)
+        | InlineMacro::Passthrough(_)
         | InlineMacro::Stem(_)
         | InlineMacro::IndexTerm(_) => None,
     };
@@ -619,15 +619,15 @@ fn restore_macro_passthroughs<'a>(
         InlineMacro::Stem(stem) => Some(&mut stem.content),
         InlineMacro::Icon(_)
         | InlineMacro::Button(_)
-        | InlineMacro::Menu(_)
+        | InlineMacro::MenuPath(_)
         | InlineMacro::Image(_)
-        | InlineMacro::Keyboard(_)
-        | InlineMacro::Url(_)
+        | InlineMacro::KeyboardShortcut(_)
+        | InlineMacro::UrlMacro(_)
         | InlineMacro::Link(_)
         | InlineMacro::Mailto(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::CrossReference(_)
-        | InlineMacro::Pass(_)
+        | InlineMacro::Passthrough(_)
         | InlineMacro::IndexTerm(_) => None,
     };
     if let Some(text) = text
@@ -660,7 +660,7 @@ fn map_inline_macro<'a>(
             }
             state.finalize_footnote(footnote);
         }
-        InlineMacro::Url(url) => {
+        InlineMacro::UrlMacro(url) => {
             url.location = ctx.map_location(&url.location)?;
             if let Some(id) = &mut url.metadata.id {
                 id.location = ctx.map_location(&id.location)?;
@@ -696,8 +696,8 @@ fn map_inline_macro<'a>(
                 id.location = ctx.map_location(&id.location)?;
             }
         }
-        InlineMacro::Menu(menu) => menu.location = ctx.map_location(&menu.location)?,
-        InlineMacro::Keyboard(keyboard) => {
+        InlineMacro::MenuPath(menu) => menu.location = ctx.map_location(&menu.location)?,
+        InlineMacro::KeyboardShortcut(keyboard) => {
             keyboard.location = ctx.map_location(&keyboard.location)?;
         }
         InlineMacro::CrossReference(xref) => {
@@ -722,7 +722,7 @@ fn map_inline_macro<'a>(
             autolink.location = ctx.map_location(&autolink.location)?;
         }
         InlineMacro::Stem(stem) => stem.location = ctx.map_location(&stem.location)?,
-        InlineMacro::Pass(pass) => pass.location = ctx.map_location(&pass.location)?,
+        InlineMacro::Passthrough(pass) => pass.location = ctx.map_location(&pass.location)?,
         InlineMacro::IndexTerm(index_term) => {
             map_index_term_locations(state, processed, index_term, location)?;
         }

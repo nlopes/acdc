@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{Error, Processor};
+use crate::{Converter, Error};
 
 /// Highlight code and render to terminal.
 ///
@@ -11,7 +11,7 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     language: &str,
-    processor: &Processor<'_>,
+    converter: &Converter<'_>,
 ) -> Result<(), Error> {
     use crossterm::{QueueableCommand, style::PrintStyledContent};
     use syntect::{
@@ -21,7 +21,7 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
 
-    let theme_name = processor.appearance.theme.syntect_theme();
+    let theme_name = converter.appearance.theme.syntect_theme();
     let theme = &theme_set
         .themes
         .get(theme_name)
@@ -67,7 +67,7 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     _language: &str,
-    _processor: &Processor<'_>,
+    _converter: &Converter<'_>,
 ) -> Result<(), Error> {
     write!(writer, "{code}")?;
     Ok(())
@@ -76,15 +76,15 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
 #[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
-    use crate::create_test_processor;
+    use crate::create_test_converter;
 
     #[test]
     fn test_highlight_rust_code() -> Result<(), Error> {
         let code = "fn main() {\n    println!(\"Hello, world!\");\n}";
-        let processor = create_test_processor();
+        let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "rust", &processor)?;
+        highlight_text(&mut buffer, code, "rust", &converter)?;
 
         // Just verify it doesn't crash and produces output
         assert!(!buffer.is_empty(), "Should produce highlighted output");
@@ -95,10 +95,10 @@ mod tests {
     #[test]
     fn test_highlight_unknown_language_fallback() -> Result<(), Error> {
         let code = "some code here";
-        let processor = create_test_processor();
+        let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "unknown_lang_xyz", &processor)?;
+        highlight_text(&mut buffer, code, "unknown_lang_xyz", &converter)?;
 
         // Should fall back to plain text and not crash
         assert!(
@@ -112,10 +112,10 @@ mod tests {
     #[test]
     fn test_highlight_python_code() -> Result<(), Error> {
         let code = "def hello():\n    print('Hello, world!')";
-        let processor = create_test_processor();
+        let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "python", &processor)?;
+        highlight_text(&mut buffer, code, "python", &converter)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 
@@ -125,10 +125,10 @@ mod tests {
     #[test]
     fn test_highlight_javascript_code() -> Result<(), Error> {
         let code = "function hello() {\n  console.log('Hello, world!');\n}";
-        let processor = create_test_processor();
+        let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "javascript", &processor)?;
+        highlight_text(&mut buffer, code, "javascript", &converter)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 

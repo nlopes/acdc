@@ -2,8 +2,8 @@ use acdc_parser::{
     CompatibilityMode, InlineMacro, InlineNode, LineBreak, Location, Options, PassthroughKind,
     Plain, Raw, SafeMode, StandaloneCurvedApostrophe, Substitution, Verbatim,
     ast::{
-        BlockKind, ContentRef, DocumentRef, InlineKind, InlineRef, LineBreakRef, PassRef, PlainRef,
-        RawRef, StandaloneCurvedApostropheRef, VerbatimRef,
+        BlockKind, ContentRef, DocumentRef, InlineKind, InlinePassthroughRef, InlineRef,
+        LineBreakRef, PlainRef, RawRef, StandaloneCurvedApostropheRef, VerbatimRef,
     },
     parse, parse_file, parse_inline,
 };
@@ -151,14 +151,14 @@ fn retained_pass_reads_preserve_content_and_empty_values(
     )?;
     let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
     let [
-        InlineNode::Macro(InlineMacro::Pass(owner)),
+        InlineNode::Macro(InlineMacro::Passthrough(owner)),
         _,
-        InlineNode::Macro(InlineMacro::Pass(empty)),
+        InlineNode::Macro(InlineMacro::Passthrough(empty)),
     ] = parsed_inlines.as_slice()
     else {
         return Err("expected retained pass macros".into());
     };
-    let InlineKind::Pass(pass) =
+    let InlineKind::Passthrough(pass) =
         InlineRef::from(parsed_inlines.as_slice().first().ok_or("pass macro")?).kind()
     else {
         return Err("pass kind".into());
@@ -175,8 +175,13 @@ fn retained_pass_reads_preserve_content_and_empty_values(
         source.get(pass.location().absolute_start()..=pass.location().absolute_end()),
         Some(r"pass:q[*bold*\]")
     );
-    assert_eq!(PassRef::from(empty).text(), Some(""));
-    assert!(PassRef::from(empty).substitutions().next().is_none());
+    assert_eq!(InlinePassthroughRef::from(empty).text(), Some(""));
+    assert!(
+        InlinePassthroughRef::from(empty)
+            .substitutions()
+            .next()
+            .is_none()
+    );
     let mut absent = owner.clone();
     absent.replace_text(None);
     absent.set_kind(PassthroughKind::AttributeRef);
@@ -186,10 +191,15 @@ fn retained_pass_reads_preserve_content_and_empty_values(
         Substitution::Replacements,
     ];
     absent.replace_substitutions(substitutions.clone());
-    assert_eq!(PassRef::from(&absent).text(), None);
-    assert_eq!(PassRef::from(&absent).kind(), PassthroughKind::AttributeRef);
+    assert_eq!(InlinePassthroughRef::from(&absent).text(), None);
     assert_eq!(
-        PassRef::from(&absent).substitutions().collect::<Vec<_>>(),
+        InlinePassthroughRef::from(&absent).kind(),
+        PassthroughKind::AttributeRef
+    );
+    assert_eq!(
+        InlinePassthroughRef::from(&absent)
+            .substitutions()
+            .collect::<Vec<_>>(),
         substitutions
     );
     let serialized = serde_json::to_value(parsed_inlines.as_slice())?;
@@ -220,10 +230,10 @@ fn typography_and_breaks_keep_semantic_kinds_and_authored_locations(
     )?;
     let mut spans = Vec::new();
     for inline in paragraph(parsed.document())?.inlines() {
-        if let InlineKind::CurvedQuotation(span) = inline.kind() {
+        if let InlineKind::DoubleQuotedSpan(span) = inline.kind() {
             assert_eq!(span.content().inlines().count(), 1);
             spans.push("\"`double`\"");
-        } else if let InlineKind::CurvedApostrophe(span) = inline.kind() {
+        } else if let InlineKind::SingleQuotedSpan(span) = inline.kind() {
             assert_eq!(span.content().inlines().count(), 1);
             spans.push("'`single`'");
         } else if let InlineKind::StandaloneCurvedApostrophe(marker) = inline.kind() {

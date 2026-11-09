@@ -16,7 +16,7 @@ fn block_forms_keep_actual_markers_and_native_body_owners() -> Result<(), Error>
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse_file(&source, &options)?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         let expected: Value =
             serde_json::from_str(&fs::read_to_string(source.with_extension("json"))?)?;
         assert_eq!(value, expected, "{mode:?}");
@@ -79,7 +79,7 @@ fn strict_export_accepts_real_admonition_delimiters_only() -> Result<(), Error> 
         for delimiter in ["====", "=======", "--"] {
             let source = format!("[NOTE]\n{delimiter}\nBody.\n{delimiter}");
             let parsed = parse(&source, &options)?;
-            let value = asg::document(parsed.document())?;
+            let value = asg::export_document(parsed.document())?;
             assert_eq!(
                 value.pointer("/blocks/0/delimiter"),
                 Some(&json!(delimiter))
@@ -94,13 +94,13 @@ fn strict_export_accepts_real_admonition_delimiters_only() -> Result<(), Error> 
         ] {
             let parsed = parse(source, &options)?;
             assert!(
-                matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/form")
+                matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/form")
             );
         }
         for source in ["> Text.", "\"Text.\"\n-- Author"] {
             let parsed = parse(source, &options)?;
             assert!(
-                matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/delimiter")
+                matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/delimiter")
             );
         }
     }
@@ -121,7 +121,7 @@ fn unknown_forms_and_nested_unsupported_content_remain_explicit_errors() -> Resu
         document.push_block(Block::Admonition(owner));
         for profile in [asg::Profile::Upstream, asg::Profile::Acdc] {
             assert!(
-                matches!(asg::document_with_profile((&document).into(), profile), Err(asg::Error::Unsupported {path, construct:Some("admonition"), ..}) if path == "/blocks/0/delimiter")
+                matches!(asg::export_document_with_profile((&document).into(), profile), Err(asg::Error::Unsupported {path, construct:Some("admonition"), ..}) if path == "/blocks/0/delimiter")
             );
         }
     }
@@ -134,7 +134,7 @@ fn unknown_forms_and_nested_unsupported_content_remain_explicit_errors() -> Resu
         ("> icon:heart[]", "/blocks/0/blocks/0/inlines/0"),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(
             value.pointer(&format!("{path}/target")),
             Some(&json!("heart"))
@@ -149,7 +149,7 @@ fn block_form_schema_rejects_invented_delimiters_and_wrong_body_shapes() -> Resu
     let validator = jsonschema::validator_for(&schema)?;
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/asg/block_forms.adoc");
     let parsed = parse_file(&source, &Options::default())?;
-    let valid = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let valid = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert!(validator.is_valid(&valid));
     for (index, field, value) in [
         (0, "delimiter", json!("====")),

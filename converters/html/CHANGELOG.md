@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** construct and render HTML through `Converter`, renamed
+  from `Processor`. The `Converter` trait and output behavior are unchanged.
+  Import the shared `acdc_converters_core::Converter` trait as `_` when
+  calling its methods alongside the concrete type.
+
 - Explicit TOC macros read `toc-title` changes at their position in the body,
   including retained literal and raw attribute text.
 
@@ -18,11 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Large tables of contents (`:toc:` or `toc::[]`) render faster in both HTML
   variants, preserving section order, hierarchy, links, and numbering.
 
-- **Breaking:** `Processor::generate_index` is internal; it describes state
+- **Breaking:** `Converter::generate_index` is internal; it describes state
   computed for one conversion. Request an index catalog with `:acdc-index:` and
   an `[index]` section through normal processor conversion.
 
-- **Breaking:** `HtmlVisitor` is internal. Convert documents through `Processor`
+- **Breaking:** `HtmlVisitor` is internal. Convert documents through `Converter`
   using `acdc_converters_core::Converter::write_to`.
   Direct visitor construction and manual callback sequencing are no longer
   supported. Custom converters can still implement the shared visitor traits.
@@ -771,8 +776,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.
 - **`HtmlVariant` enum** (`Standard` / `Semantic`) with `FromStr` and `Display`.
-  `Processor::new` defaults to `Standard`; use `Processor::with_variant` or
-  `Processor::new_with_variant` for semantic output.
+  `Converter::new` defaults to `Standard`; use `Converter::with_variant` or
+  `Converter::new_with_variant` for semantic output.
 - `Converter::name(&self)` returns `"html"` or `"html5s"` based on variant
   (replaces `Converter::backend()`).
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
@@ -998,7 +1003,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--no-default-features` builds no longer re-enable parser or converter
   default features through internal workspace dependencies.
 - **`link:` macro now emits `class="bare"` for empty display text** — `link:URL[]` now
-  renders as `<a href="URL" class="bare">URL</a>`, matching asciidoctor and the `Url`
+  renders as `<a href="URL" class="bare">URL</a>`, matching asciidoctor and the `UrlMacro`
   branch. Previously the class was dropped, so default stylesheets could not distinguish
   bare links from text links.
 - **`link:` macro now maps `role=X` to `class="X"`** — `link:URL[text,role=external]`

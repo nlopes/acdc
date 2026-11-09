@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     Anchor, Block, CompatibilityMode, ContentAttribute, DescriptionList, DescriptionListItem,
-    Document, InlineNode, Location, Options, Plain, Reference, asg, parse, parse_file,
+    Document, InlineNode, Location, Options, Plain, ReferenceTarget, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -27,7 +27,7 @@ fn registrations_preserve_membership_and_point_to_exported_owners() -> Result<()
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         let references = value
             .get("references")
@@ -61,7 +61,7 @@ fn registrations_preserve_membership_and_point_to_exported_owners() -> Result<()
         );
         assert!(value.pointer("/references/block/reftext").is_none());
         assert_eq!(
-            asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?,
+            asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?,
             value
         );
         assert_eq!(serde_json::to_value(parsed.document())?, before);
@@ -80,7 +80,7 @@ fn prepared_alias_labels_keep_absent_empty_and_formatted_meanings() -> Result<()
         Some(ContentAttribute::default()),
         Some(text("*literal*")),
     ] {
-        let primary = Reference::from(
+        let primary = ReferenceTarget::from(
             parsed
                 .document()
                 .references()
@@ -93,7 +93,7 @@ fn prepared_alias_labels_keep_absent_empty_and_formatted_meanings() -> Result<()
         let mut document = Document::from(parsed.document());
         document.set_references([("target", primary), ("alias/~", alias)]);
         let before = serde_json::to_value(&document)?;
-        let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
         assert_eq!(
             value.pointer("/references/alias~1~0/target"),
             Some(&json!("target"))
@@ -113,7 +113,7 @@ fn prepared_alias_labels_keep_absent_empty_and_formatted_meanings() -> Result<()
         );
         assert!(value.pointer("/references/alias~1~0/location").is_none());
         assert_eq!(serde_json::to_value(&document)?, before);
-        assert!(asg::document((&document).into()).is_err());
+        assert!(asg::export_document((&document).into()).is_err());
     }
     Ok(())
 }
@@ -122,8 +122,8 @@ fn prepared_alias_labels_keep_absent_empty_and_formatted_meanings() -> Result<()
 fn description_item_declarations_keep_separate_registered_labels() -> Result<(), Error> {
     let mut term = acdc_parser::DescriptionListTerm::new(Vec::new(), "::", Location::default());
     term.set_anchors([
-        Anchor::new("first", Location::default()).with_xreflabel(Some(text("First"))),
-        Anchor::new("second", Location::default()).with_xreflabel(Some(text("Second"))),
+        Anchor::new("first", Location::default()).with_reftext(Some(text("First"))),
+        Anchor::new("second", Location::default()).with_reftext(Some(text("Second"))),
     ]);
     let mut document = Document::default();
     document.push_block(Block::DescriptionList(DescriptionList::new(
@@ -136,17 +136,17 @@ fn description_item_declarations_keep_separate_registered_labels() -> Result<(),
     )));
     document.set_references([
         ("first", {
-            let mut reference = Reference::new("first", Location::default());
+            let mut reference = ReferenceTarget::new("first", Location::default());
             reference.set_xreflabel(Some(text("First")));
             reference
         }),
         ("second", {
-            let mut reference = Reference::new("second", Location::default());
+            let mut reference = ReferenceTarget::new("second", Location::default());
             reference.set_xreflabel(Some(text("Second")));
             reference
         }),
     ]);
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     for (id, owner, label) in [
         ("first", "/blocks/0/items/0/term_metadata/0", "First"),
         (
@@ -184,7 +184,7 @@ fn document_top_uses_resolved_labels_and_first_section_fallback() -> Result<(), 
         ("xref:#[].", "", false),
     ] {
         let parsed = parse(source, &Options::default())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(
             value.pointer("/references//owner"),
             Some(&json!(owner)),
@@ -210,16 +210,16 @@ fn dangling_aliases_and_stale_primary_labels_are_rejected() -> Result<(), Error>
         ("target", "target", Some(text("Stale"))),
     ] {
         let mut document = Document::from(parsed.document());
-        let mut reference = Reference::new(target, Location::default());
+        let mut reference = ReferenceTarget::new(target, Location::default());
         reference.set_title(title);
         document.set_references([(key, reference)]);
         assert!(
-            matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc),
+            matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc),
             Err(asg::Error::Unsupported{path,..}) if path == format!("/references/{key}"))
         );
     }
     let mut document = Document::from(parsed.document());
-    let mut reference = Reference::from(
+    let mut reference = ReferenceTarget::from(
         parsed
             .document()
             .references()
@@ -229,7 +229,7 @@ fn dangling_aliases_and_stale_primary_labels_are_rejected() -> Result<(), Error>
     reference.set_xreflabel(Some(text("Stale")));
     document.set_references([("target", reference)]);
     assert!(
-        matches!(asg::document_with_profile((&document).into(), asg::Profile::Acdc),
+        matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc),
         Err(asg::Error::Unsupported{path,..}) if path == "/references/target")
     );
     Ok(())
@@ -240,7 +240,7 @@ fn registration_schema_is_closed_and_validates_label_and_pointer_types() -> Resu
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     let parsed = parse("[#target]\nBody.", &Options::default())?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     assert!(validator.is_valid(&value));
     for (field, bad) in [
         ("unknown", json!(true)),

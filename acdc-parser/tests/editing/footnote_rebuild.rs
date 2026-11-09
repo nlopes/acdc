@@ -326,7 +326,7 @@ fn included_definition_provenance_survives_promotion_in_an_asciidoc_cell(
             }
         })
         .ok_or("cell")?;
-    let mut cell = acdc_parser::TableColumn::from(cell);
+    let mut cell = acdc_parser::TableCell::from(cell);
     let remaining = cell.take_blocks().skip(1);
     cell.set_blocks(remaining);
     edited.set_blocks([Block::DelimitedBlock(acdc_parser::DelimitedBlock::new(

@@ -1,8 +1,8 @@
 use crate::{
-    Anchor, Autolink, Bold, Button, CurvedApostrophe, CurvedQuotation, Footnote, Form, Highlight,
-    Icon, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto, Menu, Monospace,
-    Pass, PassthroughKind, Plain, Raw, Source, StandaloneCurvedApostrophe, Stem, StemNotation,
-    Subscript, Superscript, Url,
+    Anchor, Autolink, Bold, Button, DoubleQuotedSpan, Footnote, FormattingForm, Highlight, Icon,
+    InlineMacro, InlineNode, Italic, KeyboardShortcut, LineBreak, Link, Mailto, MenuPath,
+    Monospace, Passthrough, PassthroughKind, Plain, Raw, SingleQuotedSpan, Source,
+    StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Superscript, UrlMacro,
     grammar::{
         ParserState,
         attributes::AttributeQuote,
@@ -50,7 +50,7 @@ use std::ops::Range;
 peg::parser! {
     pub(crate) grammar inline_parser(state: &mut ParserState<'input>) for str {
         use std::borrow::Cow;
-        use crate::model::{substitute, Substitution, substitution::parse_substitution};
+        use crate::model::{apply_attribute_substitutions, Substitution, substitution::parse_substitution};
 
         // Each action gets the byte range of its preceding sequence.
         inject span_start(_input, l, _r) -> usize { l }
@@ -678,7 +678,7 @@ peg::parser! {
         {
             tracing::debug!("Found pass inline");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
-            InlineNode::Macro(InlineMacro::Pass(Pass {
+            InlineNode::Macro(InlineMacro::Passthrough(Passthrough {
                 attribute_fragments: Box::default(),
                 text: Some(content),
                 substitutions: substitutions.into_iter().filter_map(|s| parse_substitution(s.trim())).collect(),
@@ -858,7 +858,7 @@ peg::parser! {
         {?
             let target = parse_content(state, target, span_start + 5, AttributeQuote::Unquoted).map_err(|_| "invalid menu target")?;
             let items = parse_menu_items(state, items, start).map_err(|_| "invalid menu items")?;
-            Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
+            Ok(InlineNode::Macro(InlineMacro::MenuPath(MenuPath {
                 target,
                 items,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -874,7 +874,7 @@ peg::parser! {
             let mut labels = parse_menu_items(state, content.text, content.start)
                 .map_err(|_| "invalid implicit menu labels")?.into_iter();
             let target = labels.next().ok_or("missing implicit menu target")?;
-            Ok(InlineNode::Macro(InlineMacro::Menu(Menu {
+            Ok(InlineNode::Macro(InlineMacro::MenuPath(MenuPath {
                 target,
                 items: labels.collect(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -913,7 +913,7 @@ peg::parser! {
         = check_ui_macros() "kbd:[" start:position!() source:escaped_balanced_bracket_content() "]"
         {?
             let keys = parse_keyboard_keys(state, source, start).map_err(|_| "invalid keyboard labels")?;
-            Ok(InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
+            Ok(InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut {
                 keys,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
@@ -946,7 +946,7 @@ peg::parser! {
                 })?;
             let interned_target = state.intern_cow(target);
             let target_source = Source::from_str_borrowed(interned_target).map_err(|_| "failed to parse URL target")?;
-            Ok(InlineNode::Macro(InlineMacro::Url(Box::new(Url {
+            Ok(InlineNode::Macro(InlineMacro::UrlMacro(Box::new(UrlMacro {
                 text,
                 tooltip,
                 target: target_source,
@@ -1541,7 +1541,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1669,7 +1669,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Constrained,
+                form: FormattingForm::Constrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1739,7 +1739,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Constrained,
+                form: FormattingForm::Constrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1784,7 +1784,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1818,7 +1818,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1884,7 +1884,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Constrained,
+                form: FormattingForm::Constrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1929,7 +1929,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -1990,7 +1990,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Constrained,
+                form: FormattingForm::Constrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -2036,7 +2036,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -2071,7 +2071,7 @@ peg::parser! {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -2102,11 +2102,11 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved quotation text content"
             )?;
-            Ok(InlineNode::CurvedQuotationText(CurvedQuotation {
+            Ok(InlineNode::DoubleQuotedSpan(DoubleQuotedSpan {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -2137,11 +2137,11 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved apostrophe text content"
             )?;
-            Ok(InlineNode::CurvedApostropheText(CurvedApostrophe {
+            Ok(InlineNode::SingleQuotedSpan(SingleQuotedSpan {
                 content,
                 role,
                 id,
-                form: Form::Unconstrained,
+                form: FormattingForm::Unconstrained,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             }))
         }
@@ -2251,7 +2251,7 @@ peg::parser! {
         )
         double_close_square_bracket()
         {?
-            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
+            let substituted_id = state.intern_cow(apply_attribute_substitutions(id, HEADER, &state.document_attributes));
             let source = reftext.map(|(start, text)| crate::grammar::reference_text::capture_inline(state, text, start + state.inline_ctx.offset, true));
             let xreflabel = source.map(|id| crate::grammar::reference_text::resolve(state, id)).transpose().map_err(|_| "reference label")?;
             Ok(InlineNode::InlineAnchor(Anchor {

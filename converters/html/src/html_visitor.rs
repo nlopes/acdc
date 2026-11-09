@@ -17,7 +17,7 @@ use acdc_parser::{
     },
 };
 
-use crate::{Error, HtmlVariant, Processor, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
+use crate::{Converter, Error, HtmlVariant, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
 
 const DEPRECATED_HIGHLIGHT_ATTRIBUTES: [(&str, &str); 2] = [
     ("syntect-css", "highlight-css"),
@@ -262,7 +262,7 @@ mod head_stylesheet_tests;
 /// HTML visitor that generates HTML from `AsciiDoc` AST
 pub(crate) struct HtmlVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
-    pub(crate) processor: Rc<Processor<'a>>,
+    pub(crate) converter: Rc<Converter<'a>>,
 
     pub(crate) render_options: RenderOptions,
     /// Per-conversion diagnostics handle (warning source + sink borrow).
@@ -289,7 +289,7 @@ pub(crate) struct HtmlVisitor<'a, 'd, W: Write> {
 impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     pub(super) fn new(
         writer: W,
-        processor: Rc<Processor<'a>>,
+        converter: Rc<Converter<'a>>,
         render_options: RenderOptions,
 
         mut diagnostics: Diagnostics<'d>,
@@ -298,8 +298,8 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             DocInfo::empty()
         } else {
             DocInfo::resolve(
-                processor.document_attributes(),
-                processor.options.safe_mode(),
+                converter.document_attributes(),
+                converter.options.safe_mode(),
                 render_options.source_dir.as_deref(),
                 render_options.docname.as_deref(),
                 &mut diagnostics,
@@ -307,7 +307,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         };
         Self {
             writer,
-            processor,
+            converter,
 
             render_options,
             diagnostics,
@@ -367,9 +367,9 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if title.is_none() {
             return Ok(());
         }
-        let processor = Rc::clone(&self.processor);
+        let converter = Rc::clone(&self.converter);
         let caption = attributes.and_then(|attributes| {
-            CaptionRef::resolve(attributes, processor.document_attributes().into(), fallback)
+            CaptionRef::resolve(attributes, converter.document_attributes().into(), fallback)
         });
         write!(self.writer, "{prefix}")?;
         match caption {
@@ -385,7 +385,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                 kind,
             }) => {
                 let number = number.map_or_else(
-                    || processor.next_caption_number(kind),
+                    || converter.next_caption_number(kind),
                     std::num::NonZeroU32::get,
                 );
                 write!(
@@ -427,7 +427,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
     /// Check if dark mode is enabled via the `:dark-mode:` document attribute.
     fn is_dark_mode(&self) -> bool {
-        DocumentAttributesRef::from(self.processor.document_attributes()).contains("dark-mode")
+        DocumentAttributesRef::from(self.converter.document_attributes()).contains("dark-mode")
     }
 
     /// Emit syntax highlighting CSS in `<head>` when class-based mode is active.
@@ -436,7 +436,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-highlight.css`.
     #[cfg(feature = "highlighting")]
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
-        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        let attributes = DocumentAttributesRef::from(self.converter.document_attributes());
         if attributes.contains("source-highlighter") {
             let (theme_name, mode) = crate::resolve_highlight_settings(attributes);
             if mode == crate::syntax::HighlightMode::Class {
@@ -465,7 +465,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     ///
     /// Skipped entirely when `:!stylesheet:` is set (no-stylesheet mode).
     fn render_stylesheet(&mut self, dark_mode: bool) -> Result<(), Error> {
-        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        let attributes = DocumentAttributesRef::from(self.converter.document_attributes());
         let stylesheet_disabled =
             !attributes.contains("stylesheet") && attributes.is_explicit("stylesheet");
 
@@ -494,7 +494,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
         // Handle stylesheet rendering based on linkcss attribute
         let linkcss = attributes.contains("linkcss");
-        let variant = self.processor.variant();
+        let variant = self.converter.variant();
         let default_filename = match (variant, dark_mode) {
             (HtmlVariant::Semantic, true) => crate::STYLESHEET_HTML5S_DARK_MODE,
             (HtmlVariant::Semantic, false) => crate::STYLESHEET_HTML5S_LIGHT_MODE,
@@ -543,7 +543,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// Whether the `:csp:` attribute opts this document into a `<meta>` Content
     /// Security Policy (standalone output only).
     fn is_csp_enabled(&self) -> bool {
-        DocumentAttributesRef::from(self.processor.document_attributes()).contains("csp")
+        DocumentAttributesRef::from(self.converter.document_attributes()).contains("csp")
     }
 
     /// The acdc features this document uses, for building its CSP. Mirrors the
@@ -554,7 +554,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         font_icons: bool,
         mathjax_numbering_hash: Option<&'static str>,
     ) -> crate::CspFeatures {
-        let attrs = DocumentAttributesRef::from(self.processor.document_attributes());
+        let attrs = DocumentAttributesRef::from(self.converter.document_attributes());
         let stylesheet_disabled = !attrs.contains("stylesheet") && attrs.is_explicit("stylesheet");
         crate::CspFeatures {
             stem,
@@ -582,7 +582,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="generator" content="{}">"#,
-            self.processor.options.generator_metadata()
+            self.converter.options.generator_metadata()
         )?;
 
         if dark_mode {
@@ -634,7 +634,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     }
 
     fn render_body_footer(&mut self) -> Result<(), Error> {
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "<footer id=\"footer\">")?;
             writeln!(self.writer, "<div id=\"footer-text\">")?;
             self.render_footer_version()?;
@@ -669,7 +669,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// `vX.Y` revision line is already dropped by the parser; an explicit
     /// `:revnumber:` keeps whatever it was given.
     fn render_footer_version(&mut self) -> Result<(), Error> {
-        let attributes = DocumentAttributesRef::from(self.processor.document_attributes());
+        let attributes = DocumentAttributesRef::from(self.converter.document_attributes());
         if let Some(revnumber) = displayed_attribute_text(attributes, "revnumber") {
             let label = attributes
                 .get("version-label")
@@ -689,7 +689,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if traversal.contains_key("nofootnotes") || footnotes.peek().is_none() {
             return Ok(());
         }
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             return self.render_footnotes_semantic(traversal, footnotes);
         }
         if in_cell {
@@ -786,7 +786,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
             BlockKind::Image(image) => self.render_image(context, image),
             BlockKind::Audio(audio) => self.render_audio(context, audio),
             BlockKind::Video(video) => self.render_video(context, video),
-            BlockKind::DiscreteHeader(header) => {
+            BlockKind::DiscreteHeading(header) => {
                 crate::section::visit_discrete_header(context, header, self)
             }
             BlockKind::TableOfContents(toc) => self.render_toc(context, Some(toc), "macro"),
@@ -858,16 +858,16 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         let resources = HeadResources::collect(doc);
         self.render_head(doc, resources.stem, resources.font_icons)?;
 
-        let processor_attributes =
-            DocumentAttributesRef::from(self.processor.document_attributes());
-        if processor_attributes.contains("css-signature") {
+        let converter_attributes =
+            DocumentAttributesRef::from(self.converter.document_attributes());
+        if converter_attributes.contains("css-signature") {
             return Err(Error::UnsupportedCssSignature);
         }
 
-        let doctype_str = processor_attributes
+        let doctype_str = converter_attributes
             .get("doctype")
             .and_then(|value| value.as_str().map(str::to_owned))
-            .unwrap_or_else(|| self.processor.options.doctype().to_string());
+            .unwrap_or_else(|| self.converter.options.doctype().to_string());
         let mut body_classes = vec![doctype_str];
 
         if self.is_dark_mode() {
@@ -919,7 +919,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         traversal: &mut TraversalContext<'a>,
         _doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "</section>")?;
         } else {
             writeln!(self.writer, "</div>")?; // Close sectionbody
@@ -937,7 +937,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
     ) -> Result<(), Self::Error> {
         // Close #content (only if not in embedded mode)
         if !self.render_options.embedded {
-            if self.processor.variant() == HtmlVariant::Semantic {
+            if self.converter.variant() == HtmlVariant::Semantic {
                 writeln!(self.writer, "</main>")?;
             } else {
                 writeln!(self.writer, "</div>")?;
@@ -998,32 +998,32 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         // Headerless documents still need a wrapper for an automatic TOC.
         if doc.header().is_none()
             && !traversal.contains_key("noheader")
-            && !self.processor.toc_entries.is_empty()
+            && !self.converter.toc_entries.is_empty()
         {
             let toc_config = acdc_converters_core::toc::Config::resolve(
                 None,
                 &TraversalContext::new(DocumentAttributesRef::from(
-                    self.processor.document_attributes(),
+                    self.converter.document_attributes(),
                 )),
             );
             if matches!(
                 toc_config.placement(),
                 "auto" | "left" | "right" | "top" | "bottom"
             ) {
-                if self.processor.variant() == HtmlVariant::Semantic {
+                if self.converter.variant() == HtmlVariant::Semantic {
                     writeln!(self.writer, "<header id=\"header\">")?;
                 } else {
                     writeln!(self.writer, "<div id=\"header\">")?;
                 }
                 self.render_toc(traversal, None, "auto")?;
-                if self.processor.variant() == HtmlVariant::Semantic {
+                if self.converter.variant() == HtmlVariant::Semantic {
                     writeln!(self.writer, "</header>")?;
                 } else {
                     writeln!(self.writer, "</div>")?;
                 }
             }
         }
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "<main id=\"content\">")?;
         } else {
             writeln!(self.writer, "<div id=\"content\">")?;
@@ -1036,7 +1036,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         _traversal: &mut TraversalContext<'a>,
         _doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             writeln!(
                 self.writer,
                 "<section id=\"preamble\" aria-label=\"Preamble\">"
@@ -1063,7 +1063,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if traversal.contains_key("noheader") {
             return Ok(());
         }
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "<header>")?;
         } else {
             writeln!(self.writer, "<div id=\"header\">")?;
@@ -1151,7 +1151,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         // Render TOC after header if toc="auto"
         self.render_toc(traversal, None, "auto")?;
-        if self.processor.variant() == HtmlVariant::Semantic {
+        if self.converter.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "</header>")?;
         } else {
             writeln!(self.writer, "</div>")?; // Close #header div
@@ -1264,7 +1264,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 mod title_media_tests {
     use super::*;
     use acdc_converters_core::{
-        Converter, Options as ConverterOptions, WarningSource, visitor::DocumentVisitor,
+        Converter as _, Options as ConverterOptions, WarningSource, visitor::DocumentVisitor,
     };
     use acdc_parser::{
         Anchor, AttributeValue, Block, CompatibilityMode, Document, Location,
@@ -1306,8 +1306,8 @@ mod title_media_tests {
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Rc::new(
-                Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+            let converter = Rc::new(
+                Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                     .with_variant(variant)?,
             );
             for input in [
@@ -1323,7 +1323,7 @@ mod title_media_tests {
                 let block = parsed_blocks.first().ok_or("expected block")?;
                 let mut visitor = HtmlVisitor::new(
                     RejectCellText,
-                    processor.clone(),
+                    converter.clone(),
                     RenderOptions::default(),
                     Diagnostics::new(&source, &mut warnings),
                 );
@@ -1358,8 +1358,8 @@ mod title_media_tests {
         let retained = footnotes.clone();
         document.set_footnotes(footnotes);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Rc::new(
-                Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+            let converter = Rc::new(
+                Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                     .with_variant(variant)?,
             );
             let source = WarningSource::new("html");
@@ -1367,7 +1367,7 @@ mod title_media_tests {
             let mut output = Vec::new();
             let mut visitor = HtmlVisitor::new(
                 &mut output,
-                processor.clone(),
+                converter.clone(),
                 RenderOptions {
                     embedded: true,
                     ..RenderOptions::default()
@@ -1388,7 +1388,7 @@ mod title_media_tests {
             assert!(output.contains("<em>note</em>"));
             let mut visitor = HtmlVisitor::new(
                 RejectWrites,
-                processor,
+                converter,
                 RenderOptions {
                     embedded: true,
                     ..RenderOptions::default()
@@ -1407,7 +1407,7 @@ mod title_media_tests {
 
     #[test]
     fn paragraph_and_compound_errors_restore_substitution_state() -> Result<(), TestError> {
-        let processor = Rc::new(Processor::new(
+        let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
         )?);
@@ -1423,7 +1423,7 @@ mod title_media_tests {
             let block = parsed_blocks.first().ok_or("expected block")?;
             let mut visitor = HtmlVisitor::new(
                 RejectCellText,
-                processor.clone(),
+                converter.clone(),
                 RenderOptions::default(),
                 Diagnostics::new(&source, &mut warnings),
             );
@@ -1485,13 +1485,13 @@ mod title_media_tests {
             }
             document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-                let processor =
-                    Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                let converter =
+                    Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                         .with_variant(variant)?;
                 let mut output = Vec::new();
                 let source = WarningSource::new("html");
                 let mut warnings = Vec::new();
-                processor.convert_to_writer(
+                converter.convert_to_writer(
                     (&document).into(),
                     &mut output,
                     &RenderOptions {
@@ -1528,7 +1528,7 @@ mod title_media_tests {
             .blocks()
             .next()
             .ok_or("expected section")?;
-        let processor = Rc::new(Processor::new(
+        let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
         )?);
@@ -1536,7 +1536,7 @@ mod title_media_tests {
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             RejectCellText,
-            processor.clone(),
+            converter.clone(),
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -1593,7 +1593,7 @@ mod title_media_tests {
             for block in &mut blocks {
                 let mut metadata = if let Block::Section(section) = block {
                     section.clone_metadata()
-                } else if let Block::DiscreteHeader(header) = block {
+                } else if let Block::DiscreteHeading(header) = block {
                     header.clone_metadata()
                 } else {
                     return Err("expected heading".into());
@@ -1608,19 +1608,19 @@ mod title_media_tests {
                 metadata.roles = vec!["one", "one"].into();
                 if let Block::Section(section) = block {
                     section.set_metadata(metadata)?;
-                } else if let Block::DiscreteHeader(header) = block {
+                } else if let Block::DiscreteHeading(header) = block {
                     header.set_metadata(metadata)?;
                 }
             }
             document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-                let processor =
-                    Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                let converter =
+                    Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                         .with_variant(variant)?;
                 let source = WarningSource::new("html");
                 let mut warnings = Vec::new();
                 let mut output = Vec::new();
-                processor.convert_to_writer(
+                converter.convert_to_writer(
                     (&document).into(),
                     &mut output,
                     &RenderOptions {
@@ -1640,13 +1640,13 @@ mod title_media_tests {
 
     #[test]
     fn title_rendering_restores_body_settings_after_success_and_error() -> Result<(), TestError> {
-        let processor = Rc::new(Processor::new(
+        let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
         )?);
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();
-        let mut context = TraversalContext::new(processor.document_attributes());
+        let mut context = TraversalContext::new(converter.document_attributes());
         let settings = vec![Substitution::SpecialChars];
         let options = RenderOptions {
             embedded: true,
@@ -1655,7 +1655,7 @@ mod title_media_tests {
         };
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
-            processor.clone(),
+            converter.clone(),
             options.clone(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -1670,7 +1670,7 @@ mod title_media_tests {
         assert!(String::from_utf8(visitor.into_writer())?.contains("<strong>Rich</strong>"));
         let mut visitor = HtmlVisitor::new(
             RejectWrites,
-            processor.clone(),
+            converter.clone(),
             options,
             Diagnostics::new(&source, &mut warnings),
         );
@@ -1689,16 +1689,16 @@ mod title_media_tests {
 
     #[test]
     fn captioned_titles_distinguish_absent_and_empty_before_counting() -> Result<(), TestError> {
-        let processor = Rc::new(Processor::new(
+        let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
         )?);
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();
-        let mut context = TraversalContext::new(processor.document_attributes());
+        let mut context = TraversalContext::new(converter.document_attributes());
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
-            processor.clone(),
+            converter.clone(),
             RenderOptions {
                 embedded: true,
                 ..RenderOptions::default()
@@ -1722,7 +1722,7 @@ mod title_media_tests {
             "<caption>",
             "</caption>",
         )?;
-        assert_eq!(processor.figure_counter.get(), 0);
+        assert_eq!(converter.figure_counter.get(), 0);
         assert_eq!(visitor.writer, [] as [u8; 0]);
         visitor.render_captioned_title_with_wrapper(
             &mut context,
@@ -1732,7 +1732,7 @@ mod title_media_tests {
             "<caption>",
             "</caption>",
         )?;
-        assert_eq!(processor.figure_counter.get(), 1);
+        assert_eq!(converter.figure_counter.get(), 1);
         assert_eq!(
             String::from_utf8(visitor.into_writer())?,
             "<caption>Figure 1. </caption>"
@@ -1793,13 +1793,13 @@ mod title_media_tests {
             }
             document.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-                let processor =
-                    Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                let converter =
+                    Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                         .with_variant(variant)?;
                 let source = WarningSource::new("html");
                 let mut warnings = Vec::new();
                 let mut bytes = Vec::new();
-                processor.convert_to_writer(
+                converter.convert_to_writer(
                     (&document).into(),
                     &mut bytes,
                     &RenderOptions {
@@ -1829,7 +1829,7 @@ mod title_media_tests {
             &ParserOptions::default(),
         )?;
         let block = parsed.document().blocks().next().ok_or("expected table")?;
-        let processor = Rc::new(Processor::new(
+        let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
         )?);
@@ -1837,7 +1837,7 @@ mod title_media_tests {
         let mut warnings = Vec::new();
         let mut visitor = HtmlVisitor::new(
             RejectCellText,
-            processor.clone(),
+            converter.clone(),
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -1897,12 +1897,12 @@ mod title_media_tests {
         }
         document.set_blocks(blocks);
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor = Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+            let converter = Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                 .with_variant(variant)?;
             let source = WarningSource::new("html");
             let mut warnings = Vec::new();
             let mut output = Vec::new();
-            processor.convert_to_writer(
+            converter.convert_to_writer(
                 (&document).into(),
                 &mut output,
                 &RenderOptions {
@@ -1926,16 +1926,16 @@ mod title_media_tests {
     fn caption_values_escape_literal_text_and_preserve_counter_ownership() -> Result<(), TestError>
     {
         use acdc_parser::{Caption, ContentAttribute, Paragraph, ast::ParagraphRef};
-        let processor = Rc::new(Processor::new(
+        let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
         )?);
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();
-        let mut context = TraversalContext::new(processor.document_attributes());
+        let mut context = TraversalContext::new(converter.document_attributes());
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
-            Rc::clone(&processor),
+            Rc::clone(&converter),
             RenderOptions::default(),
             Diagnostics::new(&source, &mut warnings),
         );
@@ -1980,7 +1980,7 @@ mod title_media_tests {
                 "",
             )?;
             assert_eq!(std::str::from_utf8(&visitor.writer)?, expected);
-            assert_eq!(processor.figure_counter.get(), counter);
+            assert_eq!(converter.figure_counter.get(), counter);
             visitor.writer.clear();
         }
         let mut metadata = paragraph.take_metadata();
@@ -1995,7 +1995,7 @@ mod title_media_tests {
             "",
         )?;
         assert_eq!(std::str::from_utf8(&visitor.writer)?, "Figure 2. ");
-        assert_eq!(processor.figure_counter.get(), 2);
+        assert_eq!(converter.figure_counter.get(), 2);
         Ok(())
     }
 }
@@ -2011,7 +2011,7 @@ mod unhandled_block_tests {
     #[test]
     fn unhandled_parser_block_warning_is_structured() -> Result<(), TestError> {
         let parsed = parse("text", &ParserOptions::default())?;
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::default(),
             ParserOptions::builder().with_attributes(
                 acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
@@ -2024,7 +2024,7 @@ mod unhandled_block_tests {
             let diagnostics = Diagnostics::new(&source, &mut warnings);
             let mut visitor = HtmlVisitor::new(
                 Vec::new(),
-                std::rc::Rc::new(processor),
+                std::rc::Rc::new(converter),
                 RenderOptions::default(),
                 diagnostics,
             );
@@ -2045,7 +2045,7 @@ mod footnote_repair_tests {
     use std::rc::Rc;
 
     use acdc_converters_core::{
-        Converter, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
+        Converter as _, Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
         visitor::DocumentVisitor,
     };
     use acdc_parser::{
@@ -2053,7 +2053,7 @@ mod footnote_repair_tests {
         Options as ParserOptions, Paragraph, ast::DocumentRef, parse,
     };
 
-    use super::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
+    use super::{Converter, HtmlVariant, HtmlVisitor, RenderOptions};
 
     #[test]
     fn repaired_references_have_one_definition_and_matching_destinations()
@@ -2086,8 +2086,8 @@ mod footnote_repair_tests {
                 ))]);
                 document.rebuild_footnotes()?;
                 for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-                    let processor = Rc::new(
-                        Processor::new(ConverterOptions::default(), ParserOptions::builder())?
+                    let converter = Rc::new(
+                        Converter::new(ConverterOptions::default(), ParserOptions::builder())?
                             .with_variant(variant)?,
                     );
                     let source = WarningSource::new("html");
@@ -2095,7 +2095,7 @@ mod footnote_repair_tests {
                     let mut output = Vec::new();
                     let mut visitor = HtmlVisitor::new(
                         &mut output,
-                        processor,
+                        converter,
                         RenderOptions {
                             embedded: true,
                             ..RenderOptions::default()

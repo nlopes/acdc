@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** construct and render Markdown through `Converter`,
+  renamed from `Processor`. Variant selection and output behavior are unchanged.
+  Import the shared `acdc_converters_core::Converter` trait as `_` when
+  calling its methods alongside the concrete type.
+
 - TOC titles, revision text, and caption prefixes keep authored entity spellings
   literal instead of allowing a Markdown renderer to reinterpret them.
 
@@ -16,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit TOC macros read `toc-title` changes at their position in the body,
   including retained literal and raw attribute text.
 
-- **Breaking:** `MarkdownVisitor` is internal. Convert documents through `Processor`
+- **Breaking:** `MarkdownVisitor` is internal. Convert documents through `Converter`
   using `acdc_converters_core::Converter::write_to`.
   Direct visitor construction and manual callback sequencing are no longer
   supported. Custom converters can still implement the shared visitor traits.
@@ -352,8 +357,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Resource-specific failures remain separate, and unknown AST features include
   available source context.
 - **`MarkdownVariant` enum** (`CommonMark` / `GitHubFlavored`) with `FromStr`
-  and `Display`. `Processor::new` defaults to `GitHubFlavored`; use
-  `Processor::with_variant` for another flavour.
+  and `Display`. `Converter::new` defaults to `GitHubFlavored`; use
+  `Converter::with_variant` for another flavour.
 - `Converter::name(&self)` returns `"markdown"` (replaces `Converter::backend()`).
 - **Collapsible example blocks** — example blocks with `[%collapsible]` (and the
   `%open` modifier) now render as embedded `<details>/<summary>` HTML, which

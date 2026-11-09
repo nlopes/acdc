@@ -43,7 +43,7 @@ fn reference_labels_resolve_their_own_profile_and_exact_source_span(
         .document()
         .references()
         .get("target")
-        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::xreflabel)
         .ok_or("reference label")?;
     let found = symbols(label);
     if draft_literal && mode == CompatibilityMode::Draft {
@@ -75,7 +75,7 @@ fn restricted_labels_keep_macros_literal_and_do_not_register_them(
         .document()
         .references()
         .get("target")
-        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::xreflabel)
         .ok_or("reference label")?;
     assert_eq!(
         symbols(label)
@@ -101,7 +101,7 @@ fn reference_typography_keeps_escaped_tokens_literal(
         .document()
         .references()
         .get("target")
-        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::xreflabel)
         .ok_or("reference label")?;
     assert_eq!(symbols(label).len(), 0);
     Ok(())
@@ -124,7 +124,7 @@ fn reference_labels_keep_declaration_snapshots_and_included_positions(
     let references = parsed.document().references();
     let label = references
         .get("included-label")
-        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::xreflabel)
         .ok_or("included label")?;
     let found = symbols(label);
     assert_eq!(
@@ -148,7 +148,7 @@ fn reference_labels_keep_declaration_snapshots_and_included_positions(
     );
     let cell = references
         .get("cell-label")
-        .and_then(acdc_parser::ast::ReferenceRef::xreflabel)
+        .and_then(acdc_parser::ast::ReferenceTargetRef::xreflabel)
         .ok_or("cell label")?;
     assert_eq!(
         symbols(cell)

@@ -2,7 +2,7 @@
 
 use acdc_parser::{
     Block, ColumnFormat, CompatibilityMode, DelimitedBlock, DelimitedBlockType, Document, Location,
-    Options, Table, TableColumn, TableRow, asg, parse, parse_file,
+    Options, Table, TableCell, TableRow, asg, parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -21,8 +21,8 @@ fn document(rows: Vec<TableRow<'static>>, width: usize) -> Document<'static> {
     document
 }
 
-fn cell(colspan: usize, rowspan: usize) -> TableColumn<'static> {
-    let mut cell = TableColumn::new(Vec::new());
+fn cell(colspan: usize, rowspan: usize) -> TableCell<'static> {
+    let mut cell = TableCell::new(Vec::new());
     cell.set_colspan(colspan);
     cell.set_rowspan(rowspan);
     cell
@@ -39,7 +39,7 @@ fn spans_preserve_order_and_header_body_footer_transitions() -> Result<(), Error
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let before = serde_json::to_value(parsed.document())?;
-        let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+        let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
         assert_eq!(value, expected, "{mode:?}");
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         for (path, expected) in [
@@ -57,7 +57,7 @@ fn spans_preserve_order_and_header_body_footer_transitions() -> Result<(), Error
         }
         assert!(value.pointer("/blocks/0/rows/0/cells/1/colspan").is_none());
         assert!(
-            matches!(asg::document(parsed.document()), Err(asg::Error::Unsupported{path,..}) if path=="/blocks/0/inner")
+            matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,..}) if path=="/blocks/0/inner")
         );
     }
     Ok(())
@@ -106,7 +106,7 @@ fn invalid_prepared_spans_reject_at_the_owning_dimension() {
         ),
     ] {
         let document = document(rows, width);
-        let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc);
+        let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc);
         assert!(
             matches!(&value,Err(asg::Error::Unsupported{path,..}) if path==expected),
             "{value:?}"
@@ -117,7 +117,7 @@ fn invalid_prepared_spans_reject_at_the_owning_dimension() {
 #[test]
 fn unspecified_width_does_not_allocate_by_span_size_or_invent_cells() -> Result<(), Error> {
     let document = document(vec![TableRow::new(vec![cell(usize::MAX, 1)])], 0);
-    let value = asg::document_with_profile((&document).into(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
     assert_eq!(
         value.pointer("/blocks/0/rows/0/cells/0/colspan"),
         Some(&json!(usize::MAX))
@@ -139,7 +139,7 @@ fn span_schema_is_positive_and_closed_inside_parent_blocks() -> Result<(), Error
         "====\n[cols=2]\n|===\n2+|Both\n|===\n====",
         &Options::default(),
     )?;
-    let value = asg::document_with_profile(parsed.document(), asg::Profile::Acdc)?;
+    let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
     let schema: Value = serde_json::from_str(include_str!("../../schemas/asg/acdc-v1.json"))?;
     let validator = jsonschema::validator_for(&schema)?;
     assert!(validator.is_valid(&value));

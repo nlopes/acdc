@@ -114,7 +114,7 @@ fn selected_style_controls_heading_recognition() -> Result<(), Error> {
         assert_eq!(
             matches!(
                 parsed.document().blocks().next().map(BlockRef::kind),
-                Some(BlockKind::DiscreteHeader(_))
+                Some(BlockKind::DiscreteHeading(_))
             ),
             mode == CompatibilityMode::Asciidoctor
         );

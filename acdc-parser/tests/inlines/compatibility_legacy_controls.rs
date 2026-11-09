@@ -25,9 +25,9 @@ fn standalone_ui_macros_follow_mode_and_caller_activation() -> Result<(), Error>
                     matches!(
                         node,
                         InlineNode::Macro(
-                            InlineMacro::Keyboard(_)
+                            InlineMacro::KeyboardShortcut(_)
                                 | InlineMacro::Button(_)
-                                | InlineMacro::Menu(_)
+                                | InlineMacro::MenuPath(_)
                         )
                     )
                 })

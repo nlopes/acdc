@@ -60,7 +60,7 @@ fn formatted_values_keep_missing_and_escaped_references_literal(
 fn active_stage(nodes: ContentRef<'_>, stage: &str) -> usize {
     nodes.inlines().filter(|node| match stage {
         "q" => matches!(node.kind(), InlineKind::Bold(_)),
-        "m" => matches!(node.kind(), InlineKind::Url(_) | InlineKind::Link(_) | InlineKind::Autolink(_)),
+        "m" => matches!(node.kind(), InlineKind::UrlMacro(_) | InlineKind::Link(_) | InlineKind::Autolink(_)),
         "r" => matches!(node.kind(), InlineKind::Symbol(symbol) if symbol.kind() == acdc_parser::SymbolKind::Copyright),
         "p" => matches!(node.kind(), InlineKind::LineBreak(_)),
         _ => false,

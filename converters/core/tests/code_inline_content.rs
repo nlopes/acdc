@@ -16,8 +16,8 @@ fn code_inline_children<'source>(node: &InlineNode<'source>) -> Option<Vec<Inlin
         InlineNode::HighlightText(mut span) => span.take_content(),
         InlineNode::SubscriptText(mut span) => span.take_content(),
         InlineNode::SuperscriptText(mut span) => span.take_content(),
-        InlineNode::CurvedQuotationText(mut span) => span.take_content(),
-        InlineNode::CurvedApostropheText(mut span) => span.take_content(),
+        InlineNode::DoubleQuotedSpan(mut span) => span.take_content(),
+        InlineNode::SingleQuotedSpan(mut span) => span.take_content(),
         InlineNode::Macro(InlineMacro::IndexTerm(mut term)) if term.is_visible() => {
             if let IndexTermKind::Flow(content) = term.replace_kind(IndexTermKind::Flow(Vec::new()))
             {
@@ -35,7 +35,7 @@ fn code_inline_children<'source>(node: &InlineNode<'source>) -> Option<Vec<Inlin
         | InlineNode::LineBreak(_)
         | InlineNode::InlineAnchor(_)
         | InlineNode::Macro(_)
-        | InlineNode::CalloutRef(_)
+        | InlineNode::CalloutMarker(_)
         | _ => return None,
     })
 }

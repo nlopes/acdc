@@ -1,6 +1,6 @@
 use crate::{
     Admonition, AdmonitionForm, Anchor, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DiscreteHeader, Paragraph, Source, ThematicBreak, Title,
+    DiscreteHeading, Paragraph, Source, ThematicBreak, Title,
 };
 
 use super::{
@@ -240,7 +240,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
     pub(super) fn heading(
         &mut self,
-        value: &'a DiscreteHeader<'doc>,
+        value: &'a DiscreteHeading<'doc>,
         path: &str,
     ) -> Result<Node, Error> {
         if !value.title.is_present() {
