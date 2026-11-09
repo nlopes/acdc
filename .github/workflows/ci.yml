@@ -140,7 +140,7 @@ jobs:
       - name: Compile conditional performance benchmark
         run: cargo check -p acdc-parser --bench conditional_bench --all-features
       - name: Check strict and extended ASG without parser defaults
-        run: cargo nextest run -p acdc-parser --no-default-features --features asg --test attribute_contract --test asg_schema_boundary --test asg_content --test asg_images --verbose
+        run: cargo nextest run -p acdc-parser --no-default-features --features asg --test asg -E 'test(/^attribute_contract::/) | test(/^asg_schema_boundary::/) | test(/^asg_content::/) | test(/^asg_images::/)' --verbose
 
   test-converters:
     needs: changes

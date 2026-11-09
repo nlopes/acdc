@@ -5874,7 +5874,7 @@
           "name": "asg_preserves_formatted_titles_reftext_and_ids"
         },
         {
-          "file": "tests/asg_diagnostics.rs",
+          "file": "tests/asg/asg_diagnostics.rs",
           "name": "absent_header_title_reports_the_required_property"
         }
       ]
@@ -5883,23 +5883,23 @@
       "handling": "Resolved text, references and strong/emphasis/code/mark spans are supported. Verbatim leaves map to text only inside supported literal/listing/verse bodies; other verbatim context, invalid XML references and span controls are rejected.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_preserves_literal_text_raw_text_and_resolved_typography"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_reads_classified_references_and_literal_ampersands"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_rejects_verbatim_without_a_literal_block_mapping"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "uncaptioned_library_listing_forms_are_supported"
         }
       ]
@@ -5912,7 +5912,7 @@
           "name": "asg_reads_retained_positional_slots"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
         },
         {
@@ -5925,11 +5925,11 @@
       "handling": "Resolved assignments preserve strings, presence, explicit unsets and numeric spelling. Locks/origins/history are source state after resolution; protected insertion behavior is rejected.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_preserves_explicit_unsets_and_numeric_spelling"
         },
         {
-          "file": "tests/asg_diagnostics.rs",
+          "file": "tests/asg/asg_diagnostics.rs",
           "name": "protected_document_values_have_no_invented_declaration_range"
         }
       ]
@@ -5951,11 +5951,11 @@
       "handling": "Known line/column endpoints and include chains are preserved. Unknown optional locations are omitted; partial or invalid locations fail. Byte offsets and remap history have no ASG field.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_preserves_endpoint_include_chains_and_unicode_columns"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_omits_unknown_optional_locations_and_rejects_partial_ones"
         }
       ]
@@ -5964,11 +5964,11 @@
       "handling": "Every owner variant is explicitly handled. A rejected owner rejects all of its properties and children without flattening or invented forms.",
       "tests": [
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "unsupported_block_owners_do_not_acquire_invented_forms"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
         },
         {
@@ -5976,15 +5976,15 @@
           "name": "unresolved_macro_and_callout_owners_are_rejected"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "reference_forms_preserve_targets_and_effective_labels"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "tests/asg/asg_lists.rs",
           "name": "each_list_family_preserves_its_items_and_markers"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "real_delimited_blocks_preserve_names_and_delimiters"
         }
       ]
@@ -5993,7 +5993,7 @@
       "handling": "Comments and parser routing/edit history can be omitted after resolved values, identity and supported coordinates are preserved. A SafeId cache contributes its effective ID.",
       "tests": [
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "source_comments_are_omitted_without_dropping_their_neighbors"
         },
         {
@@ -6014,7 +6014,7 @@
           "name": "pending_content_is_rejected_by_property"
         },
         {
-          "file": "tests/asg_diagnostics.rs",
+          "file": "tests/asg/asg_diagnostics.rs",
           "name": "protected_document_values_have_no_invented_declaration_range"
         }
       ]
@@ -6023,31 +6023,31 @@
       "handling": "Resolved block settings are represented by the existing text/raw distinction, inline structure and character references. Body escaping follows formatting spans and explicit reference labels; content attributes and raw fragments retain independent treatment. Omit only resolved instruction spelling. Unknown block stages and remaining raw operations other than one SpecialChars stage are rejected.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_preserves_literal_text_raw_text_and_resolved_typography"
         },
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_does_not_run_pending_passthrough_operations"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
         },
         {
-          "file": "tests/asg_substitutions.rs",
+          "file": "tests/asg/asg_substitutions.rs",
           "name": "substitution_effects_keep_body_escaping_and_independent_content_boundaries"
         },
         {
-          "file": "tests/asg_substitutions.rs",
+          "file": "tests/asg/asg_substitutions.rs",
           "name": "resolved_settings_match_equivalent_prepared_text_and_raw_nodes"
         },
         {
-          "file": "tests/asg_substitutions.rs",
+          "file": "tests/asg/asg_substitutions.rs",
           "name": "unresolved_substitution_instructions_are_not_silently_omitted"
         },
         {
-          "file": "tests/asg_substitutions.rs",
+          "file": "tests/asg/asg_substitutions.rs",
           "name": "typed_and_source_settings_share_the_same_output_semantics"
         }
       ]
@@ -6060,7 +6060,7 @@
           "name": "section_policy_errors_identify_the_native_property"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "supported_metadata_preserves_presence_and_rejects_extra_meaning"
         }
       ]
@@ -6069,7 +6069,7 @@
       "handling": "Ordered body assignments and retained assignment events are rejected; they cannot be replaced by the header snapshot.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_rejects_unsupported_meaning_at_any_depth"
         },
         {
@@ -6082,15 +6082,15 @@
       "handling": "References reject populated identity, roles/options, scalar controls and tooltips; supported spans reject IDs/roles. Other unsupported macro owners are rejected in full.",
       "tests": [
         {
-          "file": "tests/asg.rs",
+          "file": "tests/asg/asg.rs",
           "name": "asg_rejects_unsupported_meaning_at_any_depth"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "unsupported_reference_properties_fail_at_the_property"
         }
       ]
@@ -6099,11 +6099,11 @@
       "handling": "These owners/payloads have no implemented strict mapping. The entire owning construct is rejected, including empty values and all nested controls/content.",
       "tests": [
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "unsupported_block_owners_do_not_acquire_invented_forms"
         },
         {
-          "file": "tests/asg_support.rs",
+          "file": "tests/asg/asg_support.rs",
           "name": "unsupported_inline_owners_are_rejected_inside_supported_paragraphs"
         },
         {
@@ -6120,35 +6120,35 @@
       "handling": "Links/URLs/mailto/autolinks preserve targets and effective labels; xrefs retain explicit inline labels or empty automatic labels. Populated metadata, nondefault xref controls and unrepresentable target classification are rejected. UTF-8 target helpers are shared by supported media owners.",
       "tests": [
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "reference_forms_preserve_targets_and_effective_labels"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "formatted_and_nested_labels_remain_inline_trees"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "bracketed_email_keeps_brackets_outside_the_reference"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "automatic_xrefs_keep_empty_labels_and_exported_target_content"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "mailto_queries_keep_unrelated_headers_and_encode_values"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "scheme_hiding_changes_only_automatic_display_text"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "unsupported_reference_properties_fail_at_the_property"
         },
         {
-          "file": "tests/asg_references.rs",
+          "file": "tests/asg/asg_references.rs",
           "name": "target_classification_cannot_be_silently_changed"
         }
       ]
@@ -6157,15 +6157,15 @@
       "handling": "Ordered/unordered/callout/description lists preserve marker spelling where retained, item order, terms, principal content, nesting and supported identity/metadata. Levels must follow retained markers. Explicit callout numbers are in markers; auto numbers follow item order. Empty lists, checklists, independent auto numbers, aliases and unsupported nested content are rejected. Inline callout references remain unsupported.",
       "tests": [
         {
-          "file": "tests/asg_lists.rs",
+          "file": "tests/asg/asg_lists.rs",
           "name": "each_list_family_preserves_its_items_and_markers"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "tests/asg/asg_lists.rs",
           "name": "list_topology_and_attached_blocks_are_preserved"
         },
         {
-          "file": "tests/asg_lists.rs",
+          "file": "tests/asg/asg_lists.rs",
           "name": "list_metadata_and_formatted_description_terms_keep_their_meaning"
         },
         {
@@ -6194,47 +6194,47 @@
       "handling": "Retained delimited, paragraph/indented leaf and macro forms preserve bodies, targets, titles and supported metadata. Delimited admonitions preserve their actual opening token. Missing/ambiguous forms, parsed alt/captions, parent paragraph styles, table and STEM bodies require named extensions or explicit errors. Video targets stay complete.",
       "tests": [
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "real_delimited_blocks_preserve_names_and_delimiters"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "paragraph_and_indented_leaf_forms_have_no_delimiters"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "media_targets_and_retained_slots_are_read_from_owners"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "toc_discrete_heading_and_breaks_use_their_schema_forms"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "missing_forms_and_unsupported_semantics_fail_explicitly"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "nested_block_failures_keep_their_paths_and_owner"
         },
         {
-          "file": "tests/asg_blocks.rs",
+          "file": "tests/asg/asg_blocks.rs",
           "name": "uncaptioned_library_listing_forms_are_supported"
         },
         {
-          "file": "tests/asg_block_forms.rs",
+          "file": "tests/asg/asg_block_forms.rs",
           "name": "strict_export_accepts_real_admonition_delimiters_only"
         },
         {
-          "file": "tests/asg_video.rs",
+          "file": "tests/asg/asg_video.rs",
           "name": "complete_video_targets_and_provider_controls_survive_both_profiles"
         },
         {
-          "file": "tests/asg_video.rs",
+          "file": "tests/asg/asg_video.rs",
           "name": "video_source_variants_preserve_original_target_text"
         },
         {
-          "file": "tests/asg_video.rs",
+          "file": "tests/asg/asg_video.rs",
           "name": "non_utf8_video_paths_are_rejected_without_replacement_characters"
         }
       ]
@@ -6243,27 +6243,27 @@
       "handling": "Strict table export rejects the owning table at inner. The named profile maps basic source forms and prepared values without fabricating defaults or flattening cell blocks; inconsistent spans and unsupported nested content retain explicit paths.",
       "tests": [
         {
-          "file": "tests/asg_tables.rs",
+          "file": "tests/asg/asg_tables.rs",
           "name": "basic_tables_preserve_sections_cells_and_formatting"
         },
         {
-          "file": "tests/asg_tables.rs",
+          "file": "tests/asg/asg_tables.rs",
           "name": "empty_table_parts_keep_presence_and_prepared_column_values"
         },
         {
-          "file": "tests/asg_tables.rs",
+          "file": "tests/asg/asg_tables.rs",
           "name": "literal_column_context_preserves_prepared_verbatim_paragraphs"
         },
         {
-          "file": "tests/asg_tables.rs",
+          "file": "tests/asg/asg_tables.rs",
           "name": "table_decoration_keeps_source_defaults_after_prepared_metadata_edits"
         },
         {
-          "file": "tests/asg_tables.rs",
+          "file": "tests/asg/asg_tables.rs",
           "name": "strict_tables_and_invalid_ordinary_cell_blocks_reject"
         },
         {
-          "file": "tests/asg_tables.rs",
+          "file": "tests/asg/asg_tables.rs",
           "name": "table_schema_rejects_unknown_fields_wrong_types_and_zero_spans"
         }
       ]
@@ -6272,27 +6272,27 @@
       "handling": "Strict export rejects registered bodies or inline occurrences; named export checks the graph and preserves it without mutation.",
       "tests": [
         {
-          "file": "tests/asg_footnotes.rs",
+          "file": "tests/asg/asg_footnotes.rs",
           "name": "registered_bodies_have_one_owner_and_occurrences_keep_identity"
         },
         {
-          "file": "tests/asg_footnotes.rs",
+          "file": "tests/asg/asg_footnotes.rs",
           "name": "empty_and_catalog_only_definitions_keep_number_and_presence"
         },
         {
-          "file": "tests/asg_footnotes.rs",
+          "file": "tests/asg/asg_footnotes.rs",
           "name": "stale_and_duplicate_registrations_reject_without_repair"
         },
         {
-          "file": "tests/asg_footnotes.rs",
+          "file": "tests/asg/asg_footnotes.rs",
           "name": "selected_titles_and_nested_cells_preserve_existing_registration_order"
         },
         {
-          "file": "tests/asg_footnotes.rs",
+          "file": "tests/asg/asg_footnotes.rs",
           "name": "canonical_body_icons_and_standalone_context_are_explicit"
         },
         {
-          "file": "tests/asg_footnotes.rs",
+          "file": "tests/asg/asg_footnotes.rs",
           "name": "footnote_schema_keeps_closed_bodies_and_linked_occurrences"
         }
       ]
@@ -6301,27 +6301,27 @@
       "handling": "Strict export rejects index owners. The named profile retains their selected labels and independent captured labels without registration or mutation.",
       "tests": [
         {
-          "file": "tests/asg_index_terms.rs",
+          "file": "tests/asg/asg_index_terms.rs",
           "name": "labels_hierarchy_relationships_and_controls_keep_their_own_fields"
         },
         {
-          "file": "tests/asg_index_terms.rs",
+          "file": "tests/asg/asg_index_terms.rs",
           "name": "prepared_display_edits_keep_catalog_labels_without_reparsing"
         },
         {
-          "file": "tests/asg_index_terms.rs",
+          "file": "tests/asg/asg_index_terms.rs",
           "name": "absent_and_empty_hierarchy_and_relationship_targets_remain_distinct"
         },
         {
-          "file": "tests/asg_index_terms.rs",
+          "file": "tests/asg/asg_index_terms.rs",
           "name": "selected_titles_and_cells_keep_index_owners_and_footnote_registration"
         },
         {
-          "file": "tests/asg_index_terms.rs",
+          "file": "tests/asg/asg_index_terms.rs",
           "name": "icon_label_children_keep_the_nested_owner_path"
         },
         {
-          "file": "tests/asg_index_terms.rs",
+          "file": "tests/asg/asg_index_terms.rs",
           "name": "index_schema_closes_labels_snapshots_and_relationship_variants"
         }
       ]
@@ -6330,27 +6330,27 @@
       "handling": "The named profile preserves ordinary inline anchors, extra block declarations and known primary-ID spans. Heading and ordinary primary selection remain distinct. Extra declarations do not imply target registration; effective block reftext remains separate from their labels. Pending and bibliography anchors reject in this slice. Strict export still rejects inline/additional anchors.",
       "tests": [
         {
-          "file": "tests/asg_anchors.rs",
+          "file": "tests/asg/asg_anchors.rs",
           "name": "retained_declarations_preserve_primary_selection_labels_and_locations"
         },
         {
-          "file": "tests/asg_anchors.rs",
+          "file": "tests/asg/asg_anchors.rs",
           "name": "header_primary_uses_the_heading_anchor_selection"
         },
         {
-          "file": "tests/asg_anchors.rs",
+          "file": "tests/asg/asg_anchors.rs",
           "name": "prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_spans"
         },
         {
-          "file": "tests/asg_anchors.rs",
+          "file": "tests/asg/asg_anchors.rs",
           "name": "anchor_children_and_bibliography_keep_explicit_boundaries"
         },
         {
-          "file": "tests/asg_anchors.rs",
+          "file": "tests/asg/asg_anchors.rs",
           "name": "anchor_schema_closes_declarations_and_inline_owners"
         },
         {
-          "file": "tests/asg_anchors.rs",
+          "file": "tests/asg/asg_anchors.rs",
           "name": "unused_primary_anchor_label_does_not_replace_effective_reference_text"
         }
       ]
@@ -6377,13 +6377,13 @@
           "handling": "Preserve resolved caption state and content arrays directly. Titles/reftext retain upstream arrays; reject unsupported nested semantics and stale derived catalogs. Other strict rejection rules remain unchanged.",
           "tests": [
             "../src/ast/tests/asg_content_storage.rs::resolved_content_fields_preserve_their_inline_trees",
-            "asg_content.rs::content_presence_and_caption_variants_do_not_collapse",
+            "asg/asg_content.rs::content_presence_and_caption_variants_do_not_collapse",
             "../src/ast/tests/asg_content_storage.rs::captioned_targets_are_reconstructible_but_stale_catalogs_fail",
             "../src/ast/tests/asg_content_storage.rs::nested_unsupported_content_keeps_its_property_path",
-            "asg_content.rs::programmatic_literal_content_is_not_parsed_again",
-            "asg_content.rs::strict_export_is_unchanged_and_profiles_are_explicit",
-            "asg_content.rs::extension_schema_rejects_unknown_content_properties",
-            "asg_content.rs::extension_schema_only_changes_documented_properties"
+            "asg/asg_content.rs::programmatic_literal_content_is_not_parsed_again",
+            "asg/asg_content.rs::strict_export_is_unchanged_and_profiles_are_explicit",
+            "asg/asg_content.rs::extension_schema_rejects_unknown_content_properties",
+            "asg/asg_content.rs::extension_schema_only_changes_documented_properties"
           ]
         },
         "images": {
@@ -6410,13 +6410,13 @@
           ],
           "handling": "Preserve complete targets, content presence and inline trees, scalar controls, identity, roles/options and node/content locations. Block captions stay separate from inline tooltips. ID-token locations follow the source-only policy. Reject unsupported nested content and ambiguous scalar states; strict image errors remain unchanged.",
           "tests": [
-            "asg_images.rs::inline_image_metadata_and_content_are_preserved",
-            "asg_images.rs::image_text_presence_does_not_create_a_filename_fallback",
-            "asg_images.rs::block_image_alternative_content_stays_separate_from_its_caption",
+            "asg/asg_images.rs::inline_image_metadata_and_content_are_preserved",
+            "asg/asg_images.rs::image_text_presence_does_not_create_a_filename_fallback",
+            "asg/asg_images.rs::block_image_alternative_content_stays_separate_from_its_caption",
             "../src/ast/tests/asg_image_storage.rs::image_support_composes_through_every_supported_content_owner",
             "../src/ast/tests/asg_image_storage.rs::unsupported_image_content_and_scalar_states_fail_by_property",
-            "asg_images.rs::image_schema_rejects_unknown_fields_and_malformed_nested_values",
-            "asg_images.rs::standalone_image_export_checks_the_selected_profile",
+            "asg/asg_images.rs::image_schema_rejects_unknown_fields_and_malformed_nested_values",
+            "asg/asg_images.rs::standalone_image_export_checks_the_selected_profile",
             "../src/ast/tests/asg_image_storage.rs::block_image_metadata_cannot_shadow_promoted_content"
           ]
         },
@@ -6474,11 +6474,11 @@
           ],
           "handling": "Preserve span/reference IDs, ordered role tokens, reference options/scalars and tooltip content directly. Generic highlights remain distinct from marks, including present empty roles. Validate reconstructible inline target registrations and reject duplicates or stale catalogs. ID-token coordinates are source-only; nondefault xref policy and unsupported nested content still fail. Inline metadata excludes block-only fields.",
           "tests": [
-            "asg_inline_metadata.rs::source_metadata_survives_checked_export_without_changing_native_values",
-            "asg_inline_metadata.rs::empty_span_roles_preserve_generic_highlights_without_inventing_controls",
-            "asg_inline_metadata.rs::nested_unsupported_values_still_report_their_own_path",
-            "asg_inline_metadata.rs::inline_metadata_schema_rejects_block_only_and_unknown_fields",
-            "asg_inline_metadata.rs::inline_id_catalogs_keep_duplicate_and_stale_checks"
+            "asg/asg_inline_metadata.rs::source_metadata_survives_checked_export_without_changing_native_values",
+            "asg/asg_inline_metadata.rs::empty_span_roles_preserve_generic_highlights_without_inventing_controls",
+            "asg/asg_inline_metadata.rs::nested_unsupported_values_still_report_their_own_path",
+            "asg/asg_inline_metadata.rs::inline_metadata_schema_rejects_block_only_and_unknown_fields",
+            "asg/asg_inline_metadata.rs::inline_id_catalogs_keep_duplicate_and_stale_checks"
           ]
         },
         "body-attributes": {
@@ -6500,9 +6500,9 @@
           ],
           "handling": "Preserve accepted set/unset events in their existing block sequence, including nested supported bodies, independently from the end-of-header attributes. Preserve scalar presence, literal false and integer spelling; do not replay processing. Reject protected values, rejected/pending parser state and unsupported cell owners. Strict export still rejects ordered body events.",
           "tests": [
-            "asg_body_attributes.rs::body_events_keep_header_snapshot_values_and_media_order",
-            "asg_body_attributes.rs::strict_export_and_unresolved_value_errors_remain_explicit",
-            "asg_body_attributes.rs::body_event_schema_requires_separate_discriminators_and_exact_assignment_shapes",
+            "asg/asg_body_attributes.rs::body_events_keep_header_snapshot_values_and_media_order",
+            "asg/asg_body_attributes.rs::strict_export_and_unresolved_value_errors_remain_explicit",
+            "asg/asg_body_attributes.rs::body_event_schema_requires_separate_discriminators_and_exact_assignment_shapes",
             "../src/asg/attributes.rs::rejected_assignments_do_not_become_unsets"
           ]
         },
@@ -6536,10 +6536,10 @@
           ],
           "handling": "Keep paragraph/indented admonition bodies as native blocks and styled parent paragraphs as native inlines. Marked quotes retain their single marker and native blocks. Only real delimited forms carry delimiter; unknown provenance is rejected. Strict export accepts actual delimited admonitions but rejects the additional forms. No synthetic wrappers are introduced.",
           "tests": [
-            "asg_block_forms.rs::block_forms_keep_actual_markers_and_native_body_owners",
-            "asg_block_forms.rs::strict_export_accepts_real_admonition_delimiters_only",
-            "asg_block_forms.rs::unknown_forms_and_nested_unsupported_content_remain_explicit_errors",
-            "asg_block_forms.rs::block_form_schema_rejects_invented_delimiters_and_wrong_body_shapes"
+            "asg/asg_block_forms.rs::block_forms_keep_actual_markers_and_native_body_owners",
+            "asg/asg_block_forms.rs::strict_export_accepts_real_admonition_delimiters_only",
+            "asg/asg_block_forms.rs::unknown_forms_and_nested_unsupported_content_remain_explicit_errors",
+            "asg/asg_block_forms.rs::block_form_schema_rejects_invented_delimiters_and_wrong_body_shapes"
           ]
         },
         "header": {
@@ -6560,11 +6560,11 @@
           ],
           "handling": "Preserve main title and optional subtitle as separate inline arrays, including present-empty subtitle. Reuse shared metadata/content projection and reconcile header ID and document-top references with the existing combined catalog title. Author/header-attribute reconciliation remains unchanged. Strict header restrictions, independent document-level labels, aliases, stale/duplicate catalogs and unsupported nested content still reject.",
           "tests": [
-            "asg_header.rs::header_fields_remain_separate_and_references_are_reconstructible",
-            "asg_header.rs::subtitle_presence_and_prepared_content_are_not_combined_or_reparsed",
-            "asg_header.rs::strict_headers_and_unsupported_nested_content_keep_explicit_errors",
-            "asg_header.rs::header_extension_is_closed_and_keeps_content_arrays",
-            "asg_header.rs::header_catalogs_keep_stale_duplicate_and_independent_label_checks"
+            "asg/asg_header.rs::header_fields_remain_separate_and_references_are_reconstructible",
+            "asg/asg_header.rs::subtitle_presence_and_prepared_content_are_not_combined_or_reparsed",
+            "asg/asg_header.rs::strict_headers_and_unsupported_nested_content_keep_explicit_errors",
+            "asg/asg_header.rs::header_extension_is_closed_and_keeps_content_arrays",
+            "asg/asg_header.rs::header_catalogs_keep_stale_duplicate_and_independent_label_checks"
           ]
         },
         "checklists": {
@@ -6582,10 +6582,10 @@
           ],
           "handling": "An omitted checked property is an ordinary item; false is unchecked and true is checked. State stays separate from marker, principal and attachments, including nested lists and prepared ordered-list values. Callout items cannot acquire checkboxes. Original checkbox spelling is not retained in the native owner; export does not invent it. Strict export continues to reject checklist state.",
           "tests": [
-            "asg_checklists.rs::checklists_preserve_state_separately_from_item_content",
-            "asg_checklists.rs::prepared_item_state_is_independent_of_marker_and_principal",
-            "asg_checklists.rs::strict_checklists_reject_while_nested_icons_are_preserved",
-            "asg_checklists.rs::checklist_schema_rejects_wrong_states_and_callout_checkboxes"
+            "asg/asg_checklists.rs::checklists_preserve_state_separately_from_item_content",
+            "asg/asg_checklists.rs::prepared_item_state_is_independent_of_marker_and_principal",
+            "asg/asg_checklists.rs::strict_checklists_reject_while_nested_icons_are_preserved",
+            "asg/asg_checklists.rs::checklist_schema_rejects_wrong_states_and_callout_checkboxes"
           ]
         },
         "tables": {
@@ -6640,20 +6640,20 @@
           ],
           "handling": "Preserve actual delimiter, complete/delimited spans, table sections, column formats, cell block owners and literal context. Optional resolved presentation is a source-position snapshot, distinct from explicit metadata controls. Original edit defaults are not another graph value. Empty/present parts remain distinct. Positive cell spans retain original cell order across sections; inconsistent grids reject. AsciiDoc cells retain native nested blocks and ordered initial set/unset assignments. Each cell overlays inherited state locally; body events stay nested and do not leak into siblings or outer content. An owning cell has a footnotes array, including an empty one. Native JSON uses footnote_scope to mark ownership without copying definition bodies. Names are local to an owner; numbers are unique across all owners.",
           "tests": [
-            "asg_tables.rs::basic_tables_preserve_sections_cells_and_formatting",
-            "asg_tables.rs::empty_table_parts_keep_presence_and_prepared_column_values",
-            "asg_tables.rs::literal_column_context_preserves_prepared_verbatim_paragraphs",
-            "asg_tables.rs::table_decoration_keeps_source_defaults_after_prepared_metadata_edits",
-            "asg_tables.rs::strict_tables_and_invalid_ordinary_cell_blocks_reject",
-            "asg_tables.rs::table_schema_rejects_unknown_fields_wrong_types_and_zero_spans",
-            "asg_table_spans.rs::spans_preserve_order_and_header_body_footer_transitions",
-            "asg_table_spans.rs::invalid_prepared_spans_reject_at_the_owning_dimension",
-            "asg_table_spans.rs::unspecified_width_does_not_allocate_by_span_size_or_invent_cells",
-            "asg_table_spans.rs::span_schema_is_positive_and_closed_inside_parent_blocks",
-            "asg_table_cells.rs::nested_cell_blocks_and_media_events_stay_in_their_scope",
-            "asg_table_cells.rs::initial_assignments_keep_native_order_and_distinct_normalized_snapshots",
-            "asg_table_cells.rs::nested_sections_and_tables_keep_native_block_owners",
-            "asg_table_cells.rs::nested_errors_and_initial_assignment_schema_remain_precise"
+            "asg/asg_tables.rs::basic_tables_preserve_sections_cells_and_formatting",
+            "asg/asg_tables.rs::empty_table_parts_keep_presence_and_prepared_column_values",
+            "asg/asg_tables.rs::literal_column_context_preserves_prepared_verbatim_paragraphs",
+            "asg/asg_tables.rs::table_decoration_keeps_source_defaults_after_prepared_metadata_edits",
+            "asg/asg_tables.rs::strict_tables_and_invalid_ordinary_cell_blocks_reject",
+            "asg/asg_tables.rs::table_schema_rejects_unknown_fields_wrong_types_and_zero_spans",
+            "asg/asg_table_spans.rs::spans_preserve_order_and_header_body_footer_transitions",
+            "asg/asg_table_spans.rs::invalid_prepared_spans_reject_at_the_owning_dimension",
+            "asg/asg_table_spans.rs::unspecified_width_does_not_allocate_by_span_size_or_invent_cells",
+            "asg/asg_table_spans.rs::span_schema_is_positive_and_closed_inside_parent_blocks",
+            "asg/asg_table_cells.rs::nested_cell_blocks_and_media_events_stay_in_their_scope",
+            "asg/asg_table_cells.rs::initial_assignments_keep_native_order_and_distinct_normalized_snapshots",
+            "asg/asg_table_cells.rs::nested_sections_and_tables_keep_native_block_owners",
+            "asg/asg_table_cells.rs::nested_errors_and_initial_assignment_schema_remain_precise"
           ]
         },
         "footnotes": {
@@ -6681,12 +6681,12 @@
           ],
           "handling": "Strict export rejects footnotes. The named profile keeps canonical bodies once in native catalog order and links definition/reference occurrences by number and optional ID. Zero remains unresolved; stale, duplicate, cyclic and pending registrations reject without repair. Discarded definition source is diagnostic history. Standalone inline export requires document registration context.",
           "tests": [
-            "asg_footnotes.rs::registered_bodies_have_one_owner_and_occurrences_keep_identity",
-            "asg_footnotes.rs::empty_and_catalog_only_definitions_keep_number_and_presence",
-            "asg_footnotes.rs::stale_and_duplicate_registrations_reject_without_repair",
-            "asg_footnotes.rs::selected_titles_and_nested_cells_preserve_existing_registration_order",
-            "asg_footnotes.rs::canonical_body_icons_and_standalone_context_are_explicit",
-            "asg_footnotes.rs::footnote_schema_keeps_closed_bodies_and_linked_occurrences"
+            "asg/asg_footnotes.rs::registered_bodies_have_one_owner_and_occurrences_keep_identity",
+            "asg/asg_footnotes.rs::empty_and_catalog_only_definitions_keep_number_and_presence",
+            "asg/asg_footnotes.rs::stale_and_duplicate_registrations_reject_without_repair",
+            "asg/asg_footnotes.rs::selected_titles_and_nested_cells_preserve_existing_registration_order",
+            "asg/asg_footnotes.rs::canonical_body_icons_and_standalone_context_are_explicit",
+            "asg/asg_footnotes.rs::footnote_schema_keeps_closed_bodies_and_linked_occurrences"
           ]
         },
         "index-terms": {
@@ -6721,12 +6721,12 @@
           ],
           "handling": "Strict export rejects index terms. The named profile retains visible/hidden labels, absent/empty hierarchy, typed relationships and common inline controls. A distinct catalog label/location snapshot remains separate from display labels; equal captures are implicit. Captured controls are history, not a second indexing value. Export never registers or reparses labels; pending substitution plans reject.",
           "tests": [
-            "asg_index_terms.rs::labels_hierarchy_relationships_and_controls_keep_their_own_fields",
-            "asg_index_terms.rs::prepared_display_edits_keep_catalog_labels_without_reparsing",
-            "asg_index_terms.rs::absent_and_empty_hierarchy_and_relationship_targets_remain_distinct",
-            "asg_index_terms.rs::selected_titles_and_cells_keep_index_owners_and_footnote_registration",
-            "asg_index_terms.rs::icon_label_children_keep_the_nested_owner_path",
-            "asg_index_terms.rs::index_schema_closes_labels_snapshots_and_relationship_variants"
+            "asg/asg_index_terms.rs::labels_hierarchy_relationships_and_controls_keep_their_own_fields",
+            "asg/asg_index_terms.rs::prepared_display_edits_keep_catalog_labels_without_reparsing",
+            "asg/asg_index_terms.rs::absent_and_empty_hierarchy_and_relationship_targets_remain_distinct",
+            "asg/asg_index_terms.rs::selected_titles_and_cells_keep_index_owners_and_footnote_registration",
+            "asg/asg_index_terms.rs::icon_label_children_keep_the_nested_owner_path",
+            "asg/asg_index_terms.rs::index_schema_closes_labels_snapshots_and_relationship_variants"
           ]
         },
         "anchor-declarations": {
@@ -6750,12 +6750,12 @@
           ],
           "handling": "The named profile preserves ordinary inline anchors, extra block declarations and known primary-ID spans. Heading and ordinary primary selection remain distinct. Extra declarations do not imply target registration; effective block reftext remains separate from their labels. Pending and bibliography anchors reject in this slice. Strict export still rejects inline/additional anchors.",
           "tests": [
-            "asg_anchors.rs::retained_declarations_preserve_primary_selection_labels_and_locations",
-            "asg_anchors.rs::header_primary_uses_the_heading_anchor_selection",
-            "asg_anchors.rs::prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_spans",
-            "asg_anchors.rs::anchor_children_and_bibliography_keep_explicit_boundaries",
-            "asg_anchors.rs::anchor_schema_closes_declarations_and_inline_owners",
-            "asg_anchors.rs::unused_primary_anchor_label_does_not_replace_effective_reference_text"
+            "asg/asg_anchors.rs::retained_declarations_preserve_primary_selection_labels_and_locations",
+            "asg/asg_anchors.rs::header_primary_uses_the_heading_anchor_selection",
+            "asg/asg_anchors.rs::prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_spans",
+            "asg/asg_anchors.rs::anchor_children_and_bibliography_keep_explicit_boundaries",
+            "asg/asg_anchors.rs::anchor_schema_closes_declarations_and_inline_owners",
+            "asg/asg_anchors.rs::unused_primary_anchor_label_does_not_replace_effective_reference_text"
           ]
         },
         "reference-registrations": {
@@ -6775,12 +6775,12 @@
           ],
           "handling": "The named profile preserves actual registration keys, canonical targets, exported-owner pointers and known target spans. Independent alias and document-attribute labels retain resolved inlines, including absent/empty distinctions. Ordinary titles, labels and captions stay owned by tree nodes. Strict reconstructible-catalog checks remain; dangling aliases and stale owners reject.",
           "tests": [
-            "asg_reference_graph.rs::registrations_preserve_membership_and_point_to_exported_owners",
-            "asg_reference_graph.rs::prepared_alias_labels_keep_absent_empty_and_formatted_meanings",
-            "asg_reference_graph.rs::description_item_declarations_keep_separate_registered_labels",
-            "asg_reference_graph.rs::document_top_uses_resolved_labels_and_first_section_fallback",
-            "asg_reference_graph.rs::dangling_aliases_and_stale_primary_labels_are_rejected",
-            "asg_reference_graph.rs::registration_schema_is_closed_and_validates_label_and_pointer_types"
+            "asg/asg_reference_graph.rs::registrations_preserve_membership_and_point_to_exported_owners",
+            "asg/asg_reference_graph.rs::prepared_alias_labels_keep_absent_empty_and_formatted_meanings",
+            "asg/asg_reference_graph.rs::description_item_declarations_keep_separate_registered_labels",
+            "asg/asg_reference_graph.rs::document_top_uses_resolved_labels_and_first_section_fallback",
+            "asg/asg_reference_graph.rs::dangling_aliases_and_stale_primary_labels_are_rejected",
+            "asg/asg_reference_graph.rs::registration_schema_is_closed_and_validates_label_and_pointer_types"
           ]
         },
         "callout-markers": {
@@ -6801,10 +6801,10 @@
           ],
           "handling": "The named profile keeps inline marker form/number and marker spans, plus resolved list-item numbers and marker spans. Scoped parse order and equal numbers preserve association; repeated and unmatched markers remain. No destination graph is retained or invented. Strict inline markers and unrepresentable list numbers still reject.",
           "tests": [
-            "asg_callouts.rs::source_markers_numbers_locations_and_literal_code_are_preserved",
-            "asg_callouts.rs::scoped_numbers_keep_repeated_and_unmatched_associations",
-            "asg_callouts.rs::prepared_markers_do_not_renumber_or_invent_locations",
-            "asg_callouts.rs::callout_schema_closes_markers_and_scopes_item_numbers"
+            "asg/asg_callouts.rs::source_markers_numbers_locations_and_literal_code_are_preserved",
+            "asg/asg_callouts.rs::scoped_numbers_keep_repeated_and_unmatched_associations",
+            "asg/asg_callouts.rs::prepared_markers_do_not_renumber_or_invent_locations",
+            "asg/asg_callouts.rs::callout_schema_closes_markers_and_scopes_item_numbers"
           ]
         },
         "inline-breaks": {
@@ -6818,10 +6818,10 @@
           ],
           "handling": "The named profile exports semantic inline hard breaks with known provenance, distinct from plain wrapping and literal code. Configured and explicit break source forms share the native node. Content attributes recurse through the same mapping; strict upstream export rejects.",
           "tests": [
-            "asg_line_breaks.rs::semantic_breaks_keep_wrapping_literal_text_and_nested_locations",
-            "asg_line_breaks.rs::prepared_content_attributes_keep_breaks_without_markup_or_fake_locations",
-            "asg_line_breaks.rs::soft_wrapping_and_literal_plus_signs_do_not_become_breaks",
-            "asg_line_breaks.rs::inline_break_schema_is_closed_and_distinct_from_page_breaks"
+            "asg/asg_line_breaks.rs::semantic_breaks_keep_wrapping_literal_text_and_nested_locations",
+            "asg/asg_line_breaks.rs::prepared_content_attributes_keep_breaks_without_markup_or_fake_locations",
+            "asg/asg_line_breaks.rs::soft_wrapping_and_literal_plus_signs_do_not_become_breaks",
+            "asg/asg_line_breaks.rs::inline_break_schema_is_closed_and_distinct_from_page_breaks"
           ]
         },
         "typography-spans": {
@@ -6861,10 +6861,10 @@
           ],
           "handling": "The named profile keeps subscript/superscript spans and one quotation variant with explicit resolved Unicode opening/closing characters. Nested content/form/identity/roles/locations use the existing span contract. Standalone apostrophe remains canonical text; protected literal content is never reinterpreted. Strict rejects unsupported span variants.",
           "tests": [
-            "asg_typography.rs::resolved_text_and_nested_span_meaning_are_preserved",
-            "asg_typography.rs::prepared_spans_keep_metadata_empty_content_and_unknown_locations",
-            "asg_typography.rs::literal_protection_and_strict_boundaries_stay_explicit",
-            "asg_typography.rs::quotation_schema_requires_bounded_pairs_only_on_quotations"
+            "asg/asg_typography.rs::resolved_text_and_nested_span_meaning_are_preserved",
+            "asg/asg_typography.rs::prepared_spans_keep_metadata_empty_content_and_unknown_locations",
+            "asg/asg_typography.rs::literal_protection_and_strict_boundaries_stay_explicit",
+            "asg/asg_typography.rs::quotation_schema_requires_bounded_pairs_only_on_quotations"
           ]
         },
         "block-mathematics": {
@@ -6881,10 +6881,10 @@
           ],
           "handling": "The named profile reuses the stem leaf/delimited form and keeps explicit resolved notation plus exact protected formula text. Empty text is an empty body; escaping is represented by text/raw. Known block provenance and metadata remain; no formula-child span is invented. Undelimited styled paragraphs remain ordinary. Strict rejects loss of notation.",
           "tests": [
-            "asg_block_stem.rs::notation_literal_formula_and_escaping_stay_resolved",
-            "asg_block_stem.rs::prepared_formula_text_and_empty_presence_are_not_reparsed",
-            "asg_block_stem.rs::undelimited_styles_stay_paragraphs_and_strict_notation_rejects",
-            "asg_block_stem.rs::mathematical_schema_is_closed_and_rejects_prose_in_formula_bodies"
+            "asg/asg_block_stem.rs::notation_literal_formula_and_escaping_stay_resolved",
+            "asg/asg_block_stem.rs::prepared_formula_text_and_empty_presence_are_not_reparsed",
+            "asg/asg_block_stem.rs::undelimited_styles_stay_paragraphs_and_strict_notation_rejects",
+            "asg/asg_block_stem.rs::mathematical_schema_is_closed_and_rejects_prose_in_formula_bodies"
           ]
         },
         "inline-mathematics": {
@@ -6900,10 +6900,10 @@
           ],
           "handling": "The named profile keeps inline STEM placement, resolved notation, protected literal formula text and known location, reusing the block formula contract. Empty bodies stay explicit; nested formatting and content attributes recurse normally. Inline math owns normal escaping. No formula parsing, rendering or source-child spans; strict export rejects.",
           "tests": [
-            "asg_inline_stem.rs::inline_formulas_keep_placement_notation_and_literal_content",
-            "asg_inline_stem.rs::prepared_empty_and_literal_formulas_share_the_block_content_policy",
-            "asg_inline_stem.rs::nested_formulas_keep_surrounding_formatting_and_strict_rejection",
-            "asg_inline_stem.rs::inline_math_schema_rejects_block_fields_and_prose_content"
+            "asg/asg_inline_stem.rs::inline_formulas_keep_placement_notation_and_literal_content",
+            "asg/asg_inline_stem.rs::prepared_empty_and_literal_formulas_share_the_block_content_policy",
+            "asg/asg_inline_stem.rs::nested_formulas_keep_surrounding_formatting_and_strict_rejection",
+            "asg/asg_inline_stem.rs::inline_math_schema_rejects_block_fields_and_prose_content"
           ]
         },
         "interface-labels": {
@@ -6929,11 +6929,11 @@
           ],
           "handling": "The named profile keeps ordered shortcut components, button content and menu target/steps as inline arrays, including empty components and resolved nesting. Source enablement and delimiter interpretation are already resolved. Export emits no backend UI markup and invents no component spans. Strict upstream export rejects.",
           "tests": [
-            "asg_ui.rs::source_interface_labels_keep_component_order_and_nested_content",
-            "asg_ui.rs::prepared_labels_preserve_empty_components_and_inline_structure",
-            "asg_ui.rs::nested_label_errors_and_footnotes_keep_their_owners",
-            "asg_ui.rs::disabled_source_macros_and_strict_export_stay_literal_or_rejected",
-            "asg_ui.rs::interface_schema_is_closed_and_rejects_flattened_labels"
+            "asg/asg_ui.rs::source_interface_labels_keep_component_order_and_nested_content",
+            "asg/asg_ui.rs::prepared_labels_preserve_empty_components_and_inline_structure",
+            "asg/asg_ui.rs::nested_label_errors_and_footnotes_keep_their_owners",
+            "asg/asg_ui.rs::disabled_source_macros_and_strict_export_stay_literal_or_rejected",
+            "asg/asg_ui.rs::interface_schema_is_closed_and_rejects_flattened_labels"
           ]
         },
         "icons": {
@@ -6952,11 +6952,11 @@
           ],
           "handling": "The named profile keeps the icon target, separate alt/tooltip inline content, identity, roles, options and scalar controls. Document icon mode/settings remain in attributes and ordered events, including cell snapshots. Empty versus absent content survives. No asset resolution or backend markup; strict export rejects.",
           "tests": [
-            "asg_icons.rs::source_icon_modes_controls_and_content_are_preserved",
-            "asg_icons.rs::prepared_icons_keep_absent_empty_and_literal_values",
-            "asg_icons.rs::invalid_icon_children_and_controls_keep_exact_paths",
-            "asg_icons.rs::canonical_note_icon_errors_and_strict_rejection_remain_explicit",
-            "asg_icons.rs::icon_schema_is_closed_and_uses_content_and_metadata_contracts"
+            "asg/asg_icons.rs::source_icon_modes_controls_and_content_are_preserved",
+            "asg/asg_icons.rs::prepared_icons_keep_absent_empty_and_literal_values",
+            "asg/asg_icons.rs::invalid_icon_children_and_controls_keep_exact_paths",
+            "asg/asg_icons.rs::canonical_note_icon_errors_and_strict_rejection_remain_explicit",
+            "asg/asg_icons.rs::icon_schema_is_closed_and_uses_content_and_metadata_contracts"
           ]
         },
         "graph-integrity": {
@@ -6979,13 +6979,13 @@
           ],
           "handling": "Identity discovery excludes scalar attributes and captured registrations. Every exported footnote occurrence, including independent and captured labels, links to the canonical body by positive number and matching optional ID. Zero remains unresolved only as a reference. Historical body copies do not replace canonical bodies; authoritative native body/cycle checks remain. Standalone catalog-only notes still require document context.",
           "tests": [
-            "asg_integration.rs::combined_constructs_export_deterministically_without_mutation",
-            "asg_integration.rs::scalar_attributes_cannot_impersonate_identities_or_footnotes",
-            "asg_integration.rs::captured_footnotes_require_matching_canonical_links",
-            "asg_integration.rs::historical_bodies_do_not_replace_canonical_bodies_or_resolve_zero",
-            "asg_integration.rs::independent_labels_and_extra_anchors_cannot_hide_dangling_notes",
-            "asg_integration.rs::standalone_catalog_notes_still_require_document_context",
-            "asg_integration.rs::strict_and_extension_controls_distinguish_shape_from_meaning"
+            "asg/asg_integration.rs::combined_constructs_export_deterministically_without_mutation",
+            "asg/asg_integration.rs::scalar_attributes_cannot_impersonate_identities_or_footnotes",
+            "asg/asg_integration.rs::captured_footnotes_require_matching_canonical_links",
+            "asg/asg_integration.rs::historical_bodies_do_not_replace_canonical_bodies_or_resolve_zero",
+            "asg/asg_integration.rs::independent_labels_and_extra_anchors_cannot_hide_dangling_notes",
+            "asg/asg_integration.rs::standalone_catalog_notes_still_require_document_context",
+            "asg/asg_integration.rs::strict_and_extension_controls_distinguish_shape_from_meaning"
           ]
         },
         "description_groups": {
@@ -7016,9 +7016,9 @@
           ],
           "handling": "Retain ordered term content once, paired term metadata with independent identities, optional principal presence, and one shared block collection. Known source locations are retained; unknown constructed locations follow the existing omission policy. Upstream retains terms/principal/blocks and rejects per-term identities, differing markers, and an explicitly empty definition.",
           "tests": [
-            "asg_description_groups.rs::description_exports_keep_term_order_and_definition_presence",
-            "asg_description_groups.rs::constructed_empty_definitions_and_term_identities_need_named_export",
-            "asg_description_groups.rs::named_description_metadata_is_closed_and_checks_definition_presence"
+            "asg/asg_description_groups.rs::description_exports_keep_term_order_and_definition_presence",
+            "asg/asg_description_groups.rs::constructed_empty_definitions_and_term_identities_need_named_export",
+            "asg/asg_description_groups.rs::named_description_metadata_is_closed_and_checks_definition_presence"
           ]
         }
       }

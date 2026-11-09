@@ -579,7 +579,7 @@ It has not been submitted upstream and does not change either export contract.
 
 The parser tests run every source fixture in both compatibility modes. Expected
 JSON records the selected language behavior; it is not an upstream-schema claim.
-`tests/attribute_contract.rs` checks a compact set across public reads, native JSON
+`tests/asg/attribute_contract.rs` checks a compact set across public reads, native JSON
 and checked ASG: introduced title formatting, caption prefixes, literal quote
 content, declaration snapshots, image text, selected-only footnotes and empty
 versus absent values. A deliberately wrong title still passes the schema and

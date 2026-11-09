@@ -1804,6 +1804,22 @@ acdc keeps the same decoder across reads, so BOM detection also works with `line
 Asciidoctor 2.0.26 uses a separate line reader for selections.
 Its UTF-16 behavior differs when only a BOM specifies the encoding.
 
+== Parser integration suites
+
+Related tests are grouped in `tests/<suite>/`, with one automatically discovered
+target per suite: `attributes`, `blocks`, `inlines`, `substitutions`, `references`,
+`preprocessor`, `read_api`, `editing`, and `asg`. Each original test file remains
+a module, so cases are independently selectable through nextest filters:
+
+[source,console]
+----
+cargo nextest run -p acdc-parser --all-features --test substitutions -E 'test(/^typography_arrows::/)'
+----
+
+Add new modules to the appropriate suite's `main.rs`. Allocation measurements,
+tracing tests, fixture support tests, and custom harnesses remain separate targets
+to preserve their isolation. The fixture runner's case names are unchanged.
+
 [#parser-fixtures]
 == Parser fixtures
 

@@ -1,0 +1,35 @@
+//! Parser integration tests for read api.
+
+mod native_json_projection;
+mod native_json_values;
+mod read_ast;
+mod read_ast_admonition_body;
+mod read_ast_attributes;
+mod read_ast_block_attributes;
+mod read_ast_blocks;
+mod read_ast_caption_kinds;
+mod read_ast_caption_resolution;
+mod read_ast_common_hyperlinks;
+mod read_ast_content_occurrences;
+mod read_ast_document;
+mod read_ast_hyperlinks;
+mod read_ast_icons;
+mod read_ast_index_terms;
+mod read_ast_json;
+mod read_ast_list_iterators;
+mod read_ast_lists;
+mod read_ast_media_boundaries;
+mod read_ast_notes;
+mod read_ast_span_role_text;
+mod read_ast_spans;
+mod read_ast_substitutions;
+mod read_ast_table_images;
+mod read_ast_table_presentation;
+mod read_ast_table_source;
+mod read_ast_text;
+mod read_ast_traversal;
+mod read_ast_ui;
+mod read_ast_video_owned;
+mod read_ast_xrefs;
+mod read_contract;
+mod read_laws;

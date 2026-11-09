@@ -1,0 +1,30 @@
+//! Parser integration tests for attributes.
+
+mod attribute_aggregation;
+mod attribute_boundaries;
+mod attribute_brace_escapes;
+mod attribute_configuration;
+mod attribute_continuation;
+mod attribute_first_code;
+mod attribute_mapping;
+mod attribute_shorthand;
+mod content_attributes;
+mod decoded_element_attributes;
+mod document_attribute_aliases;
+mod document_attribute_content_boundary;
+mod document_attribute_formatted;
+mod document_attribute_locking;
+mod document_attribute_media_insertion;
+mod document_attribute_pass;
+mod document_attribute_quotes;
+mod document_attribute_source_order;
+mod document_attribute_text_pass;
+mod document_control_quotes;
+mod formatted_attribute_order;
+mod header_metadata;
+mod inline_attribute_order;
+mod inline_unicode_attributes;
+mod intrinsic_document_attributes;
+mod metadata_construction;
+mod metadata_text_boundaries;
+mod token_presence;

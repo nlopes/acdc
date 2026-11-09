@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Parser contributors can select regression suites by area with `--test`, such as
+  `--test substitutions` or `--test read_api`, while retaining individual nextest
+  case filters and separate allocation measurements.
+
 - Prepared-tree editing guidance now specifies footnote repair before reference/TOC
   repair, followed by caption repair, so restored footnote anchors and reference
   caption snapshots stay consistent. Each repair is atomic on error; the sequence

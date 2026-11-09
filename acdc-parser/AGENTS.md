@@ -62,6 +62,19 @@ Trace module mapping (use with a focused nextest test):
 - Test contains "preprocess"/"include" → `acdc_parser::preprocessor=trace`
 - Default → `acdc_parser::grammar::document=trace`
 
+## Integration suites
+
+Related public API and regression tests live in `tests/<suite>/`, with each
+suite registered automatically through its `main.rs`. Select a suite with
+`--test attributes`, `--test blocks`, `--test inlines`, `--test substitutions`,
+`--test references`, `--test preprocessor`, `--test read_api`, `--test editing`,
+or `--test asg`. Original filenames remain module names, so a stable nextest
+filter such as `-E 'test(/^typography_arrows::/)'` selects a regression family.
+
+Keep allocation-sensitive tests, tracing tests, and custom harnesses as separate
+top-level test targets. Put other new tests in the appropriate suite and register
+their module in that suite's `main.rs`. Do not disable Cargo test discovery.
+
 ## Fixtures
 
 Put supporting include inputs in `fixtures/tests/includes/` with the `.adoc`

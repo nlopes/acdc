@@ -1,0 +1,31 @@
+//! Parser integration tests for blocks.
+
+mod admonition_source_forms;
+mod block_passthroughs;
+mod callout_nested_lists;
+mod compatibility_setext;
+mod delimited_block_styles;
+mod description_groups;
+mod description_line_boundaries;
+mod discrete_heading_styles;
+mod heading_marker_boundaries;
+mod list_continuation_comments;
+mod list_interruption;
+mod ordinary_description_nesting;
+mod page_break_boundaries;
+mod paragraph_styles;
+mod section_numbering;
+mod standalone_callouts;
+mod styled_block_boundaries;
+mod styled_image_macros;
+mod styled_indented;
+mod styled_open_blocks;
+mod table_asciidoc_cells;
+mod table_cell_footnotes;
+mod table_cell_spans;
+mod table_column_values;
+mod table_plain_paragraphs;
+mod table_presentation;
+mod table_resource_limits;
+mod unterminated_tables;
+mod verse_inline_content;

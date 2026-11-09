@@ -91,7 +91,7 @@ formatted quote attribution/citation, image alt and tooltip text, an image in a
 block title, a formatted custom caption, and a block image. Its paired native JSON
 expectations show the two compatibility modes. They do not claim ASG conformance.
 
-`tests/asg_proposal.rs` applies the exact patches in memory. It demonstrates
+`tests/asg/asg_proposal.rs` applies the exact patches in memory. It demonstrates
 rejection by the pinned schema, acceptance by the proposal, and rejection of
 unknown properties, scalar content fields, malformed images and contradictory
 caption states. It also maps the example's acdc graph into the proposed shape and
