@@ -527,17 +527,14 @@ fn run_markdown_fixture(path: &Path, label: &str) -> Result<(), Error> {
 }
 
 /// Parses the input `.adoc` file, converts to Markdown (GFM), and compares with expected output.
-/// Excludes commonmark_* files which have their own test function.
+/// Excludes `commonmark_*` files during discovery; they have their own test function.
 #[rstest::rstest]
 #[tracing_test::traced_test]
-fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
-    let stem = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .ok_or("Invalid fixture file name")?;
-    if stem.starts_with("commonmark_") {
-        return Ok(());
-    }
+fn test_gfm_fixtures(
+    #[files("tests/fixtures/source/*.adoc")]
+    #[exclude(r"/commonmark_[^/]+\.adoc$")]
+    path: PathBuf,
+) -> Result<(), Error> {
     run_markdown_fixture(&path, "Markdown")
 }
 
