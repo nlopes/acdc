@@ -1,5 +1,1 @@
-[%interactive]
-* [x] Lowercase
-* [X] Uppercase
-* [*] Star
-* [ ] Unchecked
+../../html/embedded/interactive_checklists_markers.adoc

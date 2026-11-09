@@ -1,4 +1,1 @@
-[quote, https://example.com/docs[Example Docs]]
-____
-This is a quote with a URL citation.
-____
+../../html/embedded/quote_block_with_url_citation.adoc

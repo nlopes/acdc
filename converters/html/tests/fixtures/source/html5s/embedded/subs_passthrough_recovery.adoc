@@ -1,11 +1,1 @@
-Quotes then escaping: pass:q,c[<mark>*Bold*</mark>].
-
-Macros then escaping: pass:m,c[https://example.org[Site\]].
-
-Unknown: pass:typo[<script>unsafe</script> *Text*].
-
-Callouts: pass:callouts[<1>].
-
-Valid quotes: pass:c,q[<tag> *Bold*].
-
-Protected: +pass:q,c[*Text*]+.
+../../html/embedded/subs_passthrough_recovery.adoc

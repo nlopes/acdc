@@ -1,13 +1,1 @@
-= Equations
-:stem: latexmath
-:stylesheet!:
-:webfonts!:
-:eqnums: all
-:eqnums!:
-
-Inline latexmath:[x + 1].
-
-[latexmath]
-++++
-x = 2
-++++
+../../html/standalone/equation_numbering_unset.adoc

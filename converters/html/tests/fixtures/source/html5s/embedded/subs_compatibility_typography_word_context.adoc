@@ -1,13 +1,1 @@
-= Typography word context
-:lead: Sam
-:tail: s
-:empty:
-
-[subs="specialchars,replacements,attributes"]
-{lead}'s; Sam'{tail}; {lead}'{tail}; Sam{empty}'s; Sam'{empty}s; é'{tail}.
-
-[subs="specialchars,attributes,replacements"]
-{lead}'s; Sam'{tail}; {lead}'{tail}; Sam{empty}'s; Sam'{empty}s; é'{tail}.
-
-[subs="specialchars,replacements,attributes,replacements"]
-{lead}'s; Sam'{tail}; {lead}'{tail}; Sam{empty}'s; Sam'{empty}s; é'{tail}.
+../../html/embedded/subs_compatibility_typography_word_context.adoc

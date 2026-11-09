@@ -1,9 +1,1 @@
-== Parent
-
-[discrete]
-==== Discrete via Style
-
-body under discrete
-
-[float]
-==== Float Heading
+../../html/embedded/discrete_heading_styles.adoc

@@ -1,13 +1,1 @@
-= Visible title
-Author Name
-v1.0, 2026-11-06
-:stylesheet!:
-:webfonts!:
-:toc:
-:nofooter: yes
-
-Body footnote:[A note.].
-
-== Section
-
-Content.
+../../html/standalone/output_suppression_footer.adoc

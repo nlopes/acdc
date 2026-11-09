@@ -1,10 +1,1 @@
-= Empty bibliography labels
-
-[bibliography]
-* [[[automatic]]] An automatic label.
-* [[[empty,]]] An explicitly empty label.
-* [[[space, ]]] One space.
-* [[[spaces,  ]]] Two spaces.
-* [[[padded, café ]]] A padded Unicode label.
-
-See <<automatic>>, <<empty>>, <<space>>, <<spaces>>, and <<padded>>.
+../../html/embedded/empty_bibliography_labels.adoc

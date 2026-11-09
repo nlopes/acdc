@@ -1,8 +1,1 @@
-----
-first <1>
-second <2>
-----
-<1> First *explanation*.
-+
-Attached paragraph.
-<2> Second explanation.
+../../../../html/tests/fixtures/source/html/embedded/callout_list_continuation.adoc

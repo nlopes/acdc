@@ -1,12 +1,1 @@
-= Literal False Part Numbers
-:doctype: book
-:partnums: false
-:sectnums:
-
-The part number value is {partnums}.
-
-= Foundations
-
-== First Chapter
-
-Chapter body.
+../../../../html/tests/fixtures/source/html/embedded/book_parts_literal_false.adoc

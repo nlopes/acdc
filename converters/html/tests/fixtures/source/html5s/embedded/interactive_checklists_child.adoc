@@ -1,5 +1,1 @@
-* [x] Parent
-+
-[%interactive]
-** [x] Child
-** [ ] Child empty
+../../html/embedded/interactive_checklists_child.adoc

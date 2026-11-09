@@ -1,11 +1,1 @@
-= Inline math spacing
-:stem:
-
-Before stem:[x^2], after stem:[y]! Adjacent stem:[a]stem:[b].
-
-LaTeX latexmath:[x^2], then latexmath:[y]! Escaped latexmath:[a < b].
-
-[stem]
-++++
-x^2
-++++
+../../html/embedded/stem_punctuation.adoc

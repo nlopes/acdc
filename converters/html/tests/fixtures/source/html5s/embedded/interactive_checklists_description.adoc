@@ -1,5 +1,1 @@
-Term::
-+
-[%interactive]
-* [x] Attached
-* [ ] Attached empty
+../../html/embedded/interactive_checklists_description.adoc

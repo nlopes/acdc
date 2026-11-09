@@ -1,10 +1,1 @@
-. Parent
-[[nested-child]]
-[loweralpha,start=3,role=child-role,options=reversed]
-.. Child C
-.. Child D
-
-. Parent
-[[nested-unordered-child]]
-[square,role=child-role]
-  * Child
+../../html/embedded/nested_list_metadata.adoc

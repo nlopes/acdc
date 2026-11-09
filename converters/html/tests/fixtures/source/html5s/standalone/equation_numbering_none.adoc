@@ -1,12 +1,1 @@
-= Equations
-:stem: latexmath
-:stylesheet!:
-:webfonts!:
-:eqnums: none
-
-Inline latexmath:[x + 1].
-
-[latexmath]
-++++
-x = 2
-++++
+../../html/standalone/equation_numbering_none.adoc

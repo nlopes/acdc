@@ -1,6 +1,1 @@
-= Compatibility mode
-:compat-mode:
-
-mailto:compat@example.org[Label,Subject,Body]
-
-mailto:compat@example.org[,Subject]
+../../html/embedded/mailto_query_compat.adoc

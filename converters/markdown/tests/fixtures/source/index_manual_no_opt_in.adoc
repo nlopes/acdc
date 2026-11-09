@@ -1,14 +1,1 @@
-= Manual
-
-== Body
-
-Visible ((Alpha)) and hidden (((Hidden))).
-
-[index]
-== Index
-
-Editorial note.
-
-== Later
-
-Visible ((Zulu)).
+../../../../html/tests/fixtures/source/html/embedded/index_manual_no_opt_in.adoc

@@ -1,4 +1,1 @@
-. Parent
-[loweralpha,start=3]
-.. Child C
-.. Child D
+../../../../manpage/tests/fixtures/source/embedded/nested_list_metadata.adoc

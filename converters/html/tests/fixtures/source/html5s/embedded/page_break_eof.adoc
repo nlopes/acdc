@@ -1,16 +1,1 @@
-Before café 😀.
-
-<<<
-After the first break.
-
-<<<<
-
-Inline <<< stays text.
-
-<<< after stays text.
-
- <<<
-
-.Last page
-[#last.print,options=custom]
-<<<
+../../html/embedded/page_break_eof.adoc

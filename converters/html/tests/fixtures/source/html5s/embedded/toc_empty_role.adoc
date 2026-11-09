@@ -1,17 +1,1 @@
-= Presence
-:toc: macro
-:toc-class: configured
-
-== Heading
-
-.Absent
-toc::[]
-
-.Empty
-toc::[role=""]
-
-.Populated
-toc::[role="custom"]
-
-[.preceding]
-toc::[role=""]
+../../html/embedded/toc_empty_role.adoc
