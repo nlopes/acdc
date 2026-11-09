@@ -72,6 +72,9 @@ pub use token_assignment::TokenAssignment;
 /// [`Self::rebuild_captions`] to refresh the corresponding prepared catalogs.
 /// Use [`Self::rebuild_footnotes`] for prepared note registrations and
 /// [`Self::rebuild_author_attributes`] for author-derived header assignments.
+/// When composing repairs after structural edits, rebuild footnotes first,
+/// references and TOC second, and captions last. Each repair is atomic on error;
+/// the sequence is not a transaction.
 /// Reparse source to recompute declaration-order attribute snapshots.
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]

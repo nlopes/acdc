@@ -194,8 +194,19 @@ the explicit operation you need:
 
 These operations do not reinterpret source. Reference, caption, and footnote
 rebuilds return an error without partial changes when required prepared context
-is missing or a binding is ambiguous. Rebuild reference membership before caption
-snapshots after structural edits. There is no general source-level attribute editor.
+is missing or a binding is ambiguous. When composing repairs after structural edits,
+run them in this order:
+
+1. `rebuild_footnotes()` can restore a retained definition body into a surviving
+   occurrence, including anchors in that body.
+2. `rebuild_references_and_toc()` discovers those anchors and repairs target and
+   TOC membership.
+3. `rebuild_captions()` refreshes caption ordinals and their snapshots on the
+   rebuilt references.
+
+Each call is atomic on error; the sequence is not a transaction. If a later repair
+fails, earlier successful repairs remain applied. There is no general source-level
+attribute editor.
 
 ### Choosing reads for a consumer
 

@@ -78,8 +78,9 @@ impl Document<'_> {
     ///
     /// Only caption fields change. A removed target loses its caption snapshot;
     /// reference membership, titles, TOC, footnotes and index registrations stay
-    /// unchanged. Use [`Self::rebuild_references_and_toc`] to repair membership
-    /// after structural edits. Aliases receive their canonical target's caption.
+    /// unchanged. After structural edits, run [`Self::rebuild_footnotes`] and then
+    /// [`Self::rebuild_references_and_toc`] before this operation when those catalogs
+    /// need repair. Aliases receive their canonical target's caption.
     ///
     /// # Errors
     /// Returns an error without changing the document if a caption-capable block

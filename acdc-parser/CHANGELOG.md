@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Prepared-tree editing guidance now specifies footnote repair before reference/TOC
+  repair, followed by caption repair, so restored footnote anchors and reference
+  caption snapshots stay consistent. Each repair is atomic on error; the sequence
+  is not a transaction.
+
 - Faster parsing of documents that produce many warnings, including repeated
   explicit IDs. Warning contents, order, and source locations are preserved.
 

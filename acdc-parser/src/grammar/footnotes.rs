@@ -348,7 +348,9 @@ impl Document<'_> {
     /// body and later occurrences become references. Empty definitions remain present.
     /// Source spans and declaration snapshots stay unchanged. Derived copies are not
     /// counted, but their retained number bindings are refreshed where available.
-    /// Rebuild reference/TOC and caption catalogs separately after structural edits.
+    /// After structural edits, run this before [`Self::rebuild_references_and_toc`]
+    /// so anchors in restored definition bodies can be discovered. Run
+    /// [`Self::rebuild_captions`] after reference repair to refresh caption snapshots.
     ///
     /// # Errors
     /// Missing or ambiguous definitions or owner bindings, cycles, and number

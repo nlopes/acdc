@@ -194,6 +194,10 @@ impl Document<'_> {
     /// Document `reftext` retains its prepared declaration snapshot. Caption,
     /// footnote, index and author registrations remain unchanged.
     ///
+    /// After structural edits, run [`Self::rebuild_footnotes`] first: it can restore
+    /// definition bodies containing anchors. Run [`Self::rebuild_captions`] afterward
+    /// to refresh caption ordinals and their snapshots on the rebuilt references.
+    ///
     /// # Errors
     /// Returns an error without changing the document if a section has no assigned
     /// or explicit ID, or a document reference label lacks prepared attribute context.
