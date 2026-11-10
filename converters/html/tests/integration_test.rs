@@ -360,19 +360,19 @@ fn resolved_xml_delimiters_survive_plain_and_highlighted_rendering() -> Result<(
             vec![("source-highlighter", AttributeValue::Bool(false))],
             vec![(
                 "source-highlighter",
-                AttributeValue::String("syntect".into()),
+                AttributeValue::String("giallo".into()),
             )],
             vec![
                 (
                     "source-highlighter",
-                    AttributeValue::String("syntect".into()),
+                    AttributeValue::String("giallo".into()),
                 ),
                 ("highlight-css", AttributeValue::String("class".into())),
             ],
             vec![
                 (
                     "source-highlighter",
-                    AttributeValue::String("syntect".into()),
+                    AttributeValue::String("giallo".into()),
                 ),
                 (
                     "highlight-style",
@@ -423,7 +423,7 @@ fn highlighted_callouts_preserve_plain_code_text_and_targets(
         ] {
             settings.push((
                 "source-highlighter",
-                AttributeValue::String("syntect".into()),
+                AttributeValue::String("giallo".into()),
             ));
             let output = convert_string_with_variant(&source, &settings, variant)?;
             assert_eq!(
@@ -487,21 +487,21 @@ fn quote_titles_keep_macro_targets_once() -> Result<(), Error> {
 
 #[rstest::rstest]
 #[case::absent("= T\n\n", false, false)]
-#[case::named("= T\n:source-highlighter: syntect\n\n", true, false)]
+#[case::named("= T\n:source-highlighter: giallo\n\n", true, false)]
 #[case::empty("= T\n:source-highlighter:\n\n", true, false)]
 #[case::unset(
     "= T\n:source-highlighter: rouge\n:source-highlighter!:\n\n",
     false,
     false
 )]
-#[case::caller_unset("= T\n:source-highlighter: syntect\n\n", false, true)]
-#[case::verbatim("= T\n\n----\n:source-highlighter: syntect\n----\n\n", false, false)]
+#[case::caller_unset("= T\n:source-highlighter: giallo\n\n", false, true)]
+#[case::verbatim("= T\n\n----\n:source-highlighter: giallo\n----\n\n", false, false)]
 #[case::comment(
-    "= T\n\nParagraph.\n\n////\n:source-highlighter: syntect\n////\n\n",
+    "= T\n\nParagraph.\n\n////\n:source-highlighter: giallo\n////\n\n",
     false,
     false
 )]
-#[case::body("= T\n\nParagraph.\n\n:source-highlighter: syntect\n\n", false, false)]
+#[case::body("= T\n\nParagraph.\n\n:source-highlighter: giallo\n\n", false, false)]
 fn fixture_expectations_follow_effective_header_highlighter(
     #[case] prefix: &str,
     #[case] highlighter: bool,
@@ -903,7 +903,7 @@ fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
 fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Result<(), Error> {
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for mode in ["inline", "class", "fallback"] {
-            let input = ":acdc-index:\n:source-highlighter: syntect\n\n\
+            let input = ":acdc-index:\n:source-highlighter: giallo\n\n\
                 [source,text,subs=\"specialchars,macros,replacements\"]\n----\n\
                 prefixindexterm:[Hidden]indexterm2:[--]tail link:https://next.example/context[Next]\n\
                 prefixindexterm2:[--]tail link:https://next.example/second[Second]\n\
@@ -1025,7 +1025,6 @@ fn class_highlighting_fixtures_select_class_spans(#[case] stem: &str) -> Result<
 #[cfg(feature = "highlighting")]
 #[rstest::rstest]
 #[case::primary("subs_highlight_attributes", true)]
-#[case::deprecated("subs_highlight_attributes_legacy", true)]
 #[case::unset("subs_highlight_attributes_unset", false)]
 fn highlight_attribute_fixtures_preserve_mode_and_targets(
     #[case] stem: &str,
@@ -1182,7 +1181,7 @@ fn highlighted_index_catalog_follows_source_occurrences() -> Result<(), Error> {
 #[cfg(feature = "highlighting")]
 #[test]
 fn visible_index_typography_keeps_registration_labels_and_source_order() -> Result<(), Error> {
-    let input = ":source-highlighter: syntect\n:acdc-index:\n\n\
+    let input = ":source-highlighter: giallo\n:acdc-index:\n\n\
         [source,rust,subs=\"+macros,+replacements\"]\n----\n\
         (((Hidden first)))indexterm2:[One (C)] https://next.example[Next]\n\
         indexterm2:[Two (R)](((Hidden last)))\n----\n\n[index]\n== Index\n";
@@ -1801,135 +1800,6 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     Ok(())
 }
 
-#[rstest::rstest]
-#[case::primary(
-    "= T\n:source-highlighter: syntect\n:highlight-css: class\n:highlight-style: github-light\n\nLiteral syntect-css and syntect-style.\n",
-    false,
-    &[]
-)]
-#[case::unrelated("= T\n:syntect-custom: value\n\nParagraph.\n", false, &[])]
-#[case::css("= T\n:syntect-css: class\n\nParagraph.\n", false, &[("syntect-css", "highlight-css")])]
-#[case::style("= T\n:syntect-style:\n\nParagraph.\n", false, &[("syntect-style", "highlight-style")])]
-#[case::overridden(
-    include_str!("fixtures/source/html/embedded/subs_highlight_attributes.adoc"),
-    false,
-    &[("syntect-css", "highlight-css"), ("syntect-style", "highlight-style")]
-)]
-#[case::unsets(
-    "= T\n:syntect-css!:\n:!syntect-style:\n\nParagraph.\n",
-    false,
-    &[("syntect-css", "highlight-css"), ("syntect-style", "highlight-style")]
-)]
-#[case::body(
-    include_str!("fixtures/source/html/embedded/highlight_attribute_deprecations.adoc"),
-    false,
-    &[("syntect-css", "highlight-css"), ("syntect-style", "highlight-style")]
-)]
-#[case::nested_cells(
-    include_str!("fixtures/source/html/embedded/highlight_attribute_deprecations_nested.adoc"),
-    false,
-    &[("syntect-css", "highlight-css"), ("syntect-style", "highlight-style")]
-)]
-#[case::caller(
-    "= T\n\nParagraph.\n",
-    true,
-    &[("syntect-css", "highlight-css"), ("syntect-style", "highlight-style")]
-)]
-fn deprecated_highlight_attributes_warn_once_per_conversion(
-    #[case] input: &str,
-    #[case] caller_aliases: bool,
-    #[case] expected: &[(&str, &str)],
-) -> Result<(), Error> {
-    let mut options = ParserOptions::builder();
-    if caller_aliases {
-        options = options
-            .with_attribute("syntect-css", "class")
-            .with_attribute("syntect-style", "github-light");
-    }
-    let parsed = parse(input, &options.build()?)?;
-    let doc = parsed.document();
-    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let converter = Converter::new_with_variant(
-            ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(
-                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
-            ),
-            variant,
-        )?;
-        let source = converter.warning_source();
-        for embedded in [false, true] {
-            let mut warnings = Vec::new();
-            for conversion in 1..=2 {
-                let mut output = Vec::new();
-                let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-                converter.convert_to_writer(
-                    doc,
-                    &mut output,
-                    &RenderOptions {
-                        embedded,
-                        ..RenderOptions::default()
-                    },
-                    &mut diagnostics,
-                )?;
-                let attribute_warnings = warnings
-                    .iter()
-                    .filter(|warning| warning.message.starts_with("attribute `"))
-                    .collect::<Vec<_>>();
-                assert_eq!(
-                    attribute_warnings.len(),
-                    expected.len() * conversion,
-                    "{warnings:?}"
-                );
-                for (warning, (alias, primary)) in
-                    attribute_warnings.iter().zip(expected.iter().cycle())
-                {
-                    assert_eq!(warning.source, source);
-                    assert_eq!(
-                        warning.message,
-                        format!("attribute `{alias}` is deprecated")
-                    );
-                    assert_eq!(
-                        warning.advice(),
-                        Some(format!("Use `{primary}` instead.").as_str())
-                    );
-                }
-                assert!(!String::from_utf8(output)?.contains("is deprecated"));
-            }
-        }
-    }
-    Ok(())
-}
-
-#[test]
-fn deprecated_highlight_warnings_are_returned_in_conversion_result() -> Result<(), Error> {
-    let parsed = parse(
-        include_str!("fixtures/source/html/embedded/highlight_attribute_deprecations.adoc"),
-        &ParserOptions::default(),
-    )?;
-    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let temp = tempfile::tempdir()?;
-        let converter = Converter::new_with_variant(
-            ConverterOptions::builder().embedded(true).build(),
-            ParserOptions::builder().with_attributes(
-                acdc_parser::DocumentAttributes::from(parsed.document().attributes()).into_inputs(),
-            ),
-            variant,
-        )?;
-        let result = converter.convert_to_file(
-            parsed.document(),
-            None,
-            &temp.path().join("document.html"),
-        )?;
-        assert_eq!(result.warnings().len(), 2);
-        assert!(result.warnings().iter().all(|warning| {
-            warning.source == converter.warning_source()
-                && warning.message.contains("is deprecated")
-                && warning.advice().is_some()
-        }));
-    }
-    Ok(())
-}
-
 #[test]
 fn id_only_highlight_renders_as_a_plain_target_span() -> Result<(), Error> {
     let html = convert_string("[#mark-id]#marked text#\n", &[])?;
@@ -2307,49 +2177,50 @@ mod syntax_highlighting {
     }
 
     #[rstest::rstest]
-    #[case("InspiredGitHub", "github-light")]
-    #[case("Solarized (dark)", "solarized-dark")]
-    #[case("Solarized (light)", "solarized-light")]
-    #[case("base16-eighties.dark", "github-dark")]
-    #[case("base16-ocean.dark", "github-dark")]
-    #[case("base16-mocha.dark", "github-dark")]
-    #[case("base16-ocean.light", "github-light")]
-    #[case("missing-theme", "github-light")]
-    fn old_and_unknown_themes_warn_without_disabling_highlighting(
-        #[case] requested: &str,
-        #[case] replacement: &str,
-        #[values("highlight-style", "syntect-style")] attribute: &str,
+    fn unknown_themes_warn_without_disabling_highlighting(
         #[values("inline", "class")] mode: &str,
         #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
     ) -> Result<(), Error> {
         let input = format!("{SOURCE_BLOCK}\n{SOURCE_BLOCK}");
         let attributes = [
-            (attribute, AttributeValue::String(requested.into())),
+            (
+                "highlight-style",
+                AttributeValue::String("missing-theme".into()),
+            ),
             ("highlight-css", AttributeValue::String(mode.into())),
         ];
         let (actual, warnings) = convert_string_with_warnings(&input, &attributes, variant)?;
         let expected = convert_string_with_variant(
             &input,
-            &[
-                (
-                    "highlight-style",
-                    AttributeValue::String(replacement.into()),
-                ),
-                ("highlight-css", AttributeValue::String(mode.into())),
-            ],
+            &[("highlight-css", AttributeValue::String(mode.into()))],
             variant,
         )?;
         assert_eq!(actual, expected);
-        let expected_warnings = if attribute == "syntect-style" { 2 } else { 1 };
-        assert_eq!(warnings.len(), expected_warnings, "{warnings:?}");
-        let warning = warnings
-            .iter()
-            .find(|warning| warning.message.contains(requested))
-            .ok_or("missing theme warning")?;
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        let warning = warnings.first().ok_or("missing theme warning")?;
         assert_eq!(warning.source.converter, "html");
-        assert!(warning.message.contains(requested), "{warning:?}");
-        assert!(warning.message.contains(replacement), "{warning:?}");
+        assert!(warning.message.contains("missing-theme"), "{warning:?}");
+        assert!(warning.message.contains("github-light"), "{warning:?}");
         assert!(warning.advice().is_some(), "{warning:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn unrecognized_highlighting_attributes_are_ignored() -> Result<(), Error> {
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let expected = convert_string_with_variant(SOURCE_BLOCK, &[], variant)?;
+            let attributes = [
+                (
+                    "syntect-style",
+                    AttributeValue::String("solarized-dark".into()),
+                ),
+                ("syntect-css", AttributeValue::String("class".into())),
+            ];
+            let (actual, warnings) =
+                convert_string_with_warnings(SOURCE_BLOCK, &attributes, variant)?;
+            assert_eq!(actual, expected);
+            assert!(warnings.is_empty(), "{warnings:?}");
+        }
         Ok(())
     }
 
@@ -2406,14 +2277,12 @@ mod syntax_highlighting {
         "solarized-dark",
         "class"
     )]
-    fn explicit_primary_settings_override_legacy_aliases(
+    fn highlight_settings_use_defaults_for_empty_or_unset_values(
         #[case] primary: &str,
         #[case] theme: &str,
         #[case] mode: &str,
     ) -> Result<(), Error> {
-        let input = format!(
-            "{primary}:syntect-style: Solarized (light)\n:syntect-css: class\n{SOURCE_BLOCK}"
-        );
+        let input = format!("{primary}{SOURCE_BLOCK}");
         let (actual, warnings) = convert_string_with_warnings(&input, &[], HtmlVariant::Standard)?;
         let expected = convert_string(
             &input,
@@ -2423,7 +2292,7 @@ mod syntax_highlighting {
             ],
         )?;
         assert_eq!(actual, expected);
-        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }
 
@@ -2437,39 +2306,21 @@ fn main() {
 ----
 "#;
 
-    #[rstest::rstest]
-    #[case::primary("highlight-css", "highlight-style")]
-    #[case::deprecated("syntect-css", "syntect-style")]
-    #[case::mixed_css("highlight-css", "syntect-style")]
-    #[case::mixed_style("syntect-css", "highlight-style")]
-    fn highlight_aliases_preserve_rendering_and_written_stylesheets(
-        #[case] css: &str,
-        #[case] style: &str,
-    ) -> Result<(), Error> {
+    #[test]
+    fn linked_highlight_stylesheet_matches_embedded_theme() -> Result<(), Error> {
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let attributes = [
-                (css, AttributeValue::String("class".into())),
-                (style, AttributeValue::String("solarized-dark".into())),
+                ("highlight-css", AttributeValue::String("class".into())),
+                (
+                    "highlight-style",
+                    AttributeValue::String("solarized-dark".into()),
+                ),
             ];
-            let canonical = convert_string_with_variant(
-                SOURCE_BLOCK,
-                &[
-                    ("highlight-css", AttributeValue::String("class".into())),
-                    (
-                        "highlight-style",
-                        AttributeValue::String("solarized-dark".into()),
-                    ),
-                ],
-                variant,
-            )?;
-            let output = convert_string_with_variant(SOURCE_BLOCK, &attributes, variant)?;
-            assert_eq!(output, canonical, "{css}/{style}: {variant}");
-            assert!(output.contains("class=\"syntax-"), "{output}");
-
+            let canonical = convert_string_with_variant(SOURCE_BLOCK, &attributes, variant)?;
             let temp = tempfile::tempdir()?;
             let path = temp.path().join("document.html");
             let parser_options = ParserOptions::builder()
-                .with_attributes(attributes.into_iter())
+                .with_attributes(attributes)
                 .with_attribute("linkcss", true)
                 .with_attribute("stylesdir", "css")
                 .build()?;
@@ -2492,86 +2343,20 @@ fn main() {
                 linked.contains("href=\"css/acdc-highlight.css\""),
                 "{linked}"
             );
-            assert!(!linked.contains("acdc-syntect.css"), "{linked}");
-            assert!(!temp.path().join("css/acdc-syntect.css").exists());
             let written_css = read_to_string(temp.path().join("css/acdc-highlight.css"))?;
             assert!(
                 canonical.contains(&written_css),
                 "written theme differs from embedded theme"
             );
-            assert_eq!(
-                warnings.len(),
-                [css, style]
-                    .iter()
-                    .filter(|name| name.starts_with("syntect-"))
-                    .count(),
-                "{warnings:?}"
-            );
-        }
-        Ok(())
-    }
-
-    #[rstest::rstest]
-    #[case::primary_values(
-        ":highlight-css: inline\n:syntect-css: class\n:highlight-style: github-light\n:syntect-style: solarized-dark\n",
-        "inline",
-        "github-light"
-    )]
-    #[case::primary_empty(
-        ":highlight-css:\n:syntect-css: class\n:highlight-style:\n:syntect-style: solarized-dark\n",
-        "inline",
-        "github-light"
-    )]
-    #[case::primary_unsets(
-        ":highlight-css!:\n:syntect-css: class\n:highlight-style!:\n:syntect-style: solarized-dark\n",
-        "inline",
-        "github-light"
-    )]
-    #[case::primary_prefix_unsets(
-        ":!highlight-css:\n:syntect-css: class\n:!highlight-style:\n:syntect-style: solarized-dark\n",
-        "inline",
-        "github-light"
-    )]
-    #[case::dark_unset_theme(
-        ":highlight-css!:\n:syntect-css: class\n:highlight-style!:\n:syntect-style: solarized-dark\n:dark-mode:\n",
-        "inline",
-        "github-dark"
-    )]
-    #[case::unknown_primary_mode(
-        ":highlight-css: unknown\n:syntect-css: class\n:highlight-style: github-light\n:syntect-style: solarized-dark\n",
-        "inline",
-        "github-light"
-    )]
-    #[case::primary_class_over_alias_inline(
-        ":highlight-css: class\n:syntect-css: inline\n:highlight-style: solarized-dark\n:syntect-style: github-light\n",
-        "class",
-        "solarized-dark"
-    )]
-    fn primary_highlight_assignments_override_aliases(
-        #[case] declarations: &str,
-        #[case] mode: &str,
-        #[case] theme: &str,
-    ) -> Result<(), Error> {
-        let input = format!("{declarations}{SOURCE_BLOCK}");
-        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let expected = convert_string_with_variant(
-                &input,
-                &[
-                    ("highlight-css", AttributeValue::String(mode.into())),
-                    ("highlight-style", AttributeValue::String(theme.into())),
-                ],
-                variant,
-            )?;
-            let actual = convert_string_with_variant(&input, &[], variant)?;
-            assert_eq!(actual, expected, "{declarations}: {variant}");
-            assert_eq!(actual.contains("class=\"syntax-"), mode == "class");
+            assert!(warnings.is_empty(), "{warnings:?}");
         }
         Ok(())
     }
 
     #[test]
-    fn caller_highlight_unsets_suppress_legacy_stylesheet_writes() -> Result<(), Error> {
-        let input = format!(":syntect-css: class\n:syntect-style: solarized-dark\n{SOURCE_BLOCK}");
+    fn caller_highlight_unsets_suppress_stylesheet_writes() -> Result<(), Error> {
+        let input =
+            format!(":highlight-css: class\n:highlight-style: solarized-dark\n{SOURCE_BLOCK}");
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
             let temp = tempfile::tempdir()?;
             let path = temp.path().join("document.html");
@@ -2598,7 +2383,7 @@ fn main() {
             assert!(!output.contains("class=\"syntax-"), "{output}");
             assert!(!output.contains("acdc-highlight.css"), "{output}");
             assert!(!temp.path().join("acdc-highlight.css").exists());
-            assert_eq!(warnings.len(), 2, "{warnings:?}");
+            assert!(warnings.is_empty(), "{warnings:?}");
         }
         Ok(())
     }
@@ -2742,7 +2527,7 @@ fn main() {
 
     #[test]
     fn attribute_substitution_applied_with_highlighting() -> Result<(), Error> {
-        let input = r#":source-highlighter: syntect
+        let input = r#":source-highlighter: giallo
 :version: 1.0
 
 [source,ruby,subs="+attributes"]

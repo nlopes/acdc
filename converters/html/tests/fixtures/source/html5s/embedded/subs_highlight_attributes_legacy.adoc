@@ -1,1 +1,0 @@
-../../html/embedded/subs_highlight_attributes_legacy.adoc

@@ -6,8 +6,7 @@
 //! - **Inline** (default): `<span style="color:#...">` — themes baked into HTML
 //! - **Class**: `<span class="syntax-10">` — themes applied via CSS classes
 //!
-//! The mode is controlled by `:highlight-css:`. `syntect-css` is a
-//! `[deprecated]` compatibility alias.
+//! Set `:highlight-css: class` to use CSS classes. Inline styles are the default.
 //!
 //! # Callout Handling
 //!
@@ -47,7 +46,7 @@ const SYNTAX_CLASS_PREFIX: &str = "syntax-";
 #[cfg(feature = "highlighting")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum HighlightMode {
-    /// Inline `style="color:…"` attributes (default, backward-compatible).
+    /// Inline `style="color:…"` attributes (default).
     #[default]
     Inline,
     /// CSS class names (`class="syntax-10"`) — requires a `<style>` block
@@ -96,32 +95,13 @@ fn warn_once(diagnostics: Option<&mut Diagnostics<'_>>, message: String, advice:
     }
 }
 
-/// Resolve old theme names and recover from unknown themes without losing highlighting.
+/// Use the page default when the requested giallo theme is unknown.
 #[cfg(feature = "highlighting")]
 pub(crate) fn resolve_theme_name(
     requested: &str,
     fallback: &str,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> String {
-    let replacement = match requested {
-        "InspiredGitHub" | "base16-ocean.light" => Some("github-light"),
-        "Solarized (dark)" => Some("solarized-dark"),
-        "Solarized (light)" => Some("solarized-light"),
-        "base16-eighties.dark" | "base16-ocean.dark" | "base16-mocha.dark" => Some("github-dark"),
-        _ => None,
-    };
-    if let Some(replacement) = replacement {
-        warn_once(
-            diagnostics,
-            format!(
-                "syntect theme '{requested}' is deprecated; using giallo theme '{replacement}'"
-            ),
-            &format!(
-                "Set highlight-style={replacement}. Replacement palettes may differ from syntect."
-            ),
-        );
-        return replacement.to_owned();
-    }
     if let Ok(registry) = get_registry()
         && !registry.contains_theme(requested)
     {

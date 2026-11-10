@@ -19,11 +19,6 @@ use acdc_parser::{
 
 use crate::{Converter, Error, HtmlVariant, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
 
-const DEPRECATED_HIGHLIGHT_ATTRIBUTES: [(&str, &str); 2] = [
-    ("syntect-css", "highlight-css"),
-    ("syntect-style", "highlight-style"),
-];
-
 fn displayed_attribute_text(attributes: DocumentAttributesRef<'_>, name: &str) -> Option<String> {
     attributes
         .get(name)
@@ -282,8 +277,6 @@ pub(crate) struct HtmlVisitor<'a, 'd, W: Write> {
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
     pub(crate) text_boundaries: TextBoundaries,
-    // Header, body and table-cell assignments share one warning per alias.
-    warned_highlight_aliases: [bool; DEPRECATED_HIGHLIGHT_ATTRIBUTES.len()],
 }
 
 impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
@@ -318,22 +311,6 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             inline_link: None,
             docinfo,
             text_boundaries: TextBoundaries::BOTH,
-            warned_highlight_aliases: [false; DEPRECATED_HIGHLIGHT_ATTRIBUTES.len()],
-        }
-    }
-
-    fn warn_deprecated_highlight_attributes(&mut self, traversal: &TraversalContext<'a>) {
-        for ((alias, primary), warned) in DEPRECATED_HIGHLIGHT_ATTRIBUTES
-            .into_iter()
-            .zip(&mut self.warned_highlight_aliases)
-        {
-            if !*warned && traversal.is_explicit(alias) {
-                self.diagnostics.warn_with_advice(
-                    format!("attribute `{alias}` is deprecated"),
-                    format!("Use `{primary}` instead."),
-                );
-                *warned = true;
-            }
         }
     }
 
@@ -754,26 +731,12 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
 impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
     type Error = Error;
-    fn before_block(
-        &mut self,
-        context: &mut TraversalContext<'a>,
-        _block: BlockRef<'a>,
-    ) -> Result<(), Self::Error> {
-        if context.is_nested_document() {
-            self.warn_deprecated_highlight_attributes(context);
-        }
-        Ok(())
-    }
     fn visit_block(
         &mut self,
         context: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
     ) -> Result<(), Self::Error> {
         match block.kind() {
-            BlockKind::DocumentAttribute(_) => {
-                self.warn_deprecated_highlight_attributes(context);
-                Ok(())
-            }
             BlockKind::Section(section) => self.visit_section_ref(context, section),
             BlockKind::Paragraph(paragraph) => self.visit_paragraph_ref(context, paragraph),
             BlockKind::OrderedList(list) => self.render_ordered_list(context, list),
@@ -806,7 +769,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
                 )?;
                 Ok(())
             }
-            BlockKind::Comment(_) => Ok(()),
+            BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
             BlockKind::Example(_)
             | BlockKind::Listing(_)
             | BlockKind::Literal(_)
@@ -829,11 +792,10 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
 impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVisitor<'a, '_, W> {
     fn visit_document_start(
         &mut self,
-        traversal: &mut TraversalContext<'a>,
+        _traversal: &mut TraversalContext<'a>,
         doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
         let attributes = doc.attributes();
-        self.warn_deprecated_highlight_attributes(traversal);
         // In embedded mode, skip the document frame (DOCTYPE, html, head, body)
         if self.render_options.embedded {
             return Ok(());

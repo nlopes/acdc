@@ -1,11 +1,9 @@
 = Highlight attributes
 :revdate: 2026-10-03
-:source-highlighter: syntect
+:source-highlighter: giallo
 :acdc-index:
 :highlight-css!:
 :highlight-style!:
-:syntect-css: class
-:syntect-style: Solarized (dark)
 
 [[target]]
 == Target

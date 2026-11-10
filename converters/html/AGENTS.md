@@ -76,7 +76,7 @@ after_write() (post-conversion, file on disk)
 | `default_stylesheet_name(is_dark)` | Returns the filename for the current variant/dark-mode combination (e.g. `asciidoctor-light-mode.css`) |
 | `handle_copycss(doc, html_path)` | Post-conversion: writes built-in CSS to disk (or copies custom CSS) when `:linkcss:` + `:copycss:` |
 | `handle_copy_syntax_css(doc, html_path)` | Post-conversion: writes `acdc-highlight.css` when `:linkcss:` + class-based highlighting |
-| `resolve_highlight_settings(document_attributes)` | Resolves theme name and inline/class mode from `:highlight-style:` and `:highlight-css:`, with deprecated `syntect-*` aliases |
+| `resolve_highlight_settings(document_attributes, diagnostics)` | Resolves the giallo theme and inline/class mode from `:highlight-style:` and `:highlight-css:` |
 | `document_attributes_defaults()` | Sets default values for `copycss`, `stylesdir`, `stylesheet`, `webfonts` |
 
 ## Attribute flow
@@ -97,17 +97,16 @@ Key attributes and their defaults:
 | `dark-mode` | not set | When present, use dark variant of built-in CSS + color-scheme meta |
 | `highlight-css` | not set | `class` = CSS class mode. Anything else = inline styles (default) |
 | `highlight-style` | auto | Giallo theme name. Falls back to light/dark default based on `:dark-mode:` |
-| `syntect-css` | not set | [deprecated] Compatibility alias for `highlight-css` |
-| `syntect-style` | not set | [deprecated] Compatibility alias for `highlight-style` |
 
-An explicit primary assignment, including an empty value or unset, takes
-precedence over its alias. Body highlighting, head styles and CSS file writes
-use the same resolver. Both primary and deprecated names generate and link
-`acdc-highlight.css`; regenerate HTML and CSS together because numeric `syntax-*` color IDs depend on the selected theme.
-Deprecated assignments emit structured warnings with replacement advice,
-once per alias per conversion, including unsets and overridden values.
-The visitor checks header, body and nested cell assignments, even when the
-highlighting feature is off; the `source-highlighter: syntect` value remains valid.
+Set `source-highlighter` to `giallo` to enable highlighting. Body rendering,
+head styles and CSS file writes use the same theme and mode resolver.
+The default theme is `github-light`, or `github-dark` with `dark-mode`.
+Unknown themes emit a structured warning and use that default.
+
+Class mode generates `acdc-highlight.css`. Standalone output embeds the CSS
+or links and writes it when `linkcss` is set. Embedded output needs the
+containing page to supply it. Generate HTML and CSS together: numeric
+`syntax-*` color IDs depend on the selected theme.
 
 ## Static CSS assets
 

@@ -49,7 +49,7 @@ crate; check the CLI manifest for backend and tool selection.
 | `asg` | off | parser, CLI | Checked upstream and named acdc ASG export; independent of compatibility mode |
 | `tck` | off | CLI | Fixed Draft-mode TCK adapter; enables `asg` |
 | `network` | off | parser, html, pdf | Remote includes and HTML/PDF image access; caller permission and safe mode still apply |
-| `highlighting` | off | html, terminal | syntect source highlighting |
+| `highlighting` | off | html, terminal | giallo source highlighting |
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |

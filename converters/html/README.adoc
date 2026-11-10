@@ -167,87 +167,70 @@ Table of contents entries are also numbered when `:sectnums:` is set.
 In book documents, numbered chapter headings and TOC entries use the active `chapter-signifier`.
 An absent or unset signifier keeps the number-only form.
 
-=== Syntax Highlighting
+=== Syntax highlighting
 
-Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses giallo with inline CSS styles by default.
+The `highlighting` feature enables giallo for source blocks. Set
+`:source-highlighter: giallo` and give each block a language:
 
-Callouts keep their positions and authored spacing when highlighting is enabled,
-including multiple markers on one line and markers inside XML comment guards.
-Lines containing only markers still receive line numbers and line highlighting.
-This matches marker placement in ordinary Asciidoctor HTML. Token colors and
-callout icons remain separate.
+[source,asciidoc]
+....
+:source-highlighter: giallo
+:highlight-style: github-dark
 
-Callout font icons follow the active `icons=font` setting in plain and highlighted
-output, including body-level changes. With font icons, guards `//`, `#`, `--` and `;;`
-are removed immediately before a parsed marker, together with at most one
-following space. XML guards in `<!--1-->` are removed as well. Other spacing
-and ordinary comments stay intact. A block's `line-comment` attribute selects
-a custom prefix; `line-comment=""` disables line-prefix removal. Both settings
-leave XML-style markers literal while keeping ordinary `<1>` markers enabled,
-matching Asciidoctor. Without font icons, guards remain visible.
-Spaces within a custom prefix are required; the optional following space is
-separate. Thus `line-comment="// "` removes `// ` even without an extra space.
-These rules match ordinary Asciidoctor HTML;
-Rouge may add spaces between markers, while acdc preserves authored spacing.
+[source,rust]
+----
+fn main() {
+    println!("Hello, world!");
+}
+----
+....
 
-Set `:highlight-css: class`, or pass `-a highlight-css=class`, to emit `syntax-*`
-token classes instead. Standalone output supplies the highlighting stylesheet;
-in embedded output, the containing page supplies it. Asciidoctor's Rouge
-highlighter uses `:rouge-css: class` and different token classes.
+Highlighting uses inline styles by default, including the theme's text and
+background colors. This works in both standalone and embedded HTML.
 
-Set `:highlight-style: solarized-dark`, or pass
-`-a 'highlight-style=solarized-dark'`, to choose a theme. Without a theme,
-the default follows `:dark-mode:`.
+[cols="1,2"]
+|===
+| Attribute | Effect
+| `source-highlighter: giallo` | Enable highlighting.
+| `highlight-style: <theme>` | Choose a giallo theme, such as `github-light`, `github-dark`, or `solarized-dark`.
+| `highlight-css: class` | Use a generated stylesheet for token colors.
+| `dark-mode` | Use `github-dark` as the default theme; otherwise the default is `github-light`.
+|===
 
-NOTE: [deprecated] `syntect-css` and `syntect-style` remain compatibility aliases.
-Use `highlight-css` and `highlight-style` in new documents. An explicit
-assignment to a primary name takes precedence over its alias, including an
-empty value or unset. Linked highlighting CSS now uses `acdc-highlight.css`
-with either pair.
-Update manually maintained links that use the previous `acdc-syntect.css`
-filename. Token selectors also change with the giallo migration, as described below.
+Unknown languages render as plain text. An unknown theme produces a converter
+warning and uses the default for the page's light or dark mode.
 
-Using either deprecated attribute emits a converter warning with its
-replacement, once per attribute per conversion. Explicit unsets and values
-overridden by the primary names also produce this warning.
+==== CSS class output
+
+Set `:highlight-css: class` to use `syntax-*` classes. Standalone HTML embeds
+the matching CSS. With `:linkcss:`, the converter links and writes
+`acdc-highlight.css` under `stylesdir`:
 
 [source,console]
-....
-cargo build --features highlighting
-acdc convert document.adoc
-....
+----
+acdc convert -a highlight-css=class -a linkcss document.adoc
+----
 
-Unknown languages render as plain text. Unknown themes produce a structured
-converter warning and use `github-light` or `github-dark`, following `dark-mode`,
-so a misspelled theme does not disable highlighting. The warning includes advice
-and is returned through the converter diagnostics API.
+Embedded HTML needs its containing page to load that stylesheet. Class names
+include theme color IDs such as `syntax-10` and formatting classes such as
+`syntax-b`. Generate HTML and CSS together when changing the theme or giallo
+version, because the color IDs can change.
 
-Existing syntect theme names select these replacements and emit a migration warning:
+==== Source formatting and callouts
 
-[cols="1,1"]
-|===
-| Old name | Giallo replacement
-| `InspiredGitHub`, `base16-ocean.light` | `github-light`
-| `Solarized (dark)` | `solarized-dark`
-| `Solarized (light)` | `solarized-light`
-| `base16-eighties.dark`, `base16-ocean.dark`, `base16-mocha.dark` | `github-dark`
-|===
+Source blocks support `linenums`, `start`, and `highlight`. Highlighting preserves
+Unicode text, authored spacing, and trailing blank lines. Line numbering excludes
+trailing empty lines.
 
-Replacement palettes may differ. Set `highlight-style` to the replacement name
-to remove the warning. An explicit `highlight-style` or `highlight-css`
-assignment, including an empty value or unset, overrides its `syntect-*` alias.
+Callouts keep their positions, including multiple markers on one line. With
+`:icons: font`, comment guards `//`, `#`, `--`, and `;;` are removed before a
+parsed marker, together with at most one following space. XML guards in
+`<!--1-->` are removed too. Without font icons, guards remain visible.
 
-Class-based output uses theme-dependent color IDs such as `syntax-10`, plus
-formatting classes such as `syntax-b`. These replace syntect's semantic scope
-classes; existing selectors such as `.syntax-keyword` need to be rewritten.
-Numeric IDs can change when the theme or giallo version changes. Regenerate
-`acdc-highlight.css` together with the HTML, and keep their theme versions in
-sync. To change themes, regenerate both files rather than swapping only the CSS.
-Embedded class-based output requires the containing page to supply that CSS.
-
-Highlighting preserves source line separators, including trailing blank lines.
-Asciidoctor trims trailing blank lines in source blocks; acdc retains them.
-Source line numbering still excludes trailing empty lines.
+The block's `line-comment` attribute selects a custom prefix;
+`line-comment=""` disables prefix removal. Both settings keep XML-style markers
+literal while allowing ordinary `<1>` markers. Spaces within a custom prefix
+are required, separate from the optional following space.
 
 === Stylesheets
 
@@ -514,7 +497,7 @@ server-side, to keep that input away from the emulator.
 
 ==== Syntax highlighting CSS
 
-When using class-based syntax highlighting (`:highlight-css: class`), the highlighting CSS is handled the same way, embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
+When using class-based syntax highlighting (`:highlight-css: class`), the highlighting CSS is handled the same way, embedded by default, or linked/written to disk when `:linkcss:` is set. See <<_syntax_highlighting,Syntax highlighting>>.
 
 === Docinfo files
 

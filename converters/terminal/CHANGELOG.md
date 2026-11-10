@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structured warning and retain the original source. Asciidoctor trims trailing
   source blank lines; acdc retains them.
 
-- Syntax highlighting builds with the published giallo 0.6.0 release, without
-  requiring a Git checkout or separately generated grammar data.
+- Source blocks use giallo grammars and terminal colors. Lines selected with
+  `highlight=` keep their background across syntax colors.
 
 - **Breaking:** use `Converter` in place of `Processor`. Read asciicast
   recordings with `parse_from_inlines()` or `parse_from_inlines_with_idle_limit()`
@@ -460,9 +460,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are rejected before conversion.
 - **Breaking:** direct visitor callbacks now receive the current traversal
   context, including source-ordered and nested-cell attributes.
-- **Syntax highlighting now uses giallo instead of syntect**, including giallo's
-  built-in grammar aliases and ANSI terminal renderer. Source lines selected with
-  `highlight=` keep their background across syntax colors.
 - Terminal tables truncated to the available width now use a single ellipsis
   (`…`) as the truncation marker, leaving more space for cell content.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed
