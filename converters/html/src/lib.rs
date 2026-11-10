@@ -435,7 +435,14 @@ fn resolve_highlight_settings(
         .unwrap_or(fallback);
     let theme_name = syntax::resolve_theme_name(requested, fallback, diagnostics);
 
-    let mode = if document_attributes
+    (theme_name, highlight_mode(document_attributes))
+}
+
+#[cfg(feature = "highlighting")]
+fn highlight_mode(
+    document_attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
+) -> syntax::HighlightMode {
+    if document_attributes
         .get("highlight-css")
         .and_then(|value| value.text())
         == Some("class")
@@ -443,9 +450,7 @@ fn resolve_highlight_settings(
         syntax::HighlightMode::Class
     } else {
         syntax::HighlightMode::Inline
-    };
-
-    (theme_name, mode)
+    }
 }
 
 impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
@@ -730,12 +735,12 @@ impl<'a> Converter<'a> {
             return;
         }
 
-        let (theme_name, mode) =
-            crate::resolve_highlight_settings(attributes, Some(&mut *diagnostics));
-
-        if mode != syntax::HighlightMode::Class {
+        if highlight_mode(attributes) != syntax::HighlightMode::Class {
             return;
         }
+
+        let (theme_name, _) =
+            crate::resolve_highlight_settings(attributes, Some(&mut *diagnostics));
 
         let Ok(css) = syntax::highlight_css(&theme_name) else {
             return;

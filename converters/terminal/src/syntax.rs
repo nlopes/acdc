@@ -2,25 +2,6 @@ use std::io::Write;
 
 use crate::{Converter, Error};
 
-/// Get or initialize the shared giallo `Registry`.
-///
-/// The registry is loaded once from the builtin dump on first use and
-/// then reused for all subsequent calls.  This is thread-safe via
-/// `OnceLock`.
-#[cfg(feature = "highlighting")]
-fn get_registry() -> Result<&'static giallo::Registry, &'static giallo::Error> {
-    use std::sync::OnceLock;
-
-    static REGISTRY: OnceLock<Result<giallo::Registry, giallo::Error>> = OnceLock::new();
-    REGISTRY
-        .get_or_init(|| {
-            let mut registry = giallo::Registry::builtin()?;
-            registry.link_grammars();
-            Ok(registry)
-        })
-        .as_ref()
-}
-
 /// Highlight code and render to terminal.
 ///
 /// When the `highlighting` feature is enabled, this uses giallo for syntax
@@ -33,11 +14,18 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     converter: &Converter<'_>,
     diagnostics: Option<&mut acdc_converters_core::Diagnostics<'_>>,
 ) -> Result<(), Error> {
+    use acdc_converters_core::code::highlighting;
+
+    let mut diagnostics = diagnostics;
+    if highlighting::skip_highlighting(code, diagnostics.as_deref_mut()) {
+        writer.write_all(code.as_bytes())?;
+        return Ok(());
+    }
     let theme_name = converter.appearance.theme.highlight_theme();
     let theme_variant = giallo::ThemeVariant::Single(theme_name);
     let options = giallo::HighlightOptions::new(language, theme_variant).fallback_to_plain(true);
 
-    let highlighted = match get_registry()
+    let highlighted = match highlighting::registry()
         .map_err(|error| Error::Io(std::io::Error::other(error.to_string())))
         .and_then(|registry| {
             registry
@@ -98,6 +86,35 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
 mod tests {
     use super::*;
     use crate::create_test_converter;
+
+    #[test]
+    fn long_source_lines_preserve_plain_source_and_warn_once() -> Result<(), Error> {
+        use acdc_converters_core::{
+            Diagnostics, WarningSource, code::highlighting::MAX_LINE_BYTES,
+        };
+
+        let code = format!(
+            "/* {}\ncontinued comment <&> 日本語\n*/\n",
+            "x".repeat(MAX_LINE_BYTES)
+        );
+        let converter = create_test_converter();
+        let source = WarningSource::new("terminal");
+        let mut warnings = Vec::new();
+        for _ in 0..2 {
+            let mut output = Vec::new();
+            highlight_text(
+                &mut output,
+                &code,
+                "javascript",
+                &converter,
+                Some(&mut Diagnostics::new(&source, &mut warnings)),
+            )?;
+            assert_eq!(output, code.as_bytes());
+        }
+        assert_eq!(warnings.len(), 1);
+        assert!(warnings.iter().all(|warning| warning.advice().is_some()));
+        Ok(())
+    }
 
     #[test]
     fn highlighting_preserves_source_lines() -> Result<(), Error> {

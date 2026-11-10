@@ -2,6 +2,10 @@ use acdc_parser::ast::{AttributeValueRef, AttributesRef};
 #[cfg(test)]
 use acdc_parser::{AttributeValue, BlockMetadata};
 
+/// Shared syntax highlighting resources and source limits.
+#[cfg(feature = "highlighting")]
+pub mod highlighting;
+
 mod link;
 pub use link::{
     CodeLink, CodeLinkTarget, code_inline_content, code_inline_text, resolve_code_link,

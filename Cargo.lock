@@ -35,6 +35,7 @@ name = "acdc-converters-core"
 version = "0.1.0"
 dependencies = [
  "acdc-parser",
+ "giallo",
  "html-escape",
  "percent-encoding",
  "relative-path 2.0.3",

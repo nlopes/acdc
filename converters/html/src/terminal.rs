@@ -154,9 +154,18 @@ pub(crate) fn render_listing<W: Write>(
     attributes: AttributesRef<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
+    diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
     let preview_options = PreviewOptions::resolve(attrs, None);
-    render_with_options(writer, content, attributes, options, attrs, preview_options)
+    render_with_options(
+        writer,
+        content,
+        attributes,
+        options,
+        attrs,
+        preview_options,
+        diagnostics,
+    )
 }
 
 pub(crate) fn render_session<W: Write>(
@@ -179,7 +188,15 @@ pub(crate) fn render_session<W: Write>(
             diagnostics,
         );
     }
-    render_with_options(writer, content, attributes, options, attrs, preview_options)
+    render_with_options(
+        writer,
+        content,
+        attributes,
+        options,
+        attrs,
+        preview_options,
+        diagnostics,
+    )
 }
 
 fn render_with_options<W: Write>(
@@ -189,15 +206,19 @@ fn render_with_options<W: Write>(
     options: Options,
     attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
+    diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
-        options,
-        attrs.clone(),
-        content,
-        attributes,
-        preview_options.cols,
-        preview_options.theme == Theme::Dark,
-    )?);
+    let ansi = normalize_terminal_newlines(
+        &acdc_converters_terminal::render_listing_to_ansi_with_diagnostics(
+            options,
+            attrs.clone(),
+            content,
+            attributes,
+            preview_options.cols,
+            preview_options.theme == Theme::Dark,
+            diagnostics,
+        )?,
+    );
     let size = preview_options.size_for_output(&ansi);
     let grid = capture_ansi(&ansi, size)?;
 
@@ -278,18 +299,29 @@ fn render_replay_ansi<W: Write>(
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
     let Some(size) = replay_size(attrs, attributes, diagnostics) else {
-        return render_with_options(writer, content, attributes, options, attrs, preview_options);
+        return render_with_options(
+            writer,
+            content,
+            attributes,
+            options,
+            attrs,
+            preview_options,
+            diagnostics,
+        );
     };
     let playback_duration = replay_playback_override(attributes, diagnostics);
 
-    let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
-        options,
-        attrs.clone(),
-        content,
-        attributes,
-        size.cols,
-        preview_options.theme == Theme::Dark,
-    )?);
+    let ansi = normalize_terminal_newlines(
+        &acdc_converters_terminal::render_listing_to_ansi_with_diagnostics(
+            options,
+            attrs.clone(),
+            content,
+            attributes,
+            size.cols,
+            preview_options.theme == Theme::Dark,
+            diagnostics,
+        )?,
+    );
     let boundaries = chunk_boundaries(&ansi);
     let estimated_playback_ms = REPLAY_FRAME_DURATION
         .as_millis()
@@ -383,6 +415,7 @@ fn render_replay_asciicast<W: Write>(
                 options,
                 attrs,
                 preview_options,
+                diagnostics,
             );
         }
     };

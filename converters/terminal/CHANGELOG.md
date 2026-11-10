@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Source blocks with a line longer than 16 KiB render as plain source, preserving
+  their text and returning one structured warning per document. This acdc limit
+  avoids excessive highlighting time on long lines. HTML terminal previews
+  receive the warning too; custom callers can collect it with
+  `render_listing_to_ansi_with_diagnostics()`.
+- Mixed HTML and terminal conversions use less peak memory.
+
 - Highlighting preserves source line separators and trailing blank lines,
   including empty and single-line source input. Highlighting failures return a
   structured warning and retain the original source. Asciidoctor trims trailing

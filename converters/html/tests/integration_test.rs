@@ -2094,6 +2094,113 @@ mod syntax_highlighting {
     use super::*;
 
     #[rstest::rstest]
+    fn long_source_lines_fall_back_without_losing_text_or_callouts(
+        #[values("inline", "class")] mode: &str,
+        #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
+    ) -> Result<(), Error> {
+        let payload = "x".repeat(acdc_converters_core::code::highlighting::MAX_LINE_BYTES);
+        let block = format!(
+            "[source,javascript,linenums,highlight=2]\n----\nconst value = \"<&> 日本語\";{payload} // <1>\nconst next = true; // <2>\n----\n\n<1> First.\n<2> Second.\n\n"
+        );
+        let input = format!(":source-highlighter: giallo\n:icons: font\n\n{block}{block}");
+        let (html, warnings) = convert_string_with_warnings(
+            &input,
+            &[("highlight-css", AttributeValue::String(mode.into()))],
+            variant,
+        )?;
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        let warning = warnings.first().ok_or("missing line-limit warning")?;
+        assert_eq!(warning.source.converter, "html");
+        assert!(warning.message.contains("16384 bytes"), "{warning:?}");
+        assert!(warning.advice().is_some());
+        assert!(html.contains(&format!(
+            "const value = &quot;&lt;&amp;&gt; 日本語&quot;;{payload}"
+        )));
+        assert!(html.contains("const next = true;"));
+        for number in [1, 2] {
+            assert!(html.contains(&format!("data-value=\"{number}\"")));
+        }
+        assert!(html.contains("class=\"linenotable\""));
+        assert!(html.contains("class=\"hll\""));
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    fn unused_inline_highlighting_does_not_validate_the_theme_or_write_css(
+        #[values(false, true)] linkcss: bool,
+        #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
+    ) -> Result<(), Error> {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("plain.html");
+        let options = ParserOptions::builder()
+            .with_attribute("source-highlighter", "giallo")
+            .with_attribute("highlight-style", "missing-theme")
+            .with_attribute("linkcss", linkcss)
+            .build()?;
+        let parsed = parse("= Plain\n\nA paragraph.\n", &options)?;
+        let doc = parsed.document();
+        let converter = Converter::new_with_variant(
+            ConverterOptions::default(),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
+            variant,
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        converter.write_to(
+            doc,
+            &mut output,
+            None,
+            Some(&path),
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(!temp.path().join("acdc-highlight.css").exists());
+        assert!(String::from_utf8(output)?.contains("A paragraph."));
+        Ok(())
+    }
+
+    #[cfg(feature = "terminal")]
+    #[rstest::rstest]
+    fn terminal_preview_reports_long_source_line_fallback(
+        #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
+    ) -> Result<(), Error> {
+        let payload = "x".repeat(acdc_converters_core::code::highlighting::MAX_LINE_BYTES + 1);
+        let input = format!(":acdc-terminal:\n\n[source,bash]\n----\n{payload}\n----\n");
+        let parsed = parse(&input, &ParserOptions::default())?;
+        let doc = parsed.document();
+        let converter = Converter::new_with_variant(
+            ConverterOptions::builder()
+                .safe_mode(SafeMode::Unsafe)
+                .build(),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
+            variant,
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        converter.convert_to_writer(
+            doc,
+            &mut output,
+            &RenderOptions::default(),
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        let html = String::from_utf8(output)?;
+        assert!(html.contains("terminal-view"));
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        let warning = warnings
+            .first()
+            .ok_or("missing preview line-limit warning")?;
+        assert!(warning.message.contains("16384 bytes"), "{warning:?}");
+        assert!(warning.advice().is_some());
+        Ok(())
+    }
+
+    #[rstest::rstest]
     #[case::light(("github-light", "#24292E", "#FFFFFF", "#D73A49"))]
     #[case::dark(("github-dark", "#E1E4E8", "#24292E", "#F97583"))]
     fn theme_base_colors_apply_to_the_code_block(

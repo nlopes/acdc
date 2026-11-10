@@ -18,7 +18,7 @@
 #[cfg(feature = "highlighting")]
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform,
-    code::{SourceLineOptions, source_line_count},
+    code::{SourceLineOptions, highlighting, source_line_count},
     substitutions::TextBoundaries,
 };
 #[cfg(feature = "highlighting")]
@@ -64,25 +64,6 @@ pub(crate) struct HighlightOptions<'a> {
     pub(crate) text_context: Option<&'a [InlineRef<'a>]>,
 }
 
-/// Get or initialize the shared giallo `Registry`.
-///
-/// The registry is loaded once from the builtin dump on first use and
-/// then reused for all subsequent calls.  This is thread-safe via
-/// `OnceLock`.
-#[cfg(feature = "highlighting")]
-fn get_registry() -> Result<&'static giallo::Registry, &'static giallo::Error> {
-    use std::sync::OnceLock;
-
-    static REGISTRY: OnceLock<Result<giallo::Registry, giallo::Error>> = OnceLock::new();
-    REGISTRY
-        .get_or_init(|| {
-            let mut registry = giallo::Registry::builtin()?;
-            registry.link_grammars();
-            Ok(registry)
-        })
-        .as_ref()
-}
-
 #[cfg(feature = "highlighting")]
 fn warn_once(diagnostics: Option<&mut Diagnostics<'_>>, message: String, advice: &str) {
     if let Some(diagnostics) = diagnostics
@@ -102,7 +83,7 @@ pub(crate) fn resolve_theme_name(
     fallback: &str,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> String {
-    if let Ok(registry) = get_registry()
+    if let Ok(registry) = highlighting::registry()
         && !registry.contains_theme(requested)
     {
         warn_once(
@@ -130,7 +111,7 @@ pub(crate) fn write_pre_open<W: Write + ?Sized>(
     nowrap_class: &str,
 ) -> Result<(), Error> {
     let options = giallo::HighlightOptions::new("plain", giallo::ThemeVariant::Single(theme_name));
-    let highlighted = get_registry()
+    let highlighted = highlighting::registry()
         .ok()
         .and_then(|registry| registry.highlight("", &options).ok());
     let theme_class = if mode == HighlightMode::Class && highlighted.is_some() {
@@ -332,7 +313,7 @@ fn decorate_source_lines(
 #[cfg(feature = "highlighting")]
 fn source_highlight_colour(theme_name: &str) -> String {
     let options = giallo::HighlightOptions::new("plain", giallo::ThemeVariant::Single(theme_name));
-    let color = get_registry()
+    let color = highlighting::registry()
         .ok()
         .and_then(|registry| registry.highlight("", &options).ok())
         .and_then(|highlighted| match highlighted.theme {
@@ -355,13 +336,20 @@ fn highlight_source<W: Write + ?Sized>(
     mode: HighlightMode,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
+    let mut diagnostics = diagnostics;
+    if highlighting::skip_highlighting(code, diagnostics.as_deref_mut()) {
+        writer.write_all(html_escape(code).as_bytes())?;
+        return Ok(());
+    }
     let options = giallo::HighlightOptions::new(language, giallo::ThemeVariant::Single(theme_name))
         .fallback_to_plain(true);
-    let result = get_registry().map_err(registry_error).and_then(|registry| {
-        registry
-            .highlight(code, &options)
-            .map_err(|error| registry_error(&error))
-    });
+    let result = highlighting::registry()
+        .map_err(registry_error)
+        .and_then(|registry| {
+            registry
+                .highlight(code, &options)
+                .map_err(|error| registry_error(&error))
+        });
     match result {
         Ok(tokens) => match mode {
             HighlightMode::Inline => render_inline(writer, &tokens),
@@ -517,7 +505,7 @@ fn strip_line_wrapper(line: &str) -> &str {
 /// the given theme. Embed this in a `<style>` block in the `<head>`.
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
-    let registry = get_registry().map_err(registry_error)?;
+    let registry = highlighting::registry().map_err(registry_error)?;
     let css = registry
         .generate_css(theme_name, SYNTAX_CLASS_PREFIX)
         .map_err(|e| Error::Io(IoError::other(e.to_string())))?;

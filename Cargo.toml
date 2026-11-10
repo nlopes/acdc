@@ -54,6 +54,7 @@ base64 = "0.23"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"
+giallo = { version = "0.6.0", features = ["dump"] }
 html-escape = "0.3.0"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
 # Pin the macOS 27 SDK fix until it is available in a crates.io release.
