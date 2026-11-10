@@ -96,14 +96,14 @@ Key attributes and their defaults:
 | `webfonts` | `""` (empty) | Empty = default Google Fonts. Non-empty = custom families. `false` = disabled |
 | `dark-mode` | not set | When present, use dark variant of built-in CSS + color-scheme meta |
 | `highlight-css` | not set | `class` = CSS class mode. Anything else = inline styles (default) |
-| `highlight-style` | auto | Syntect theme name. Falls back to light/dark default based on `:dark-mode:` |
+| `highlight-style` | auto | Giallo theme name. Falls back to light/dark default based on `:dark-mode:` |
 | `syntect-css` | not set | [deprecated] Compatibility alias for `highlight-css` |
 | `syntect-style` | not set | [deprecated] Compatibility alias for `highlight-style` |
 
 An explicit primary assignment, including an empty value or unset, takes
 precedence over its alias. Body highlighting, head styles and CSS file writes
 use the same resolver. Both primary and deprecated names generate and link
-`acdc-highlight.css`; keep the `syntax-*` token classes compatible.
+`acdc-highlight.css`; regenerate HTML and CSS together because numeric `syntax-*` color IDs depend on the selected theme.
 Deprecated assignments emit structured warnings with replacement advice,
 once per alias per conversion, including unsets and overridden values.
 The visitor checks header, body and nested cell assignments, even when the
@@ -122,7 +122,7 @@ Four built-in stylesheets in `static/`:
 
 All four are compiled into the binary via `include_str!` in `load_css()`. The filename constants are in `lib.rs` (`STYLESHEET_LIGHT_MODE`, `STYLESHEET_DARK_MODE`, etc.).
 
-The syntax highlighting stylesheet (`acdc-highlight.css`) is generated at runtime from syntect theme data — it has no static file.
+The syntax highlighting stylesheet (`acdc-highlight.css`) is generated at runtime from giallo theme data — it has no static file.
 
 ## Decision tree for stylesheet output
 

@@ -1,0 +1,27 @@
+:source-highlighter: giallo
+
+.Unicode and trailing blank lines
+[source,plain]
+----
+α
+β
+
+
+----
+
+.Leading blank line
+[source,plain]
+----
+
+first
+second
+----
+
+.Numbered source with trailing blank lines
+[source,plain,linenums]
+----
+first
+last
+
+
+----

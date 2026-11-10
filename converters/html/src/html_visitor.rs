@@ -438,7 +438,8 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
         let attributes = DocumentAttributesRef::from(self.converter.document_attributes());
         if attributes.contains("source-highlighter") {
-            let (theme_name, mode) = crate::resolve_highlight_settings(attributes);
+            let (theme_name, mode) =
+                crate::resolve_highlight_settings(attributes, Some(&mut self.diagnostics));
             if mode == crate::syntax::HighlightMode::Class {
                 let linkcss = attributes.contains("linkcss");
 

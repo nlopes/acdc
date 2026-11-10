@@ -146,3 +146,8 @@ To run only the Ghostty-backed tests:
 ----
 cargo nextest run -p acdc-converters-terminal --test headless_terminal_test --all-features
 ----
+
+Syntax highlighting preserves line separators and trailing blank lines. Unlike
+Asciidoctor, acdc retains trailing source blank lines. If highlighting fails,
+the converter renders the original source and returns a structured warning with
+recovery advice.

@@ -378,6 +378,7 @@ pub fn render_listing_to_ansi(
         language,
         &converter,
         |source| acdc_converters_core::code::SourceLineOptions::from_attributes(attributes, source),
+        None,
     )?
     .into_bytes();
 

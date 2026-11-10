@@ -231,7 +231,12 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             crate::inlines::register_index_term(term, converter, traversal)
         })?;
         // Render code content directly (no left border)
-        let content = render_preformatted_content(inlines, attributes, converter)?;
+        let content = render_preformatted_content(
+            inlines,
+            attributes,
+            converter,
+            Some(&mut self.diagnostics),
+        )?;
         let w = self.writer_mut();
         write!(w, "{content}")?;
         if !content.ends_with('\n') {
@@ -510,12 +515,14 @@ fn render_preformatted_content(
     inlines: ContentRef<'_>,
     attributes: AttributesRef<'_>,
     converter: &Converter<'_>,
+    diagnostics: Option<&mut acdc_converters_core::Diagnostics<'_>>,
 ) -> Result<String, Error> {
     render_preformatted_inlines(
         inlines.inlines(),
         source_language(attributes),
         converter,
         |source| SourceLineOptions::from_attributes(attributes, source),
+        diagnostics,
     )
 }
 
@@ -524,6 +531,7 @@ pub(crate) fn render_preformatted_inlines<'inline>(
     language: Option<&str>,
     converter: &Converter<'_>,
     line_options: impl FnOnce(&str) -> SourceLineOptions,
+    diagnostics: Option<&mut acdc_converters_core::Diagnostics<'_>>,
 ) -> Result<String, Error> {
     let inlines = inlines.collect::<Vec<_>>();
     let (source, callouts, formatted) = source_with_callout_placeholders(&inlines, language);
@@ -531,7 +539,7 @@ pub(crate) fn render_preformatted_inlines<'inline>(
     // Explicit quote formatting takes precedence over syntax colors. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
     if let Some(language) = language.filter(|_| !formatted) {
-        crate::syntax::highlight_text(&mut output, &source, language, converter)?;
+        crate::syntax::highlight_text(&mut output, &source, language, converter, diagnostics)?;
     } else {
         output.extend_from_slice(source.as_bytes());
     }

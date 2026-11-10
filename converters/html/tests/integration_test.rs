@@ -923,7 +923,10 @@ fn index_dash_context_keeps_highlighted_link_offsets_and_catalog_targets() -> Re
             };
             let output = convert_string_with_variant(input, &attributes, variant)?;
             if mode == "class" {
-                assert!(output.contains("class=\"syntax-"), "{output}");
+                assert!(
+                    output.contains("class=\"highlight syntax-code\""),
+                    "{output}"
+                );
             }
             for (target, label) in [
                 ("context", "Next"),
@@ -1250,6 +1253,14 @@ fn visible_index_typography_survives_missing_theme_fallback() -> Result<(), Erro
                     .ok_or("incomplete index anchor")?
                     .1,
             );
+        }
+        // Theme fallback retains highlighting, so ignore token spans while
+        // checking displayed text together with its link targets.
+        let display = display.replace("</span>", "");
+        let mut fragments = display.split("<span");
+        let mut display = fragments.next().unwrap_or_default().to_owned();
+        for fragment in fragments {
+            display.push_str(fragment.split_once('>').ok_or("incomplete token span")?.1);
         }
         for line in [
             "I04 Code © ® ™ After <a href=\"https://next.example/04\">Next04</a>",
@@ -1660,6 +1671,14 @@ fn convert_string_with_variant(
     extra_attrs: &[(&str, AttributeValue)],
     variant: HtmlVariant,
 ) -> Result<String, Error> {
+    convert_string_with_warnings(input, extra_attrs, variant).map(|(html, _)| html)
+}
+
+fn convert_string_with_warnings(
+    input: &str,
+    extra_attrs: &[(&str, AttributeValue)],
+    variant: HtmlVariant,
+) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
     let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
     for (k, v) in extra_attrs {
         attrs.insert((*k).into(), v.clone());
@@ -1682,7 +1701,7 @@ fn convert_string_with_variant(
     let source = WarningSource::new("html");
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     converter.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
-    Ok(String::from_utf8(output)?)
+    Ok((String::from_utf8(output)?, warnings))
 }
 
 #[test]
@@ -1852,8 +1871,18 @@ fn deprecated_highlight_attributes_warn_once_per_conversion(
                     },
                     &mut diagnostics,
                 )?;
-                assert_eq!(warnings.len(), expected.len() * conversion, "{warnings:?}");
-                for (warning, (alias, primary)) in warnings.iter().zip(expected.iter().cycle()) {
+                let attribute_warnings = warnings
+                    .iter()
+                    .filter(|warning| warning.message.starts_with("attribute `"))
+                    .collect::<Vec<_>>();
+                assert_eq!(
+                    attribute_warnings.len(),
+                    expected.len() * conversion,
+                    "{warnings:?}"
+                );
+                for (warning, (alias, primary)) in
+                    attribute_warnings.iter().zip(expected.iter().cycle())
+                {
                     assert_eq!(warning.source, source);
                     assert_eq!(
                         warning.message,
@@ -2217,15 +2246,17 @@ mod syntax_highlighting {
             .build()?;
         let parsed = parse(&input, &options)?;
         let doc = parsed.document();
-        let processor = Processor::new_with_variant(
+        let converter = Converter::new_with_variant(
             ConverterOptions::default(),
-            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
             variant,
         )?;
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
-        processor.convert_to_writer(
+        converter.convert_to_writer(
             doc,
             &mut output,
             &RenderOptions {
@@ -2272,6 +2303,127 @@ mod syntax_highlighting {
                 );
             }
         }
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    #[case("InspiredGitHub", "github-light")]
+    #[case("Solarized (dark)", "solarized-dark")]
+    #[case("Solarized (light)", "solarized-light")]
+    #[case("base16-eighties.dark", "github-dark")]
+    #[case("base16-ocean.dark", "github-dark")]
+    #[case("base16-mocha.dark", "github-dark")]
+    #[case("base16-ocean.light", "github-light")]
+    #[case("missing-theme", "github-light")]
+    fn old_and_unknown_themes_warn_without_disabling_highlighting(
+        #[case] requested: &str,
+        #[case] replacement: &str,
+        #[values("highlight-style", "syntect-style")] attribute: &str,
+        #[values("inline", "class")] mode: &str,
+        #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
+    ) -> Result<(), Error> {
+        let input = format!("{SOURCE_BLOCK}\n{SOURCE_BLOCK}");
+        let attributes = [
+            (attribute, AttributeValue::String(requested.into())),
+            ("highlight-css", AttributeValue::String(mode.into())),
+        ];
+        let (actual, warnings) = convert_string_with_warnings(&input, &attributes, variant)?;
+        let expected = convert_string_with_variant(
+            &input,
+            &[
+                (
+                    "highlight-style",
+                    AttributeValue::String(replacement.into()),
+                ),
+                ("highlight-css", AttributeValue::String(mode.into())),
+            ],
+            variant,
+        )?;
+        assert_eq!(actual, expected);
+        let expected_warnings = if attribute == "syntect-style" { 2 } else { 1 };
+        assert_eq!(warnings.len(), expected_warnings, "{warnings:?}");
+        let warning = warnings
+            .iter()
+            .find(|warning| warning.message.contains(requested))
+            .ok_or("missing theme warning")?;
+        assert_eq!(warning.source.converter, "html");
+        assert!(warning.message.contains(requested), "{warning:?}");
+        assert!(warning.message.contains(replacement), "{warning:?}");
+        assert!(warning.advice().is_some(), "{warning:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_theme_uses_dark_fallback_for_linked_output() -> Result<(), Error> {
+        let temp = tempfile::tempdir()?;
+        let path = temp.path().join("document.html");
+        let options = ParserOptions::builder()
+            .with_attribute("highlight-style", "missing-theme")
+            .with_attribute("highlight-css", "class")
+            .with_attribute("dark-mode", true)
+            .with_attribute("linkcss", true)
+            .build()?;
+        let parsed = parse(SOURCE_BLOCK, &options)?;
+        let doc = parsed.document();
+        let converter = Converter::new(
+            ConverterOptions::default(),
+            ParserOptions::builder().with_attributes(
+                acdc_parser::DocumentAttributes::from(doc.attributes()).into_inputs(),
+            ),
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        converter.write_to(
+            doc,
+            &mut output,
+            None,
+            Some(&path),
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        let css = read_to_string(temp.path().join("acdc-highlight.css"))?;
+        assert!(css.contains("background-color: #24292E;"), "{css}");
+        assert!(String::from_utf8(output)?.contains("syntax-code"));
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    #[case(
+        ":highlight-style: github-light\n:highlight-css: inline\n",
+        "github-light",
+        "inline"
+    )]
+    #[case(":highlight-style:\n:highlight-css:\n", "github-light", "inline")]
+    #[case(":highlight-style!:\n:highlight-css!:\n", "github-light", "inline")]
+    #[case(
+        ":!highlight-style:\n:!highlight-css:\n:dark-mode:\n",
+        "github-dark",
+        "inline"
+    )]
+    #[case(
+        ":highlight-style: solarized-dark\n:highlight-css: class\n",
+        "solarized-dark",
+        "class"
+    )]
+    fn explicit_primary_settings_override_legacy_aliases(
+        #[case] primary: &str,
+        #[case] theme: &str,
+        #[case] mode: &str,
+    ) -> Result<(), Error> {
+        let input = format!(
+            "{primary}:syntect-style: Solarized (light)\n:syntect-css: class\n{SOURCE_BLOCK}"
+        );
+        let (actual, warnings) = convert_string_with_warnings(&input, &[], HtmlVariant::Standard)?;
+        let expected = convert_string(
+            &input,
+            &[
+                ("highlight-style", AttributeValue::String(theme.into())),
+                ("highlight-css", AttributeValue::String(mode.into())),
+            ],
+        )?;
+        assert_eq!(actual, expected);
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
         Ok(())
     }
 
