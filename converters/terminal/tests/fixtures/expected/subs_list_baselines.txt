@@ -35,7 +35,7 @@ B18 [1msource[22m {value} (C) link:https://example.org[Link] <1>.
 B19 bold (C) link:https://example.org[Link].
 [38;5;8m────────────────────[39m
 [38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
-[38;2;131;148;150mB20 *source* *bold* (C) link:https://example.org[Link] <1>.[39m
+B20 *source* *bold* (C) link:https://example.org[Link] <1>.
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 B21 [1msource[22m *bold* © [38;5;12mLink[39m[2m (https://example.org)[0m.
 B22 footnote:[Literal note.] anchor:literal[] indexterm:[Literal].

@@ -47,10 +47,10 @@ U35  https://example.org/u35[Site]
 U36  [38;5;12mSite[39m[2m (https://example.org/u36)[0m
 U37 https://example.org/u37 and https://example.org/u37-label[Site]
 [38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
-[38;2;131;148;150mU38 Link:https://example.org/u38
-[39m[38;2;131;148;150mU39 Site
-[39m[38;2;131;148;150mU40 "https://example.org/u40"
-[39m[38;2;131;148;150mU41 "Site"[39m
+U38 Link:https://example.org/u38
+U39 Site
+U40 "https://example.org/u40"
+U41 "Site"
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 U42 ([38;5;12mftp://example.org/u42[39m)
 U43 Link:irc://example.org/u43[channel]
