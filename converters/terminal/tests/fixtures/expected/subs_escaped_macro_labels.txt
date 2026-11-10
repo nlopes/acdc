@@ -13,9 +13,9 @@ S02 indexterm2:[Disabled \] text] and ((Disabled short \] text)).
 S03 indexterm2:[Attribute \] text].
 S04 indexterm2:[Attribute \] text].
 [38;5;8m────────────────────────────────────[ text ]────────────────────────────────────[39m
-[38;2;131;148;150mS05 indexterm2:[Code \] text]
-[39m[38;2;131;148;150mS06 xref:target[Code \] text]
-[39m[38;2;131;148;150mS07 [1][39m
+S05 indexterm2:[Code \] text]
+S06 xref:target[Code \] text]
+S07 [1]
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 S08 indexterm2:[No substitutions \] text].
 S09 indexterm2:[[1mLate[22m — \] text].
