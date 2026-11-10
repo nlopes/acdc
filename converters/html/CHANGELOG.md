@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Syntax highlighting builds with the published giallo 0.6.0 release. Themes
+  selected with `highlight-style` now apply their base text and background
+  colors in both inline and class-based HTML, including embedded output.
+
 - Table column widths follow the parsed columns in both HTML variants.
   `cols=0` infers columns from the first row, and zero-count specifications
   such as `cols="0*a,1"` no longer hide the remaining columns, matching Asciidoctor.

@@ -84,6 +84,43 @@ fn get_registry() -> &'static giallo::Registry {
 
 #[cfg(feature = "highlighting")]
 const SYNTAX_CLASS_PREFIX: &str = "syntax-";
+/// Apply the theme's base colors to the enclosing code block.
+/// Token styles are relative to these colors in both output modes.
+#[cfg(feature = "highlighting")]
+pub(crate) fn write_pre_open<W: Write + ?Sized>(
+    writer: &mut W,
+    theme_name: &str,
+    mode: HighlightMode,
+    nowrap_class: &str,
+) -> Result<(), Error> {
+    let options = giallo::HighlightOptions::new("plain", giallo::ThemeVariant::Single(theme_name));
+    let highlighted = get_registry().highlight("", &options).ok();
+    let theme_class = if mode == HighlightMode::Class && highlighted.is_some() {
+        " syntax-code"
+    } else {
+        ""
+    };
+    write!(
+        writer,
+        "<pre class=\"highlight{nowrap_class}{theme_class}\""
+    )?;
+    if mode == HighlightMode::Inline
+        && let Some(highlighted) = highlighted
+    {
+        let style = match highlighted.theme {
+            giallo::ThemeVariant::Single(theme) => theme.default_style,
+            giallo::ThemeVariant::Dual { light, .. } => light.default_style,
+        };
+        write!(
+            writer,
+            " style=\"color: {};background-color: {};\"",
+            style.foreground.as_hex(),
+            style.background.as_hex()
+        )?;
+    }
+    write!(writer, ">")?;
+    Ok(())
+}
 
 /// Highlight code, apply source-line decoration, and write HTML output.
 ///
@@ -458,9 +495,16 @@ fn strip_line_wrapper(line: &str) -> &str {
 #[cfg(feature = "highlighting")]
 pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
     let registry = get_registry();
-    registry
+    let css = registry
         .generate_css(theme_name, SYNTAX_CLASS_PREFIX)
-        .map_err(|e| Error::Io(IoError::other(e.to_string())))
+        .map_err(|e| Error::Io(IoError::other(e.to_string())))?;
+    // Match or exceed the built-in listing background selectors so the theme
+    // wins when its stylesheet is embedded or linked after the main stylesheet.
+    Ok(css.replacen(
+        ".syntax-code {",
+        ".syntax-code,\npre.highlight.syntax-code,\n.listingblock > .content > pre.syntax-code {",
+        1,
+    ))
 }
 
 /// HTML-escape special characters.
