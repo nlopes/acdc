@@ -421,6 +421,7 @@ fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 #[cfg(feature = "highlighting")]
 fn resolve_highlight_settings(
     document_attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
+    diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> (String, syntax::HighlightMode) {
     let dark_mode = document_attributes.contains("dark-mode");
 
@@ -434,19 +435,16 @@ fn resolve_highlight_settings(
         }
     };
 
-    let theme_name: String = setting("highlight-style", "syntect-style")
+    let fallback = if dark_mode {
+        syntax::DEFAULT_THEME_DARK
+    } else {
+        syntax::DEFAULT_THEME_LIGHT
+    };
+    let requested = setting("highlight-style", "syntect-style")
         .and_then(|value| value.text())
         .filter(|value| !value.is_empty())
-        .map_or_else(
-            || {
-                if dark_mode {
-                    syntax::DEFAULT_THEME_DARK.to_string()
-                } else {
-                    syntax::DEFAULT_THEME_LIGHT.to_string()
-                }
-            },
-            str::to_owned,
-        );
+        .unwrap_or(fallback);
+    let theme_name = syntax::resolve_theme_name(requested, fallback, diagnostics);
 
     let mode = if setting("highlight-css", "syntect-css").and_then(|value| value.text())
         == Some("class")
@@ -741,7 +739,8 @@ impl<'a> Converter<'a> {
             return;
         }
 
-        let (theme_name, mode) = crate::resolve_highlight_settings(attributes);
+        let (theme_name, mode) =
+            crate::resolve_highlight_settings(attributes, Some(&mut *diagnostics));
 
         if mode != syntax::HighlightMode::Class {
             return;
@@ -1041,8 +1040,10 @@ fn render_pre_code<'a, W: std::io::Write>(
             if highlighting_enabled {
                 let lang = language.unwrap_or("text");
                 let converter = visitor.converter.clone();
-                let (theme_name, mode) =
-                    resolve_highlight_settings(converter.document_attributes().into());
+                let (theme_name, mode) = resolve_highlight_settings(
+                    converter.document_attributes().into(),
+                    Some(&mut visitor.diagnostics),
+                );
                 syntax::write_pre_open(&mut visitor.writer, &theme_name, mode, nowrap_class)?;
                 if let Some(language) = language {
                     write!(

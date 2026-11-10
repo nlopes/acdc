@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Highlighting preserves source line separators and trailing blank lines,
+  including empty and single-line source input. Highlighting failures return a
+  structured warning and retain the original source. Asciidoctor trims trailing
+  source blank lines; acdc retains them.
+
 - Syntax highlighting builds with the published giallo 0.6.0 release, without
   requiring a Git checkout or separately generated grammar data.
 

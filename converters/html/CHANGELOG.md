@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Legacy syntect theme names select documented giallo replacements with a
+  structured migration warning. Unknown themes warn and use the light or dark
+  default instead of disabling highlighting. Primary `highlight-*` assignments,
+  including unsets, override their `syntect-*` aliases.
+- Highlighted HTML preserves trailing source newlines in both styling modes.
+  Unlike Asciidoctor, acdc retains trailing source blank lines.
+- Class-based highlighting uses theme-dependent color IDs instead of syntect
+  scope classes. Custom stylesheets must use the new selectors, and generated
+  highlighting CSS must stay in sync with the HTML and selected theme.
+
 - Syntax highlighting builds with the published giallo 0.6.0 release. Themes
   selected with `highlight-style` now apply their base text and background
   colors in both inline and class-based HTML, including embedded output.

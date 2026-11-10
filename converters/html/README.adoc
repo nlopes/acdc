@@ -205,7 +205,7 @@ assignment to a primary name takes precedence over its alias, including an
 empty value or unset. Linked highlighting CSS now uses `acdc-highlight.css`
 with either pair.
 Update manually maintained links that use the previous `acdc-syntect.css`
-filename. The `syntax-*` token classes stay the same.
+filename. Token selectors also change with the giallo migration, as described below.
 
 Using either deprecated attribute emits a converter warning with its
 replacement, once per attribute per conversion. Explicit unsets and values
@@ -217,7 +217,37 @@ cargo build --features highlighting
 acdc convert document.adoc
 ....
 
-Falls back to plain text when the language isn't recognized.
+Unknown languages render as plain text. Unknown themes produce a structured
+converter warning and use `github-light` or `github-dark`, following `dark-mode`,
+so a misspelled theme does not disable highlighting. The warning includes advice
+and is returned through the converter diagnostics API.
+
+Existing syntect theme names select these replacements and emit a migration warning:
+
+[cols="1,1"]
+|===
+| Old name | Giallo replacement
+| `InspiredGitHub`, `base16-ocean.light` | `github-light`
+| `Solarized (dark)` | `solarized-dark`
+| `Solarized (light)` | `solarized-light`
+| `base16-eighties.dark`, `base16-ocean.dark`, `base16-mocha.dark` | `github-dark`
+|===
+
+Replacement palettes may differ. Set `highlight-style` to the replacement name
+to remove the warning. An explicit `highlight-style` or `highlight-css`
+assignment, including an empty value or unset, overrides its `syntect-*` alias.
+
+Class-based output uses theme-dependent color IDs such as `syntax-10`, plus
+formatting classes such as `syntax-b`. These replace syntect's semantic scope
+classes; existing selectors such as `.syntax-keyword` need to be rewritten.
+Numeric IDs can change when the theme or giallo version changes. Regenerate
+`acdc-highlight.css` together with the HTML, and keep their theme versions in
+sync. To change themes, regenerate both files rather than swapping only the CSS.
+Embedded class-based output requires the containing page to supply that CSS.
+
+Highlighting preserves source line separators, including trailing blank lines.
+Asciidoctor trims trailing blank lines in source blocks; acdc retains them.
+Source line numbering still excludes trailing empty lines.
 
 === Stylesheets
 
