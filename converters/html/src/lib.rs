@@ -1040,20 +1040,18 @@ fn render_pre_code<'a, W: std::io::Write>(
             #[cfg(feature = "highlighting")]
             if highlighting_enabled {
                 let lang = language.unwrap_or("text");
-                if let Some(language) = language {
-                    write!(
-                        visitor.writer,
-                        "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
-                    )?;
-                } else {
-                    write!(
-                        visitor.writer,
-                        "<pre class=\"highlight{nowrap_class}\"><code>"
-                    )?;
-                }
                 let converter = visitor.converter.clone();
                 let (theme_name, mode) =
                     resolve_highlight_settings(converter.document_attributes().into());
+                syntax::write_pre_open(&mut visitor.writer, &theme_name, mode, nowrap_class)?;
+                if let Some(language) = language {
+                    write!(
+                        visitor.writer,
+                        "<code class=\"language-{language}\" data-lang=\"{language}\">"
+                    )?;
+                } else {
+                    write!(visitor.writer, "<code>")?;
+                }
                 let highlight_inlines = inlines;
                 render_highlighted_code(
                     traversal,

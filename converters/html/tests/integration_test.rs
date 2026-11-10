@@ -2194,6 +2194,87 @@ fn preface_subsections_are_not_numbered() -> Result<(), Error> {
 mod syntax_highlighting {
     use super::*;
 
+    #[rstest::rstest]
+    #[case::light(("github-light", "#24292E", "#FFFFFF", "#D73A49"))]
+    #[case::dark(("github-dark", "#E1E4E8", "#24292E", "#F97583"))]
+    fn theme_base_colors_apply_to_the_code_block(
+        #[case] theme: (&str, &str, &str, &str),
+        #[values("inline", "class")] mode: &str,
+        #[values(HtmlVariant::Standard, HtmlVariant::Semantic)] variant: HtmlVariant,
+        #[values(false, true)] embedded: bool,
+        #[values(false, true)] numbered: bool,
+    ) -> Result<(), Error> {
+        let (theme_name, foreground, background, keyword) = theme;
+        let linenums = if numbered { ",linenums" } else { "" };
+        let input = format!(
+            ":source-highlighter: giallo\n\n[source%nowrap,typescript{linenums}]\n----\ninterface User {{ name: string }}\nconst value = \"<&>\";\n----\n"
+        );
+        // Select a theme opposite to the page so inheriting page colors fails.
+        let options = ParserOptions::builder()
+            .with_attribute("dark-mode", theme_name == "github-light")
+            .with_attribute("highlight-style", theme_name)
+            .with_attribute("highlight-css", mode)
+            .build()?;
+        let parsed = parse(&input, &options)?;
+        let doc = parsed.document();
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            variant,
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        processor.convert_to_writer(
+            doc,
+            &mut output,
+            &RenderOptions {
+                embedded,
+                ..RenderOptions::default()
+            },
+            &mut Diagnostics::new(&source, &mut warnings),
+        )?;
+        let html = String::from_utf8(output)?;
+        let pre = html
+            .split_once("<pre ")
+            .and_then(|(_, rest)| rest.split_once('>'))
+            .map(|(attributes, _)| attributes)
+            .ok_or("missing code block")?;
+        assert!(pre.contains("nowrap"), "{pre}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(html.contains("&lt;&amp;&gt;"), "{html}");
+        assert_eq!(html.contains("class=\"linenotable\""), numbered);
+        if mode == "inline" {
+            assert!(pre.contains(&format!("color: {foreground};")), "{pre}");
+            assert!(
+                pre.contains(&format!("background-color: {background};")),
+                "{pre}"
+            );
+            assert!(
+                html.contains(&format!(
+                    "<span style=\"color: {keyword};\">interface</span>"
+                )),
+                "{html}"
+            );
+        } else {
+            assert!(pre.contains("syntax-code"), "{pre}");
+            assert!(!pre.contains("style="), "{pre}");
+            if !embedded {
+                assert!(html.contains("pre.highlight.syntax-code,"), "{html}");
+                assert!(
+                    html.contains(".listingblock > .content > pre.syntax-code {"),
+                    "{html}"
+                );
+                assert!(html.contains(&format!("  color: {foreground};")), "{html}");
+                assert!(
+                    html.contains(&format!("  background-color: {background};")),
+                    "{html}"
+                );
+            }
+        }
+        Ok(())
+    }
+
     const SOURCE_BLOCK: &str = r#":source-highlighter: giallo
 
 [source,rust]

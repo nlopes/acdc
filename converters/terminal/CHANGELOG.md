@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Syntax highlighting builds with the published giallo 0.6.0 release, without
+  requiring a Git checkout or separately generated grammar data.
+
 - **Breaking:** use `Converter` in place of `Processor`. Read asciicast
   recordings with `parse_from_inlines()` or `parse_from_inlines_with_idle_limit()`
   in place of `parse_inlines()` / `parse_inlines_with()`. Rendering is unchanged.
