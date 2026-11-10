@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added optional `highlighting` support for custom converters, with shared
+  built-in languages and themes, a 16 KiB source-line limit, and structured
+  warnings when a block needs plain-source rendering.
+
 - **Breaking:** duration formatting now uses `format_human()` and
   `format_human_with_precision()` in place of `pretty_print()` and
   `pretty_print_precise()`. Update custom converters to use these names.

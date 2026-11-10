@@ -6,8 +6,13 @@ description = "Core traits and utilities for acdc document converters"
 license = "MIT OR Apache-2.0"
 publish = false
 
+[features]
+default = []
+highlighting = ["dep:giallo"]
+
 [dependencies]
 acdc-parser.workspace = true
+giallo = { workspace = true, optional = true }
 html-escape.workspace = true
 percent-encoding.workspace = true
 relative-path.workspace = true

@@ -198,7 +198,15 @@ background colors. This works in both standalone and embedded HTML.
 |===
 
 Unknown languages render as plain text. An unknown theme produces a converter
-warning and uses the default for the page's light or dark mode.
+warning when source or class CSS is rendered, and uses the default for the
+page's light or dark mode. Inline CSS mode does not load highlighting resources
+for a document without source blocks.
+
+If any physical source line exceeds 16 KiB (16,384 UTF-8 bytes, excluding newline
+separators), the entire block renders as plain source with one converter warning
+per document. The text, callouts, line numbers, and selected-line backgrounds are
+preserved. This acdc limit bounds highlighting time on long lines; Asciidoctor's
+behavior depends on its selected highlighter.
 
 ==== CSS class output
 

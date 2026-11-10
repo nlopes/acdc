@@ -88,6 +88,12 @@ Asciidoctor, acdc retains trailing source blank lines. If highlighting fails,
 the converter renders the original source and returns a structured warning with
 recovery advice.
 
+If any physical source line exceeds 16 KiB (16,384 UTF-8 bytes, excluding newline
+separators), the entire block renders as plain source with one converter warning
+per document. Text, callouts, line numbers, and selected-line backgrounds are
+preserved. This acdc limit bounds highlighting time on long lines. Embedded ANSI
+callers can collect warnings with `render_listing_to_ansi_with_diagnostics()`.
+
 ## Terminal Semantics
 
 An `[index]` section generates a catalog at its authored position, including

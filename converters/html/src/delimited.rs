@@ -783,7 +783,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
-        render_listing(&mut self.writer, content, attributes, options, attrs)?;
+        render_listing(
+            &mut self.writer,
+            content,
+            attributes,
+            options,
+            attrs,
+            &mut self.diagnostics,
+        )?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
         Ok(())
@@ -816,7 +823,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 "<figcaption>",
                 "</figcaption>\n",
             )?;
-            render_listing(&mut self.writer, content, attributes, options, attrs)?;
+            render_listing(
+                &mut self.writer,
+                content,
+                attributes,
+                options,
+                attrs,
+                &mut self.diagnostics,
+            )?;
             writeln!(self.writer, "</figure>")?;
         } else {
             write_semantic_tag_open(
@@ -825,7 +839,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 Some(attributes),
                 "listing-block terminal-block",
             )?;
-            render_listing(&mut self.writer, content, attributes, options, attrs)?;
+            render_listing(
+                &mut self.writer,
+                content,
+                attributes,
+                options,
+                attrs,
+                &mut self.diagnostics,
+            )?;
             writeln!(self.writer, "</div>")?;
         }
         Ok(())

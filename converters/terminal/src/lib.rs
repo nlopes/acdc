@@ -352,6 +352,8 @@ pub fn render_document_to_ansi(
 /// terminal converter crate while allowing other converters to render the
 /// resulting bytes through a terminal emulator.
 ///
+/// Use [`render_listing_to_ansi_with_diagnostics`] to collect fallback warnings.
+///
 /// # Errors
 ///
 /// Returns an error if syntax highlighting or writing fails.
@@ -363,6 +365,53 @@ pub fn render_listing_to_ansi(
     attributes: AttributesRef<'_>,
     width: usize,
     dark_mode: bool,
+) -> Result<Vec<u8>, Error> {
+    render_listing_ansi(
+        options,
+        document_attributes,
+        content,
+        attributes,
+        width,
+        dark_mode,
+        None,
+    )
+}
+
+/// Render a listing/source block to ANSI bytes and collect fallback warnings.
+///
+/// # Errors
+///
+/// Returns an error if syntax highlighting or writing fails.
+#[cfg(feature = "emulator")]
+pub fn render_listing_to_ansi_with_diagnostics(
+    options: Options,
+    document_attributes: DocumentAttributes<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
+    width: usize,
+    dark_mode: bool,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<Vec<u8>, Error> {
+    render_listing_ansi(
+        options,
+        document_attributes,
+        content,
+        attributes,
+        width,
+        dark_mode,
+        Some(diagnostics),
+    )
+}
+
+#[cfg(feature = "emulator")]
+fn render_listing_ansi(
+    options: Options,
+    document_attributes: DocumentAttributes<'_>,
+    content: ContentRef<'_>,
+    attributes: AttributesRef<'_>,
+    width: usize,
+    dark_mode: bool,
+    diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<Vec<u8>, Error> {
     let mut converter = Converter::new(options, ParserOptions::builder())?
         .with_terminal_width(width)
@@ -378,7 +427,7 @@ pub fn render_listing_to_ansi(
         language,
         &converter,
         |source| acdc_converters_core::code::SourceLineOptions::from_attributes(attributes, source),
-        None,
+        diagnostics,
     )?
     .into_bytes();
 

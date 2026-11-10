@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Highlighted source blocks with a line longer than 16 KiB render as plain
+  source, with one structured warning per document. Text, callouts, line
+  numbers, and selected-line backgrounds are preserved. This acdc limit avoids
+  excessive highlighting time on long lines; it is independent of Asciidoctor's
+  selected highlighter.
+- Documents without source blocks no longer pay highlighting startup costs in
+  inline CSS mode. Mixed HTML and terminal previews use less peak memory.
+
 - Source blocks use giallo highlighting with theme text and background colors
   in standalone and embedded HTML. Choose a theme with `highlight-style` and
   use `highlight-css=class` for a generated `acdc-highlight.css` stylesheet.

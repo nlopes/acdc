@@ -9,7 +9,7 @@ publish = false
 [features]
 default = []
 # Enable syntax highlighting for source blocks using giallo
-highlighting = ["dep:giallo"]
+highlighting = ["dep:giallo", "acdc-converters-core/highlighting"]
 # Render terminal-converter output into selectable HTML via libghostty-vt.
 terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/emulator", "acdc-converters-terminal/highlighting"]
 
@@ -23,7 +23,7 @@ base64.workspace = true
 chrono.workspace = true
 percent-encoding.workspace = true
 quick-xml = "0.41"
-giallo = { version = "0.6.0", optional = true, features = ["dump"] }
+giallo = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing.workspace = true
 ureq = { workspace = true, optional = true }

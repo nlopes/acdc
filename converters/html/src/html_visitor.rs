@@ -414,27 +414,26 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     #[cfg(feature = "highlighting")]
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
         let attributes = DocumentAttributesRef::from(self.converter.document_attributes());
-        if attributes.contains("source-highlighter") {
-            let (theme_name, mode) =
-                crate::resolve_highlight_settings(attributes, Some(&mut self.diagnostics));
-            if mode == crate::syntax::HighlightMode::Class {
-                let linkcss = attributes.contains("linkcss");
-
-                if linkcss {
-                    let stylesdir = attributes
-                        .get("stylesdir")
-                        .and_then(|value| value.text())
-                        .unwrap_or(STYLESDIR_DEFAULT);
-                    writeln!(
-                        self.writer,
-                        r#"<link rel="stylesheet" href="{}/{}">"#,
-                        stylesdir.trim_end_matches('/'),
-                        crate::HIGHLIGHT_STYLESHEET
-                    )?;
-                } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
-                    writeln!(self.writer, "<style>\n{css}</style>")?;
-                }
-            }
+        if !attributes.contains("source-highlighter")
+            || crate::highlight_mode(attributes) != crate::syntax::HighlightMode::Class
+        {
+            return Ok(());
+        }
+        let (theme_name, _) =
+            crate::resolve_highlight_settings(attributes, Some(&mut self.diagnostics));
+        if attributes.contains("linkcss") {
+            let stylesdir = attributes
+                .get("stylesdir")
+                .and_then(|value| value.text())
+                .unwrap_or(STYLESDIR_DEFAULT);
+            writeln!(
+                self.writer,
+                r#"<link rel="stylesheet" href="{}/{}">"#,
+                stylesdir.trim_end_matches('/'),
+                crate::HIGHLIGHT_STYLESHEET
+            )?;
+        } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
+            writeln!(self.writer, "<style>\n{css}</style>")?;
         }
         Ok(())
     }
