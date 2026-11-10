@@ -1,1 +1,0 @@
-../../html/embedded/highlight_attribute_deprecations.adoc

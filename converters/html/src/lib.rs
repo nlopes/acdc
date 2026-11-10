@@ -416,8 +416,6 @@ fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 ///
 /// - `:highlight-style:` overrides the theme (falls back to light/dark default).
 /// - `:highlight-css: class` switches to CSS-class mode (default is inline).
-/// - `syntect-style` and `syntect-css` are `[deprecated]` compatibility aliases.
-///   An explicit primary assignment, including an unset, takes precedence.
 #[cfg(feature = "highlighting")]
 fn resolve_highlight_settings(
     document_attributes: acdc_parser::ast::DocumentAttributesRef<'_>,
@@ -425,28 +423,21 @@ fn resolve_highlight_settings(
 ) -> (String, syntax::HighlightMode) {
     let dark_mode = document_attributes.contains("dark-mode");
 
-    let setting = |primary, alias| {
-        let value = document_attributes.get(primary);
-        // An explicit unset must suppress the deprecated alias as well.
-        if value.is_some() || document_attributes.is_explicit(primary) {
-            value
-        } else {
-            document_attributes.get(alias)
-        }
-    };
-
     let fallback = if dark_mode {
         syntax::DEFAULT_THEME_DARK
     } else {
         syntax::DEFAULT_THEME_LIGHT
     };
-    let requested = setting("highlight-style", "syntect-style")
+    let requested = document_attributes
+        .get("highlight-style")
         .and_then(|value| value.text())
         .filter(|value| !value.is_empty())
         .unwrap_or(fallback);
     let theme_name = syntax::resolve_theme_name(requested, fallback, diagnostics);
 
-    let mode = if setting("highlight-css", "syntect-css").and_then(|value| value.text())
+    let mode = if document_attributes
+        .get("highlight-css")
+        .and_then(|value| value.text())
         == Some("class")
     {
         syntax::HighlightMode::Class

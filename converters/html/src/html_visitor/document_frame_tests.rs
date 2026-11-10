@@ -80,12 +80,8 @@ fn frame_preserves_document_converter_and_replay_snapshots_after_owner_edits()
 }
 
 #[test]
-fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
--> Result<(), TestError> {
-    let parsed = parse(
-        "= Frame\n:syntect-style: InspiredGitHub\n\nBody.\n",
-        &Options::default(),
-    )?;
+fn frame_keeps_embedded_return_and_css_signature_error() -> Result<(), TestError> {
+    let parsed = parse("= Frame\n\nBody.\n", &Options::default())?;
     let parsed_stored = Document::from(parsed.document());
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
         for embedded in [false, true] {
@@ -120,11 +116,7 @@ fn frame_keeps_embedded_return_and_css_signature_error_after_alias_warnings()
                 assert!(output.ends_with("</head>\n"), "{output}");
                 assert!(!output.contains("<body"), "{output}");
             }
-            assert_eq!(warnings.len(), 1);
-            assert_eq!(
-                warnings.first().and_then(|warning| warning.advice()),
-                Some("Use `highlight-style` instead.")
-            );
+            assert!(warnings.is_empty(), "{warnings:?}");
         }
     }
     Ok(())

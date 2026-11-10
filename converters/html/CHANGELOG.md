@@ -7,19 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Legacy syntect theme names select documented giallo replacements with a
-  structured migration warning. Unknown themes warn and use the light or dark
-  default instead of disabling highlighting. Primary `highlight-*` assignments,
-  including unsets, override their `syntect-*` aliases.
+- Source blocks use giallo highlighting with theme text and background colors
+  in standalone and embedded HTML. Choose a theme with `highlight-style` and
+  use `highlight-css=class` for a generated `acdc-highlight.css` stylesheet.
+- **Breaking:** highlighting settings use only `highlight-style` and
+  `highlight-css`, with giallo theme names.
+- Unknown highlighting themes warn and use `github-light` or `github-dark`,
+  following `dark-mode`.
 - Highlighted HTML preserves trailing source newlines in both styling modes.
   Unlike Asciidoctor, acdc retains trailing source blank lines.
-- Class-based highlighting uses theme-dependent color IDs instead of syntect
-  scope classes. Custom stylesheets must use the new selectors, and generated
-  highlighting CSS must stay in sync with the HTML and selected theme.
-
-- Syntax highlighting builds with the published giallo 0.6.0 release. Themes
-  selected with `highlight-style` now apply their base text and background
-  colors in both inline and class-based HTML, including embedded output.
+- Class-based highlighting uses theme-dependent color IDs. Generate HTML and
+  highlighting CSS together when changing themes.
 
 - Table column widths follow the parsed columns in both HTML variants.
   `cols=0` infers columns from the first row, and zero-count specifications
@@ -408,7 +406,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Without font icons, guards remain visible, matching ordinary Asciidoctor HTML.
   Authored spacing, marker positions and multiple markers remain intact;
   Rouge may add spacing between markers instead.
-- With `:source-highlighter: syntect`, callouts retain their positions and
+- With `:source-highlighter: giallo`, callouts retain their positions and
   authored spacing, including XML comment guards and multiple or repeated
   markers on one line. Marker-only lines retain line numbers and highlighting.
   Inline styles, `highlight-css=class`, and missing-theme fallback preserve
@@ -911,7 +909,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dark color scheme (`#1a1a1a` background, adapted headings, links, code blocks, tables,
   admonitions, and named colors).
 - **Syntax highlighting for source blocks** - Code blocks with a language specified now
-  render with syntax highlighting using syntect. Outputs inline CSS styles. Falls back
+  render with syntax highlighting using giallo. Outputs inline CSS styles. Falls back
   to plain text when the language isn't recognized. Requires `highlighting` feature flag.
 - **Section numbering** - Documents with `:sectnums:` attribute now render numbered
   section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:sectnumlevels:`
@@ -1150,29 +1148,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and terminal blocks render as listings. Select a lower mode explicitly for
   trusted documents. The CLI retains its Unsafe default.
 
-- Use `:highlight-css: class` for CSS class highlighting and `:highlight-style:`
-  for theme selection. `syntect-css` and `syntect-style` remain [deprecated]
-  compatibility aliases. Using either deprecated name produces a converter
-  warning with its replacement, once per attribute per conversion, including
-  unsets and values overridden by primary names. An explicit primary assignment
-  takes precedence,
-  including empty values and unsets; highlighting defaults are unchanged.
-  Linked highlighting CSS is now written and referenced as `acdc-highlight.css`
-  for both primary and deprecated options. Update manually maintained links
-  that use the previous `acdc-syntect.css` filename.
-  Embedded HTML still needs its containing page to supply the highlighting CSS.
-  Asciidoctor's Rouge highlighter uses `:rouge-css: class` and different token
-  classes; the `highlight-*` names are acdc HTML options.
-
 - **Breaking:** configure HTML conversion with the parser options builder and use
   the converter's validated parser options for parsing. Construction and HTML
   variant changes can reject invalid configuration.
 - **Breaking:** direct visitor callbacks receive the current traversal context.
   Embedded consumers can still detect math enabled in headers, bodies, and nested cells.
-- **Syntax highlighting now uses giallo instead of syntect** — both inline-style and
-  class-based HTML output use giallo's built-in grammars and themes. The preferred
-  attributes are now `:highlight-style:` and `:highlight-css:`, while the legacy
-  `:syntect-style:` and `:syntect-css:` names remain supported.
 - **Use shared `replace_apostrophes` from converters-core** — smart apostrophe logic moved to
   converters-core for reuse across converters.
 - **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`

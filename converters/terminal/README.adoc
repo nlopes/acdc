@@ -83,6 +83,11 @@ are removed and the visible callout marker is emphasized. Source substitutions,
 Unicode text, and long lines are preserved. PHP `%mixed` highlighting falls back
 to normal PHP highlighting and reports one warning per document.
 
+Syntax highlighting preserves line separators and trailing blank lines. Unlike
+Asciidoctor, acdc retains trailing source blank lines. If highlighting fails,
+the converter renders the original source and returns a structured warning with
+recovery advice.
+
 ## Terminal Semantics
 
 An `[index]` section generates a catalog at its authored position, including
@@ -146,8 +151,3 @@ To run only the Ghostty-backed tests:
 ----
 cargo nextest run -p acdc-converters-terminal --test headless_terminal_test --all-features
 ----
-
-Syntax highlighting preserves line separators and trailing blank lines. Unlike
-Asciidoctor, acdc retains trailing source blank lines. If highlighting fails,
-the converter renders the original source and returns a structured warning with
-recovery advice.
