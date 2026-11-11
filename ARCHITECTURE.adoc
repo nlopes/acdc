@@ -86,6 +86,24 @@ The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
 The primary PEG grammar lives in `grammar/document/peg.rs` using the `peg::parser!` macro.
 It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
 
+==== Registered extensions
+
+The parser owns an optional registry of block-macro descriptors and factories.
+Recognition records invocations and their source-position attributes without
+calling extension code. Once the complete document is accepted, the host runs
+macros once in document order, then repairs prepared captions and catalogs.
+
+Queries return the same typed views as ordinary parser consumers, plus stable
+handles for ID assignment. Reference and footnote repair reuse the shared prepared
+content services. The host allocates generated literal text without reparsing it
+or storing backend markup.
+
+The working session retains deferred requests and document-local processors.
+Its checked `finish()` operation rejects unresolved requests and returns the
+ordinary `ParseResult` for conversion. Registrations are explicit, and an empty
+registry retains the ordinary parsing path. Callbacks cannot change source
+processing, includes, or conditionals.
+
 ==== Inline preprocessing
 
 Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].

@@ -457,6 +457,10 @@ impl<'a> Section<'a> {
         !self.numbering.enabled && self.numbering.number.is_none()
     }
 
+    pub(crate) fn preserve_toc_number(&self, entry: &mut TocEntry<'_>) {
+        entry.set_number(self.numbering.number.clone());
+    }
+
     /// Return the assigned number without presentation punctuation or a signifier.
     ///
     /// Examples are `1`, `1.2`, `IV`, and `A.1`.
@@ -641,6 +645,24 @@ fn update_section_reference(
     }
 }
 
+/// Capture reference numbers, including numbers hidden by `sectnumlevels`.
+/// The caller must run this before its first structural edit.
+pub(crate) fn extension_reference_numbers(
+    blocks: &mut [Block<'_>],
+    is_book: bool,
+) -> Vec<SectionReference> {
+    let mut references = Vec::new();
+    let mut state = NumberingState::default();
+    let mut record = |_: &Section<'_>, numbers: SectionNumbers, name, _: bool| {
+        references.push(SectionReference {
+            name,
+            number: numbers.reference,
+        });
+    };
+    renumber_blocks(blocks, &mut state, is_book, false, true, &mut record);
+    references
+}
+
 /// Assign numbers after parsing, matching ordered TOC entries by source location.
 pub(crate) fn number_parsed_sections<'a>(
     blocks: &mut [Block<'a>],
@@ -802,6 +824,7 @@ fn renumber_blocks<'a, F>(
             | Block::Image(_)
             | Block::Audio(_)
             | Block::Video(_)
+            | Block::Extension(_)
             | Block::Comment(_) => {}
         }
     }

@@ -58,6 +58,7 @@ impl<'doc> BlockRef<'doc> {
     #[must_use]
     pub fn attributes(self) -> Option<AttributesRef<'doc>> {
         match self.kind() {
+            BlockKind::Extension(node) => Some(super::AttributesRef::extension(node.node)),
             BlockKind::Section(node) => Some(node.attributes()),
             BlockKind::Paragraph(node) => Some(node.attributes()),
             BlockKind::Admonition(node) => Some(node.attributes()),

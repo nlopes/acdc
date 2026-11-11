@@ -97,6 +97,7 @@ impl CaptionKind {
             | BlockKind::Passthrough(_)
             | BlockKind::Quote(_)
             | BlockKind::Verse(_)
+            | BlockKind::Extension(_)
             | BlockKind::Stem(_) => None,
         }
     }
@@ -396,6 +397,7 @@ fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
             | Block::Audio(_)
             | Block::Video(_)
             | Block::DocumentAttribute(_)
+            | Block::Extension(_)
             | Block::Comment(_) => {}
         }
     }
@@ -469,6 +471,7 @@ fn renumber_children(block: &mut Block<'_>, counters: &mut CaptionCounters) {
         | Block::Audio(_)
         | Block::Video(_)
         | Block::DocumentAttribute(_)
+        | Block::Extension(_)
         | Block::Comment(_) => {}
     }
 }

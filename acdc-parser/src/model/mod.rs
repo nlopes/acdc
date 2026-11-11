@@ -537,6 +537,7 @@ pub struct Comment<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Block<'a> {
+    Extension(Box<crate::extensions::ExtensionBlock<'a>>),
     TableOfContents(TableOfContents<'a>),
     // TODO(nlopes): we shouldn't have an admonition type here, instead it should be
     // picked up from the style attribute from the block metadata.
@@ -566,6 +567,7 @@ impl<'a> Block<'a> {
     #[must_use]
     pub fn location(&self) -> &Location {
         match self {
+            Block::Extension(e) => &e.location,
             Block::Section(s) => &s.location,
             Block::Paragraph(p) => &p.location,
             Block::UnorderedList(l) => &l.location,
@@ -604,6 +606,7 @@ impl<'a> Block<'a> {
     #[must_use]
     pub(crate) fn metadata(&self) -> Option<&BlockMetadata<'a>> {
         match self {
+            Block::Extension(e) => Some(&e.metadata),
             Block::Section(block) => Some(&block.metadata),
             Block::DelimitedBlock(block) => Some(&block.metadata),
             Block::Admonition(block) => Some(&block.metadata),
@@ -625,6 +628,7 @@ impl<'a> Block<'a> {
     /// This block's metadata, for the blocks that carry any.
     pub(crate) fn metadata_mut(&mut self) -> Option<&mut BlockMetadata<'a>> {
         match self {
+            Block::Extension(e) => Some(&mut e.metadata),
             Block::Section(block) => Some(&mut block.metadata),
             Block::DelimitedBlock(block) => Some(&mut block.metadata),
             Block::Admonition(block) => Some(&mut block.metadata),
@@ -646,6 +650,7 @@ impl<'a> Block<'a> {
     /// The authored anchor selected as this block's cross-reference target.
     pub(crate) fn anchor(&self) -> Option<&Anchor<'a>> {
         match self {
+            Block::Extension(e) => e.metadata.id_anchor(),
             Block::Section(b) => b.metadata.id_anchor(),
             Block::DelimitedBlock(b) => b.metadata.id_anchor(),
             Block::Admonition(b) => b.metadata.id_anchor(),
@@ -669,6 +674,7 @@ impl<'a> Block<'a> {
     /// text when an `<<id>>` to this block has no explicit label).
     pub(crate) fn title(&self) -> Option<&Title<'a>> {
         let title = match self {
+            Block::Extension(e) => &e.title,
             Block::Section(b) => &b.title,
             Block::DelimitedBlock(b) => &b.title,
             Block::Admonition(b) => &b.title,
@@ -696,6 +702,7 @@ impl Block<'_> {
     /// pass rewrites it). Counterpart to [`Self::location`].
     pub(crate) fn location_mut(&mut self) -> &mut Location {
         match self {
+            Block::Extension(e) => &mut e.location,
             Block::Section(s) => &mut s.location,
             Block::Paragraph(p) => &mut p.location,
             Block::UnorderedList(l) => &mut l.location,

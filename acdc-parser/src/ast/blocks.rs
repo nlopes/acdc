@@ -42,6 +42,11 @@ macro_rules! delimited_ref {
     };
 }
 
+node_ref!(
+    ExtensionRef<'doc>,
+    crate::extensions::ExtensionBlock<'doc>,
+    "A pending extension block in a working session."
+);
 node_ref!(DocumentRef<'doc>, Document<'doc>, "A document.");
 node_ref!(SectionRef<'doc>, Section<'doc>, "A section.");
 node_ref!(ParagraphRef<'doc>, Paragraph<'doc>, "A paragraph.");
@@ -143,6 +148,7 @@ pub struct BlockRef<'doc> {
 #[derive(Clone, Copy, Debug)]
 #[non_exhaustive]
 pub enum BlockKind<'doc> {
+    Extension(ExtensionRef<'doc>),
     TableOfContents(TableOfContentsRef<'doc>),
     Admonition(AdmonitionRef<'doc>),
     DiscreteHeading(DiscreteHeadingRef<'doc>),
@@ -183,6 +189,7 @@ impl<'doc> BlockRef<'doc> {
     #[must_use]
     pub fn location(self) -> LocationRef<'doc> {
         match self.kind {
+            BlockKind::Extension(node) => node.location(),
             BlockKind::TableOfContents(node) => node.location(),
             BlockKind::Admonition(node) => node.location(),
             BlockKind::DiscreteHeading(node) => node.location(),
@@ -429,6 +436,7 @@ impl<'doc> From<&'doc Block<'doc>> for BlockRef<'doc> {
             Block::DescriptionList(node) => {
                 BlockKind::DescriptionList(DescriptionListRef::new(node))
             }
+            Block::Extension(node) => BlockKind::Extension(ExtensionRef::new(node)),
             Block::Section(node) => BlockKind::Section(SectionRef::from(node)),
             Block::Paragraph(node) => BlockKind::Paragraph(ParagraphRef::from(node)),
             Block::Image(node) => BlockKind::Image(ImageRef::new(node)),
@@ -540,6 +548,7 @@ impl<'doc> From<BlockRef<'doc>> for Block<'doc> {
             BlockKind::OrderedList(node) => Self::OrderedList(node.node.clone()),
             BlockKind::CalloutList(node) => Self::CalloutList(node.node.clone()),
             BlockKind::DescriptionList(node) => Self::DescriptionList(node.node.clone()),
+            BlockKind::Extension(node) => Self::Extension(Box::new(node.node.clone())),
             BlockKind::Section(node) => Self::Section(node.node.clone()),
             BlockKind::Paragraph(node) => Self::Paragraph(node.node.clone()),
             BlockKind::Image(node) => Self::Image(node.node.clone()),

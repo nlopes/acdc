@@ -780,7 +780,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
             | BlockKind::Stem(_)
             | BlockKind::Table(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block_ref(context, block),
-            _ => {
+            BlockKind::Extension(_) | _ => {
                 self.warn_unhandled_block();
                 Ok(())
             }

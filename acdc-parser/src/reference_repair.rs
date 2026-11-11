@@ -16,6 +16,7 @@ struct RebuiltReferences<'a> {
     occurrences: Occurrences,
     automatic: Vec<&'a str>,
     needs_document_top: bool,
+    preserve_numbers: bool,
 }
 
 impl<'a> ReferenceVisitor<'a> for RebuiltReferences<'a> {
@@ -65,6 +66,9 @@ impl<'a> ReferenceVisitor<'a> for RebuiltReferences<'a> {
                 section.heading_location.clone(),
             );
             entry.occurrence = Some(occurrence);
+            if self.preserve_numbers {
+                section.preserve_toc_number(&mut entry);
+            }
             self.toc.push(entry);
         }
         Ok(())
@@ -204,12 +208,21 @@ impl Document<'_> {
     /// Returns an error without changing the document if a section has no assigned
     /// or explicit ID, or a document reference label lacks prepared attribute context.
     pub fn rebuild_references_and_toc(&mut self) -> Result<(), ReferenceRepairError> {
+        self.rebuild_membership(true)
+    }
+
+    pub(crate) fn rebuild_extension_references(&mut self) -> Result<(), ReferenceRepairError> {
+        self.rebuild_membership(false)
+    }
+
+    fn rebuild_membership(&mut self, renumber: bool) -> Result<(), ReferenceRepairError> {
         let mut rebuilt = RebuiltReferences {
             entries: HashMap::new(),
             toc: Vec::new(),
             occurrences: Occurrences::default(),
             automatic: Vec::new(),
             needs_document_top: false,
+            preserve_numbers: !renumber,
         };
         if let Some(header) = &self.header {
             reference_walk::header(&mut rebuilt, header)?;
@@ -261,9 +274,25 @@ impl Document<'_> {
             true,
         )
         .unwrap_or_else(|never| match never {});
+        if !renumber {
+            let previous: HashMap<_, _> = self
+                .references
+                .values()
+                .filter_map(|reference| {
+                    Some((reference.occurrence.as_ref()?, reference.section.as_ref()?))
+                })
+                .collect();
+            for reference in rebuilt.entries.values_mut() {
+                if let Some(occurrence) = &reference.occurrence {
+                    reference.section = previous.get(occurrence).map(|section| (*section).clone());
+                }
+            }
+        }
         self.references = rebuilt.entries;
         self.toc_entries = rebuilt.toc;
-        self.renumber_sections();
+        if renumber {
+            self.renumber_sections();
+        }
         Ok(())
     }
 }
