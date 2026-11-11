@@ -1,8 +1,9 @@
 use acdc_parser::{
     CompatibilityMode, Error, Options, ParseResult,
-    ast::{BlockKind, InlineKind},
+    ast::{BlockKind, ElementIdRef, FootnoteDefinitionRef, InlineKind, ReferenceTargetRef},
     extensions::{
-        BlockContext, BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroInvocation, Registry,
+        BlockBuilder, BlockContext, BlockMacro, BlockMacroOutput, BlockMacroProcessor,
+        DocumentEditor, MacroInvocation, Registry, TreeProcessor, TreeProcessorRegistration,
     },
 };
 
@@ -12,6 +13,32 @@ struct Defer;
 impl BlockMacroProcessor for Defer {
     fn process(&mut self, _: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
         Ok(BlockMacroOutput::Deferred)
+    }
+}
+
+struct Fill;
+impl TreeProcessor for Fill {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        let targets: Vec<_> = editor
+            .deferred_blocks()
+            .iter()
+            .map(|request| request.target().clone())
+            .collect();
+        for target in targets {
+            assert!(matches!(
+                editor.query().get(&target).map(|view| view.block().kind()),
+                Some(BlockKind::Extension(_))
+            ));
+            editor.replace_placeholder(
+                &target,
+                BlockBuilder::unordered_list(["*literal* <&>", "{counter:x}"]),
+            )?;
+            assert!(matches!(
+                editor.query().get(&target).map(|view| view.block().kind()),
+                Some(BlockKind::UnorderedList(_))
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -34,9 +61,37 @@ fn extensions_finish_checks_pending_requests_and_returns_normal_parse_result() -
                 .map(|source| source.location.start.line),
             Some(1)
         );
-        let parsed: ParseResult = Registry::default()
-            .parse("Ordinary content.", &options)?
+
+        let mut builder = Registry::builder();
+        builder.register(BlockMacro::new("request", || Defer))?;
+        builder.register_tree_processor(TreeProcessorRegistration::new("fill", || Fill))?;
+        let parsed: ParseResult = builder
+            .build()
+            .parse(".A *title*\n[#list]\nrequest::[]", &options)?
             .finish()?;
+        let block = parsed.document().blocks().next().ok_or("list")?;
+        assert_eq!(block.id().map(ElementIdRef::as_str), Some("list"));
+        assert!(block.title().is_some_and(|title| {
+            title
+                .inlines()
+                .any(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
+        }));
+        let BlockKind::UnorderedList(list) = block.kind() else {
+            return Err("list kind".into());
+        };
+        let texts: Vec<_> = list
+            .items()
+            .filter_map(|item| {
+                item.principal().inlines().find_map(|inline| {
+                    if let InlineKind::Plain(text) = inline.kind() {
+                        Some(text.text())
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+        assert_eq!(texts, ["*literal* <&>", "{counter:x}"]);
         require_send(parsed);
     }
     Ok(())
@@ -78,6 +133,89 @@ fn extensions_typed_queries_preserve_prepared_reference_labels() -> TestResult {
                 .any(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
         );
         assert_eq!(parsed.warnings(), []);
+    }
+    Ok(())
+}
+
+struct RemoveFirst;
+impl TreeProcessor for RemoveFirst {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        let target = editor
+            .query()
+            .select(BlockContext::Section)
+            .find(|view| view.output_id() == Some("gone"))
+            .map(|view| view.target().clone());
+        if let Some(target) = target {
+            editor.remove_section(&target)?;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn extensions_removal_preserves_cell_footnote_owners_and_prepared_numbers() -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let mut builder = Registry::builder();
+        builder
+            .register_tree_processor(TreeProcessorRegistration::new("remove", || RemoveFirst))?;
+        let source = "= Notes\n:sectnums:\n\n[#gone]\n== Removed\n\nfootnote:same[Outer definition <<gone>> [[inside]]]\n\n[#keep]\n== Kept\n\nfootnote:same[] and <<inside>>.\n\n[cols=a]\n|===\n|Cell footnote:same[Cell definition]\n|===\n";
+        assert!(
+            acdc_parser::parse(source, &options)?
+                .document()
+                .references()
+                .get("inside")
+                .is_some()
+        );
+        let parsed = builder.build().parse(source, &options)?.finish()?;
+        assert!(parsed.warnings().iter().any(|warning| matches!(
+            &warning.kind,
+            acdc_parser::WarningKind::UnresolvedReference { target } if target == "gone"
+        )));
+        let document = parsed.document();
+        assert_eq!(document.footnotes().count(), 1);
+        assert!(document.references().get("inside").is_some());
+        assert_eq!(
+            document
+                .references()
+                .get("keep")
+                .and_then(ReferenceTargetRef::section_number),
+            Some("2")
+        );
+        let section = document
+            .blocks()
+            .find_map(|block| {
+                if let BlockKind::Section(section) = block.kind() {
+                    Some(section)
+                } else {
+                    None
+                }
+            })
+            .ok_or("kept section")?;
+        assert_eq!(section.number(), Some("2"));
+        let table = section
+            .blocks()
+            .find_map(|block| {
+                if let BlockKind::Table(table) = block.kind() {
+                    Some(table)
+                } else {
+                    None
+                }
+            })
+            .ok_or("table")?;
+        let cell = table
+            .rows()
+            .next()
+            .and_then(|row| row.cells().next())
+            .ok_or("cell")?;
+        assert_eq!(cell.footnotes().count(), 1);
+        assert_ne!(
+            cell.footnotes().next().map(FootnoteDefinitionRef::number),
+            document
+                .footnotes()
+                .next()
+                .map(FootnoteDefinitionRef::number)
+        );
     }
     Ok(())
 }

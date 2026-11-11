@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    num::NonZeroU32,
+};
 
 use crate::{
     Block, CaptionKind, DelimitedBlockType, Document, InlineMacro, InlineNode, ParseResult,
@@ -176,6 +179,17 @@ impl TargetIndex {
         });
     }
 
+    pub(super) fn next_caption(&mut self, kind: CaptionKind) -> Option<NonZeroU32> {
+        let counter = self.caption_high_water.as_mut()?.get_mut(match kind {
+            CaptionKind::Example => 0,
+            CaptionKind::Figure => 1,
+            CaptionKind::Listing => 2,
+            CaptionKind::Table => 3,
+        })?;
+        *counter = counter.saturating_add(1);
+        NonZeroU32::new(*counter)
+    }
+
     pub(super) fn reserve_warnings(&mut self, parsed: &ParseResult) {
         self.unresolved_targets
             .extend(parsed.warnings().iter().filter_map(|warning| {
@@ -186,6 +200,52 @@ impl TargetIndex {
                 }
             }));
     }
+    pub(super) fn insert_before(&mut self, at: &TargetId) -> Option<TargetId> {
+        let position = *self.slots.get(at.slot)?.as_ref()?;
+        let entry = self.entry(at)?;
+        let path = entry.path.clone();
+        let section = entry.section.clone();
+        for entry in &mut self.entries {
+            entry.path.shift_siblings(&path, true);
+        }
+        let target = TargetId {
+            document: self.document.clone(),
+            slot: self.slots.len(),
+        };
+        self.slots.push(None);
+        self.entries.insert(
+            position,
+            Entry {
+                target: target.clone(),
+                path,
+                section,
+            },
+        );
+        self.reindex();
+        Some(target)
+    }
+
+    pub(super) fn remove(&mut self, at: &TargetId) {
+        let Some(entry) = self.entry(at) else {
+            return;
+        };
+        let path = entry.path.clone();
+        self.entries.retain(|entry| !entry.path.is_within(&path));
+        for entry in &mut self.entries {
+            entry.path.shift_siblings(&path, false);
+        }
+        self.reindex();
+    }
+
+    fn reindex(&mut self) {
+        self.slots.fill(None);
+        for (position, entry) in self.entries.iter().enumerate() {
+            if let Some(slot) = self.slots.get_mut(entry.target.slot) {
+                *slot = Some(position);
+            }
+        }
+    }
+
     pub(super) fn new(parsed: &ParseResult, session: &Session) -> Self {
         let unresolved_targets = parsed
             .warnings()
@@ -344,7 +404,6 @@ impl<'doc> BlockView<'doc> {
         crate::ast::BlockRef::from(self.block)
     }
 
-    #[cfg(test)]
     pub(super) const fn storage(&self) -> &'doc Block<'doc> {
         self.block
     }

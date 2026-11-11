@@ -2010,17 +2010,18 @@ to preserve their isolation. The fixture runner's case names are unchanged.
 [#registered-extensions]
 == Registered extensions
 
-Applications can register block macros with
+Applications can register block macros and ordered tree processors with
 `extensions::Registry`. Each parse creates fresh processor instances. Callbacks
 run once after the document is accepted and cannot change later includes,
 conditionals, or parsing. This differs from source-changing Asciidoctor extensions.
 Both compatibility modes support registrations.
 
 Use `query()` to inspect typed block, content, attribute, and caption views.
-Document-local `TargetId` handles identify targets independently of their output
-IDs. Use `ensure_id()` to preserve existing IDs or assign collision-free IDs
-without rerunning macro processors. Generated paragraphs contain literal text
-and are not reparsed.
+Document-local `TargetId` handles survive insertions and placeholder replacement;
+removed handles cannot bind to another block. The scoped `DocumentEditor` builds
+literal paragraphs and lists, assigns IDs, replaces requests, and removes sections.
+Edits repair catalogs and scoped footnotes while preserving surviving section and
+caption numbers. Generated text is literal and is not reparsed.
 
 Call `ExtensionParseResult::finish()` to obtain the ordinary `ParseResult` used
 for conversion or serialization. It rejects unresolved deferred requests at their

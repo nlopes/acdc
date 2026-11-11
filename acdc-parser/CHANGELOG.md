@@ -130,13 +130,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ordered, unordered, and description list items in both compatibility modes,
   matching Asciidoctor. Only a standalone `+` acts as a list continuation.
 
-- Applications can register block macros with `extensions::Registry`. Each
-  document has fresh processor state. Typed queries cover nested containers and
-  discrete headings. Stable target handles support collision-free ID assignment.
-  Generated paragraphs contain literal text. Call `ExtensionParseResult::finish()`
-  before conversion or checked ASG export; unresolved requests return a located
-  error. Callbacks run after parsing and cannot change later includes or
-  conditionals, unlike source-changing Asciidoctor extensions.
+- Applications can register block macros and ordered tree processors with
+  `extensions::Registry`. Each document has fresh processor state. Typed queries
+  cover nested containers and discrete headings. Stable target handles support
+  ID assignment, literal paragraphs and lists, placeholder replacement and
+  section removal. Edits repair references, TOC and scoped footnotes while
+  preserving surviving section and caption numbers.
+  Call `ExtensionParseResult::finish()` before conversion or checked ASG export;
+  unresolved requests return a located error. Callbacks run after parsing and
+  cannot change later includes or conditionals, unlike source-changing
+  Asciidoctor extensions.
 
 - Faster parsing of paragraphs, mixed ASCII and Unicode text, formatting, inline
   passthroughs, and duplicated ordinary table cells (`3*|text`) in both
