@@ -55,6 +55,7 @@ pub struct AttributesRef<'doc> {
 
 #[derive(Clone, Copy, Debug)]
 enum Owner<'doc> {
+    Extension(&'doc crate::extensions::ExtensionBlock<'doc>),
     Raw(&'doc Raw<'doc>),
     Bold(&'doc Bold<'doc>),
     Italic(&'doc Italic<'doc>),
@@ -132,6 +133,12 @@ impl Field {
 }
 
 impl<'doc> AttributesRef<'doc> {
+    pub(super) fn extension(node: &'doc crate::extensions::ExtensionBlock<'doc>) -> Self {
+        Self {
+            owner: Owner::Extension(node),
+        }
+    }
+
     /// The recorded block-metadata span, if retained.
     ///
     /// This is the collection's span, not an individual value's range.
@@ -431,6 +438,7 @@ impl<'doc> AttributesRef<'doc> {
                 Substitutions,
             ],
             Owner::Header(_)
+            | Owner::Extension(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)
@@ -541,6 +549,7 @@ impl<'doc> AttributesRef<'doc> {
     pub(super) fn metadata(self) -> Option<&'doc BlockMetadata<'doc>> {
         match self.owner {
             Owner::Header(node) => Some(&node.metadata),
+            Owner::Extension(node) => Some(&node.metadata),
             Owner::Paragraph(node) => Some(&node.metadata),
             Owner::Section(node) => Some(&node.metadata),
             Owner::Delimited(node) => Some(&node.metadata),
@@ -598,6 +607,7 @@ impl<'doc> AttributesRef<'doc> {
     pub(super) fn title(self) -> Option<ContentRef<'doc>> {
         let title = match self.owner {
             Owner::Header(node) => &node.title,
+            Owner::Extension(node) => &node.title,
             Owner::Paragraph(node) => &node.title,
             Owner::Section(node) => &node.title,
             Owner::Delimited(node) => &node.title,
@@ -685,7 +695,8 @@ impl<'doc> AttributesRef<'doc> {
                 }),
             Owner::Header(node) => node.metadata.heading_anchor().map(ElementIdRef::from),
             Owner::ThematicBreak(node) => node.primary_anchor().map(ElementIdRef::from),
-            Owner::Paragraph(_)
+            Owner::Extension(_)
+            | Owner::Paragraph(_)
             | Owner::Delimited(_)
             | Owner::Admonition(_)
             | Owner::UnorderedList(_)
@@ -750,6 +761,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Mailto(node) => TokensRef::new(Some(&node.metadata.roles)),
             Owner::ThematicBreak(_) => TokensRef::new(None),
             Owner::Header(_)
+            | Owner::Extension(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
             | Owner::Delimited(_)

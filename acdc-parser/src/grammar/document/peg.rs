@@ -1469,6 +1469,7 @@ peg::parser! {
         block:(
             delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
             / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim }
+            / extension:extension_macro(start, offset, &block_metadata) { extension }
             / image:image(start, offset, &block_metadata) { image }
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
@@ -1526,6 +1527,7 @@ peg::parser! {
             ) { c }) { comment }
             / delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
             / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim }
+            / extension:extension_macro(start, offset, &block_metadata) { extension }
             / image:image(start, offset, &block_metadata) { image }
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
@@ -1856,6 +1858,34 @@ peg::parser! {
         = ("https" / "http" / "ftp" / "irc") "://" url_path_match()
         / "mailto:" email_address()
         / path_match()
+
+        // Disabled extensions must not update PEG's expected-token diagnostics.
+        rule extensions_enabled()
+        = #{|_, position| if state.options.extensions.is_some() {
+            peg::RuleResult::Matched(position, ())
+        } else {
+            peg::RuleResult::Failed
+        }}
+
+        rule registered_macro_name() -> &'input str
+        = extensions_enabled() name:$(['a'..='z' | 'A'..='Z']['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) "::" {?
+            let context = match state.block_context {
+                BlockContext::Document => crate::extensions::MacroContext::Document,
+                BlockContext::Compound => crate::extensions::MacroContext::Compound,
+            };
+            if state.options.extensions.as_ref().and_then(|registry| registry.find(name)).is_some_and(|(_, descriptor)| descriptor.contexts.contains(&context)) {
+                Ok(name)
+            } else { Err("registered block macro") }
+        }
+
+        rule extension_macro(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = name:registered_macro_name() target:$([^'[' | '\n' | '\r']*)
+          "[" arguments:attribute_list_content(BlockAttributeMode::Macro) end:position!() trailing:$([^'\n']*) {
+            if !trailing.trim().is_empty() {
+                state.add_warning(Warning::new(WarningKind::ContentRecovery { message: format!("trailing content after block macro {name}").into() }, Some(state.create_error_source_location(state.create_location(end + offset, span_end + offset)))));
+            }
+            crate::extensions::recognize(state, name, target, arguments, block_metadata.metadata.clone(), block_metadata.title.clone(), state.create_block_location(start, end, offset))
+        }
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = structural_block_boundaries(block_metadata)

@@ -222,9 +222,38 @@ impl ParseResult {
         crate::ast::DocumentRef::from(self.cell.borrow_dependent())
     }
 
-    #[cfg(test)]
     pub(crate) fn document_storage(&self) -> &Document<'_> {
         self.cell.borrow_dependent()
+    }
+
+    pub(crate) fn with_document_mut<R>(
+        &mut self,
+        edit: impl for<'a> FnOnce(&'a OwnedInput, &mut Document<'a>) -> R,
+    ) -> R {
+        self.cell.with_dependent_mut(edit)
+    }
+
+    pub(crate) fn replace_reference_warnings(&mut self, warnings: Vec<Warning>) {
+        self.warnings.retain(|warning| {
+            !matches!(
+                warning.kind,
+                WarningKind::UnresolvedReference { .. } | WarningKind::DuplicateId { .. }
+            )
+        });
+        let mut combined = WarningCollection::default();
+        for warning in std::mem::take(&mut self.warnings) {
+            combined.push(warning);
+        }
+        for mut warning in warnings {
+            if let Some(source) = &mut warning.location {
+                *source = self.source_location(&source.location);
+            }
+            if let WarningKind::DuplicateId { first, .. } = &mut warning.kind {
+                **first = self.source_location(&first.location);
+            }
+            combined.push_unique_from(warning, 0);
+        }
+        self.warnings = combined.into_vec();
     }
 
     /// Borrow the preprocessed source the AST was parsed from.

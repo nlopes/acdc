@@ -147,7 +147,7 @@ fn collect_block_spans(input: &str, block: BlockRef<'_>, spans: &mut Vec<Span>) 
         BlockKind::TableOfContents(_) => {
             push_block_span(input, spans, block.location(), "adoc-macro");
         }
-        _ => {}
+        BlockKind::Extension(_) | _ => {}
     }
 }
 

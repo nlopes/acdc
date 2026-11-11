@@ -399,7 +399,7 @@ impl<'a> ParserState<'a> {
     /// (attribute substitution, escape unwrapping, …) and need to hand the
     /// result to the inline parser with the outer `'a` lifetime so that the
     /// resulting `InlineNode`s can be returned.
-    pub(super) fn intern_str(&self, s: &str) -> &'a str {
+    pub(crate) fn intern_str(&self, s: &str) -> &'a str {
         self.arena.alloc_str(s)
     }
 
@@ -407,7 +407,7 @@ impl<'a> ParserState<'a> {
     /// into the arena; `Borrowed` values pass through unchanged (no copy)
     /// when their lifetime already outlives `'a`, which is the common case
     /// for substitution results that borrowed from the grammar input.
-    pub(super) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
+    pub(crate) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
     where
         'b: 'a,
     {

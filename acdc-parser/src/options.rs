@@ -84,6 +84,7 @@ pub(crate) enum FileXrefMode {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
+    pub(crate) extensions: Option<crate::extensions::Registry>,
     /// Defaults to [`CompatibilityMode::Asciidoctor`]. Independent of ASG export.
     pub compatibility_mode: CompatibilityMode,
     /// Defaults to [`SafeMode::Secure`], which prevents include reads.
@@ -204,6 +205,7 @@ impl<'a> Options<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
+            extensions: self.extensions,
         }
     }
 
@@ -227,6 +229,7 @@ impl<'a> Options<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
+            extensions: self.extensions,
         }
     }
 }
@@ -251,6 +254,7 @@ impl<'a> Options<'a> {
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct OptionsBuilder<'a> {
+    extensions: Option<crate::extensions::Registry>,
     compatibility_mode: CompatibilityMode,
     safe_mode: SafeMode,
     timings: bool,
@@ -531,6 +535,7 @@ impl<'a> OptionsBuilder<'a> {
             base_dir: self.base_dir,
             strict: self.strict,
             file_xref_mode: self.file_xref_mode,
+            extensions: self.extensions,
         })
     }
 }

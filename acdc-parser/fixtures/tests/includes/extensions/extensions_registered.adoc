@@ -1,0 +1,52 @@
+= Registered macros
+:mode: first
+
+record::target[,"quoted, comma",third="a\"b"]
+
+record::{mode}[named,second=override,third=tail]
+
+:mode: second
+
+ifdef::missing[]
+record::inactive[]
+endif::[]
+
+unknown::ordinary[]
+
+\record::escaped[]
+
+[source]
+----
+record::literal[]
+----
+
+record::attribute-values[first,key=None,empty="",flag,third=]
+
+.Outer title
+[#retained]
+record::metadata[]
+
+See <<retained>>.
+
+== Nested section
+
+====
+record::example[]
+
+--
+record::open[]
+--
+====
+
+* item
++
+record::continuation[]
+
+[cols="2*a"]
+|===
+2*|record::duplicate[]
+|===
+
+include::extensions.adoc[]
+
+defer::last[one,,three]

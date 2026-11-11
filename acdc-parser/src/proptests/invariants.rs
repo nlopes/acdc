@@ -309,6 +309,7 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
         | Block::Image(_)
         | Block::Audio(_)
         | Block::Video(_)
+        | Block::Extension(_)
         | Block::Comment(_) => {}
     }
 }
@@ -550,6 +551,7 @@ fn verify_block_monotonic(block: &Block) {
         | Block::Image(_)
         | Block::Audio(_)
         | Block::Video(_)
+        | Block::Extension(_)
         | Block::Comment(_) => {}
     }
 }

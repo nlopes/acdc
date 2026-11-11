@@ -4,7 +4,7 @@
 //! `inline_preprocessor`. Helpers used by one grammar live beside its PEG rules,
 //! grouped by purpose. Shared helpers, parser state, and source mapping stay here.
 
-mod attributes;
+pub(crate) mod attributes;
 mod brackets;
 mod character_references;
 mod document;

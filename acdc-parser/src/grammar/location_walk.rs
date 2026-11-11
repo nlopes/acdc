@@ -443,6 +443,10 @@ where
                 self.inlines(block.title.inlines_mut())?;
             }
             Block::TableOfContents(block) => self.metadata(&mut block.metadata)?,
+            Block::Extension(block) => {
+                self.metadata(&mut block.metadata)?;
+                self.inlines(block.title.inlines_mut())?;
+            }
             Block::DocumentAttribute(_) | Block::Comment(_) => {}
         }
         Ok(())

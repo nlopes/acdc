@@ -143,6 +143,9 @@
 //! equivalent table dimension cap.
 //!
 
+#[cfg(test)]
+extern crate self as acdc_parser;
+
 use std::{
     cell::RefCell,
     path::{Path, PathBuf},
@@ -161,6 +164,7 @@ mod caption_repair;
 mod constants;
 mod document_attribute;
 mod error;
+pub mod extensions;
 mod grammar;
 pub use grammar::footnotes::FootnoteRebuildError;
 mod model;
@@ -381,7 +385,7 @@ pub fn parse_from_reader<R: std::io::Read>(
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
-    parse_input(result, options, None, warnings_handle)
+    parse_input(result, options, None, warnings_handle, None)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -424,6 +428,14 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// Recoverable problems appear in the result's warnings.
 #[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
+    parse_with_session(input, options, None)
+}
+
+fn parse_with_session(
+    input: &str,
+    options: &Options<'_>,
+    session: Option<&mut extensions::Session>,
+) -> Result<ParseResult, Error> {
     let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String);
@@ -432,7 +444,7 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
-    parse_input(result, options, None, warnings_handle)
+    parse_input(result, options, None, warnings_handle, session)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -465,22 +477,25 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
+    parse_file_with_session(file_path.as_ref(), options, None)
+}
+
+fn parse_file_with_session(
+    file_path: &Path,
+    options: &Options<'_>,
+    session: Option<&mut extensions::Session>,
+) -> Result<ParseResult, Error> {
     let options = options
         .clone()
-        .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
-    let path = file_path.as_ref().to_path_buf();
-    let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
+        .prepare_for_parse(document_attribute::InputKind::File(file_path));
+    let path = file_path.to_path_buf();
+    let raw = preprocessor::read_and_decode_file(file_path, None)?;
     let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor::process_with_file(
-            &raw,
-            file_path.as_ref(),
-            &options,
-            Rc::clone(&warnings_handle),
-        )?
+        Preprocessor::process_with_file(&raw, file_path, &options, Rc::clone(&warnings_handle))?
     };
-    parse_input(result, options, Some(path), warnings_handle)
+    parse_input(result, options, Some(path), warnings_handle, session)
 }
 
 /// Helper to convert a PEG parse error to our `SourceLocation` type,
@@ -515,6 +530,7 @@ fn parse_input(
     mut options: Options<'_>,
     file_path: Option<PathBuf>,
     warnings_handle: Rc<RefCell<WarningCollection>>,
+    session: Option<&mut extensions::Session>,
 ) -> Result<ParseResult, Error> {
     if let Some(front_matter) = result.front_matter {
         options
@@ -565,6 +581,12 @@ fn parse_input(
             let result = match grammar::document_parser::document(&owner.source, &mut state) {
                 Ok(Ok(mut doc)) => {
                     grammar::reference_text::finish_document(&mut state, &mut doc)?;
+                    if let Some(session) = session
+                        && session.process(&mut doc, &state)?
+                    {
+                        doc.renumber_captions();
+                        extensions::finalization::repair_macros(&mut doc)?;
+                    }
                     // Rewrite every node's location from preprocessed coordinates to the
                     // original source (file + line + byte offset). No-op when the
                     // preprocessor recorded no ranges (no includes/edits).

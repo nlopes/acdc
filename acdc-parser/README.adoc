@@ -2007,6 +2007,26 @@ Add new modules to the appropriate suite's `main.rs`. Allocation measurements,
 tracing tests, fixture support tests, and custom harnesses remain separate targets
 to preserve their isolation. The fixture runner's case names are unchanged.
 
+[#registered-extensions]
+== Registered extensions
+
+Applications can register block macros with
+`extensions::Registry`. Each parse creates fresh processor instances. Callbacks
+run once after the document is accepted and cannot change later includes,
+conditionals, or parsing. This differs from source-changing Asciidoctor extensions.
+Both compatibility modes support registrations.
+
+Use `query()` to inspect typed block, content, attribute, and caption views.
+Document-local `TargetId` handles identify targets independently of their output
+IDs. Use `ensure_id()` to preserve existing IDs or assign collision-free IDs
+without rerunning macro processors. Generated paragraphs contain literal text
+and are not reparsed.
+
+Call `ExtensionParseResult::finish()` to obtain the ordinary `ParseResult` used
+for conversion or serialization. It rejects unresolved deferred requests at their
+source locations. See the `extensions` module documentation for registration and
+processor examples. An empty registry uses the ordinary parser path.
+
 [#parser-fixtures]
 == Parser fixtures
 
