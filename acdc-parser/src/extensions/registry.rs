@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 
 use crate::{Error, Options, ParseResult};
 
-use super::{BlockMacro, ExtensionParseResult, Session};
+use super::{BlockMacro, DocumentEditor, ExtensionParseResult, Session, TreeProcessorRegistration};
 
 /// A registration rejected before any document is parsed.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -16,6 +16,8 @@ pub enum RegistrationError {
     DuplicateName(String),
     #[error("block macro is not registered: {0}")]
     UnknownName(String),
+    #[error("tree processor is already registered: {0}")]
+    DuplicateTreeProcessor(String),
 }
 
 /// Builds a registry without modifying existing registry snapshots.
@@ -23,9 +25,32 @@ pub enum RegistrationError {
 pub struct RegistryBuilder {
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
+    trees: Vec<TreeProcessorRegistration>,
 }
 
 impl RegistryBuilder {
+    /// Register a tree processor after the existing tree processors.
+    ///
+    /// Names match `[A-Za-z][A-Za-z0-9_-]*` and are independent of macro names.
+    ///
+    /// # Errors
+    /// Rejects invalid names and duplicate tree processor registrations.
+    pub fn register_tree_processor(
+        &mut self,
+        registration: TreeProcessorRegistration,
+    ) -> Result<&mut Self, RegistrationError> {
+        validate_identifier(&registration.name)?;
+        if self
+            .trees
+            .iter()
+            .any(|entry| entry.name == registration.name)
+        {
+            return Err(RegistrationError::DuplicateTreeProcessor(registration.name));
+        }
+        self.trees.push(registration);
+        Ok(self)
+    }
+
     /// Register a macro after the existing registrations.
     ///
     /// Names match `[A-Za-z][A-Za-z0-9_-]*`. Built-in macro names are reserved.
@@ -63,6 +88,7 @@ impl RegistryBuilder {
         Registry(Arc::new(RegistryData {
             macros: self.macros,
             names: self.names,
+            trees: self.trees,
         }))
     }
 }
@@ -92,6 +118,7 @@ fn validate_identifier(name: &str) -> Result<(), RegistrationError> {
 struct RegistryData {
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
+    trees: Vec<TreeProcessorRegistration>,
 }
 
 /// A cheap-to-clone, immutable collection of extension factories.
@@ -106,13 +133,15 @@ impl Registry {
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.macros.is_empty()
+        self.0.macros.is_empty() && self.0.trees.is_empty()
     }
 
     /// Parse with fresh processors and retain this document's deferred requests.
     ///
     /// Macro processors run after the complete document is accepted. The host
-    /// repairs captions and catalogs. Callbacks cannot change source processing.
+    /// repairs captions and catalogs, then tree processors run once in
+    /// registration order, with catalog repair after each edit. Callbacks cannot
+    /// change source processing.
     /// An empty registry uses the ordinary parser path.
     ///
     /// # Errors
@@ -154,6 +183,11 @@ impl Registry {
         if result.session.processed_blocks {
             result.repair_after_edit()?;
         }
+        let mut processors = std::mem::take(&mut result.session.tree_processors);
+        for processor in &mut processors {
+            processor.process(&mut DocumentEditor::new(&mut result))?;
+        }
+        result.session.tree_processors = processors;
         Ok(result)
     }
 
@@ -172,6 +206,7 @@ impl Registry {
                 .iter()
                 .map(|entry| (entry.factory)())
                 .collect(),
+            self.0.trees.iter().map(|entry| (entry.factory)()).collect(),
         )
     }
 }

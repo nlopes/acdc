@@ -7,11 +7,12 @@ use crate::{
 
 use super::{
     BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery, PlaceholderId, TargetId,
-    query::TargetIndex, target::DocumentIdentity,
+    TreeProcessor, query::TargetIndex, target::DocumentIdentity,
 };
 
 pub(crate) struct Session {
     processors: Vec<Box<dyn BlockMacroProcessor>>,
+    pub(super) tree_processors: Vec<Box<dyn TreeProcessor>>,
     pub(super) deferred: Vec<DeferredBlock>,
     pub(super) processed_blocks: bool,
     identity: OnceCell<DocumentIdentity>,
@@ -88,9 +89,13 @@ impl ExtensionParseResult {
 }
 
 impl Session {
-    pub(super) fn new(processors: Vec<Box<dyn BlockMacroProcessor>>) -> Self {
+    pub(super) fn new(
+        processors: Vec<Box<dyn BlockMacroProcessor>>,
+        tree_processors: Vec<Box<dyn TreeProcessor>>,
+    ) -> Self {
         Self {
             processors,
+            tree_processors,
             deferred: Vec::new(),
             processed_blocks: false,
             identity: OnceCell::new(),

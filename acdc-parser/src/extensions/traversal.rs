@@ -25,6 +25,49 @@ pub(super) struct BlockPath {
 }
 
 impl BlockPath {
+    pub(super) fn container_mut<'doc, 'a>(
+        &self,
+        blocks: &'doc mut Vec<Block<'a>>,
+    ) -> Option<(&'doc mut Vec<Block<'a>>, usize)> {
+        let Some((&(children, index), parents)) = self.nested.split_last() else {
+            return Some((blocks, self.root));
+        };
+        let mut parent = blocks.get_mut(self.root)?;
+        for &(children, index) in parents {
+            parent = children.get_mut(parent)?.get_mut(index)?;
+        }
+        Some((children.get_mut(parent)?, index))
+    }
+
+    pub(super) fn is_within(&self, parent: &Self) -> bool {
+        self.root == parent.root && self.nested.starts_with(&parent.nested)
+    }
+
+    pub(super) fn shift_siblings(&mut self, at: &Self, insert: bool) {
+        let index = if let Some((&(children, position), parents)) = at.nested.split_last() {
+            if self.root != at.root || !self.nested.starts_with(parents) {
+                return;
+            }
+            let Some((own_children, own_position)) = self.nested.get_mut(parents.len()) else {
+                return;
+            };
+            if *own_children != children || *own_position < position {
+                return;
+            }
+            own_position
+        } else {
+            if self.root < at.root {
+                return;
+            }
+            &mut self.root
+        };
+        if insert {
+            *index += 1;
+        } else {
+            *index -= 1;
+        }
+    }
+
     pub(super) fn root(index: usize) -> Self {
         Self {
             root: index,

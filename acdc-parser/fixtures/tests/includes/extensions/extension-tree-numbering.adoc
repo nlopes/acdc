@@ -1,0 +1,25 @@
+= Editor probe
+:sectnums:
+:toc:
+
+[#gone]
+== Remove
+
+[[inline-gone]]Removed footnote:[removed]. See <<only-in-removed>>.
+
+[#figure-gone]
+.Removed figure
+image::removed.svg[]
+
+=== Removed child
+
+Content.
+
+[#stay]
+== Keep
+
+[#figure-stay]
+.Kept figure
+image::kept.svg[]
+
+Kept footnote:[kept]. See <<stay>> and <<gone>>.

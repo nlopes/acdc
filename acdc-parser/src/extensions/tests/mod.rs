@@ -24,6 +24,9 @@ mod support;
 #[path = "queries.rs"]
 mod queries;
 
+#[path = "tree_processors.rs"]
+mod tree_processors;
+
 type TestResult = Result<(), Box<dyn StdError>>;
 
 struct Counter {

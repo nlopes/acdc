@@ -1,0 +1,37 @@
+== Outer
+
+* List item
++
+====
+defer::list[]
+====
+
+term:: Description
++
+defer::description[]
+
+[NOTE]
+====
+defer::admonition[]
+====
+
+____
+defer::quote[]
+____
+
+[cols="a",options="footer"]
+|===
+a|
+[#cell-remove]
+== Removed cell section
+
+defer::cell-remove[]
+
+[#cell-keep]
+== Kept cell section
+
+[#cell-keep-content]
+defer::cell-keep[]
+
+a|defer::footer[]
+|===
