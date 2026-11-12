@@ -134,16 +134,19 @@ fn column_width_limits_preserve_valid_boundaries_and_report_oversized_values() -
                 format!("{width}%,~"),
             ] {
                 let source = format!("[cols=\"{columns}\"]\n|===\n|A |B\n|===\n");
-                let Err(Error::Parse(location, message)) = parse(&source, &options) else {
-                    return Err(format!("expected a located width error for {columns}").into());
-                };
+                let parsed = parse(&source, &options)?;
+                let warning = parsed.source_recovery().ok_or("expected width recovery")?;
+                assert!(warning.kind.to_string().contains(width));
                 assert_eq!(
-                    message,
-                    format!(
-                        "table column width request of {width} exceeds the maximum of 4294967295"
-                    )
+                    warning
+                        .location
+                        .as_ref()
+                        .ok_or("expected width location")?
+                        .location
+                        .start
+                        .line,
+                    2
                 );
-                assert_eq!(location.location.start.line, 2);
             }
         }
     }

@@ -19,4 +19,5 @@ mod include_uri_denied;
 mod include_uri_network_disabled;
 mod include_uri_recovery;
 mod preprocessed_conditionals;
+mod recoverable_directives;
 mod retained_source;

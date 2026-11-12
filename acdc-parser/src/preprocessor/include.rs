@@ -301,12 +301,16 @@ impl LinesRange {
                 .ok_or_else(|| Self::create_error(line_range, location))?
                 .parse()
                 .map_err(|_| Self::create_error(line_range, location))?;
+            if parts.next().is_some() {
+                return Err(Self::create_error(line_range, location));
+            }
             Ok(LinesRange::Range(start, end))
         } else {
-            Ok(LinesRange::Single(line_range.parse().map_err(|_| {
-                tracing::error!(input_len = line_range.len(), "failed to parse line range");
-                Self::create_error(line_range, location)
-            })?))
+            Ok(LinesRange::Single(
+                line_range
+                    .parse()
+                    .map_err(|_| Self::create_error(line_range, location))?,
+            ))
         }
     }
 
@@ -369,7 +373,7 @@ enum UrlReadError {
     Other(Error),
 }
 
-enum UrlIncludeOutcome {
+enum IncludeOutcome {
     Content(reader::Selected),
     Fallback(Box<IncludeResult>),
 }
@@ -465,85 +469,50 @@ impl<'a> Include<'a> {
     }
 
     fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
-        let mut line_ranges = None;
+        let mut lines = None;
         let mut tag = None;
         let mut tags = None;
 
         for (key, value) in attributes {
             match key.as_ref() {
-                "leveloffset" => {
-                    self.level_offset = Some(value.parse().map_err(|_| {
-                        Error::InvalidLevelOffset(
-                            Box::new(SourceLocation {
-                                file: self.current_file.clone(),
-                                location: Location::point(Position::from_line_col(
-                                    self.line_number,
-                                    1,
-                                )),
-                            }),
-                            value.clone(),
-                        )
-                    })?);
-                }
-                "lines" => {
-                    line_ranges = Some(LinesRange::parse(
-                        &value,
-                        self.line_number,
-                        self.current_offset,
-                        self.current_file.as_deref(),
-                    )?);
-                }
+                "leveloffset" => match value.parse() {
+                    Ok(offset) => self.level_offset = Some(offset),
+                    Err(_) => self.warn_located(format!(
+                        "invalid include leveloffset `{value}`; ignoring override"
+                    )),
+                },
+                "lines" => lines = Some(value),
                 "tag" => tag = Some(value),
-                "tags" => {
-                    tags = Some(value);
-                }
-                "indent" => {
-                    let indent = value.parse().map_err(|_| {
-                        Error::InvalidIndent(
-                            Box::new(SourceLocation {
-                                file: self.current_file.clone(),
-                                location: Location::point(Position::from_line_col(
-                                    self.line_number,
-                                    1,
-                                )),
-                            }),
-                            value.clone(),
-                        )
-                    })?;
-                    if indent > MAX_INCLUDE_INDENT {
-                        return Err(Error::IncludeIndentTooLarge(
-                            Box::new(SourceLocation {
-                                file: self.current_file.clone(),
-                                location: Location::point(Position::from_line_col(
-                                    self.line_number,
-                                    1,
-                                )),
-                            }),
-                            indent,
-                            MAX_INCLUDE_INDENT,
-                        ));
-                    }
-                    self.indent = Some(indent);
-                }
-                "encoding" => {
-                    self.encoding = Some(value.clone());
-                }
-                "opts" => {
-                    self.opts.extend(value.split(',').map(str::to_string));
-                }
-                unknown => {
-                    tracing::error!("unknown attribute key in include directive");
-                    return Err(Error::InvalidIncludeDirective(
-                        Box::new(SourceLocation {
-                            file: self.current_file.clone(),
-                            location: Location::point(Position::from_line_col(self.line_number, 1)),
-                        }),
-                        unknown.to_string(),
-                    ));
-                }
+                "tags" => tags = Some(value),
+                "indent" => match value.parse::<usize>() {
+                    Ok(indent) if indent <= MAX_INCLUDE_INDENT => self.indent = Some(indent),
+                    Ok(_) => self.warn_located(format!(
+                        "include indent `{value}` exceeds the maximum of {MAX_INCLUDE_INDENT}; ignoring override"
+                    )),
+                    Err(_) => self.warn_located(format!(
+                        "invalid include indent `{value}`; ignoring override"
+                    )),
+                },
+                "encoding" => self.encoding = Some(value),
+                "opts" => self.opts.extend(value.split(',').map(str::to_string)),
+                unknown => self.warn_located(format!(
+                    "unknown include option `{unknown}`; ignoring option"
+                )),
             }
         }
 
+        // Resolve duplicates before validating the selected value. An invalid
+        // selection must never become a full-file include.
+        let line_ranges = lines
+            .map(|value| {
+                LinesRange::parse(
+                    &value,
+                    self.line_number,
+                    self.current_offset,
+                    self.current_file.as_deref(),
+                )
+            })
+            .transpose()?;
         self.selection = Self::resolve_content_selection(line_ranges, tag, tags);
 
         Ok(())
@@ -565,7 +534,6 @@ impl<'a> Include<'a> {
             warnings,
         };
         include_parser::include(line, &inputs).map_err(|e| {
-            tracing::error!(input_len = line.len(), "failed to parse include directive");
             let peg_location = e.location;
             Error::Parse(
                 Box::new(crate::SourceLocation {
@@ -924,12 +892,12 @@ impl<'a> Include<'a> {
         url: &str,
         attribute_list_as_written: &str,
         source_provider: &dyn IncludeSourceProvider,
-    ) -> Result<UrlIncludeOutcome, Error> {
+    ) -> Result<IncludeOutcome, Error> {
         if !self.context.allows_uri_read {
             self.warn_located(format!(
                 "include uri not read because URI access is disabled: {url}"
             ));
-            return Ok(UrlIncludeOutcome::Fallback(Box::new(
+            return Ok(IncludeOutcome::Fallback(Box::new(
                 IncludeResult::link_fallback(
                     self.target_as_written(),
                     self.options
@@ -940,17 +908,23 @@ impl<'a> Include<'a> {
         }
 
         match self.read_content_from_url(url, source_provider) {
-            Ok(content) => Ok(UrlIncludeOutcome::Content(content)),
+            Ok(content) => Ok(IncludeOutcome::Content(content)),
             Err(UrlReadError::Unsupported(detail)) => {
                 self.warn_located(format!("{detail}, cannot fetch remote includes: {url}"));
-                Ok(UrlIncludeOutcome::Fallback(Box::new(
+                Ok(IncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
             Err(UrlReadError::Retrieval) => {
                 tracing::debug!("failed to retrieve remote include");
                 self.warn_located(format!("include uri not readable: {url}"));
-                Ok(UrlIncludeOutcome::Fallback(Box::new(
+                Ok(IncludeOutcome::Fallback(Box::new(
+                    self.unresolved_directive(attribute_list_as_written),
+                )))
+            }
+            Err(UrlReadError::Other(Error::UnrecognizedEncodingInFile(_))) => {
+                self.warn_located(format!("include uri not decodable: {url}"));
+                Ok(IncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
@@ -963,8 +937,9 @@ impl<'a> Include<'a> {
         &self,
         path: &Path,
         optional: bool,
+        attribute_list_as_written: &str,
         source_provider: &dyn IncludeSourceProvider,
-    ) -> Result<Option<reader::Selected>, Error> {
+    ) -> Result<IncludeOutcome, Error> {
         let source = match source_provider.open(&IncludeSourceTarget::File(path.to_path_buf())) {
             Ok(source) => source,
             Err(error) if error.kind() == IncludeSourceErrorKind::NotFound => {
@@ -976,17 +951,22 @@ impl<'a> Include<'a> {
                 } else {
                     self.warn_located(format!("include file not found: {}", path.display()));
                 }
-                return Ok(None);
+                return Ok(IncludeOutcome::Fallback(Box::new(if optional {
+                    IncludeResult::empty()
+                } else {
+                    self.unresolved_directive(attribute_list_as_written)
+                })));
             }
             Err(error)
-                if !optional
-                    && matches!(
-                        error.kind(),
-                        IncludeSourceErrorKind::Unavailable | IncludeSourceErrorKind::Unsupported
-                    ) =>
+                if matches!(
+                    error.kind(),
+                    IncludeSourceErrorKind::Unavailable | IncludeSourceErrorKind::Unsupported
+                ) =>
             {
                 self.warn_located(format!("include file not readable: {}", path.display()));
-                return Ok(None);
+                return Ok(IncludeOutcome::Fallback(Box::new(
+                    self.unresolved_directive(attribute_list_as_written),
+                )));
             }
             Err(error) => return Err(Error::IncludeSource(error)),
         };
@@ -999,25 +979,15 @@ impl<'a> Include<'a> {
             &self.selection,
         ) {
             Ok(content) => content,
-            Err(Error::Io(error)) => {
-                if optional {
-                    return Err(Error::Io(error));
-                }
+            Err(Error::Io(_) | Error::UnrecognizedEncodingInFile(_)) => {
                 self.warn_located(format!("include file not readable: {}", path.display()));
-                return Ok(None);
-            }
-            Err(Error::UnrecognizedEncodingInFile(_))
-                if self.encoding.as_deref().is_some_and(|label| {
-                    encoding_rs::Encoding::for_label(label.as_bytes())
-                        .is_some_and(|encoding| encoding != encoding_rs::UTF_8)
-                }) =>
-            {
-                self.warn_located(format!("include file not readable: {}", path.display()));
-                return Ok(None);
+                return Ok(IncludeOutcome::Fallback(Box::new(
+                    self.unresolved_directive(attribute_list_as_written),
+                )));
             }
             Err(error) => return Err(error),
         };
-        Ok(Some(decoded))
+        Ok(IncludeOutcome::Content(decoded))
     }
 
     pub(crate) fn process(
@@ -1070,13 +1040,14 @@ impl<'a> Include<'a> {
                 };
                 let path = self.resolve_file_target(parent, base_dir, target)?;
                 let optional = self.opts.iter().any(|option| option == "optional");
-                let Some(content) = self.read_local_content(&path, optional, source_provider)?
-                else {
-                    return Ok(if optional {
-                        IncludeResult::empty()
-                    } else {
-                        self.unresolved_directive(attribute_list_as_written)
-                    });
+                let content = match self.read_local_content(
+                    &path,
+                    optional,
+                    attribute_list_as_written,
+                    source_provider,
+                )? {
+                    IncludeOutcome::Content(content) => content,
+                    IncludeOutcome::Fallback(result) => return Ok(*result),
                 };
                 let is_asciidoc = Self::has_asciidoc_extension(&path);
                 let source_origin = SourceOrigin::File {
@@ -1092,8 +1063,8 @@ impl<'a> Include<'a> {
                     attribute_list_as_written,
                     source_provider,
                 )? {
-                    UrlIncludeOutcome::Content(content) => content,
-                    UrlIncludeOutcome::Fallback(result) => return Ok(*result),
+                    IncludeOutcome::Content(content) => content,
+                    IncludeOutcome::Fallback(result) => return Ok(*result),
                 };
                 let parsed_url = Url::parse(url)?;
                 let is_asciidoc = Self::has_asciidoc_extension(Path::new(parsed_url.path()));
@@ -1467,17 +1438,20 @@ mod tests {
 
         for over_limit in [MAX_INCLUDE_INDENT + 1, usize::MAX] {
             let directive = format!("include::target.adoc[indent={over_limit}]");
-            let Err(error) = parse_include(&path, &directive, &options) else {
-                return Err("expected an excessive include indent to be rejected".into());
+            let include = parse_include(&path, &directive, &options)?;
+            assert_eq!(include.indent, None);
+            let warnings = include.warnings.borrow();
+            let [warning] = &**warnings else {
+                return Err("expected an indentation recovery warning".into());
             };
-            let Error::IncludeIndentTooLarge(location, indent, limit) = error else {
-                return Err(
-                    format!("expected an include-indent limit error, got {error:?}").into(),
-                );
-            };
-            assert_eq!(indent, over_limit);
-            assert_eq!(limit, MAX_INCLUDE_INDENT);
-            assert_eq!(location.location.start, Position::new(1, 1));
+            assert!(warning.kind.to_string().contains("ignoring override"));
+            assert_eq!(
+                warning
+                    .location
+                    .as_ref()
+                    .map(|loc| loc.location.start.clone()),
+                Some(Position::new(1, 1))
+            );
         }
         Ok(())
     }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Conversion continues after recoverable parser errors and reports structured
+  warnings, including non-conforming manpage titles. `convert --fail-on-warnings`
+  retains successful output, processes the remaining selected inputs, and exits
+  with status 1. `--strict` still rejects non-conforming manpage titles.
+
 - Faster source-snippet rendering for large documents with many warnings.
   All warnings retain their messages, source locations, and context lines.
 

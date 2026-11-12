@@ -41,6 +41,7 @@ impl Warning {
             WarningKind::TableCellOverflow { .. } => "table-cell-overflow",
             WarningKind::TableColumnCount { .. } => "table-column-count",
             WarningKind::NonStandardAuthorLine { .. } => "non-standard-author-line",
+            WarningKind::NonConformingManpageTitle { .. } => "non-conforming-manpage-title",
             WarningKind::UnresolvedReference { .. } => "unresolved-reference",
             WarningKind::DuplicateId { .. } => "duplicate-id",
             WarningKind::ConflictingFootnote { .. } => "conflicting-footnote",
@@ -105,6 +106,9 @@ impl Warning {
             WarningKind::TableCellOverflow { .. } | WarningKind::TableColumnCount { .. } => Some(
                 "Adjust the `cols` attribute or the row's cells/spans so each row occupies the configured number of columns.",
             ),
+            WarningKind::NonConformingManpageTitle { .. } => {
+                Some("Use a manpage title in the form name(volume), such as command(1).")
+            }
             WarningKind::NonStandardAuthorLine { .. } => Some(
                 "Author lines use `firstname [middlename] [lastname] [<email>]`, with multiple authors separated by `;`. Keeping the whole line as a single author name.",
             ),
@@ -268,6 +272,14 @@ pub enum WarningKind {
     NonStandardAuthorLine {
         /// The author line as parsed (after attribute substitution).
         line: String,
+    },
+
+    /// A manpage title needs the filename or sanitized title and volume 1 as fallbacks.
+    /// Explicit strict mode rejects this condition instead.
+    #[error("non-conforming manpage title `{title}`; using fallback name and volume 1")]
+    NonConformingManpageTitle {
+        /// The title that did not match `name(volume)`.
+        title: String,
     },
 
     /// A cross-reference (`<<id>>` / `xref:id[]`) points at an id that is not

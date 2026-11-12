@@ -1,4 +1,4 @@
-use acdc_parser::{CompatibilityMode, Error, Options, WarningKind, parse};
+use acdc_parser::{CompatibilityMode, Options, WarningKind, parse};
 
 type TestError = Box<dyn std::error::Error>;
 
@@ -93,13 +93,14 @@ fn unresolved_xrefs_keep_their_structure_without_source_recovery(
 }
 
 #[rstest::rstest]
-fn malformed_conditional_errors_remain_fatal(
+fn mismatched_conditional_terminators_report_source_recovery(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), TestError> {
-    let result = parse(
+    let parsed = parse(
         "ifdef::a[]\nBody.\nendif::b[]",
         &Options::builder().with_compatibility_mode(mode).build()?,
-    );
-    assert!(matches!(result, Err(Error::InvalidConditionalDirective(_))));
+    )?;
+    assert!(parsed.source_recovery().is_some());
+    assert!(parsed.document().blocks().next().is_none());
     Ok(())
 }

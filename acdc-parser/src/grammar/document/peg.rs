@@ -379,12 +379,18 @@ peg::parser! {
                 // Derive manpage attributes from header if doctype=manpage
                 // This must happen during parsing so {mantitle} etc. work in body
                 if is_manpage_doctype(&state.document_attributes) {
-                    derive_manpage_header_attrs(
+                    let warning = derive_manpage_header_attrs(
                         Some(&header),
                         Rc::make_mut(&mut state.document_attributes),
                         state.options.strict,
                         state.current_file.as_deref().map(std::path::PathBuf::as_path),
                     )?;
+                    if let Some(warning) = warning {
+                        state.add_warning(Warning::new(
+                            warning,
+                            Some(state.create_error_source_location(header.location.clone())),
+                        ));
+                    }
                 }
 
                 Ok(Some(header))
@@ -892,9 +898,9 @@ peg::parser! {
           (metadata:$(block_metadata_sequence_match())
           {? if metadata_marks_discrete_heading(metadata, state) { Err("discrete heading belongs to its parent") } else { Ok(()) } })
           (
-            // ATX-style section check - require space after marker to avoid matching
+            // ATX-style section check - require whitespace after marker to avoid matching
             // description list items like `#term::` as sections
-            level:section_level(offset, parent_section_level) &" "
+            level:section_level(offset, parent_section_level) &whitespace()
             {?
                 if let Some(parent_level) = parent_section_level {
                     let upcoming_level = level.1 + 1; // Convert to 1-based
@@ -1435,6 +1441,7 @@ peg::parser! {
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
             / toc:toc(start, offset, &block_metadata) { toc }
+            / excessive_list_item(start, offset, &block_metadata)
             / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break }
             / page_break:page_break(start, offset, &block_metadata) { page_break }
             / list:list(start, offset, &block_metadata) { list }
@@ -1491,6 +1498,7 @@ peg::parser! {
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
             / toc:toc(start, offset, &block_metadata) { toc }
+            / excessive_list_item(start, offset, &block_metadata)
             / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break }
             / page_break:page_break(start, offset, &block_metadata) { page_break }
             // Lists in continuation context cannot consume further continuations
@@ -1602,9 +1610,9 @@ peg::parser! {
         rule sidebar_delimiter() -> &'input str = delim:$("*"*<4,>) { delim }
         rule table_delimiter() -> &'input str = delim:$((['|' | ',' | ':' | '!'] "="*<3,>)) { delim }
 
-        // Delimiter-specific table delimiter rules for nested table support.
-        // PEG negative lookahead can't accept runtime parameters, so we need
-        // separate rules for each delimiter type to correctly parse nested tables.
+        // Opening rules select the table's default separator. Content scanning
+        // compares the complete opening token, retaining nested tables with a
+        // different delimiter in the outer table's body.
         rule pipe_table_delimiter() -> &'input str = delim:$("|" "="*<3,>) { delim }
         rule excl_table_delimiter() -> &'input str = delim:$("!" "="*<3,>) { delim }
         rule comma_table_delimiter() -> &'input str = delim:$("," "="*<3,>) { delim }
@@ -1614,23 +1622,15 @@ peg::parser! {
         rule markdown_code_delimiter() -> &'input str = delim:$("`"*<3,>) { delim }
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
 
-        rule until_table_delimiter() -> &'input str
-        = content:$((!(eol() table_delimiter()) [_])*) { content }
+        // A table closes only on an exact delimiter on its own line.
+        // Different lengths and delimiter-looking cell text remain in its body.
+        rule matching_table_delimiter(open_delim: &str) -> &'input str
+        = delim:table_delimiter() &(eol() / ![_]) {?
+            (delim == open_delim).then_some(delim).ok_or("matching table delimiter")
+        }
 
-        // Delimiter-specific content rules for nested table support.
-        // Each rule only looks ahead for its specific delimiter, allowing
-        // nested tables with different delimiters to be parsed correctly.
-        rule until_pipe_table_delimiter() -> &'input str
-        = content:$((!(eol() pipe_table_delimiter()) [_])*) { content }
-
-        rule until_excl_table_delimiter() -> &'input str
-        = content:$((!(eol() excl_table_delimiter()) [_])*) { content }
-
-        rule until_comma_table_delimiter() -> &'input str
-        = content:$((!(eol() comma_table_delimiter()) [_])*) { content }
-
-        rule until_colon_table_delimiter() -> &'input str
-        = content:$((!(eol() colon_table_delimiter()) [_])*) { content }
+        rule until_table_delimiter(open_delim: &str) -> &'input str
+        = content:$((!(eol() matching_table_delimiter(open_delim)) [_])*) { content }
 
         rule markdown_language() -> &'input str
         = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+) { lang }
@@ -1653,8 +1653,8 @@ peg::parser! {
 
         rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() eol()
-              content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:pipe_table_delimiter()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
+              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
         {
             parse_table_block_impl(
                 &TableParseParams {
@@ -1669,8 +1669,8 @@ peg::parser! {
 
         rule excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:excl_table_delimiter() eol()
-              content_start:position!() content:until_excl_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:excl_table_delimiter()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
+              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
         {
             parse_table_block_impl(
                 &TableParseParams {
@@ -1685,8 +1685,8 @@ peg::parser! {
 
         rule comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:comma_table_delimiter() eol()
-              content_start:position!() content:until_comma_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:comma_table_delimiter()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
+              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
         {
             parse_table_block_impl(
                 &TableParseParams {
@@ -1701,8 +1701,8 @@ peg::parser! {
 
         rule colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:colon_table_delimiter() eol()
-              content_start:position!() content:until_colon_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:colon_table_delimiter()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
+              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
         {
             parse_table_block_impl(
                 &TableParseParams {
@@ -1729,7 +1729,7 @@ peg::parser! {
         // file ending with just `|===\n` reaches the grammar as `|===`.
         rule unterminated_pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
               ![_]
         {
             parse_table_block_impl(
@@ -1745,7 +1745,7 @@ peg::parser! {
 
         rule unterminated_excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:excl_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_excl_table_delimiter() content_end:position!()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
               ![_]
         {
             parse_table_block_impl(
@@ -1761,7 +1761,7 @@ peg::parser! {
 
         rule unterminated_comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:comma_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_comma_table_delimiter() content_end:position!()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
               ![_]
         {
             parse_table_block_impl(
@@ -1777,7 +1777,7 @@ peg::parser! {
 
         rule unterminated_colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:colon_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_colon_table_delimiter() content_end:position!()
+              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
               ![_]
         {
             parse_table_block_impl(
@@ -1932,14 +1932,51 @@ peg::parser! {
         // explicit continuations. Set to false when parsing lists inside continuation blocks
         // to prevent nested lists from consuming parent-level continuations.
         rule list_with_continuation(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, allow_continuation: bool) -> Result<Block<'input>, Error>
-        = callout_list(start, offset, block_metadata)
+        = excessive_list_item(start, offset, block_metadata)
+        / callout_list(start, offset, block_metadata)
         / unordered_list(start, offset, block_metadata, None, allow_continuation, false)
         / ordered_list(start, offset, block_metadata, None, allow_continuation, false)
         / description_list(start, offset, block_metadata)
 
-        rule unordered_list_marker() -> &'input str = $("*"+ / "-")
+        rule raw_unordered_list_marker() -> &'input str = $("*"+ / "-")
 
-        rule ordered_list_marker() -> &'input str = $(digits()? "."+)
+        rule raw_ordered_list_marker() -> &'input str = $(digits()? "."+)
+
+        rule unordered_list_marker() -> &'input str
+        = marker:raw_unordered_list_marker() {?
+            ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))
+                .map(|_| marker).map_err(|_| "supported list depth")
+        }
+
+        rule ordered_list_marker() -> &'input str
+        = marker:raw_ordered_list_marker() {?
+            ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))
+                .map(|_| marker).map_err(|_| "supported list depth")
+        }
+
+        rule excessive_list_marker()
+        = whitespace()* marker:(raw_unordered_list_marker() / raw_ordered_list_marker()) &whitespace() {?
+            (ListItem::parse_depth_from_marker(marker).unwrap_or(1) > usize::from(ListLevel::MAX))
+                .then_some(()).ok_or("excessive list depth")
+        }
+
+        rule excessive_list_item(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = &excessive_list_marker() content:$([^'\n']+) {
+            let location = state.create_block_location(span_start, span_end, offset);
+            state.add_warning(Warning::new(
+                WarningKind::ContentRecovery {
+                    message: "list marker depth exceeds 255; preserving item as literal text".into(),
+                },
+                Some(state.create_error_source_location(location.clone())),
+            ));
+            Ok(Block::Paragraph(Paragraph {
+                metadata: block_metadata.metadata.clone(),
+                title: block_metadata.title.clone(),
+                content: vec![InlineNode::PlainText(Plain { content, location, escaped: false })],
+                location: state.create_block_location(start, span_end, offset),
+                source_text: Some(content),
+            }))
+        }
 
         rule description_list_marker() -> &'input str = $("::::" / ":::" / "::" / ";;")
 
@@ -2020,7 +2057,7 @@ peg::parser! {
         )
 
         // Helper rule to check if we're at the start of a new list item (lookahead)
-        rule at_list_item_start() = whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace()
+        rule at_list_item_start() = excessive_list_marker() / whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace()
 
         rule enter_ordinary_list(offset: usize, unordered: Option<&'input str>, ordered: Option<&'input str>) -> Option<OrdinaryListScope<'input>>
         = {
@@ -3638,6 +3675,7 @@ peg::parser! {
             / eol() markdown_code_delimiter()
             / eol() comment_delimiter()
             / eol() open_delimiter() &(whitespace()* eol())
+            / eol() excessive_list_marker()
             / eol() at_callout_parent_item(offset)
             / eol() attached_list_boundary(offset, parent_marker)
             / eol() &("+" whitespace()* (eol() / ![_]))  // Only a standalone plus continues a list.
@@ -4088,9 +4126,9 @@ peg::parser! {
         rule document_attribute_match() -> AttributeDeclaration<'input>
         = ":"
         key_entry:(
-            "!" key:$([^':']+) { (false, key) }
-            / key:$([^('!' | ':')]+) "!" { (false, key) }
-            / key:$([^':']+) { (true, key) }
+            "!" key:$([^':' | '\n']+) { (false, key) }
+            / key:$([^('!' | ':' | '\n')]+) "!" { (false, key) }
+            / key:$([^':' | '\n']+) { (true, key) }
         )
         ":" &" "?
         value:document_attribute_value()?

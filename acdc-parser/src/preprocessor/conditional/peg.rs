@@ -45,7 +45,7 @@ peg::parser! {
                 }
             }
 
-        rule attribute_condition() -> AttributeCondition<'input>
+        pub(in crate::preprocessor::conditional) rule attribute_condition() -> AttributeCondition<'input>
             = first:name() rest:("," name:name() { name })+ {
                 let mut attributes = Vec::with_capacity(rest.len() + 1);
                 attributes.push(first);

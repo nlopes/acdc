@@ -1,7 +1,7 @@
 //! Manpage attributes derived from the document header and name section.
 
 use crate::{
-    DocumentAttributes, Header, InlineNode,
+    DocumentAttributes, Header, InlineNode, WarningKind,
     document_attribute::AttributeDeclaration,
     error::{Error, SourceLocation},
     grammar::{ParserState, document::doctype::is_manpage_doctype},
@@ -193,7 +193,7 @@ fn sanitize_mantitle(name: &str) -> String {
 }
 
 /// Set `mantitle` and `manvolnum` after the header, before parsing body blocks.
-/// Preserve caller values. Return `false` when there is no header.
+/// Preserve caller values. Return a warning when the title requires a fallback.
 ///
 /// Strict mode rejects titles outside the `name(volume)` format. Otherwise,
 /// use the filename or cleaned title for `mantitle` and `1` for `manvolnum`.
@@ -202,12 +202,13 @@ pub(super) fn derive_manpage_header_attrs<'a>(
     attrs: &mut DocumentAttributes<'a>,
     strict: bool,
     source_file: Option<&std::path::Path>,
-) -> Result<bool, Error> {
+) -> Result<Option<WarningKind>, Error> {
     let Some(header) = header else {
-        return Ok(false);
+        return Ok(None);
     };
 
     let title_text = extract_plain_text(header.title.as_inlines());
+    let mut warning = None;
 
     if let Some(manpage_title) = parse_manpage_title(&title_text) {
         attrs.insert_text("mantitle".into(), manpage_title.name.to_lowercase().into());
@@ -235,9 +236,9 @@ pub(super) fn derive_manpage_header_attrs<'a>(
 
         let sanitized = sanitize_mantitle(fallback_name);
 
-        tracing::warn!(
-            "doctype=manpage but title doesn't match name(volume) format; using filename as fallback"
-        );
+        warning = Some(WarningKind::NonConformingManpageTitle {
+            title: title_text.clone(),
+        });
 
         attrs.insert_text("mantitle".into(), sanitized.into());
         attrs.insert_text("manvolnum".into(), "1".into());
@@ -251,7 +252,7 @@ pub(super) fn derive_manpage_header_attrs<'a>(
         attrs.set_text("outfilesuffix".into(), format!(".{manvolnum}").into());
     }
 
-    Ok(true)
+    Ok(warning)
 }
 
 /// Values read from the required first section of a manpage document.

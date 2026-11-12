@@ -246,19 +246,18 @@ fn disabled_includes_record_content_recovery() -> TestResult {
 }
 
 #[test]
-fn malformed_include_line_selection_is_a_parse_error() -> TestResult {
+fn malformed_include_line_selection_preserves_the_directive() -> TestResult {
     let options = Options::builder().with_base_dir(fixtures()).build()?;
-    let Err(error) = parse(
-        "include::include_indent_target.rb[lines=not-a-number]",
-        &options,
-    ) else {
-        return Err("malformed selection must not widen the include".into());
-    };
-    assert!(matches!(error, acdc_parser::Error::InvalidLineRange(_, _)));
+    let source = "include::include_indent_target.rb[lines=not-a-number]";
+    let parsed = parse(source, &options)?;
+    assert_eq!(parsed.preprocessed_source(), source);
+    let warning = parsed
+        .source_recovery()
+        .ok_or("expected selection warning")?;
     assert_eq!(
-        error
+        warning
             .source_location()
-            .ok_or("missing error location")?
+            .ok_or("missing warning location")?
             .location
             .start
             .line,

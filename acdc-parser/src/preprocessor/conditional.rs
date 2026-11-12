@@ -21,6 +21,7 @@ enum Condition<'input> {
     Ifdef(AttributeCondition<'input>),
     Ifndef(AttributeCondition<'input>),
     Ifeval(EvalCondition),
+    Unevaluable(Option<AttributeCondition<'input>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -83,7 +84,22 @@ impl<'input> AttributeCondition<'input> {
     }
 }
 
-impl Conditional<'_> {
+impl<'input> Conditional<'input> {
+    /// An invalid opening still owns its block. Keep a recognizable target so
+    /// a named terminator can close it, but never expose an unevaluated body.
+    pub(super) fn unevaluable(line: &'input str) -> Self {
+        let body = line.split_once("::").map_or("", |(_, body)| body);
+        let (target, content) = body.split_once('[').unwrap_or((body, ""));
+        let inline = !line.starts_with("ifeval::")
+            && content
+                .strip_suffix(']')
+                .is_some_and(|text| !text.is_empty());
+        Self {
+            condition: Condition::Unevaluable(conditional_parser::attribute_condition(target).ok()),
+            content: inline.then_some(""),
+        }
+    }
+
     fn evaluate_attributes(
         attrs: &[&str],
         operation: Option<&Operation>,
@@ -127,6 +143,7 @@ impl Conditional<'_> {
             Condition::Ifeval(ifeval) => {
                 ifeval.evaluate(attributes, line_number, current_offset, file_parent)?
             }
+            Condition::Unevaluable(_) => false,
         };
         if is_true && let Some(if_content) = &self.content {
             content.push_str(if_content);
@@ -142,6 +159,7 @@ impl Conditional<'_> {
         match &self.condition {
             Condition::Ifdef(condition) | Condition::Ifndef(condition) => Some(condition),
             Condition::Ifeval(_) => None,
+            Condition::Unevaluable(condition) => condition.as_ref(),
         }
     }
 }
@@ -176,7 +194,6 @@ impl EvalCondition {
             | (EvalValue::Boolean(_), EvalValue::Boolean(_))
             | (EvalValue::String(_), EvalValue::String(_)) => {}
             _ => {
-                tracing::error!("cannot compare different types of values in ifeval directive");
                 return Err(Error::InvalidIfEvalDirectiveMismatchedTypes(Box::new(
                     SourceLocation {
                         file: file_parent.map(Path::to_path_buf),
@@ -243,11 +260,6 @@ pub(super) fn parse_line<'input>(
     file_parent: Option<&Path>,
 ) -> Result<Conditional<'input>, Error> {
     conditional_parser::conditional(line).map_err(|_| {
-        tracing::error!(
-            line_number,
-            current_offset,
-            "failed to parse conditional directive"
-        );
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             location: Location::point(Position::from_line_col(line_number, 1)),
@@ -263,11 +275,6 @@ pub(super) fn parse_endif<'input>(
     file_parent: Option<&Path>,
 ) -> Result<Endif<'input>, Error> {
     conditional_parser::endif(line).map_err(|_| {
-        tracing::error!(
-            line_number,
-            current_offset,
-            "failed to parse endif directive"
-        );
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             location: Location::point(Position::from_line_col(line_number, 1)),

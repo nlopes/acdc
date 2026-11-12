@@ -15,6 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including combined column and row spans, without an incorrect incomplete-row
   warning. Both compatibility modes match Asciidoctor.
 
+- Recoverable include options, malformed directives and URLs, include read and
+  decoding failures, conditional errors, oversized table column widths, and
+  excessive list-marker depths now return located warnings and preserve a usable
+  document. Invalid `lines=` selections remain unresolved rather than including
+  the entire file; unevaluable conditional bodies are excluded. Entry-input
+  failures, explicit provider fatal errors, and resource budgets remain fatal.
+  These conservative recoveries can differ from Asciidoctor.
+- Tables require an exact closing delimiter and recover to a later matching
+  delimiter or the end of input with an unterminated-table warning. Tab-separated
+  sibling headings keep their correct section placement.
+- Non-conforming manpage titles return `NonConformingManpageTitle` warnings with
+  the existing fallback values. Explicit strict mode still rejects them.
+
 - **Breaking since 0.11:** public names now distinguish table cells, reference
   targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
   `Reference` with `ReferenceTarget`, `CurvedApostrophe` / `CurvedQuotation` with

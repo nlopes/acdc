@@ -58,8 +58,7 @@ peg::parser! {
             }
 
         rule attribute_key() -> String
-            // Note: "tags" must come before "tag" due to PEG's ordered choice
-            = k:$("leveloffset" / "lines" / "tags" / "tag" / "indent" / "encoding" / "opts") {
+            = k:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+) {
                 k.to_string()
             }
 

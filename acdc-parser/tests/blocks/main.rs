@@ -8,6 +8,7 @@ mod delimited_block_styles;
 mod description_groups;
 mod description_line_boundaries;
 mod discrete_heading_styles;
+mod document_recovery;
 mod heading_block_boundaries;
 mod heading_marker_boundaries;
 mod list_continuation_comments;

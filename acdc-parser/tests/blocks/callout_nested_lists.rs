@@ -1,5 +1,5 @@
 use acdc_parser::{
-    Error as ParseError, Options,
+    Options,
     ast::{BlockKind, BlockRef},
     parse,
 };
@@ -7,20 +7,20 @@ use acdc_parser::{
 type Error = Box<dyn std::error::Error>;
 
 #[test]
-fn callout_continuations_propagate_invalid_child_errors() {
-    // A parse error has no document snapshot; check both forms of attachment.
+fn callout_continuations_recover_excessive_child_depth() -> Result<(), Error> {
     let marker = ".".repeat(256);
     for child in ["", "* Nested.\n\n"] {
         let source =
             format!("----\ncode <1>\n----\n<1> Parent.\n{child}+\n{marker} Invalid depth.\n");
+        let parsed = parse(&source, &Options::default())?;
+        assert!(parsed.source_recovery().is_some(), "{source}");
         assert!(
-            matches!(
-                parse(&source, &Options::default()),
-                Err(ParseError::TryFromIntError(_))
-            ),
-            "invalid attached list must report its error for {source:?}"
+            parsed
+                .preprocessed_source()
+                .contains(&format!("{marker} Invalid depth."))
         );
     }
+    Ok(())
 }
 
 #[test]

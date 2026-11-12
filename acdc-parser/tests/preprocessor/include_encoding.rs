@@ -173,15 +173,21 @@ fn malformed_explicit_utf16_recovers_as_an_unreadable_local_include() -> TestRes
 }
 
 #[test]
-fn malformed_utf8_without_transcoding_remains_fatal() -> TestResult {
+fn malformed_utf8_include_recovers_but_entry_decoding_remains_fatal() -> TestResult {
     let directory = TempDirectory::new()?;
     directory.write("part.adoc", [0xFF])?;
 
-    let Err(error) = parse_include(&directory, "") else {
-        return Err("invalid UTF-8 unexpectedly parsed".into());
-    };
-
-    assert!(matches!(error, ParserError::UnrecognizedEncodingInFile(_)));
+    let parsed = parse_include(&directory, "")?;
+    assert!(parsed.source_recovery().is_some());
+    assert!(
+        parsed
+            .preprocessed_source()
+            .contains("Unresolved directive")
+    );
+    assert!(matches!(
+        parse_file(directory.0.join("part.adoc"), &Options::default()),
+        Err(ParserError::UnrecognizedEncodingInFile(_))
+    ));
     Ok(())
 }
 

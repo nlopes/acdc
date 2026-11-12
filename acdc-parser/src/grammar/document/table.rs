@@ -60,11 +60,11 @@ fn table_limit_error(
 
 /// Read a complete `[multiplier*][halign][.valign][width][style]` record.
 /// Invalid records contribute no columns, matching Asciidoctor.
-/// Numeric widths outside the supported u32 range return the authored value.
-fn parse_column_spec(input: &str) -> Result<Option<(usize, ColumnFormat)>, &str> {
+/// Oversized widths retain the default width and return the authored value for a warning.
+fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat, Option<&str>)> {
     let (multiplier, input) = if let Some((count, rest)) = input.split_once('*') {
         if count.is_empty() || !count.bytes().all(|byte| byte.is_ascii_digit()) {
-            return Ok(None);
+            return None;
         }
         (count.parse().unwrap_or(MAX_TABLE_COLUMNS + 1), rest)
     } else {
@@ -77,7 +77,7 @@ fn parse_column_spec(input: &str) -> Result<Option<(usize, ColumnFormat)>, &str>
         [h @ (b'<' | b'^' | b'>')] | [h @ (b'<' | b'^' | b'>'), b'.'] => (Some(*h), None),
         [b'.', v @ (b'<' | b'^' | b'>')] => (None, Some(*v)),
         [h @ (b'<' | b'^' | b'>'), b'.', v @ (b'<' | b'^' | b'>')] => (Some(*h), Some(*v)),
-        _ => return Ok(None),
+        _ => return None,
     };
     let mut format = ColumnFormat {
         halign: match horizontal {
@@ -129,13 +129,9 @@ fn parse_column_spec(input: &str) -> Result<Option<(usize, ColumnFormat)>, &str>
             b's' => ColumnStyle::Strong,
             _ => ColumnStyle::Default,
         },
-        _ => return Ok(None),
+        _ => return None,
     };
-    if let Some(width) = width_error {
-        Err(width)
-    } else {
-        Ok(Some((multiplier, format)))
-    }
+    Some((multiplier, format, width_error))
 }
 
 /// Parse a table block with the selected separator and source ranges.
@@ -246,18 +242,20 @@ pub(super) fn parse_table_block_impl<'input>(
             specs.resize(count, ColumnFormat::default());
         } else {
             for input in cols.split(if cols.contains(',') { ',' } else { ';' }) {
-                let Some((multiplier, spec)) = parse_column_spec(input).map_err(|width| {
-                    table_limit_error(
-                        state,
-                        table_location.clone(),
-                        "column width",
-                        width,
-                        u32::MAX,
-                    )
-                })?
-                else {
+                let Some((multiplier, spec, width_error)) = parse_column_spec(input) else {
                     continue;
                 };
+                if let Some(width) = width_error {
+                    state.add_warning(Warning::new(
+                        WarningKind::ContentRecovery {
+                            message: format!(
+                                "table column width `{width}` exceeds the maximum of {}; using proportional width 1",
+                                u32::MAX,
+                            ).into(),
+                        },
+                        Some(state.create_error_source_location(table_location.clone())),
+                    ));
+                }
                 let column_count = specs.len().saturating_add(multiplier);
                 if column_count > MAX_TABLE_COLUMNS {
                     return Err(table_limit_error(

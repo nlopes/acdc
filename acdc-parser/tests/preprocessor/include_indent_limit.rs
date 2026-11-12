@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Error as ParserError, Options, Position, parse_file};
+use acdc_parser::{CompatibilityMode, Options, Position, parse_file};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -37,18 +37,28 @@ impl Drop for IncludeDocument {
 }
 
 #[test]
-fn excessive_include_indent_is_rejected_before_target_io() -> TestResult {
-    let document = IncludeDocument::new("include::missing.adoc[indent=4097]")?;
-
-    let Err(error) = parse_file(&document.main, &Options::default()) else {
-        return Err("expected an excessive include indent to fail parsing".into());
-    };
-    let ParserError::IncludeIndentTooLarge(location, indent, limit) = error else {
-        return Err(format!("unexpected parse error: {error:?}").into());
-    };
-    assert_eq!(indent, 4097);
-    assert_eq!(limit, 4096);
-    assert_eq!(location.file.as_deref(), Some(document.main.as_path()));
-    assert_eq!(location.location.start, Position::new(1, 1));
+fn excessive_include_indent_is_ignored_without_losing_content() -> TestResult {
+    let document = IncludeDocument::new("include::part.adoc[indent=4097]")?;
+    fs::write(document.directory.join("part.adoc"), "  Original content.")?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let parsed = parse_file(
+            &document.main,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .with_compatibility_mode(mode)
+                .build()?,
+        )?;
+        assert_eq!(parsed.preprocessed_source(), "  Original content.");
+        let [warning] = parsed.warnings() else {
+            return Err("expected one indentation warning".into());
+        };
+        let location = warning
+            .location
+            .as_ref()
+            .ok_or("expected located warning")?;
+        assert_eq!(location.file.as_deref(), Some(document.main.as_path()));
+        assert_eq!(location.location.start, Position::new(1, 1));
+        assert!(parsed.source_recovery().is_some());
+    }
     Ok(())
 }

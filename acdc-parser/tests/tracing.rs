@@ -245,11 +245,15 @@ fn failure_traces_omit_diagnostic_payloads() -> TestResult {
         .err()
         .ok_or("expected reader failure")?;
     assert!(error.to_string().contains("PRIVATE_READER_ERROR"));
-    let error = parse("ifeval::[PRIVATE_INVALID_EXPRESSION]", &Options::default())
-        .err()
-        .ok_or("expected conditional failure")?;
-    assert!(error.source_location().is_some());
-    assert!(logs_contain("current_offset=0"));
+    let recovered = parse("ifeval::[PRIVATE_INVALID_EXPRESSION]", &Options::default())?;
+    assert!(recovered.source_recovery().is_some());
+    assert!(
+        recovered
+            .warnings()
+            .iter()
+            .all(|warning| warning.source_location().is_some())
+    );
+    assert!(logs_contain("content-recovery"));
     let parsed = parse("{counter:PRIVATE_COUNTER}", &Options::default())?;
     assert!(
         parsed

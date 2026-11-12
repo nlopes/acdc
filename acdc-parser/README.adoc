@@ -1473,6 +1473,48 @@ block delimiters, and unresolved footnotes rendered as text. It remains availabl
 presentation warnings. Applications that need complete input must check it before
 acting on recovered content. Rendering can continue with the recovered document.
 
+Recoverable document problems return a document and located warnings by default
+in both compatibility modes. Unknown include options are ignored while valid
+options still apply; acdc warns where Asciidoctor silently ignores them.
+Invalid `indent=` and `leveloffset=` overrides are ignored. Indentation over
+4,096 spaces is rejected before allocation and the include keeps
+its original indentation. Malformed include syntax, invalid URLs, and invalid
+`lines=` selections preserve the directive without reading the target. An invalid
+selection never expands to the whole file. Include read or decoding failures
+produce an unresolved marker and discard partial content. `opts=optional` silently
+omits a missing local file; other nonfatal failures still warn and preserve a
+marker. Explicit provider `Fatal` failures remain fatal.
+
+A table closes only on its exact opening delimiter on a separate line. Without
+one, parsing continues to the end of input and reports `UnterminatedTable`.
+Column widths above `u32::MAX` warn and use proportional width 1, preserving the
+other column controls. Table row, column, span, and cell expansion limits remain
+fatal. List markers whose recognized depth exceeds 255 warn and remain literal
+text.
+
+Malformed conditionals and `ifeval` comparisons between different operand types
+exclude their unevaluable content. Block forms retain an inactive frame, including
+nested conditionals, until a matching `endif`. Invalid or mismatched `endif`
+directives warn and leave the current frame open; an unclosed frame also warns at
+the end of input. Invalid conditions in inactive branches cannot expose content
+or trigger includes. These conservative recoveries deliberately differ from
+Asciidoctor where it exposes content after a malformed condition. acdc also
+preserves invalid include selections even where Asciidoctor ignores the malformed
+option, preserves invalid URLs instead of producing links, recovers include
+decoding failures, and bounds column widths and list depths.
+
+A non-conforming manpage title returns `WarningKind::NonConformingManpageTitle`
+and keeps the fallback name and volume 1. `Options::strict` still rejects it.
+The title fallback does not indicate lost source content through
+`source_recovery()`. CLI users can apply `acdc convert --fail-on-warnings` to all
+structured warnings: conversion retains successful output, finishes the selected
+inputs, and exits with status 1.
+
+Entry-document read and decoding failures, invalid caller configuration, include
+byte/metadata/transfer budgets, explicit provider fatal errors, and broken internal
+state or source mapping still fail parsing. Generic grammar errors remain fatal
+unless a specific recovery can preserve source and make forward progress.
+
 Parser tracing records sizes, counts, positions, and diagnostic categories.
 It does not dump document text, options, AST nodes, paths, or URLs.
 Read full diagnostics from `ParseResult::warnings()`,
@@ -1654,14 +1696,13 @@ the trusted value and do not appear as `Block::DocumentAttribute` nodes in the A
 == Include indentation
 
 The `indent` attribute on an include accepts a non-negative integer from `0` through
-`4096`. A larger value returns a located error before the target is read, preventing
-one directive from requesting an unbounded space prefix for every non-empty included
-line.
-Malformed and negative values remain invalid.
+`4096`. Larger, malformed, and negative values produce a located warning and
+ignore the override, preserving the existing indentation. The cap is checked before
+allocating a prefix, so one directive cannot request an unbounded number of spaces
+for every non-empty included line.
 
 The `4096` cap is an intentional acdc security policy, not a requirement of the
-AsciiDoc language. It deliberately creates an acceptance divergence from
-asciidoctor, which coerces the value using Ruby's `to_i` and does not impose a
+AsciiDoc language. Asciidoctor coerces the value using Ruby's `to_i` and does not impose a
 documented or implemented maximum before allocating the indentation prefix.
 [#table-limits]
 == Table limits
@@ -1671,8 +1712,9 @@ to 100,000 materialized cells. The column bound also applies to `cols` multiplie
 cell duplication counts, and column spans; row spans are bounded by the row limit.
 Larger requests and oversized CSV, TSV, DSV, or PSV dimensions return a located
 parse error before unbounded expansion. Numeric column widths must be between
-0 and 4,294,967,295; larger values return a located error instead of selecting
-a default width. Asciidoctor accepts larger integer widths.
+0 and 4,294,967,295; larger values produce a located warning and use proportional
+width 1 while retaining the other column controls. Asciidoctor accepts larger
+integer widths.
 
 These are fixed internal safety limits. They cannot be changed through parser options
 or document attributes. This intentionally diverges from asciidoctor, which has no
@@ -1849,9 +1891,11 @@ Explicit UTF-16LE and UTF-16BE labels also work without a BOM.
 The parser accepts WHATWG single-byte encoding labels and aliases through `encoding_rs` and converts their text to UTF-8.
 If an encoding label is unknown, acdc uses BOM detection or UTF-8, as Asciidoctor does.
 
-For local files with an explicit UTF-16 encoding, invalid text produces an unreadable-file warning at the include directive.
-The parser keeps the unresolved directive and continues.
-Invalid UTF-8 without transcoding stops parsing if it occurs in the text that the selector must read.
+Invalid text in a local or remote include produces a located recovery warning.
+The parser discards partial include content, keeps an unresolved marker, and continues.
+This also applies to UTF-8 without transcoding and to `opts=optional` includes.
+Invalid text in the entry document remains fatal. Asciidoctor can abort conversion
+for include decoding failures.
 
 A finite `lines=` selection ignores invalid bytes after its last requested line, even in the same read buffer.
 acdc keeps the same decoder across reads, so BOM detection also works with `lines=` and `tag=`.

@@ -2690,3 +2690,87 @@ fn manpage_dates_use_docdate_and_reproducible_source_metadata() -> Result<(), Bo
     }
     Ok(())
 }
+
+#[cfg(feature = "html")]
+#[test]
+fn recovered_parser_errors_obey_warning_policy_and_finish_remaining_inputs()
+-> Result<(), Box<dyn Error>> {
+    for mode in ["asciidoctor", "draft"] {
+        for fail in [false, true] {
+            let directory = tempdir()?;
+            let part = directory.path().join("part.adoc");
+            let recovered = directory.path().join("recovered.adoc");
+            let clean = directory.path().join("clean.adoc");
+            fs::write(part, "Included body.")?;
+            fs::write(
+                &recovered,
+                "Before.\n\ninclude::part.adoc[unknown=1]\n\nAfter.",
+            )?;
+            fs::write(&clean, "Clean body.")?;
+            let recovered_arg = recovered.to_string_lossy();
+            let clean_arg = clean.to_string_lossy();
+            let mut args = vec!["convert", "--compatibility-mode", mode, "--strict"];
+            if fail {
+                args.push("--fail-on-warnings");
+            }
+            args.extend([recovered_arg.as_ref(), clean_arg.as_ref()]);
+            let output = run_acdc(&args, None)?;
+            let stderr = output_text(&output.stderr);
+            assert_eq!(output.status.code(), Some(i32::from(fail)), "{stderr}");
+            let html = fs::read_to_string(recovered.with_extension("html"))?;
+            for content in ["Before.", "Included body.", "After."] {
+                assert!(html.contains(content), "{html}");
+            }
+            assert!(fs::read_to_string(clean.with_extension("html"))?.contains("Clean body."));
+            assert_eq!(
+                stderr.matches("unknown include option").count(),
+                1,
+                "{stderr}"
+            );
+            assert!(!stderr.contains("failed to process"), "{stderr}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn nonconforming_manpage_title_warns_by_default_and_remains_fatal_with_strict()
+-> Result<(), Box<dyn Error>> {
+    let source = "= Invalid title\n:doctype: manpage\n\n== NAME\n\ncommand - purpose\n";
+    for mode in ["asciidoctor", "draft"] {
+        for strict in [false, true] {
+            for fail in [false, true] {
+                let mut args = vec![
+                    "convert",
+                    "--stdin",
+                    "--embedded",
+                    "-o",
+                    "-",
+                    "--compatibility-mode",
+                    mode,
+                ];
+                if strict {
+                    args.push("--strict");
+                }
+                if fail {
+                    args.push("--fail-on-warnings");
+                }
+                let output = run_acdc(&args, Some(source))?;
+                let stderr = output_text(&output.stderr);
+                assert_eq!(
+                    output.status.code(),
+                    Some(i32::from(strict || fail)),
+                    "{stderr}"
+                );
+                assert!(
+                    stderr.contains("non-conforming manpage title")
+                        || stderr.contains("title 'Invalid title'"),
+                    "{stderr}"
+                );
+                assert_eq!(output_text(&output.stdout).contains("purpose"), !strict);
+            }
+        }
+    }
+    Ok(())
+}

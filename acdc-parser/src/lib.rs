@@ -125,12 +125,11 @@
 //!
 //! # Include indentation
 //!
-//! The `indent` attribute on an include accepts `0..=4096`. Larger values return
-//! a located [`Error::IncludeIndentTooLarge`] before the target is read. This fixed
-//! safety limit is an intentional acdc security policy, not an `AsciiDoc` language
-//! requirement. It prevents one directive from requesting an unbounded indentation
-//! prefix and deliberately diverges from `asciidoctor`, which has no documented or
-//! implemented maximum.
+//! The `indent` attribute on an include accepts `0..=4096`. Larger, malformed,
+//! and negative values return a located recovery warning and ignore the override.
+//! This fixed safety limit is checked before allocating a prefix. It is an
+//! intentional acdc policy, not an `AsciiDoc` language requirement, and differs
+//! from `asciidoctor`, which has no documented or implemented maximum.
 //!
 //! # Table limits
 //!

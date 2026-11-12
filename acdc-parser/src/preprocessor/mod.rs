@@ -711,13 +711,6 @@ impl Preprocessor {
         }
     }
 
-    /// Store the full warning and trace its category and source position.
-    fn add_warning_at(&self, message: impl Into<Cow<'static, str>>, location: SourceLocation) {
-        let warning = Warning::new(WarningKind::Other(message.into()), Some(location));
-        warning.emit_trace();
-        self.warnings.borrow_mut().push(warning);
-    }
-
     fn recover_content_at(&self, message: impl Into<Cow<'static, str>>, location: SourceLocation) {
         let warning = Warning::new(
             WarningKind::ContentRecovery {
@@ -829,13 +822,10 @@ impl Preprocessor {
                 return None;
             }
             // Directive lines: include::, ifdef::, ifndef::, ifeval::
-            if line.ends_with(']')
-                && !line.starts_with('[')
-                && line.contains("::")
-                && (has_include_directive_shape(line)
-                    || DIRECTIVE_PREFIXES[1..]
-                        .iter()
-                        .any(|prefix| line.starts_with(prefix)))
+            if has_include_directive_shape(line)
+                || DIRECTIVE_PREFIXES[1..]
+                    .iter()
+                    .any(|prefix| line.starts_with(prefix))
             {
                 return None;
             }
@@ -959,14 +949,24 @@ impl Preprocessor {
             None if options.safe_mode == crate::SafeMode::Secure => &DENIED,
             None => return Ok(None),
         };
-        let include = Include::parse(
+        let include = match Include::parse(
             source_origin,
             line,
             LocationContext::new(line_number, current_offset, source_origin.as_path()),
             options,
             include_context,
             &self.warnings,
-        )?;
+        ) {
+            Ok(include) => include,
+            Err(error @ (Error::Parse(..) | Error::InvalidLineRange(..) | Error::Url(..))) => {
+                self.recover_content_at(
+                    format!("invalid include directive; preserving source: {error}"),
+                    Self::create_source_location(line_number, source_origin.as_path()),
+                );
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
         let attribute_list_as_written = line
             .strip_suffix(']')
             .and_then(|directive| directive.split_once('['))
@@ -1177,7 +1177,7 @@ impl Preprocessor {
         out: &mut PreprocessorState<'_>,
         scanner: &mut CommentScanner,
     ) -> Result<bool, Error> {
-        if !line.ends_with(']') || line.starts_with('[') || !line.contains("::") {
+        if line.starts_with('[') || !line.contains("::") {
             return Ok(false);
         }
 
@@ -1188,22 +1188,42 @@ impl Preprocessor {
             || line.starts_with("ifeval::")
         {
             let mut content = String::new();
-            let conditional = conditional::parse_line(
+            let conditional = match conditional::parse_line(
                 line,
                 ctx.source_line,
                 ctx.current_offset,
                 ctx.current_file(),
-            )?;
+            ) {
+                Ok(conditional) => conditional,
+                Err(Error::InvalidConditionalDirective(_)) => {
+                    self.recover_content_at(
+                        "invalid conditional directive; excluding unevaluable content",
+                        Self::create_source_location(ctx.source_line, ctx.current_file()),
+                    );
+                    conditional::Conditional::unevaluable(line)
+                }
+                Err(error) => return Err(error),
+            };
             let parent_active = stack.last().is_none_or(|frame| frame.active);
             let is_inline = conditional.has_inline_content();
             let active = parent_active
-                && conditional.is_true(
+                && match conditional.is_true(
                     attributes,
                     &mut content,
                     ctx.source_line,
                     ctx.current_offset,
                     ctx.current_file(),
-                )?;
+                ) {
+                    Ok(active) => active,
+                    Err(Error::InvalidIfEvalDirectiveMismatchedTypes(_)) => {
+                        self.recover_content_at(
+                            "ifeval operands have different types; excluding unevaluable content",
+                            Self::create_source_location(ctx.source_line, ctx.current_file()),
+                        );
+                        false
+                    }
+                    Err(error) => return Err(error),
+                };
 
             let evaluation = out.conditionals.len();
             out.conditionals.push(ConditionalEvaluation {
@@ -1232,20 +1252,28 @@ impl Preprocessor {
         if line.starts_with("endif::")
             && let Some(frame) = stack.last()
         {
-            let endif = conditional::parse_endif(
+            let endif = match conditional::parse_endif(
                 line,
                 ctx.source_line,
                 ctx.current_offset,
                 ctx.current_file(),
-            )?;
+            ) {
+                Ok(endif) => endif,
+                Err(Error::InvalidConditionalDirective(_)) => {
+                    self.recover_content_at(
+                        "invalid endif directive; leaving the current conditional open",
+                        Self::create_source_location(ctx.source_line, ctx.current_file()),
+                    );
+                    return Ok(true);
+                }
+                Err(error) => return Err(error),
+            };
             if !endif.closes(&frame.conditional) {
-                self.add_warning_at(
-                    "attribute mismatch between if and endif directives",
+                self.recover_content_at(
+                    "attribute mismatch between if and endif directives; leaving the current conditional open",
                     Self::create_source_location(ctx.source_line, ctx.current_file()),
                 );
-                return Err(Error::InvalidConditionalDirective(Box::new(
-                    Self::create_source_location(ctx.source_line, ctx.current_file()),
-                )));
+                return Ok(true);
             }
             if let Some(evaluation) = out.conditionals.get_mut(frame.evaluation) {
                 evaluation.end_line = Some(ctx.source_line);
@@ -1323,6 +1351,9 @@ impl Preprocessor {
                 if let Some(document_attributes) = document_attributes {
                     options.document_attributes = document_attributes;
                 }
+            } else {
+                out.push_source_line(line, ctx.input_line);
+                scanner.record(line, &options.document_attributes);
             }
         } else {
             out.push_source_line(line, ctx.input_line);
@@ -2802,28 +2833,24 @@ endif::asdf[]";
     }
 
     #[test]
-    fn test_bad_endif_directive() {
-        let options = Options::default();
-        let input = "ifdef::asdf[]
-content
-endif::another[]";
-        let output = Preprocessor::process(input, &options, Rc::default());
-        assert!(matches!(
-            output,
-            Err(Error::InvalidConditionalDirective(..))
-        ));
+    fn test_bad_endif_directive() -> Result<(), Error> {
+        let warnings = Rc::default();
+        let output = Preprocessor::process(
+            "ifdef::asdf[]\ncontent\nendif::another[]",
+            &Options::default(),
+            Rc::clone(&warnings),
+        )?;
+        assert_eq!(output.text, "");
+        assert_eq!(warnings.borrow().len(), 2);
+        Ok(())
     }
 
     #[test]
-    fn multi_attribute_endif_must_match_complete_condition() {
-        let input = "ifdef::backend-pdf,backend-docbook5[]
-content
-endif::backend-pdf[]";
-        let output = Preprocessor::process(input, &Options::default(), Rc::default());
-        assert!(matches!(
-            output,
-            Err(Error::InvalidConditionalDirective(..))
-        ));
+    fn multi_attribute_endif_must_match_complete_condition() -> Result<(), Error> {
+        let input = "ifdef::backend-pdf,backend-docbook5[]\ncontent\nendif::backend-pdf[]\nstill excluded\nendif::[]\nAfter.";
+        let output = Preprocessor::process(input, &Options::default(), Rc::default())?;
+        assert_eq!(output.text, "After.");
+        Ok(())
     }
 
     #[test]
