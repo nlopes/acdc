@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Missing target attributes follow the selected `attribute-missing` recovery policy.
   Escaped references and invalid reference names remain literal, and quoted
   attribute values can contain closing brackets.
+- `max-attribute-value-size` truncates document-defined text at a complete UTF-8
+  character, including resolved relative `leveloffset` values. Secure mode defaults
+  to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset
+  disables the cap. This limit and include `depth=` accept Ruby digit separators,
+  such as `4_096`.
 
 - **Breaking since 0.11:** public names now distinguish table cells, reference
   targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,

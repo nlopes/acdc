@@ -462,6 +462,30 @@ mod tests {
     }
 
     #[test]
+    fn traversal_observes_resolved_relative_leveloffsets() -> Result<(), Error> {
+        let parsed = parse(
+            "= Header\n:leveloffset: 1\n\nBody.\n\n:leveloffset: +1\n\nNext.\n\n:leveloffset: -1\n\nLast.",
+            &Options::default(),
+        )?;
+        let document = parsed.document();
+        let mut context = TraversalContext::new(document.attributes());
+        let mut values = Vec::new();
+        for block in document.blocks() {
+            if let BlockKind::DocumentAttribute(event) = block.kind() {
+                context.apply(event);
+                values.push(
+                    context
+                        .get("leveloffset")
+                        .and_then(DocumentAttributeValue::text)
+                        .map(str::to_owned),
+                );
+            }
+        }
+        assert_eq!(values, [Some("2".into()), Some("1".into())]);
+        Ok(())
+    }
+
+    #[test]
     fn nested_scope_restores_parent_after_success_and_error() -> Result<(), Error> {
         let parent = parse(
             "= Header\n:name: header\n\nBody.\n\n:name: parent\n",
