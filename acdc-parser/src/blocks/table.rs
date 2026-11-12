@@ -795,7 +795,6 @@ fn group_cells_into_rows(
         let mut row = Vec::new();
         let mut new_spans: Vec<(usize, usize, usize)> = Vec::new();
         let mut col = 0;
-        let mut filled = false;
 
         while col < ncols {
             // Skip columns occupied by an active rowspan from a previous row.
@@ -821,10 +820,9 @@ fn group_cells_into_rows(
             }
             row.push(cell);
             col += occupied;
-            filled = col >= ncols;
         }
 
-        if !filled && next.is_none() {
+        if col < ncols {
             // Incomplete final row — asciidoctor drops it and warns. Capture
             // the span of the dropped cells for the warning location.
             if let (Some(first), Some(last)) = (row.first(), row.last()) {

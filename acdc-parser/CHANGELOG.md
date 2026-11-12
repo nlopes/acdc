@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Tables now retain a final row completed by a row span from an earlier row,
+  including combined column and row spans, without an incorrect incomplete-row
+  warning. Both compatibility modes match Asciidoctor.
+
 - **Breaking since 0.11:** public names now distinguish table cells, reference
   targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
   `Reference` with `ReferenceTarget`, `CurvedApostrophe` / `CurvedQuotation` with

@@ -1,5 +1,5 @@
 use acdc_parser::{
-    ColumnStyle, HorizontalAlignment, Options, VerticalAlignment,
+    ColumnStyle, CompatibilityMode, HorizontalAlignment, Options, VerticalAlignment, WarningKind,
     ast::{BlockKind, BlockRef, TableRef},
     parse,
 };
@@ -11,6 +11,79 @@ fn table(block: BlockRef<'_>) -> Result<TableRef<'_>, Error> {
         return Err("expected a table".into());
     };
     Ok(table)
+}
+
+#[rstest::rstest]
+#[case::two_columns(
+    include_str!("../../fixtures/tests/table_final_row_rowspan.adoc"),
+    &[2, 1],
+)]
+#[case::inferred_columns("|===\n|a .2+|span\n|b\n|===\n", &[2, 1])]
+#[case::three_columns("[cols=\"3*\"]\n|===\n|a |b .2+|span\n|c |d\n|===\n", &[3, 2])]
+#[case::combined_spans("[cols=\"3*\"]\n|===\n|a 2.2+|span\n|b\n|===\n", &[2, 1])]
+#[case::multiple_spans("[cols=\"3*\"]\n|===\n|a .2+|span1 .2+|span2\n|b\n|===\n", &[3, 1])]
+#[case::three_rows("[cols=\"2*\"]\n|===\n|a .3+|span\n|b\n|c\n|===\n", &[2, 1, 1])]
+#[case::leading_span("[cols=\"2*\"]\n|===\n.2+|span |a\n|b\n|===\n", &[2, 1])]
+#[case::middle_span("[cols=\"3*\"]\n|===\n|a .2+|span |b\n|c |d\n|===\n", &[3, 2])]
+#[case::following_row("[cols=\"2*\"]\n|===\n|a .2+|span\n|b\n|c |d\n|===\n", &[2, 1, 2])]
+fn final_row_completed_by_rowspans_is_retained(
+    #[case] source: &str,
+    #[case] expected_cells: &[usize],
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let table = table(
+        parsed
+            .document()
+            .blocks()
+            .next()
+            .ok_or("expected a table")?,
+    )?;
+    let cells = table
+        .rows()
+        .map(|row| row.cells().count())
+        .collect::<Vec<_>>();
+    assert_eq!(cells, expected_cells);
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::without_span("[cols=\"3*\"]\n|===\n|a |b |c\n|d\n|===\n")]
+#[case::with_span("[cols=\"3*\"]\n|===\n|a |b .2+|span\n|c\n|===\n")]
+fn final_row_with_unfilled_columns_is_dropped_and_warns(
+    #[case] source: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let table = table(
+        parsed
+            .document()
+            .blocks()
+            .next()
+            .ok_or("expected a table")?,
+    )?;
+    assert_eq!(table.rows().count(), 1);
+    let [warning] = parsed.warnings() else {
+        return Err("expected one incomplete-row warning".into());
+    };
+    assert!(matches!(warning.kind, WarningKind::TableIncompleteRow));
+    assert_eq!(
+        warning
+            .source_location()
+            .ok_or("expected a warning location")?
+            .location
+            .start
+            .line,
+        4,
+    );
+    Ok(())
 }
 
 #[test]
