@@ -2,6 +2,8 @@
 Norberto Lopes <nlopes@example.com>
 :date: 2025-01-15T10:00:00+00:00
 :description: A quick preview
+:github-icon: icon:github[set=brands]
+:live-preview: *live preview*
 :toc: macro
 :icons: font
 :stem: asciimath
@@ -10,13 +12,13 @@ Norberto Lopes <nlopes@example.com>
 toc::[]
 
 icon:arrow-right[]
-This is a *live preview* editor for https://asciidoc.org[AsciiDoc].
+This is a {live-preview} editor for https://asciidoc.org[AsciiDoc].
 
 == Getting started
 
 Type in the left pane and see the rendered output on the right.
 
-This is using icon:github[set=brands] https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the icon:github[set=brands] https://github.com/nlopes/acdc[`acdc`] repository.
+This is using {github-icon} https://github.com/nlopes/acdc/tree/main/acdc-parser[`acdc-parser`], which you can find in the {github-icon} https://github.com/nlopes/acdc[`acdc`] repository.
 
 * Unordered list item
 * Another item
