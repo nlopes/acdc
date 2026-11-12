@@ -336,7 +336,7 @@ fn malformed_inline_and_nested_inactive_conditionals_keep_following_content(
 }
 
 #[rstest::rstest]
-fn invalid_include_leveloffset_keeps_the_document_heading_context(
+fn nonnumeric_include_leveloffset_replaces_the_document_heading_context(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> TestResult {
     let directory = tempdir()?;
@@ -361,7 +361,7 @@ fn invalid_include_leveloffset_keeps_the_document_heading_context(
     else {
         return Err("missing included section".into());
     };
-    assert_eq!(section.level(), 2);
-    assert_recovery(&parsed, "invalid include leveloffset", 4)?;
+    assert_eq!(section.level(), 1);
+    assert_eq!(parsed.warnings(), []);
     Ok(())
 }

@@ -551,6 +551,14 @@ impl<'a> ParserState<'a> {
         location: Location,
     ) -> Option<DocumentAttribute<'a>> {
         let AttributeDeclaration { name, value } = declaration;
+        if *name == crate::document_attribute::INTERNAL_LEVELOFFSET_ATTR {
+            let assignment =
+                crate::document_attribute::validate_assignment_value("leveloffset", value.clone())
+                    .ok()?;
+            Rc::make_mut(&mut self.document_attributes)
+                .normalize_assignment("leveloffset".into(), assignment);
+            return None;
+        }
         let key = Cow::Borrowed(*name);
         let set = !matches!(value, RawAttributeValue::Unset);
         let previous_attributes = (key == "reftext").then(|| Rc::clone(&self.document_attributes));

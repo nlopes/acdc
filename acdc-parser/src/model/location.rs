@@ -38,22 +38,16 @@ impl LeveloffsetRange {
     }
 }
 
-/// Calculate the total leveloffset at a given byte offset.
+/// Find the effective leveloffset at a given byte offset.
 ///
-/// Sums all leveloffset values from ranges that contain the given offset.
-/// Ranges can nest (include within include), so we sum all applicable values.
+/// Later ranges describe nested includes and take precedence over outer ranges.
 #[must_use]
 pub(crate) fn calculate_leveloffset_at(ranges: &[LeveloffsetRange], byte_offset: usize) -> isize {
     ranges
         .iter()
-        .filter_map(|r| {
-            if r.contains(byte_offset) {
-                Some(r.value)
-            } else {
-                None
-            }
-        })
-        .sum()
+        .rev()
+        .find(|range| range.contains(byte_offset))
+        .map_or(0, |range| range.value)
 }
 
 /// Maps a byte range in the preprocessed output back to its source file and starting line.

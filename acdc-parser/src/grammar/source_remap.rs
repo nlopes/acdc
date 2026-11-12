@@ -220,6 +220,39 @@ impl<'a> Remapper<'a> {
         self.chains.get(range.file_chain.as_slice()).cloned()
     }
 
+    fn source_start(&self, loc: &mut Location) -> Option<usize> {
+        // A document can begin with generated include scope controls. Anchor
+        // its start to the first authored range within the enclosing span.
+        let start = self
+            .ranges
+            .iter()
+            .filter(|range| range.start_offset < range.end_offset)
+            .map(|range| range.start_offset)
+            .filter(|&start| start >= loc.absolute_start && start <= loc.absolute_end)
+            .min()?;
+        loc.absolute_start = start;
+        loc.start = self.line_map.offset_to_position(start, self.input);
+        Some(start)
+    }
+
+    fn source_end(&self, loc: &mut Location, probe: usize) -> usize {
+        // Generated scope controls have no source. Keep enclosing spans anchored
+        // to the last authored character before those controls.
+        let end = self
+            .ranges
+            .iter()
+            .filter(|range| range.end_offset <= probe)
+            .map(|range| range.end_offset)
+            .max()
+            .and_then(|end| self.input.get(..end))
+            .map(str::trim_end)
+            .and_then(|prefix| prefix.char_indices().next_back())
+            .map_or(probe, |(offset, _)| offset.max(loc.absolute_start));
+        loc.absolute_end = end;
+        loc.end = self.line_map.offset_to_position(end, self.input);
+        end
+    }
+
     /// Rewrite a single location in place. Start and end are each mapped through
     /// their own containing range — including the `file` — so a node that spans a
     /// file boundary (e.g. the document, or a section containing an `include::`)
@@ -228,7 +261,12 @@ impl<'a> Remapper<'a> {
         if loc.is_unknown() {
             return;
         }
-        let Some((src_start, start_line, start_range)) = self.map_offset(loc.absolute_start) else {
+        let Some((src_start, start_line, start_range)) =
+            self.map_offset(loc.absolute_start).or_else(|| {
+                self.source_start(loc)
+                    .and_then(|start| self.map_offset(start))
+            })
+        else {
             return;
         };
         // `absolute_end` is inclusive; probe the last byte (clamped) for its range.
@@ -236,9 +274,10 @@ impl<'a> Remapper<'a> {
             .absolute_end
             .min(self.input.len().saturating_sub(1))
             .max(loc.absolute_start);
-        let (src_end, end_line, end_range) =
-            self.map_offset(end_probe)
-                .unwrap_or((src_start, start_line, start_range));
+        let (src_end, end_line, end_range) = self
+            .map_offset(end_probe)
+            .or_else(|| self.map_offset(self.source_end(loc, end_probe)))
+            .unwrap_or((src_start, start_line, start_range));
 
         remap_endpoints(
             loc,

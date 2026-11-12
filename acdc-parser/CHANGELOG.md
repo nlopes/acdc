@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Missing target attributes follow the selected `attribute-missing` recovery policy.
   Escaped references and invalid reference names remain literal, and quoted
   attribute values can contain closing brackets.
+- Include `leveloffset` values now restore their parent scope. Unsigned values
+  replace the active offset; signed values adjust it, including nested includes.
+  Verbatim examples do not affect subsequent headings. Body attribute events
+  report resolved offsets, and document locations retain authored include boundaries.
 - `max-attribute-value-size` truncates document-defined text at a complete UTF-8
   character, including resolved relative `leveloffset` values. Secure mode defaults
   to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset

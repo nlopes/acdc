@@ -110,6 +110,14 @@ pub(super) struct CommentScanner {
 }
 
 impl CommentScanner {
+    /// Attribute declarations are inactive in raw blocks and styled verbatim
+    /// paragraphs. Include and conditional directives still apply there.
+    pub(super) fn allows_attribute_entries(&self) -> bool {
+        self.blocks.verbatim.is_none()
+            && self.blocks.table.is_none()
+            && self.blocks.paragraph != ParagraphContext::Active
+    }
+
     /// Start as if at a blank boundary so a leading comment is preserved.
     pub(super) fn new(
         setext: bool,

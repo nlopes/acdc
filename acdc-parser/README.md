@@ -1145,7 +1145,7 @@ acting on recovered content. Rendering can continue with the recovered document.
 Recoverable document problems return a document and located warnings by default
 in both compatibility modes. Unknown include options are ignored while valid
 options still apply, matching Asciidoctor.
-Invalid `indent=` and `leveloffset=` overrides are ignored with a warning. Indentation over
+Invalid `indent=` overrides are ignored with a warning. Indentation over
 4,096 spaces is rejected before allocation and the include keeps
 its original indentation. Malformed include syntax, invalid URLs, and invalid
 `lines=` selections preserve the directive without reading the target. An invalid
@@ -1298,6 +1298,10 @@ commas; unknown and positional fields are ignored, matching Asciidoctor.
 over a semicolon as the range separator. Malformed numbers remain errors so an
 invalid selection cannot silently include the whole file. This strict validation
 differs from Asciidoctor's leading-decimal conversion.
+
+An include's unsigned `leveloffset` replaces the active offset. A signed value
+adjusts it. The previous value is restored after an explicit include offset;
+changes inside an include without an explicit offset affect following content.
 
 ## Attribute value limits
 

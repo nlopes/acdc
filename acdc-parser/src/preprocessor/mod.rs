@@ -209,6 +209,15 @@ fn is_escaped_directive(line: &str) -> bool {
     })
 }
 
+fn is_internal_leveloffset(line: &str) -> bool {
+    line.strip_prefix(':')
+        .and_then(|entry| entry.strip_prefix('!').unwrap_or(entry).split_once(':'))
+        .is_some_and(|(name, _)| {
+            name.strip_suffix('!').unwrap_or(name)
+                == crate::document_attribute::INTERNAL_LEVELOFFSET_ATTR
+        })
+}
+
 /// Caller permissions, include limits, and block state for one parse.
 #[derive(Debug, Clone)]
 struct IncludeContext {
@@ -406,6 +415,8 @@ struct PreprocessorState<'input> {
     borrowed_run: Option<Range<usize>>,
     byte_offset: usize,
     leveloffset_ranges: Vec<LeveloffsetRange>,
+    current_leveloffset: isize,
+    leveloffset_index: Option<usize>,
     source_ranges: Vec<SourceRange>,
     included_files: HashSet<String>,
     conditionals: Vec<ConditionalEvaluation>,
@@ -457,6 +468,8 @@ impl<'input> PreprocessorState<'input> {
             borrowed_run: None,
             byte_offset: 0,
             leveloffset_ranges: Vec::new(),
+            current_leveloffset: 0,
+            leveloffset_index: None,
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             conditionals: Vec::new(),
@@ -466,6 +479,49 @@ impl<'input> PreprocessorState<'input> {
             line_origins,
             run: None,
             run_expected_src_line: 1,
+        }
+    }
+
+    fn record_leveloffset(&mut self, options: &Options<'_>) {
+        let value = options
+            .document_attributes
+            .text("leveloffset")
+            .map_or(0, crate::document_attribute::ruby_to_isize);
+        if self.current_leveloffset == value {
+            return;
+        }
+        self.finish_leveloffset();
+        self.current_leveloffset = value;
+        self.leveloffset_index = Some(self.leveloffset_ranges.len());
+        self.leveloffset_ranges
+            .push(LeveloffsetRange::new(self.byte_offset, usize::MAX, value));
+    }
+
+    fn finish_leveloffset(&mut self) {
+        if let Some(range) = self
+            .leveloffset_index
+            .and_then(|index| self.leveloffset_ranges.get_mut(index))
+        {
+            range.end_offset = self.byte_offset.saturating_add(1);
+        }
+    }
+
+    fn into_result(
+        mut self,
+        front_matter: Option<String>,
+        comment_context: comment::BlockContext,
+    ) -> PreprocessorResult<'static> {
+        self.flush_run();
+        self.flush_borrowed_run();
+        self.finish_leveloffset();
+        PreprocessorResult {
+            text: Cow::Owned(self.output.join("\n")),
+            leveloffset_ranges: self.leveloffset_ranges,
+            source_ranges: self.source_ranges,
+            included_files: self.included_files,
+            conditionals: self.conditionals,
+            front_matter,
+            comment_context,
         }
     }
 
@@ -815,12 +871,22 @@ impl Preprocessor {
                 scanner.record(line, attributes);
                 continue;
             }
+            if scanner.allows_attribute_entries()
+                && (line.starts_with(":leveloffset:")
+                    || line.starts_with(":leveloffset!:")
+                    || line.starts_with(":!leveloffset:"))
+            {
+                return None;
+            }
+            if is_internal_leveloffset(line) {
+                return None;
+            }
             // `process_inner` unescapes escaped directives.
             if is_escaped_directive(line) {
                 return None;
             }
             // `process_inner` collapses multi-line attribute continuations.
-            if has_attribute_continuation(line) {
+            if scanner.allows_attribute_entries() && has_attribute_continuation(line) {
                 return None;
             }
             // Directive lines: include::, ifdef::, ifndef::, ifeval::
@@ -833,6 +899,7 @@ impl Preprocessor {
             }
             if let Some(options) = style_options.as_mut()
                 && line.starts_with(':')
+                && scanner.allows_attribute_entries()
             {
                 attribute::parse_line(options, line).ok()?;
             }
@@ -1103,9 +1170,7 @@ impl Preprocessor {
         let content_len = if has_content { content.len() + 1 } else { 0 };
 
         // If there's an effective leveloffset, record the range
-        if let Some(leveloffset) = include_result.effective_leveloffset
-            && leveloffset != 0
-        {
+        if let Some(leveloffset) = include_result.effective_leveloffset {
             state.leveloffset_ranges.push(LeveloffsetRange::new(
                 start_offset,
                 start_offset + content_len,
@@ -1387,8 +1452,8 @@ impl Preprocessor {
             && let Some(scanner) = self.try_pass_through(&normalized, setext, options)
         {
             return Ok(PreprocessorResult {
+                leveloffset_ranges: Self::initial_leveloffset_ranges(normalized.len(), options),
                 text: normalized,
-                leveloffset_ranges: Vec::new(),
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
                 conditionals: Vec::new(),
@@ -1439,6 +1504,7 @@ impl Preprocessor {
                 state.flush_run();
                 state.source_ranges
             };
+            let leveloffset_ranges = Self::initial_leveloffset_ranges(normalized.len(), &options);
             let result = PreprocessorResult {
                 text: Cow::Owned(match normalized {
                     Cow::Borrowed(text) => {
@@ -1448,7 +1514,7 @@ impl Preprocessor {
                     }
                     Cow::Owned(text) => text,
                 }),
-                leveloffset_ranges: Vec::new(),
+                leveloffset_ranges,
                 source_ranges,
                 included_files: HashSet::new(),
                 conditionals: Vec::new(),
@@ -1499,6 +1565,7 @@ impl Preprocessor {
         let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut out = PreprocessorState::new(normalized_ref, source_origin, line_origins);
+        out.record_leveloffset(options);
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
@@ -1555,13 +1622,19 @@ impl Preprocessor {
                 continue;
             }
 
-            if has_attribute_continuation(line) {
+            // Only generated include wrappers may set the internal scope control.
+            if is_internal_leveloffset(line) {
+                line_number += 1;
+                continue;
+            }
+            if scanner.allows_attribute_entries() && has_attribute_continuation(line) {
                 // The attribute spans `[continuation_start_line, line_number]`;
                 // emit it as its own range anchored at its first line.
                 let continuation_start_line = line_number;
                 let attribute_content =
                     Self::process_continuation(line, &mut lines, &mut line_number);
                 attribute::parse_line(options, attribute_content.as_str())?;
+                out.record_leveloffset(options);
                 out.push_chunk(attribute_content, continuation_start_line);
                 scanner.record(line, &options.document_attributes);
                 // `process_continuation` advanced `line_number` over the absorbed
@@ -1570,9 +1643,10 @@ impl Preprocessor {
                 // `line_number` aligned with the source for everything that follows.
                 line_number += 1;
                 continue;
-            } else if line.starts_with(':') {
+            } else if scanner.allows_attribute_entries() && line.starts_with(':') {
                 attribute::parse_line(options, line.trim())?;
             }
+            out.record_leveloffset(options);
             // Only emitted lines establish table/verbatim context; fences in
             // excluded conditionals cannot affect the following content.
             if scanner.at_table_delimiter(line) || scanner.at_verbatim_delimiter(line) {
@@ -1605,18 +1679,19 @@ impl Preprocessor {
                 Self::create_source_location(frame.opening_line, file),
             );
         }
-        out.flush_run();
-        out.flush_borrowed_run();
+        Ok(out.into_result(captured_front_matter, scanner.block_context()))
+    }
 
-        Ok(PreprocessorResult {
-            text: Cow::Owned(out.output.join("\n")),
-            leveloffset_ranges: out.leveloffset_ranges,
-            source_ranges: out.source_ranges,
-            included_files: out.included_files,
-            conditionals: out.conditionals,
-            front_matter: captured_front_matter,
-            comment_context: scanner.block_context(),
-        })
+    fn initial_leveloffset_ranges(len: usize, options: &Options<'_>) -> Vec<LeveloffsetRange> {
+        let offset = options
+            .document_attributes
+            .text("leveloffset")
+            .map_or(0, crate::document_attribute::ruby_to_isize);
+        if offset == 0 {
+            Vec::new()
+        } else {
+            vec![LeveloffsetRange::new(0, len.saturating_add(1), offset)]
+        }
     }
 
     fn nested_attributes_must_propagate(&self, text: &str) -> bool {

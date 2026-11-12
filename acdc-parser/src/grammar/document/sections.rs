@@ -6,25 +6,18 @@ use crate::{
     model::{LeveloffsetRange, SectionKind, SectionLevel},
 };
 
-/// Add the include-range and document `leveloffset` values to a section level.
+/// Apply the effective `leveloffset` at this source position.
 /// Keep the result within the supported levels, 0 through 5.
 pub(super) fn apply_leveloffset(
     base_level: SectionLevel,
     byte_offset: usize,
     leveloffset_ranges: &[LeveloffsetRange],
-    document_attributes: &DocumentAttributes,
+    _document_attributes: &DocumentAttributes,
 ) -> SectionLevel {
-    let range_offset = crate::model::calculate_leveloffset_at(leveloffset_ranges, byte_offset);
-
-    let attr_offset = document_attributes
-        .text("leveloffset")
-        .and_then(|s| s.parse::<isize>().ok())
-        .unwrap_or(0);
-
-    let total_offset = range_offset + attr_offset;
+    let total_offset = crate::model::calculate_leveloffset_at(leveloffset_ranges, byte_offset);
 
     if total_offset != 0 {
-        let adjusted = isize::from(base_level) + total_offset;
+        let adjusted = isize::from(base_level).saturating_add(total_offset);
 
         let clamped = adjusted.clamp(0, 5);
 
