@@ -1465,14 +1465,17 @@ body.resizing .preview-pane {
     #preview :not(pre):not([class^=L]) > code { background: #2d2d2d; border: 1px solid #3a3a3a; }
     #preview pre { color: rgba(255, 255, 255, .85); background-color: #252525; border: 1px solid #333; }
 
-    /* Override inline syntax-highlight colors from the highlighter's inline
-       style attributes (e.g. color:#323232). !important beats inline styles. */
-    #preview pre code span[style] { color: #c9d1d9 !important; }
-    #preview pre code span[style*="bold"][style*="color:#a71d5d"] { color: #ff7b72 !important; }
-    #preview pre code span[style*="bold"][style*="color:#795da3"] { color: #d2a8ff !important; }
-    #preview pre code span[style*="color:#183691"] { color: #a5d6ff !important; }
-    #preview pre code span[style*="color:#969896"] { color: #8b949e !important; }
-    #preview pre code span[style*="color:#0086b3"] { color: #79c0ff !important; }
+    /* Giallo embeds the GitHub light palette in inline styles. Override the
+       block and token colors together so system theme changes stay readable. */
+    #preview pre.highlight { color: #c9d1d9 !important; background-color: #252525 !important; }
+    #preview pre.highlight code span[style] { color: #c9d1d9 !important; }
+    #preview pre.highlight code span[style*="color: #D73A49" i] { color: #ff7b72 !important; }
+    #preview pre.highlight code span[style*="color: #6F42C1" i] { color: #d2a8ff !important; }
+    #preview pre.highlight code span[style*="color: #032F62" i] { color: #a5d6ff !important; }
+    #preview pre.highlight code span[style*="color: #6A737D" i] { color: #8b949e !important; }
+    #preview pre.highlight code span[style*="color: #005CC5" i] { color: #79c0ff !important; }
+    #preview pre.highlight code span[style*="color: #22863A" i] { color: #7ee787 !important; }
+    #preview pre.highlight code span[style*="color: #E36209" i] { color: #ffa657 !important; }
 
     #preview hr { border-color: #3a3a3a; }
 
