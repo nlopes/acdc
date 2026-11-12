@@ -19,8 +19,10 @@ pub(in crate::grammar::document) struct ParsedHeader<'input> {
 /// `end` offset, which ends the last header line.
 pub(super) fn header_span(state: &ParserState<'_>, start: usize, end: usize) -> Location {
     let mut location = state.create_location(start, end);
-    location.absolute_end =
-        crate::grammar::utf8_utils::safe_decrement_offset(state.input, location.absolute_end);
+    location.absolute_end = state.source_step(
+        location.absolute_end,
+        crate::grammar::utf8_utils::RoundDirection::Backward,
+    );
     location.end.column = location.end.column.saturating_sub(1);
     location
 }

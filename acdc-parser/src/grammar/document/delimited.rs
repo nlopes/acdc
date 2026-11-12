@@ -94,8 +94,13 @@ pub(super) fn parse_content<'a>(
     parser: &mut impl ContentParser<'a>,
 ) -> Result<Vec<Block<'a>>, Error> {
     let outer_context = std::mem::replace(&mut state.block_context, request.context);
+    let outer_scope = state.source_scope_offset;
+    if state.input_origin.is_some() {
+        state.source_scope_offset = request.offset;
+    }
     let result = parser.parse(state, request);
     state.block_context = outer_context;
+    state.source_scope_offset = outer_scope;
     result
 }
 

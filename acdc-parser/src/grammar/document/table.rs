@@ -745,6 +745,10 @@ fn parse_table_cell_with_parser<'a>(
         let outer_reftext = state.body_reftext_source;
         let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Document);
         let outer_toc_len = state.toc_entries.len();
+        let outer_scope = state.source_scope_offset;
+        if state.input_origin.is_some() {
+            state.source_scope_offset = cell_start_offset;
+        }
         let outer_pending_callouts = std::mem::take(&mut state.pending_callouts);
 
         initial_attributes = crate::document_attribute::initialize_nested_attributes(Rc::make_mut(
@@ -768,6 +772,7 @@ fn parse_table_cell_with_parser<'a>(
         state.body_reftext_source = outer_reftext;
         state.block_context = outer_context;
         state.toc_entries.truncate(outer_toc_len);
+        state.source_scope_offset = outer_scope;
         state.pending_callouts = outer_pending_callouts;
         result
     } else {

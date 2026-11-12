@@ -392,10 +392,10 @@ pub(super) struct IncludeInput {
 
 #[derive(Debug)]
 pub(super) struct IncludeScope {
-    current: DocumentAttributeAssignment<'static>,
+    pub(super) current: DocumentAttributeAssignment<'static>,
     previous: DocumentAttributeAssignment<'static>,
     mode: CompatibilityMode,
-    prefix: String,
+    pub(super) prefix: String,
     suffix: String,
 }
 

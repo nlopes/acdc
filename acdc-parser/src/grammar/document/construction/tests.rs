@@ -36,6 +36,7 @@ fn compound_driver_preserves_existing_construction(#[case] input: &str) -> TestR
 
 fn assert_equivalent(input: &str) -> TestResult {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        crate::source_tests::assert_equivalent(input, mode)?;
         let reference_arena = bumpalo::Bump::new();
         let ordered_arena = bumpalo::Bump::new();
         let options = Rc::new(Options::builder().with_compatibility_mode(mode).build()?);

@@ -28,10 +28,12 @@ mod cursor;
 mod include;
 #[cfg(test)]
 mod include_budget_tests;
+mod source;
 mod tag;
 
 use comment::CommentScanner;
 use include::{Include, IncludeResult, LocationContext};
+pub(crate) use source::SourceReader;
 
 /// Allows Secure-mode fallback processing when include loading is disabled.
 #[derive(Clone, Copy, Debug, Default)]
@@ -48,7 +50,7 @@ impl IncludeSourceProvider for DeniedIncludeSourceProvider {
 
 /// Accepted value for a generated include scope entry. Its public text can
 /// remain literal when the grammar does not recognize an attribute entry.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct LeveloffsetScope {
     pub(crate) range: Range<usize>,
     pub(crate) assignment: crate::DocumentAttributeAssignment<'static>,

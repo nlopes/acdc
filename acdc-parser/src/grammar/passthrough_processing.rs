@@ -1206,12 +1206,8 @@ fn raw_segment_location(
 }
 
 fn raw_source_start(raw: &Raw<'_>, state: &ParserState<'_>) -> Option<usize> {
-    let end = step_char(
-        state.input,
-        raw.location.absolute_end,
-        RoundDirection::Forward,
-    );
-    let original = state.input.get(raw.location.absolute_start..end)?;
+    let end = state.source_step(raw.location.absolute_end, RoundDirection::Forward);
+    let original = state.source_slice(raw.location.absolute_start..end)?;
     let escapes = original.strip_suffix(raw.content)?;
     escapes
         .bytes()
@@ -1353,12 +1349,8 @@ fn parse_raw_fragments<'a>(
             location.absolute_start =
                 fragment_offset(location.absolute_start, &spans, false, state);
             location.absolute_end = fragment_offset(location.absolute_end, &spans, true, state);
-            location.start = state
-                .line_map
-                .offset_to_position(location.absolute_start, state.input);
-            location.end = state
-                .line_map
-                .offset_to_position(location.absolute_end, state.input);
+            location.start = state.source_position(location.absolute_start);
+            location.end = state.source_position(location.absolute_end);
         });
     }
     for mut warning in warnings {
@@ -1713,7 +1705,7 @@ pub(super) fn process_passthrough_placeholders<'a>(
 
     // Clamp all locations to valid bounds within the input string
     for node in &mut result {
-        clamp_inline_node_locations(node, state.input);
+        clamp_inline_node_locations(node, state);
     }
 
     // Merge adjacent plain text nodes
@@ -1733,11 +1725,9 @@ fn merge_adjacent_plain_text_nodes<'a>(
         match (result.last_mut(), node) {
             (Some(InlineNode::PlainText(last_plain)), InlineNode::PlainText(current_plain))
                 if last_plain.escaped == current_plain.escaped
-                    && step_char(
-                        state.input,
-                        last_plain.location.absolute_end,
-                        RoundDirection::Forward,
-                    ) == current_plain.location.absolute_start =>
+                    && state
+                        .source_step(last_plain.location.absolute_end, RoundDirection::Forward)
+                        == current_plain.location.absolute_start =>
             {
                 // Merge current plain text with the last one
                 last_plain.content = state.intern_fmt(format_args!(
