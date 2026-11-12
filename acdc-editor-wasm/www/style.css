@@ -491,6 +491,9 @@ body.resizing .preview-pane {
     overflow-x: auto;
 }
 
+/* Override the highlighter's inline white background to separate code from the page. */
+#preview pre.highlight { background-color: #f0f0f0 !important; }
+
 #preview pre code { color: inherit; font-size: inherit; line-height: inherit; }
 
 #preview hr {

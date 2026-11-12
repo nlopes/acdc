@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Highlighted code blocks in light-mode previews use a light gray background
+  that stands out from the white page.
+
 - Highlighted code blocks in dark-mode previews use a dark background with
   readable text and distinct syntax colors, including when the system theme changes.
 
