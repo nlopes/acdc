@@ -11,6 +11,40 @@ use super::{RoundDirection, SourceIndex};
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 #[test]
+fn advancing_windows_retain_linear_source_storage() -> TestResult {
+    for blocks in [100, 1000] {
+        let arena = bumpalo::Bump::new();
+        let index = Rc::new(SourceIndex::default());
+        let mut first = None;
+        for _ in 0..blocks {
+            let start = index.append("First line.\n");
+            index.append("Second 世界.\n\n");
+            let window = index
+                .window(start..index.len(), &arena)
+                .ok_or("missing advancing window")?;
+            assert_eq!(window.input, "First line.\nSecond 世界.\n\n");
+            first.get_or_insert(window);
+        }
+        assert_eq!(
+            index
+                .windows
+                .borrow()
+                .iter()
+                .map(|window| window.text.len())
+                .sum::<usize>(),
+            index.len(),
+            "joined windows must not retain growing document prefixes"
+        );
+        assert!(arena.allocated_bytes() <= 4 * index.len() + 4096);
+        assert_eq!(
+            first.ok_or("missing first window")?.input,
+            "First line.\nSecond 世界.\n\n"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn windows_match_complete_input_geometry_and_keep_inline_maps_local() -> TestResult {
     let arena = bumpalo::Bump::new();
     let index = Rc::new(SourceIndex::default());

@@ -14,6 +14,7 @@
 //! AST) without paying for an empty arena.
 
 use std::{
+    borrow::Cow,
     cell::{OnceCell, RefCell},
     collections::HashMap,
     path::{Path, PathBuf},
@@ -88,15 +89,43 @@ impl OwnedInput {
         }
     }
 
-    pub(crate) fn finish_source(&self, source: String) -> &str {
-        self.processed_source
-            .get_or_init(|| source.into_boxed_str())
+    pub(crate) fn finish_source<'a>(&'a self, source: Cow<'a, str>) -> &'a str {
+        match source {
+            Cow::Borrowed(source) if std::ptr::eq(source, self.source.as_ref()) => &self.source,
+            source @ (Cow::Borrowed(_) | Cow::Owned(_)) => self
+                .processed_source
+                .get_or_init(|| source.into_owned().into_boxed_str()),
+        }
     }
 
     pub(crate) fn preprocessed_source(&self) -> &str {
         self.processed_source
             .get()
             .map_or(&self.source, AsRef::as_ref)
+    }
+}
+
+#[cfg(test)]
+mod source_storage_tests {
+    #[test]
+    fn ordered_pass_through_keeps_one_complete_source_buffer() -> Result<(), crate::Error> {
+        for paragraphs in [100, 1000] {
+            let input = "A *formatted* paragraph.\n\n".repeat(paragraphs);
+            let parsed = crate::parse_with_source_handler(
+                &input,
+                &crate::Options::default(),
+                None,
+                Some(&mut ()),
+            )?;
+            let owner = parsed.cell.borrow_owner();
+            assert!(owner.processed_source.get().is_none());
+            assert!(std::ptr::eq(
+                parsed.preprocessed_source(),
+                owner.source.as_ref()
+            ));
+            assert!(owner.arena.allocated_bytes() <= 8 * input.len() + 16_384);
+        }
+        Ok(())
     }
 }
 
@@ -207,19 +236,15 @@ impl ParseResult {
         warnings_handle: Rc<RefCell<WarningCollection>>,
         builder: impl for<'a> FnOnce(
             &'a OwnedInput,
-        ) -> Result<
-            (Document<'a>, SourceFiles, Vec<ConditionalEvaluation>),
-            E,
-        >,
+            &mut SourceFiles,
+            &mut Vec<ConditionalEvaluation>,
+        ) -> Result<Document<'a>, E>,
     ) -> Result<Self, E> {
-        let mut metadata = (SourceFiles::default(), Vec::new());
+        let mut source_files = SourceFiles::default();
+        let mut conditionals = Vec::new();
         let cell = ParsedDocumentCell::try_new(owner, |owner| {
-            builder(owner).map(|(document, source_files, conditionals)| {
-                metadata = (source_files, conditionals);
-                document
-            })
+            builder(owner, &mut source_files, &mut conditionals)
         })?;
-        let (source_files, conditionals) = metadata;
         Ok(Self::from_cell(
             cell,
             warnings_handle,

@@ -104,7 +104,7 @@ fn emitted_nested_include_pauses_before_later_directives() -> TestResult {
         ["outer.adoc"]
     );
     reader
-        .options
+        .options_mut()
         .document_attributes
         .set_text("enabled".into(), "".into());
     let mut text = format!("{}{}", prefix.text, first.text);

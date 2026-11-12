@@ -34,6 +34,7 @@ impl<'handler, F> Execution<'handler, F> {
             failed: false,
         }
     }
+    #[inline]
     pub(super) fn run<'a>(
         &mut self,
         block: &Block<'a>,
@@ -89,6 +90,7 @@ impl<'a> BlockStep<'a> {
 }
 
 impl<'a> BlockStepKind<'a> {
+    #[inline]
     pub(super) fn into_ready(self, state: &ParserState<'a>) -> Result<Block<'a>, Error> {
         if let Self::Block(block) = self {
             Ok(block)
@@ -124,6 +126,7 @@ impl BlockCursor {
         }
     }
 
+    #[inline]
     pub(super) fn advance<'a>(
         &mut self,
         input: &'a str,
@@ -186,29 +189,36 @@ impl BlockCursor {
                     *blocks = order_block_prefix_events(std::mem::take(blocks));
                     return Ok(Ok(self.base_offset + step.end));
                 }
+                BlockStepKind::Block(block) if !matches!(block, Block::Section(_)) => {
+                    if let Err(error) = accepted.run(&block, state) {
+                        return Ok(Err(error));
+                    }
+                    blocks.push(block);
+                    continue;
+                }
                 kind @ (BlockStepKind::Block(_)
                 | BlockStepKind::Delimited(_)
                 | BlockStepKind::Table(_)
                 | BlockStepKind::List(_)
                 | BlockStepKind::Quote(_)) => kind,
             };
-            match self.construct(input, state, kind, accepted)? {
-                Ok(block) => blocks.push(block),
-                Err(error) => return Ok(Err(error)),
+            if let Err(error) = self.construct_into(input, state, kind, blocks, accepted)? {
+                return Ok(Err(error));
             }
         }
     }
 
-    pub(super) fn construct<'a>(
+    pub(super) fn construct_into<'a>(
         &mut self,
         input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
         kind: BlockStepKind<'a>,
+        output: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
             impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
         >,
-    ) -> Result<Result<Block<'a>, Error>, RecognitionError> {
+    ) -> Result<Result<(), Error>, RecognitionError> {
         let needs_caption = matches!(
             &kind,
             BlockStepKind::Delimited(_) | BlockStepKind::Table(_) | BlockStepKind::Quote(_)
@@ -216,13 +226,14 @@ impl BlockCursor {
         let mut table_content = None;
         let (mut block, request) = match kind {
             BlockStepKind::List(entry) => {
-                return self.construct_list(
+                return self.construct_list_into(
                     input,
                     state,
                     &entry,
                     &crate::grammar::helpers::BlockParsingMetadata::new(
                         state.options.compatibility_mode,
                     ),
+                    output,
                     accepted,
                 );
             }
@@ -294,7 +305,8 @@ impl BlockCursor {
             }
             assign_block_caption(state, &mut block);
         }
-        Ok(Ok(block))
+        output.push(block);
+        Ok(Ok(()))
     }
 }
 
@@ -392,16 +404,34 @@ pub(crate) fn document<'a>(
 ) -> Result<Result<Document<'a>, Error>, RecognitionError> {
     // Registry callbacks still run after parsing. A registry alone must not
     // change construction or diagnostic order before source handlers are wired.
-    document_with(
-        input,
+    let prefix = match document_parser::document_prefix(input, state)? {
+        Ok(prefix) => prefix,
+        Err(error) => return Ok(Err(error)),
+    };
+    let mut blocks = prefix.comments;
+    let end = match document_parser::remaining_blocks(input, state, prefix.body_offset)? {
+        Ok((body, end)) => {
+            if blocks.is_empty() {
+                blocks = body;
+            } else {
+                blocks.extend(body);
+            }
+            end
+        }
+        Err(error) => return Ok(Err(error)),
+    };
+    Ok(finish::finish(
         state,
-        ConstructionMode::Recursive,
-        &mut |_, _| Ok(()),
-    )
+        prefix.start,
+        end,
+        prefix.header,
+        prefix.attributes,
+        order_block_prefix_events(blocks),
+    ))
 }
 
 /// Internal accepted-block execution boundary for documents and containers.
-/// Source reading still advances independently of these commits.
+/// Complete input uses the same ordered builders as the resumable source path.
 pub(super) fn document_with<'a>(
     input: &'a str,
     state: &mut ParserState<'a>,

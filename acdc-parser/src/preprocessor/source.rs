@@ -1,6 +1,7 @@
 //! Reader facade used by the ordered source-processing driver.
 
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{HashSet, VecDeque},
     path::Path,
@@ -18,7 +19,7 @@ use crate::{
 use super::{
     Preprocessor, PreprocessorResult, SourceOrigin,
     cursor::{Advance, Emission, InputCursor},
-    skim_front_matter,
+    has_attribute_driven_styles, skim_front_matter,
 };
 
 pub(crate) struct SourceChunk<'a> {
@@ -32,12 +33,13 @@ pub(crate) struct SourceChunk<'a> {
 pub(crate) struct SourceReader<'a> {
     cursor: Option<InputCursor<'a>>,
     unchanged: Option<&'a str>,
-    result: Option<PreprocessorResult<'static>>,
+    result: Option<PreprocessorResult<'a>>,
     pending: VecDeque<Emission<'a>>,
-    pub(crate) options: Options<'static>,
+    pub(crate) options: Rc<Options<'static>>,
 }
 
 impl<'a> SourceReader<'a> {
+    #[cfg(test)]
     pub(crate) fn new(
         input: &'a str,
         file: Option<&Path>,
@@ -45,23 +47,46 @@ impl<'a> SourceReader<'a> {
         warnings: Rc<RefCell<WarningCollection>>,
         arena: &'a Bump,
     ) -> Result<Self, Error> {
-        let origin = match file {
-            Some(file) => SourceOrigin::entry_file(file, options.base_dir.as_deref())?,
-            None => SourceOrigin::memory(options.base_dir.as_deref()),
-        };
-        let preprocessor = Preprocessor::new(options, warnings);
         let normalized = Preprocessor::normalize(input);
         let normalized = match normalized {
             std::borrow::Cow::Borrowed(text) => text,
             std::borrow::Cow::Owned(text) => arena.alloc_str(&text),
         };
+        Self::from_normalized(
+            normalized,
+            file,
+            options.clone().into_static(),
+            warnings,
+            arena,
+        )
+    }
+
+    /// The caller owns normalization so its retained source can be borrowed
+    /// directly. Normalization removes one trailing newline and must run once.
+    pub(crate) fn from_normalized(
+        normalized: &'a str,
+        file: Option<&Path>,
+        options: Options<'static>,
+        warnings: Rc<RefCell<WarningCollection>>,
+        arena: &'a Bump,
+    ) -> Result<Self, Error> {
+        let mut options = Rc::new(options);
+        let origin = match file {
+            Some(file) => SourceOrigin::entry_file(file, options.base_dir.as_deref())?,
+            None => SourceOrigin::memory(options.base_dir.as_deref()),
+        };
+        let preprocessor = Preprocessor::new(&options, warnings);
         let front_matter = options
             .document_attributes
             .contains_key("skip-front-matter")
             .then(|| skim_front_matter(normalized.lines()))
             .flatten();
-        let mut options = options.clone().into_static();
+        // A committed callback can change an attribute used by a later style.
+        // That can expose directives previously hidden in a comment block, so
+        // those sources must keep the scanner resumable even if today's values
+        // would allow the complete input to pass through unchanged.
         if front_matter.is_none()
+            && !has_attribute_driven_styles(normalized)
             && let Some(scanner) = preprocessor.try_pass_through(
                 normalized,
                 crate::grammar::setext::is_enabled(options.compatibility_mode),
@@ -72,7 +97,7 @@ impl<'a> SourceReader<'a> {
                 cursor: None,
                 unchanged: Some(normalized),
                 result: Some(PreprocessorResult {
-                    text: std::borrow::Cow::Owned(normalized.to_owned()),
+                    text: Cow::Borrowed(normalized),
                     leveloffset_ranges: Preprocessor::initial_leveloffset_ranges(
                         normalized.len(),
                         &options,
@@ -92,7 +117,7 @@ impl<'a> SourceReader<'a> {
             &preprocessor,
             normalized,
             Some(&origin),
-            &mut options,
+            Rc::make_mut(&mut options),
             Vec::new(),
             front_matter,
             arena,
@@ -104,6 +129,21 @@ impl<'a> SourceReader<'a> {
             pending: VecDeque::new(),
             options,
         })
+    }
+
+    pub(crate) fn options_mut(&mut self) -> &mut Options<'static> {
+        Rc::make_mut(&mut self.options)
+    }
+
+    /// The preprocessor has proved that this complete source needs no edits.
+    /// No reader advancement is needed while its committed blocks execute.
+    pub(crate) fn pass_through_input(&self) -> Option<&'a str> {
+        self.unchanged
+    }
+
+    pub(crate) fn take_pass_through(&mut self) -> Option<PreprocessorResult<'a>> {
+        self.unchanged.take()?;
+        self.result.take()
     }
 
     pub(crate) fn next(&mut self) -> Result<Option<SourceChunk<'a>>, Error> {
@@ -129,7 +169,7 @@ impl<'a> SourceReader<'a> {
             let Some(cursor) = &mut self.cursor else {
                 return Ok(None);
             };
-            match cursor.advance_emitted(&mut self.options)? {
+            match cursor.advance_emitted(Rc::make_mut(&mut self.options))? {
                 Advance::Progress(emissions) => {
                     self.pending.extend(emissions);
                     self.finish_if_exhausted()?;
@@ -151,10 +191,12 @@ impl<'a> SourceReader<'a> {
             .cursor
             .take()
             .ok_or_else(|| std::io::Error::other("missing exhausted source cursor"))?;
-        while let Advance::Progress(emissions) = cursor.advance_emitted(&mut self.options)? {
+        while let Advance::Progress(emissions) =
+            cursor.advance_emitted(Rc::make_mut(&mut self.options))?
+        {
             self.pending.extend(emissions);
         }
-        let result = cursor.read_all(&mut self.options)?;
+        let result = cursor.read_all(Rc::make_mut(&mut self.options))?;
         let end = result.text.len();
         for emission in &mut self.pending {
             emission.text = emission
@@ -176,13 +218,13 @@ impl<'a> SourceReader<'a> {
         Ok(())
     }
 
-    pub(crate) fn finish(mut self) -> Result<PreprocessorResult<'static>, Error> {
+    pub(crate) fn finish(mut self) -> Result<PreprocessorResult<'a>, Error> {
         if let Some(result) = self.result {
             return Ok(result);
         }
         self.cursor
             .ok_or_else(|| std::io::Error::other("missing source cursor"))?
-            .read_all(&mut self.options)
+            .read_all(Rc::make_mut(&mut self.options))
     }
 }
 

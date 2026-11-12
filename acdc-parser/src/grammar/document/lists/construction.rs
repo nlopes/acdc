@@ -18,25 +18,30 @@ use super::{
 };
 
 impl BlockCursor {
-    pub(in crate::grammar::document) fn construct_list<'a>(
+    pub(in crate::grammar::document) fn construct_list_into<'a>(
         &mut self,
         input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
         entry: &ListEntry<'a>,
         parent_metadata: &BlockParsingMetadata<'a>,
+        output: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
             impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
         >,
-    ) -> Result<Result<Block<'a>, Error>, RecognitionError> {
-        let metadata = entry.metadata.as_ref().unwrap_or(parent_metadata);
+    ) -> Result<Result<(), Error>, RecognitionError> {
+        let metadata = entry.metadata.as_deref().unwrap_or(parent_metadata);
         let start = entry.start + self.base_offset;
         self.offset = entry.body_offset;
         if matches!(entry.kind, ListKind::Callout) {
-            return self.construct_callout_list(input, state, start, metadata, accepted);
+            return self
+                .construct_callout_list(input, state, start, metadata, accepted)
+                .map(|result| result.map(|block| output.push(block)));
         }
         if matches!(entry.kind, ListKind::Description) {
-            return self.construct_description_list(input, state, start, metadata, accepted);
+            return self
+                .construct_description_list(input, state, start, metadata, accepted)
+                .map(|result| result.map(|block| output.push(block)));
         }
         let source = match input.prepare(self, state, ReadRequest::ListHead(entry.kind)) {
             Ok(source) => source,
@@ -54,9 +59,9 @@ impl BlockCursor {
         let result = self.construct_ordinary_list(
             input,
             state,
-            (entry.kind, start),
+            (entry.kind, start, head),
             metadata,
-            head,
+            output,
             accepted,
         );
         state.ordinary_list_scope = parent_scope;
@@ -67,15 +72,15 @@ impl BlockCursor {
         &mut self,
         input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
-        frame: (ListKind<'a>, usize),
+        frame: (ListKind<'a>, usize, ListItemHead<'a>),
         metadata: &BlockParsingMetadata<'a>,
-        head: ListItemHead<'a>,
+        output: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
             impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
         >,
-    ) -> Result<Result<Block<'a>, Error>, RecognitionError> {
-        let (list_kind, start) = frame;
+    ) -> Result<Result<(), Error>, RecognitionError> {
+        let (list_kind, start, head) = frame;
         let Some((ordered, kind)) = ordinary_parts(list_kind) else {
             return Ok(Err(list_error(
                 state,
@@ -103,11 +108,11 @@ impl BlockCursor {
         if let Err(error) = accepted.run(&block, state) {
             return Ok(Err(error));
         }
-        item = match take_first_item(&mut block, state, start) {
+        let mut items = Vec::new();
+        item = match take_first_item(&mut block, state, start, &mut items) {
             Ok(item) => item,
             Err(error) => return Ok(Err(error)),
         };
-        let mut items = Vec::new();
         loop {
             item.blocks = match self.collect_list_children(
                 input,
@@ -169,7 +174,8 @@ impl BlockCursor {
                 if let Some(slot) = crate::extensions::ordinary_list_items_mut(&mut block) {
                     *slot = items;
                 }
-                return Ok(Ok(block));
+                output.push(block);
+                return Ok(Ok(()));
             }
         }
     }
@@ -206,11 +212,13 @@ impl BlockCursor {
             )?;
             self.offset = step.end;
             let child = match step.kind {
-                ListStepKind::Break(Ok(super::super::coordinator::BlockStepKind::List(entry))) => {
-                    self.construct_list(input, state, &entry, metadata, accepted)?
+                ListStepKind::List(entry) => {
+                    self.construct_list_into(input, state, &entry, metadata, &mut blocks, accepted)?
                 }
-                ListStepKind::Break(Ok(kind)) => self.construct(input, state, kind, accepted)?,
-                ListStepKind::Break(Err(error)) => Err(error),
+                ListStepKind::Block(child) => match *child {
+                    Ok(kind) => self.construct_into(input, state, kind, &mut blocks, accepted)?,
+                    Err(error) => Err(error),
+                },
                 ListStepKind::Continue(None) if phase == ListPhase::AfterPrincipal => {
                     phase = ListPhase::Attachments;
                     continue;
@@ -218,9 +226,10 @@ impl BlockCursor {
                 ListStepKind::Continue(None | Some(_)) => break,
             };
             match child {
-                Ok(block) => blocks.push(block),
+                Ok(()) => {}
                 Err(_)
                     if !accepted.failed()
+                        && !input.failed()
                         && matches!(kind, ListKind::Unordered(_) | ListKind::Ordered(_)) => {}
                 Err(error) => return Ok(Err(error)),
             }
@@ -249,8 +258,12 @@ fn take_first_item<'a>(
     block: &mut Block<'a>,
     state: &ParserState<'a>,
     start: usize,
+    items: &mut Vec<ListItem<'a>>,
 ) -> Result<ListItem<'a>, Error> {
-    crate::extensions::ordinary_list_items_mut(block)
-        .and_then(Vec::pop)
+    let slot = crate::extensions::ordinary_list_items_mut(block)
+        .ok_or_else(|| list_error(state, start, "ordinary list builder returned no first item"))?;
+    *items = std::mem::take(slot);
+    items
+        .pop()
         .ok_or_else(|| list_error(state, start, "ordinary list builder returned no first item"))
 }

@@ -152,14 +152,16 @@ impl<'a> SourceIndex<'a> {
         }
         let start = self.line_start(range.start)?;
         let mut joined = BumpString::new_in(arena);
-        for chunk in self.chunks.borrow().iter() {
+        let chunks = self.chunks.borrow();
+        let first = chunks.partition_point(|chunk| chunk.start + chunk.text.len() <= start);
+        for chunk in chunks.iter().skip(first) {
+            if chunk.start >= range.end {
+                break;
+            }
             let left = start.max(chunk.start);
             let right = range.end.min(chunk.start + chunk.text.len());
             if left < right {
                 joined.push_str(chunk.text.get(left - chunk.start..right - chunk.start)?);
-            }
-            if chunk.start >= range.end {
-                break;
             }
         }
         if joined.len() != range.end - start {
@@ -296,19 +298,24 @@ impl<'a> SourceIndex<'a> {
 mod tests;
 
 impl<'a> SourceView<'a> {
+    #[inline]
     pub(super) fn get(&self, range: Range<usize>) -> Option<&'a str> {
         slice(self.input, self.origin.as_deref(), range)
     }
+    #[inline]
     pub(super) fn position(&self, offset: usize) -> Position {
         position(self.input, &self.line_map, self.origin.as_deref(), offset)
     }
+    #[inline]
     pub(super) fn snap(&self, offset: usize, direction: RoundDirection) -> usize {
         snap(self.input, self.origin.as_deref(), offset, direction)
     }
+    #[inline]
     pub(super) fn step(&self, offset: usize, direction: RoundDirection) -> usize {
         step(self.input, self.origin.as_deref(), offset, direction)
     }
 
+    #[inline]
     pub(super) fn previous_char(&self, offset: usize) -> Option<char> {
         let end = self.snap(offset, RoundDirection::Backward);
         let start = self.step(end, RoundDirection::Backward);

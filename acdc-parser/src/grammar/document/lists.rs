@@ -13,7 +13,7 @@ use crate::{
     model::ListLevel,
 };
 use bumpalo::collections::String as BumpString;
-use std::{collections::VecDeque, ops::ControlFlow};
+use std::collections::VecDeque;
 
 use super::metadata::order_block_prefix_events;
 
@@ -36,7 +36,9 @@ pub(super) struct OrdinaryListKind<'a> {
 pub(super) struct ListEntry<'a> {
     pub(super) start: usize,
     pub(super) body_offset: usize,
-    pub(super) metadata: Option<BlockParsingMetadata<'a>>,
+    // Most implicit ordinary children inherit their parent's metadata. Keep
+    // that request small; other contexts retain their own metadata separately.
+    pub(super) metadata: Option<Box<BlockParsingMetadata<'a>>>,
     pub(super) kind: ListKind<'a>,
 }
 
@@ -47,8 +49,22 @@ pub(super) enum ListPhase {
     Sibling,
 }
 
-pub(super) type ListStepKind<'a> =
-    ControlFlow<Result<super::coordinator::BlockStepKind<'a>, Error>, Option<ListItemHead<'a>>>;
+pub(super) enum ListStepKind<'a> {
+    List(ListEntry<'a>),
+    // Keep the common principal/sibling steps small. Only an attached block
+    // needs storage for the much larger general construction request.
+    Block(Box<Result<super::coordinator::BlockStepKind<'a>, Error>>),
+    Continue(Option<ListItemHead<'a>>),
+}
+
+impl<'a> ListStepKind<'a> {
+    pub(super) fn block(result: Result<super::coordinator::BlockStepKind<'a>, Error>) -> Self {
+        match result {
+            Ok(super::coordinator::BlockStepKind::List(entry)) => Self::List(entry),
+            result @ (Ok(_) | Err(_)) => Self::Block(Box::new(result)),
+        }
+    }
+}
 
 pub(super) struct ListStep<'a> {
     pub(super) kind: ListStepKind<'a>,
