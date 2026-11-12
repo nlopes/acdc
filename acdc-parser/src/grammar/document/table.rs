@@ -1,5 +1,6 @@
 //! Table blocks and cell content.
 
+pub(super) mod construction;
 #[cfg(test)]
 mod tests;
 
@@ -11,7 +12,7 @@ use crate::{
     blocks::table::{CellSpecifier, MAX_TABLE_COLUMNS},
     grammar::{
         ParserState,
-        document::delimited::check_delimiters,
+        document::delimited::{ContentParser, GrammarContent, check_delimiters},
         document_parser,
         helpers::BlockParsingMetadata,
         inline_processing::{PreparedInlines, adjust_and_log_parse_error},
@@ -19,6 +20,8 @@ use crate::{
     },
 };
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
+
+pub(super) type InitialAttributes<'a> = Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>;
 
 /// The matched closing delimiter, or an unterminated table.
 /// An unterminated table ends at end of input and produces a warning.
@@ -135,11 +138,55 @@ fn parse_column_spec(input: &str) -> Option<(usize, ColumnFormat, Option<&str>)>
 }
 
 /// Parse a table block with the selected separator and source ranges.
-#[allow(clippy::too_many_lines)]
 pub(super) fn parse_table_block_impl<'input>(
     params: &TableParseParams<'_>,
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
+) -> Result<Block<'input>, Error> {
+    parse_table_with_cells(params, state, block_metadata, &mut NativeCells)
+}
+
+trait CellParser<'a> {
+    fn begin_row(&mut self, _state: &ParserState<'a>) {}
+    fn begin_cell(&mut self) {}
+    fn parse(
+        &mut self,
+        content: &'a str,
+        state: &mut ParserState<'a>,
+        offset: usize,
+        spec: &CellSpecifier,
+        prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
+    ) -> Result<TableCell<'a>, Error>;
+    fn finish_row(&mut self, _state: &mut ParserState<'a>, _destination: Option<RowDestination>) {}
+}
+
+#[derive(Clone, Copy)]
+struct RowDestination {
+    part: crate::extensions::TablePart,
+    row: usize,
+}
+
+struct NativeCells;
+
+impl<'a> CellParser<'a> for NativeCells {
+    fn parse(
+        &mut self,
+        content: &'a str,
+        state: &mut ParserState<'a>,
+        offset: usize,
+        spec: &CellSpecifier,
+        prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
+    ) -> Result<TableCell<'a>, Error> {
+        parse_table_cell(content, state, offset, spec, prepared)
+    }
+}
+
+#[allow(clippy::too_many_lines)]
+fn parse_table_with_cells<'input>(
+    params: &TableParseParams<'_>,
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    cells: &mut impl CellParser<'input>,
 ) -> Result<Block<'input>, Error> {
     let &TableParseParams {
         start,
@@ -321,6 +368,7 @@ pub(super) fn parse_table_block_impl<'input>(
     let mut active_rowspans: Vec<(usize, usize, usize)> = Vec::new();
 
     for (i, row) in raw_rows.iter().enumerate() {
+        cells.begin_row(state);
         let is_header_row = has_header;
         // Each raw cell produces at least one `columns` entry; duplication
         // produces more but is bounded by the table's column limit.
@@ -335,6 +383,7 @@ pub(super) fn parse_table_block_impl<'input>(
                 continue;
             }
             let cell_content = state.intern_str(&cell.content);
+            cells.begin_cell();
             let mut prepared = None;
             // Duplicates share source text, but each parse must apply its own
             // footnote and document-attribute effects.
@@ -352,7 +401,7 @@ pub(super) fn parse_table_block_impl<'input>(
                 {
                     spec.style = Some(col_format.style);
                 }
-                let parsed = parse_table_cell(
+                let parsed = cells.parse(
                     cell_content,
                     state,
                     cell.content_start,
@@ -411,6 +460,7 @@ pub(super) fn parse_table_block_impl<'input>(
                     Some(state.create_error_source_location(row_location)),
                 ));
             }
+            cells.finish_row(state, None);
             continue;
         }
 
@@ -450,16 +500,37 @@ pub(super) fn parse_table_block_impl<'input>(
         }
 
         if is_header_row {
+            cells.finish_row(
+                state,
+                Some(RowDestination {
+                    part: crate::extensions::TablePart::Head,
+                    row: 0,
+                }),
+            );
             header = Some(TableRow { columns });
             has_header = false;
             continue;
         }
 
         if has_footer && i == raw_rows.len() - 1 {
+            cells.finish_row(
+                state,
+                Some(RowDestination {
+                    part: crate::extensions::TablePart::Foot,
+                    row: 0,
+                }),
+            );
             footer = Some(TableRow { columns });
             continue;
         }
 
+        cells.finish_row(
+            state,
+            Some(RowDestination {
+                part: crate::extensions::TablePart::Body,
+                row: rows.len(),
+            }),
+        );
         rows.push(TableRow { columns });
     }
 
@@ -609,6 +680,24 @@ fn parse_table_cell<'a>(
     spec: &CellSpecifier,
     prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
 ) -> Result<TableCell<'a>, Error> {
+    parse_table_cell_with_parser(
+        content,
+        state,
+        cell_start_offset,
+        spec,
+        prepared,
+        &mut GrammarContent,
+    )
+}
+
+fn parse_table_cell_with_parser<'a>(
+    content: &'a str,
+    state: &mut ParserState<'a>,
+    cell_start_offset: usize,
+    spec: &CellSpecifier,
+    prepared: &mut Option<Vec<PreparedTableCellParagraph<'a>>>,
+    parser: &mut impl ContentParser<'a>,
+) -> Result<TableCell<'a>, Error> {
     // Literal cells keep their source text intact. Unlike listing blocks, they
     // do not run attribute, macro, quote, or callout substitutions.
     if spec.style == Some(ColumnStyle::Literal) {
@@ -662,12 +751,8 @@ fn parse_table_cell<'a>(
             &mut state.document_attributes,
         ));
 
-        let result = document_parser::nested_document_blocks(
-            content,
-            state,
-            cell_start_offset,
-            &mut initial_attributes,
-        );
+        let result =
+            parser.nested_document(state, content, cell_start_offset, &mut initial_attributes);
 
         if result.is_err() {
             state.footnote_tracker.borrow_mut().discard_definitions();

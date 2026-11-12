@@ -1,4 +1,4 @@
-use crate::{Block, ColumnStyle, DelimitedBlockType, Table};
+use crate::{Block, ColumnStyle, DelimitedBlockType, ListItem, Table, TableCell};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Children {
@@ -12,7 +12,7 @@ pub(super) enum Children {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum TablePart {
+pub(crate) enum TablePart {
     Head,
     Body,
     Foot,
@@ -147,11 +147,8 @@ impl Children {
                 | DelimitedBlockType::DelimitedVerse(_)
                 | DelimitedBlockType::DelimitedStem(_) => None,
             },
-            (Self::Item(index), Block::UnorderedList(block)) => {
-                Some(&mut block.items.get_mut(index)?.blocks)
-            }
-            (Self::Item(index), Block::OrderedList(block)) => {
-                Some(&mut block.items.get_mut(index)?.blocks)
+            (Self::Item(index), block @ (Block::UnorderedList(_) | Block::OrderedList(_))) => {
+                Some(&mut ordinary_list_items_mut(block)?.get_mut(index)?.blocks)
             }
             (Self::Item(index), Block::CalloutList(block)) => {
                 Some(&mut block.items.get_mut(index)?.blocks)
@@ -163,15 +160,42 @@ impl Children {
                 let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
                     return None;
                 };
-                let rows = match part {
-                    TablePart::Head => table.header.as_mut_slice(),
-                    TablePart::Body => &mut table.rows,
-                    TablePart::Foot => table.footer.as_mut_slice(),
-                };
-                Some(&mut rows.get_mut(row)?.columns.get_mut(column)?.content)
+                Some(&mut table_cell_mut(table, part, row, column)?.content)
             }
             _ => None,
         }
+    }
+}
+
+pub(crate) fn table_cell_mut<'doc, 'a>(
+    table: &'doc mut Table<'a>,
+    part: TablePart,
+    row: usize,
+    column: usize,
+) -> Option<&'doc mut TableCell<'a>> {
+    let rows = match part {
+        TablePart::Head => table.header.as_mut_slice(),
+        TablePart::Body => &mut table.rows,
+        TablePart::Foot => table.footer.as_mut_slice(),
+    };
+    rows.get_mut(row)?.columns.get_mut(column)
+}
+
+pub(crate) fn compound_body_mut<'doc, 'a>(
+    block: &'doc mut Block<'a>,
+) -> Option<&'doc mut Vec<Block<'a>>> {
+    Children::Body.get_mut(block)
+}
+
+pub(crate) fn ordinary_list_items_mut<'doc, 'a>(
+    block: &'doc mut Block<'a>,
+) -> Option<&'doc mut Vec<ListItem<'a>>> {
+    if let Block::UnorderedList(block) = block {
+        Some(&mut block.items)
+    } else if let Block::OrderedList(block) = block {
+        Some(&mut block.items)
+    } else {
+        None
     }
 }
 
