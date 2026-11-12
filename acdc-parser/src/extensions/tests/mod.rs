@@ -233,16 +233,49 @@ impl BlockMacroProcessor for Never {
 
 #[test]
 fn extensions_empty_or_unused_registry_preserves_document_and_warnings() -> TestResult {
-    let input = include_str!("../../../fixtures/tests/xref_nested_sections.adoc");
     let options = Options::default();
-    let ordinary = acdc_parser::parse(input, &options)?;
-    for registry in [Registry::default(), support::registry()] {
-        let parsed = registry.parse(input, &options)?;
+    for input in [
+        include_str!("../../../fixtures/tests/xref_nested_sections.adoc"),
+        "= Document\n\n== Parent\n\n==== Skipped\n\n[subs=unknown]\nText",
+    ] {
+        let ordinary = acdc_parser::parse(input, &options)?;
+        for registry in [Registry::default(), support::registry()] {
+            let parsed = registry.parse(input, &options)?;
+            assert_eq!(
+                parsed.parsed.document_storage(),
+                ordinary.document_storage()
+            );
+            assert_eq!(parsed.parsed.warnings(), ordinary.warnings());
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn extensions_nested_sections_preserve_source_position_attribute_snapshots() -> TestResult {
+    let input = "== Parent\n\n:mode: outer\n\ndefer::parent[]\n\n=== Child\n\n:mode: inner\n\ndefer::child[]\n\n== Sibling\n\ndefer::sibling[]\n\n:mode: later";
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let parsed = support::registry().parse(input, &options)?;
+        let invocations: Vec<_> = parsed
+            .deferred_blocks()
+            .iter()
+            .map(|request| {
+                (
+                    request.invocation.target.as_ref(),
+                    request.invocation.document_attributes.text("mode"),
+                    request.invocation.location.location.start.line,
+                )
+            })
+            .collect();
         assert_eq!(
-            parsed.parsed.document_storage(),
-            ordinary.document_storage()
+            invocations,
+            [
+                ("parent", Some("outer"), 5),
+                ("child", Some("inner"), 11),
+                ("sibling", Some("inner"), 15),
+            ]
         );
-        assert_eq!(parsed.parsed.warnings(), ordinary.warnings());
     }
     Ok(())
 }

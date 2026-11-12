@@ -101,6 +101,7 @@ mod registry;
 mod session;
 mod target;
 mod traversal;
+pub(crate) use traversal::{TablePart, compound_body_mut, ordinary_list_items_mut, table_cell_mut};
 mod tree_processor;
 
 pub use block_macro::{

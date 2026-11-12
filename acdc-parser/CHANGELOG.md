@@ -134,7 +134,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `extensions::Registry`. Each document has fresh processor state. Typed queries
   cover nested containers and discrete headings. Stable target handles support
   ID assignment, literal paragraphs and lists, placeholder replacement and
-  section removal. Edits repair references, TOC and scoped footnotes while
+  section removal. Macros in nested sections retain source-position attribute
+  snapshots and original invocation locations in both compatibility modes.
+  Empty registries and unused registrations preserve ordinary diagnostic order.
+  Edits repair references, TOC and scoped footnotes while
   preserving surviving section and caption numbers.
   Call `ExtensionParseResult::finish()` before conversion or checked ASG export;
   unresolved requests return a located error. Callbacks run after parsing and

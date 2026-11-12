@@ -2,6 +2,7 @@
 
 mod author;
 mod callouts;
+mod construction;
 mod coordinator;
 mod delimited;
 mod doctype;
@@ -12,6 +13,7 @@ mod manpage;
 mod metadata;
 mod paragraph;
 mod peg;
+mod quotes;
 mod references;
 mod revision;
 mod sections;
@@ -20,6 +22,8 @@ mod verbatim;
 
 pub(crate) use coordinator::document;
 pub(crate) use peg::document_parser;
+
+type RecognitionError = ::peg::error::ParseError<::peg::str::LineCol>;
 
 #[cfg(test)]
 #[allow(

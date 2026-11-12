@@ -1,5 +1,7 @@
 use super::{
-    coordinator::BlockCursor, document as parse_document, document_parser,
+    construction::ConstructionMode,
+    coordinator::{BlockCursor, BlockStepKind},
+    document as parse_document, document_parser,
     paragraph::paragraph_text_end,
 };
 use crate::{
@@ -17,28 +19,33 @@ fn block_cursor_does_not_apply_later_attributes_before_advancing()
     let input = "before\n\n:later: value\n\n{later}";
     let mut state = ParserState::new_for_test(input);
     let prefix = document_parser::document_prefix(input, &mut state)??;
-    let mut cursor = BlockCursor::new(prefix.body_offset);
+    let mut cursor = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
 
     let first = cursor.advance(input, &mut state)??;
-    assert!(matches!(first.block, Some(Block::Paragraph(_))));
-    assert!(!first.complete);
+    assert!(matches!(
+        first.kind,
+        BlockStepKind::Block(Block::Paragraph(_))
+    ));
     assert_eq!(state.document_attributes.text("later"), None);
 
     let assignment = cursor.advance(input, &mut state)??;
     assert!(matches!(
-        assignment.block,
-        Some(Block::DocumentAttribute(_))
+        assignment.kind,
+        BlockStepKind::Block(Block::DocumentAttribute(_))
     ));
     assert_eq!(state.document_attributes.text("later"), Some("value"));
 
     let last = cursor.advance(input, &mut state)??;
-    let Some(Block::Paragraph(paragraph)) = last.block else {
+    let BlockStepKind::Block(Block::Paragraph(paragraph)) = last.kind else {
         return Err("expected the final paragraph".into());
     };
     assert!(
         matches!(paragraph.content.as_slice(), [InlineNode::PlainText(plain)] if plain.content == "value")
     );
-    assert!(cursor.advance(input, &mut state)??.complete);
+    assert!(matches!(
+        cursor.advance(input, &mut state)??.kind,
+        BlockStepKind::End(_)
+    ));
     Ok(())
 }
 
@@ -48,19 +55,163 @@ fn block_cursor_applies_a_committed_change_to_the_next_block()
     let input = "before\n\n{extension-value}";
     let mut state = ParserState::new_for_test(input);
     let prefix = document_parser::document_prefix(input, &mut state)??;
-    let mut cursor = BlockCursor::new(prefix.body_offset);
+    let mut cursor = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
     let first = cursor.advance(input, &mut state)??;
-    assert!(first.block.is_some());
+    assert!(matches!(first.kind, BlockStepKind::Block(_)));
 
     std::rc::Rc::make_mut(&mut state.document_attributes)
         .set_text("extension-value".into(), "after".into());
     let second = cursor.advance(input, &mut state)??;
-    let Some(Block::Paragraph(paragraph)) = second.block else {
+    let BlockStepKind::Block(Block::Paragraph(paragraph)) = second.kind else {
         return Err("expected a paragraph after the committed change".into());
     };
     assert!(
         matches!(paragraph.content.as_slice(), [InlineNode::PlainText(plain)] if plain.content == "after")
     );
+    Ok(())
+}
+
+#[test]
+fn block_cursor_commits_section_headers_before_their_children()
+-> Result<(), Box<dyn std::error::Error>> {
+    for heading in ["== Parent", "Parent\n------"] {
+        let input = format!(
+            "{heading}\n\nfirst\n\n=== Child\n\n{{committed}}\n\n:later: value\n\n== Sibling\n\nend"
+        );
+        let mut state = ParserState::new_for_test(&input);
+        let prefix = document_parser::document_prefix(&input, &mut state)??;
+        let mut root = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
+        let first = root.advance(&input, &mut state)??;
+        let BlockStepKind::Block(Block::Section(parent)) = first.kind else {
+            return Err("expected a committed section header".into());
+        };
+        assert_eq!(parent.content, Vec::<Block<'_>>::new());
+        assert_eq!(state.document_attributes.text("later"), None);
+        assert_eq!(state.toc_entries.len(), 1);
+
+        let mut body = root.section(&parent, &state);
+        assert!(matches!(
+            body.advance(&input, &mut state)??.kind,
+            BlockStepKind::Block(Block::Paragraph(_))
+        ));
+        let next = body.advance(&input, &mut state)??;
+        let BlockStepKind::Block(Block::Section(child)) = next.kind else {
+            return Err("expected a committed child heading".into());
+        };
+        assert_eq!(child.content, Vec::<Block<'_>>::new());
+        assert_eq!(state.document_attributes.text("later"), None);
+
+        std::rc::Rc::make_mut(&mut state.document_attributes)
+            .set_text("committed".into(), "visible".into());
+        let mut child_body = body.section(&child, &state);
+        let next = child_body.advance(&input, &mut state)??;
+        let BlockStepKind::Block(Block::Paragraph(paragraph)) = next.kind else {
+            return Err("expected a paragraph after the committed child heading".into());
+        };
+        assert!(matches!(
+            paragraph.content.as_slice(),
+            [InlineNode::PlainText(plain)] if plain.content == "visible"
+        ));
+        assert_eq!(state.document_attributes.text("later"), None);
+        assert!(matches!(
+            child_body.advance(&input, &mut state)??.kind,
+            BlockStepKind::Block(Block::DocumentAttribute(_))
+        ));
+        let end = child_body.advance(&input, &mut state)??;
+        assert!(matches!(end.kind, BlockStepKind::End(_)));
+        assert!(
+            input
+                .get(end.end..)
+                .is_some_and(|tail| tail.contains("== Sibling"))
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn section_driver_executes_accepted_handlers_once_in_source_order()
+-> Result<(), Box<dyn std::error::Error>> {
+    let input = "== Parent\n\n{value}\n\n=== Child\n\n{value}\n\n== Sibling\n\n{value}";
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let arena = bumpalo::Bump::new();
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let mut state = ParserState::new(input, &arena, std::rc::Rc::new(options));
+        let mut accepted = Vec::new();
+        let document = super::coordinator::document_with(
+            input,
+            &mut state,
+            ConstructionMode::Ordered,
+            &mut |block, state| {
+                accepted.push(block.location().absolute_start);
+                if let Block::Section(section) = block {
+                    assert_eq!(section.content, Vec::<Block<'_>>::new());
+                    let value = match section.level {
+                        1 => "outer",
+                        2 => "inner",
+                        _ => {
+                            return Err(Error::Extension(
+                                Box::new(
+                                    state.create_error_source_location(section.location.clone()),
+                                ),
+                                "unexpected section".into(),
+                            ));
+                        }
+                    };
+                    std::rc::Rc::make_mut(&mut state.document_attributes)
+                        .set_text("value".into(), value.into());
+                }
+                Ok(())
+            },
+        )??;
+        assert_eq!(accepted.len(), 6);
+        assert!(accepted.windows(2).all(|pair| pair[0] < pair[1]));
+        let [Block::Section(parent), Block::Section(sibling)] = document.blocks.as_slice() else {
+            return Err("expected parent and sibling sections".into());
+        };
+        let [Block::Paragraph(outer), Block::Section(child)] = parent.content.as_slice() else {
+            return Err("expected paragraph and child section".into());
+        };
+        let [Block::Paragraph(inner)] = child.content.as_slice() else {
+            return Err("expected child paragraph".into());
+        };
+        let [Block::Paragraph(last)] = sibling.content.as_slice() else {
+            return Err("expected sibling paragraph".into());
+        };
+        for (paragraph, expected) in [(outer, "outer"), (inner, "inner"), (last, "outer")] {
+            assert!(matches!(
+                paragraph.content.as_slice(),
+                [InlineNode::PlainText(plain)] if plain.content == expected
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn section_driver_stops_before_later_children_when_a_handler_fails()
+-> Result<(), Box<dyn std::error::Error>> {
+    let input = "== Parent\n\nfirst\n\n=== Later\n\n:later: value";
+    let mut state = ParserState::new_for_test(input);
+    let mut calls = 0;
+    let result = super::coordinator::document_with(
+        input,
+        &mut state,
+        ConstructionMode::Ordered,
+        &mut |block, state| {
+            calls += 1;
+            if matches!(block, Block::Paragraph(_)) {
+                return Err(Error::Extension(
+                    Box::new(state.create_error_source_location(block.location().clone())),
+                    "deliberate accepted-handler failure".into(),
+                ));
+            }
+            Ok(())
+        },
+    )?;
+    assert!(matches!(result, Err(Error::Extension(..))));
+    assert_eq!(calls, 2);
+    assert_eq!(state.toc_entries.len(), 1);
+    assert_eq!(state.document_attributes.text("later"), None);
     Ok(())
 }
 
