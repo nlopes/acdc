@@ -48,6 +48,7 @@ use crate::{
             references::{ParsedSectionHeader, register_section_header},
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
             sections::{apply_leveloffset, expected_child_level},
+            source::{SourceLine, ordinary_kind},
             table::{
                 InitialAttributes, PreparedTableCellParagraph, TableClosing, TableParseParams,
                 parse_table_block_impl,
@@ -114,6 +115,57 @@ peg::parser! {
             / trailing:trailing_block_metadata(base_offset)? end:position!() eol()* ![_]
             { trailing.transpose().map(|blocks| BlockStep::end(blocks.unwrap_or_default(), end)) }
         ) { step }
+
+        // Read-only line probes share the actual block recognizers. The source
+        // driver uses them to collect one unit, then constructs that unit once.
+        pub(in crate::grammar::document) rule source_line() -> SourceLine<'input>
+        = eol() { SourceLine::Blank }
+        / document_attribute_match() (eol() / ![_]) { SourceLine::Attribute }
+        / comment_line_prefix() source_line_tail() { SourceLine::Comment }
+        / &atx_heading_match() source_line_tail() { SourceLine::Heading }
+        / open:block_open() (eol() / ![_]) { SourceLine::Delimited { delimiter: open.1, table: false, comment: matches!(open.0, DelimitedKind::Comment) } }
+        / delimiter:table_delimiter() (eol() / ![_]) { SourceLine::Delimited { delimiter, table: true, comment: false } }
+        / (attribute_or_anchor_line_match() / title_line_match()) { SourceLine::Metadata }
+        / extension_macro_source() (eol() / ![_]) { SourceLine::Macro }
+        / (media_block_ahead_true() / toc_block_ahead()) source_line_tail() { SourceLine::Macro }
+        / whitespace()* marker:unordered_list_marker() whitespace() text:$([^'\n']*) (eol() / ![_]) { SourceLine::List { kind: ordinary_kind(false), marker, empty: text.trim().is_empty() } }
+        / whitespace()* marker:ordered_list_marker() whitespace() text:$([^'\n']*) (eol() / ![_]) { SourceLine::List { kind: ordinary_kind(true), marker, empty: text.trim().is_empty() } }
+        / marker:callout_list_marker() whitespace() text:$([^'\n']*) (eol() / ![_]) { SourceLine::List { kind: ListKind::Callout, marker, empty: text.trim().is_empty() } }
+        / term:description_list_term_source() &(whitespace() / eol() / ![_]) text:$([^'\n']*) (eol() / ![_]) { SourceLine::List { kind: ListKind::Description, marker: term.delimiter, empty: text.trim().is_empty() } }
+        / "+" whitespace()* (eol() / ![_]) { SourceLine::Continuation }
+        / ">" &(whitespace() / eol() / ![_]) source_line_tail() { SourceLine::Markdown }
+        / "\"" source_line_tail() { SourceLine::Quoted }
+        / source_line_tail() { SourceLine::Text }
+
+        rule source_line_tail() = [^'\n']* (eol() / ![_])
+
+        pub(in crate::grammar::document) rule source_block_close(expected: &str, table: bool)
+        = ({? table.then_some(()).ok_or("ordinary delimiter") })
+          delimiter:table_delimiter() (eol() / ![_])
+          {? (delimiter == expected).then_some(()).ok_or("different table delimiter") }
+        / block_close_delim(expected) (eol() / ![_])
+
+        pub(in crate::grammar::document) rule source_paragraph_boundary(offset: usize, parent: Option<ListMarker<'input>>)
+        = &(eol() / ![_] / paragraph_line_boundary(offset, parent)) source_line_tail()
+
+        #[no_eof]
+        pub(in crate::grammar::document) rule source_principal_line(offset: usize, kind: ListKind<'input>, marker: &str)
+        = kind:unordered_kind(kind) unordered_list_principal_line(offset, marker, kind.parent_other) (eol() / ![_])
+        / kind:ordered_kind(kind) ordered_list_principal_line(offset, marker, kind.parent_other) (eol() / ![_])
+        / callout_kind(kind) callout_list_principal_line(offset) (eol() / ![_])
+        / description_kind(kind) description_list_principal_line(offset) [^'\n']+ (eol() / ![_])
+
+        pub(in crate::grammar::document) rule source_setext_underline(width: usize)
+        = setext_section_level(width, None) (eol() / ![_])
+
+        pub(in crate::grammar::document) rule source_document_underline(width: usize)
+        = document_title_underline(width) (eol() / ![_])
+
+        pub(in crate::grammar::document) rule source_document_title()
+        = &atx_heading_prefix() document_title_token() whitespace() source_line_tail()
+
+        pub(in crate::grammar::document) rule source_quoted_paragraph()
+        = quoted_paragraph_params(0, 0) (eol() / ![_])
 
         rule ordered_construction(mode: ConstructionMode)
         = {? matches!(mode, ConstructionMode::Ordered).then_some(()).ok_or("recursive construction") }
@@ -378,7 +430,7 @@ peg::parser! {
                     let sub_start_offset = start + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
-                        position: state.line_map.offset_to_position(sub_start_offset, state.input),
+                        position: state.source_position(sub_start_offset),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
                     let (subtitle_inlines, _) = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
@@ -409,14 +461,22 @@ peg::parser! {
         ///
         /// The underline must be within one character of the title width.
         /// Recognized in Asciidoctor mode.
+        rule document_title_underline(title_width: usize)
+        = underline:$("="+) &(eol() / ![_]) {?
+            if !setext::is_enabled(state.options.compatibility_mode) {
+                Err("setext mode not enabled")
+            } else if !setext::width_ok(title_width, underline.chars().count()) {
+                Err("underline width out of tolerance")
+            } else {
+                Ok(())
+            }
+        }
+
         rule document_title_setext() -> (Title<'input>, Option<Subtitle<'input>>)
         = title:setext_title_text() end:position!() eol()
-          underline:$("="+) &(eol() / ![_])
+          document_title_underline(title.trim().chars().count())
         {?
-            if !setext::is_document_title(state.options.compatibility_mode, title, underline) {
-                return Err("not a setext document title");
-            }
-
+            let title_text = title.trim();
             tracing::debug!("Processing setext document title");
             let block_metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
 
@@ -438,7 +498,7 @@ peg::parser! {
                     let sub_start_offset = span_start + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
-                        position: state.line_map.offset_to_position(sub_start_offset, state.input),
+                        position: state.source_position(sub_start_offset),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
                     let (subtitle_inlines, _) = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
@@ -1175,7 +1235,7 @@ peg::parser! {
                     state.options.compatibility_mode,
                 );
             }
-            let image_ahead = media_ahead && state.input.get(block_start + offset..).is_some_and(|tail| tail.starts_with("image::"));
+            let image_ahead = media_ahead && state.source_tail(block_start + offset).is_some_and(|tail| tail.starts_with("image::"));
             let image_alt = resolve_block_content_attributes(state, &mut attributes, media_attributes.as_deref(), image_ahead)?;
             // Titles use the completed metadata attributes, including entries
             // after the title line. Only the last authored title is displayed.
@@ -1302,7 +1362,7 @@ peg::parser! {
             let absolute_pos = pos + offset;
             let at_line_start = absolute_pos == 0 || {
                 let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| b == b'\n')
+                state.source_byte(prev_byte_pos).is_some_and(|b| b == b'\n')
             };
 
             if !at_line_start {
@@ -1741,10 +1801,15 @@ peg::parser! {
             } else { Err("registered block macro") }
         }
 
-        rule extension_macro(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        rule extension_macro_source() -> (&'input str, &'input str, &'input str, usize)
         = name:registered_macro_name() target:$([^'[' | '\n' | '\r']*)
-          "[" arguments:attribute_list_content(BlockAttributeMode::Macro) end:position!() trailing:$([^'\n']*) {
-            if !trailing.trim().is_empty() {
+          "[" arguments:attribute_list_content(BlockAttributeMode::Macro) end:position!() trailing:$([^'\n']*)
+        { (name, target, arguments, end) }
+
+        rule extension_macro(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+        = source:extension_macro_source() {
+            let (name, target, arguments, end) = source;
+            if state.source_slice(end + offset..span_end + offset).is_some_and(|trailing| !trailing.trim().is_empty()) {
                 state.add_warning(Warning::new(WarningKind::ContentRecovery { message: format!("trailing content after block macro {name}").into() }, Some(state.create_error_source_location(state.create_location(end + offset, span_end + offset)))));
             }
             crate::extensions::recognize(state, name, target, arguments, block_metadata.metadata.clone(), block_metadata.title.clone(), state.create_block_location(start, end, offset))
@@ -2102,7 +2167,7 @@ peg::parser! {
         rule nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(line:(
             anchor:anchor(offset) { AttributeOrAnchorLine::Anchor(anchor) }
-            / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
+            / attr:attributes_line_at(offset) { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
         ) end:position!() eol()* { (line, end) })+
         {
             let mut attributes = ParsedAttributeList::default();
@@ -2145,7 +2210,15 @@ peg::parser! {
 
         rule anchor_line_match()
         = double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+
-          (comma() block_anchor_reftext(0) / double_close_square_bracket()) (eol() / ![_])
+          (comma() block_anchor_reftext_match() / double_close_square_bracket()) (eol() / ![_])
+
+        rule block_anchor_reftext_match()
+        = text:$([^'\n' | '\r']+) {?
+            text.strip_suffix("]]")
+                .and_then(|source| resolve_block_anchor_reftext(source, &state.document_attributes, state.options.compatibility_mode))
+                .map(|_| ())
+                .ok_or("block anchor reference text")
+        }
 
         rule attribute_or_anchor_line_match()
         = anchor_line_match() / attributes_line_match()
@@ -2177,8 +2250,8 @@ peg::parser! {
         rule enter_ordinary_list(offset: usize, unordered: Option<&'input str>, ordered: Option<&'input str>) -> Option<OrdinaryListScope<'input>>
         = {
             let parent = state.ordinary_list_scope;
-            let mut scope = parent.filter(|scope| scope.offset == offset)
-                .unwrap_or(OrdinaryListScope { offset, ..OrdinaryListScope::default() });
+            let mut scope = parent.filter(|scope| scope.offset == state.list_scope_offset(offset))
+                .unwrap_or(OrdinaryListScope { offset: state.list_scope_offset(offset), ..OrdinaryListScope::default() });
             scope.unordered = unordered.or(scope.unordered);
             scope.ordered = ordered.or(scope.ordered);
             state.ordinary_list_scope = Some(scope);
@@ -2186,7 +2259,7 @@ peg::parser! {
         }
 
         rule ordinary_list_scope(offset: usize) -> OrdinaryListScope<'input>
-        = { state.ordinary_list_scope.filter(|scope| scope.offset == offset).unwrap_or_default() }
+        = { state.ordinary_list_scope.filter(|scope| scope.offset == state.list_scope_offset(offset)).unwrap_or_default() }
 
         rule at_ordinary_parent_item(offset: usize)
         = candidate:(
@@ -2270,7 +2343,10 @@ peg::parser! {
         / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
 
         rule unordered_list_principal_continuation(offset: usize, current_marker: &str, parent_ordered_marker: Option<&'input str>) -> &'input str
-        = eol()
+        = eol() line:unordered_list_principal_line(offset, current_marker, parent_ordered_marker) { line }
+
+        rule unordered_list_principal_line(offset: usize, current_marker: &str, parent_ordered_marker: Option<&'input str>) -> &'input str
+        =
           !(
               &eol()
               / &at_list_item_start()
@@ -2283,7 +2359,10 @@ peg::parser! {
           line:$((!eol() [_])*) { line }
 
         rule ordered_list_principal_continuation(offset: usize, current_marker: &str, parent_unordered_marker: Option<&'input str>) -> &'input str
-        = eol()
+        = eol() line:ordered_list_principal_line(offset, current_marker, parent_unordered_marker) { line }
+
+        rule ordered_list_principal_line(offset: usize, current_marker: &str, parent_unordered_marker: Option<&'input str>) -> &'input str
+        =
           !(
               &eol()
               / &at_list_item_start()
@@ -2773,7 +2852,7 @@ peg::parser! {
         // markers in reparsed delimited blocks outside this boundary.
         rule at_callout_parent_item(offset: usize)
         = at_callout_list_item() {?
-            (state.callout_list_offset == Some(offset)).then_some(()).ok_or("not a callout parent")
+            (state.callout_list_offset == Some(state.list_scope_offset(offset))).then_some(()).ok_or("not a callout parent")
         }
 
         // Save the enclosing scope for callout_list to restore after parsing its
@@ -2781,7 +2860,7 @@ peg::parser! {
         // since child listings add their own references to the shared catalog.
         rule enter_callout_list(offset: usize) -> CalloutScope
         = {
-            let parent = state.callout_list_offset.replace(offset);
+            let parent = state.callout_list_offset.replace(state.list_scope_offset(offset));
             (parent, std::mem::take(&mut state.pending_callouts))
         }
 
@@ -2890,11 +2969,7 @@ peg::parser! {
         // Stop at list markers, explicit continuations, blank lines, or block attributes.
         continuation_lines:(
             eol()
-            !at_callout_list_item()
-            !check_line_is_description_list(offset)
-            !(whitespace()* (unordered_list_marker() / ordered_list_marker() / "[" / "+" whitespace()* eol() / eol()))
-            line:$((!(eol()) [_])*)
-            { line }
+            line:callout_list_principal_line(offset) { line }
         )*
         first_line_end:position!()
         principal:list_item_principal(offset, block_metadata, first_line_start, first_line_end, first_line, &continuation_lines)
@@ -2904,6 +2979,12 @@ peg::parser! {
                 end: calculate_item_end(first_line.is_empty() && continuation_lines.is_empty(), span_start, first_line_end),
             }
         }
+
+        rule callout_list_principal_line(offset: usize) -> &'input str
+        = !at_callout_list_item()
+          !check_line_is_description_list(offset)
+          !(whitespace()* (unordered_list_marker() / ordered_list_marker() / "[" / "+" whitespace()* eol() / eol()))
+          line:$((!eol() [_])*) { line }
 
         rule unordered_list_head(offset: usize, metadata: &BlockParsingMetadata<'input>, marker: &'input str, item_start: usize, empty_start: usize, parent_ordered_marker: Option<&'input str>) -> ListItemHead<'input>
         = whitespace()
@@ -2954,7 +3035,7 @@ peg::parser! {
 
         rule check_line_is_description_list(offset: usize)
         = pos:position!() {?
-            if find_dlist_marker(state.input.as_bytes(), pos + offset) {
+            if state.source_tail(pos + offset).is_some_and(|tail| find_dlist_marker(tail.as_bytes(), 0)) {
                 Ok(())
             } else {
                 Err("no dlist marker on current line")
@@ -2965,7 +3046,7 @@ peg::parser! {
         = at_description_scope_item(offset, state.description_list_scope)
 
         rule at_description_scope_item(offset: usize, parent: Option<DescriptionListScope<'input>>)
-        = scope:({? parent.filter(|scope| scope.offset == offset).ok_or("no description parent") })
+        = scope:({? parent.filter(|scope| scope.offset == state.list_scope_offset(offset)).ok_or("no description parent") })
           (!(description_list_marker() (eol() / " " / ![_]) / eol()) [_])+
           marker:description_list_marker() &(eol() / " " / ![_]) {?
               scope.contains(marker).then_some(()).ok_or("not a description parent item")
@@ -2974,8 +3055,8 @@ peg::parser! {
         rule enter_description_list(offset: usize) -> Option<DescriptionListScope<'input>>
         = {
             let parent = state.description_list_scope;
-            state.description_list_scope = Some(parent.filter(|scope| scope.offset == offset)
-                .unwrap_or_else(|| DescriptionListScope::new(offset)));
+            state.description_list_scope = Some(parent.filter(|scope| scope.offset == state.list_scope_offset(offset))
+                .unwrap_or_else(|| DescriptionListScope::new(state.list_scope_offset(offset))));
             parent
         }
 
@@ -3163,7 +3244,7 @@ peg::parser! {
         // A blank line before `+` returns from a nested description to its ordinary parent.
         rule description_continuation_gap(offset: usize)
         = gap:$(eol()*) {?
-            (gap.is_empty() || state.ordinary_list_scope.is_none_or(|scope| scope.offset != offset))
+            (gap.is_empty() || state.ordinary_list_scope.is_none_or(|scope| scope.offset != state.list_scope_offset(offset)))
                 .then_some(()).ok_or("continuation belongs to ordinary parent")
         }
 
@@ -3309,7 +3390,7 @@ peg::parser! {
             }
         }) candidate:attached_list_marker() {?
             let ordinary_ancestor = matches!(parent, ListMarker::Description(_))
-                && state.ordinary_list_scope.filter(|scope| scope.offset == offset).is_some_and(|scope| {
+                && state.ordinary_list_scope.filter(|scope| scope.offset == state.list_scope_offset(offset)).is_some_and(|scope| {
                     scope.unordered.is_some_and(|marker| ListMarker::Unordered(marker).is_sibling_or_ancestor(candidate))
                         || scope.ordered.is_some_and(|marker| ListMarker::Ordered(marker).is_sibling_or_ancestor(candidate))
                 });
@@ -3332,6 +3413,24 @@ peg::parser! {
             }
         }}
 
+        rule paragraph_line_boundary(offset: usize, parent_marker: Option<ListMarker<'input>>)
+        = excessive_list_marker()
+        / &raw_attributes_line()
+        / &anchor_line_match()
+        / example_delimiter() &(eol() / ![_])
+        / listing_delimiter()
+        / literal_delimiter()
+        / sidebar_delimiter()
+        / quote_delimiter()
+        / pass_delimiter()
+        / table_delimiter()
+        / markdown_code_delimiter()
+        / comment_delimiter()
+        / open_delimiter() &(whitespace()* eol())
+        / at_callout_parent_item(offset)
+        / attached_list_boundary(offset, parent_marker)
+        / &("+" whitespace()* (eol() / ![_]))  // Only a standalone plus continues a list.
+
         rule paragraph_with_list_boundary(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: Option<ListMarker<'input>>) -> Result<Block<'input>, Error>
         = admonition:(structural_block_boundaries(block_metadata) value:admonition() { value })?
         content_start:position!()
@@ -3345,22 +3444,7 @@ peg::parser! {
             / !(
             eol()*<2,>
             / eol()* ![_]
-            / eol() &attributes_line()
-            / eol() &anchor_line_match()
-            / eol() example_delimiter() &(eol() / ![_])
-            / eol() listing_delimiter()
-            / eol() literal_delimiter()
-            / eol() sidebar_delimiter()
-            / eol() quote_delimiter()
-            / eol() pass_delimiter()
-            / eol() table_delimiter()
-            / eol() markdown_code_delimiter()
-            / eol() comment_delimiter()
-            / eol() open_delimiter() &(whitespace()* eol())
-            / eol() excessive_list_marker()
-            / eol() at_callout_parent_item(offset)
-            / eol() attached_list_boundary(offset, parent_marker)
-            / eol() &("+" whitespace()* (eol() / ![_]))  // Only a standalone plus continues a list.
+            / eol() paragraph_line_boundary(offset, parent_marker)
             ) [_]
         )+))
         {
@@ -3506,10 +3590,13 @@ peg::parser! {
         }
 
         rule attributes_line() -> ParsedAttributeList<'input>
+        = attributes_line_at(0)
+
+        rule attributes_line_at(offset: usize) -> ParsedAttributeList<'input>
             // Don't match empty [] followed by blank line - that's a list separator, not
             // block attributes. Without this, `[]\n\n` would be parsed as an empty
             // attributes line, breaking list separation
-            = !empty_list_separator() attributes:attributes() eol() {
+            = !empty_list_separator() attributes:attributes_at(offset) eol() {
                 attributes
             }
 
@@ -3525,6 +3612,9 @@ peg::parser! {
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
         pub(in crate::grammar::document) rule attributes() -> ParsedAttributeList<'input>
+        = attributes_at(0)
+
+        rule attributes_at(offset: usize) -> ParsedAttributeList<'input>
             = block_attribute_start()
               open_square_bracket()
               content_start:position!()
@@ -3535,7 +3625,7 @@ peg::parser! {
                     content,
                     content_start,
                     BlockAttributeMode::Block,
-                    0,
+                    offset,
                 ).map_err(|_| "cannot map block attribute locations")
             }
 
@@ -3638,8 +3728,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -3681,8 +3770,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -3738,8 +3826,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -3832,7 +3919,7 @@ peg::parser! {
         rule position() -> PositionWithOffset = offset:position!() {
             PositionWithOffset {
                 offset,
-                position: state.line_map.offset_to_position(offset, state.input)
+                position: state.source_position(offset)
             }
         }
 

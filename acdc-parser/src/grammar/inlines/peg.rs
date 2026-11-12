@@ -1316,8 +1316,7 @@ peg::parser! {
           check_colon_link_label(start) {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 target,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(target, &state.document_attributes, &inline_state)
@@ -2486,8 +2485,7 @@ peg::parser! {
             // Inline text was already processed; attribute values must not introduce passthroughs.
             let inline_state = InlinePreprocessorParserState::new(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
                 matches!(state.scope, ParserScope::Document),
                 true,
@@ -2509,8 +2507,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
                 matches!(state.scope, ParserScope::Document),
                 true,
@@ -2550,8 +2547,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
                 matches!(state.scope, ParserScope::Document),
                 true,
@@ -2610,8 +2606,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -2631,8 +2626,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)

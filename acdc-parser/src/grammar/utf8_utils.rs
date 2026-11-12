@@ -93,18 +93,21 @@ pub(super) fn step_char(input: &str, offset: usize, direction: RoundDirection) -
 
 /// Safely decrement a byte offset by one character, ensuring valid UTF-8 boundary.
 #[inline]
+#[cfg(test)]
 pub(super) fn safe_decrement_offset(input: &str, offset: usize) -> usize {
     step_char(input, offset, RoundDirection::Backward)
 }
 
 /// Ensure an offset is on a valid UTF-8 character boundary (round backward).
 #[inline]
+#[cfg(test)]
 pub(super) fn ensure_char_boundary(input: &str, offset: usize) -> usize {
     snap_to_boundary(input, offset, RoundDirection::Backward)
 }
 
 /// Ensure an offset is on a valid UTF-8 character boundary (round forward).
 #[inline]
+#[cfg(test)]
 pub(super) fn ensure_char_boundary_forward(input: &str, offset: usize) -> usize {
     snap_to_boundary(input, offset, RoundDirection::Forward)
 }

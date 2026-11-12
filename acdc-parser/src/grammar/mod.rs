@@ -22,6 +22,7 @@ mod passthrough_processing;
 pub(crate) mod reference_text;
 pub(crate) mod reference_walk;
 pub(crate) mod setext;
+mod source;
 mod source_remap;
 mod state;
 mod utf8_utils;
@@ -29,7 +30,9 @@ mod utf8_utils;
 pub(crate) use attributes::{
     BlockAttributeMode, block_attribute_line, block_attribute_style, style_overrides_block_form,
 };
-pub(crate) use document::{document as parse_document, document_parser};
+pub(crate) use document::{
+    SourceHandler, document as parse_document, document_from_source, document_parser,
+};
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,
 };

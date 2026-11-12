@@ -12,7 +12,7 @@ use super::{
     character_references::{restore, whole},
     marked_text::map_marked_text_locations,
     passthrough_processing::replace_passthrough_placeholders,
-    utf8_utils::{self, RoundDirection, snap_to_boundary},
+    utf8_utils::RoundDirection,
 };
 
 /// Clamp a Location's byte offsets to valid bounds within the input string
@@ -20,18 +20,18 @@ use super::{
 ///
 /// This only operates on `absolute_start/end` - the canonical byte offsets.
 /// `Position` fields (line/column) are not modified.
-fn clamp_location_bounds(location: &mut Location, input: &str) {
-    let input_len = input.len();
+fn clamp_location_bounds(location: &mut Location, state: &ParserState<'_>) {
+    let input_len = state.source_len();
 
     // Clamp to input bounds
     location.absolute_start = location.absolute_start.min(input_len);
     location.absolute_end = location.absolute_end.min(input_len);
 
     // Ensure start is on a valid UTF-8 boundary (round backward)
-    location.absolute_start = utf8_utils::ensure_char_boundary(input, location.absolute_start);
+    location.absolute_start = state.source_snap(location.absolute_start, RoundDirection::Backward);
 
     // Ensure end is on a valid UTF-8 boundary (round forward)
-    location.absolute_end = utf8_utils::ensure_char_boundary_forward(input, location.absolute_end);
+    location.absolute_end = state.source_snap(location.absolute_end, RoundDirection::Forward);
 
     // Ensure start <= end
     if location.absolute_start > location.absolute_end {
@@ -40,9 +40,9 @@ fn clamp_location_bounds(location: &mut Location, input: &str) {
 }
 
 /// Recursively clamp all locations in an `InlineNode` to valid bounds.
-pub(super) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
+pub(super) fn clamp_inline_node_locations(node: &mut InlineNode, state: &ParserState<'_>) {
     super::location_walk::walk_inline_locations_mut(node, &mut |loc| {
-        clamp_location_bounds(loc, input);
+        clamp_location_bounds(loc, state);
     });
 }
 
@@ -67,11 +67,7 @@ impl<'a> LocationMappingContext<'_, 'a> {
             .processed
             .source_map
             .map_token_position(self.base_location.absolute_start + loc.absolute_start)?;
-        let start = snap_to_boundary(
-            self.state.input,
-            start.min(self.state.input.len()),
-            RoundDirection::Backward,
-        );
+        let start = self.state.source_snap(start, RoundDirection::Backward);
         Ok(self.state.create_location(start, mapped.absolute_end))
     }
 
@@ -98,22 +94,17 @@ impl<'a> LocationMappingContext<'_, 'a> {
         let mut mapped_abs_end = processed.source_map.map_end_position(processed_abs_end)?;
 
         // Clamp to input bounds - preprocessor expansion can produce positions beyond input length
-        let input_len = state.input.len();
+        let input_len = state.source_len();
         mapped_abs_start = mapped_abs_start.min(input_len);
         mapped_abs_end = mapped_abs_end.min(input_len);
 
         // Ensure mapped positions are on valid UTF-8 boundaries
-        mapped_abs_start =
-            snap_to_boundary(state.input, mapped_abs_start, RoundDirection::Backward);
-        mapped_abs_end = snap_to_boundary(state.input, mapped_abs_end, RoundDirection::Forward);
+        mapped_abs_start = state.source_snap(mapped_abs_start, RoundDirection::Backward);
+        mapped_abs_end = state.source_snap(mapped_abs_end, RoundDirection::Forward);
 
         // Compute human positions from the document's line map
-        let start_pos = state
-            .line_map
-            .offset_to_position(mapped_abs_start, state.input);
-        let end_pos = state
-            .line_map
-            .offset_to_position(mapped_abs_end, state.input);
+        let start_pos = state.source_position(mapped_abs_start);
+        let end_pos = state.source_position(mapped_abs_end);
 
         Ok(Location {
             absolute_start: mapped_abs_start,
@@ -147,12 +138,8 @@ pub(super) fn extend_attribute_location_if_needed(
             );
 
             // Extend location to cover the full original attribute
-            let start_pos = state
-                .line_map
-                .offset_to_position(attr_replacement.absolute_start, state.input);
-            let end_pos = state
-                .line_map
-                .offset_to_position(attr_replacement.absolute_end, state.input);
+            let start_pos = state.source_position(attr_replacement.absolute_start);
+            let end_pos = state.source_position(attr_replacement.absolute_end);
             location = Location {
                 absolute_start: attr_replacement.absolute_start,
                 absolute_end: attr_replacement.absolute_end,
@@ -428,7 +415,7 @@ fn map_anchor_locations<'a>(
             .location
             .absolute_start
             .checked_sub(1)
-            .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
+            .and_then(|start| state.source_slice(start..anchor.location.absolute_end + 2))
             .and_then(|source| source.strip_prefix("[[["))
             .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
             .and_then(|source| {

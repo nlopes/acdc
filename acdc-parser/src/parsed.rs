@@ -14,7 +14,7 @@
 //! AST) without paying for an empty arena.
 
 use std::{
-    cell::RefCell,
+    cell::{OnceCell, RefCell},
     collections::HashMap,
     path::{Path, PathBuf},
     rc::Rc,
@@ -70,6 +70,7 @@ impl SourceFiles {
 pub(crate) struct OwnedInput {
     pub(crate) source: Box<str>,
     pub(crate) arena: Bump,
+    processed_source: OnceCell<Box<str>>,
 }
 
 impl OwnedInput {
@@ -80,7 +81,22 @@ impl OwnedInput {
         // first ~10 chunk-grow round-trips through the global allocator
         // on documents larger than a few KB.
         let arena = Bump::with_capacity(source.len());
-        Self { source, arena }
+        Self {
+            source,
+            arena,
+            processed_source: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn finish_source(&self, source: String) -> &str {
+        self.processed_source
+            .get_or_init(|| source.into_boxed_str())
+    }
+
+    pub(crate) fn preprocessed_source(&self) -> &str {
+        self.processed_source
+            .get()
+            .map_or(&self.source, AsRef::as_ref)
     }
 }
 
@@ -178,6 +194,47 @@ impl ParseResult {
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Document<'a>, E>,
     ) -> Result<Self, E> {
         let cell = ParsedDocumentCell::try_new(owner, builder)?;
+        Ok(Self::from_cell(
+            cell,
+            warnings_handle,
+            source_files,
+            conditionals,
+        ))
+    }
+
+    pub(crate) fn try_new_with_metadata<E>(
+        owner: OwnedInput,
+        warnings_handle: Rc<RefCell<WarningCollection>>,
+        builder: impl for<'a> FnOnce(
+            &'a OwnedInput,
+        ) -> Result<
+            (Document<'a>, SourceFiles, Vec<ConditionalEvaluation>),
+            E,
+        >,
+    ) -> Result<Self, E> {
+        let mut metadata = (SourceFiles::default(), Vec::new());
+        let cell = ParsedDocumentCell::try_new(owner, |owner| {
+            builder(owner).map(|(document, source_files, conditionals)| {
+                metadata = (source_files, conditionals);
+                document
+            })
+        })?;
+        let (source_files, conditionals) = metadata;
+        Ok(Self::from_cell(
+            cell,
+            warnings_handle,
+            source_files,
+            conditionals,
+        ))
+    }
+
+    #[inline]
+    fn from_cell(
+        cell: ParsedDocumentCell,
+        warnings_handle: Rc<RefCell<WarningCollection>>,
+        source_files: SourceFiles,
+        conditionals: Vec<ConditionalEvaluation>,
+    ) -> Self {
         let warnings = recover_warnings(warnings_handle);
         let source_recovery = warnings
             .iter()
@@ -195,13 +252,13 @@ impl ParseResult {
                 )
             })
             .map(|warning| Box::new(Warning::new(warning.kind.clone(), warning.location.clone())));
-        Ok(Self {
+        Self {
             cell,
             warnings,
             source_recovery,
             source_files,
             conditionals,
-        })
+        }
     }
 
     /// Read the document through typed handles and iterators.
@@ -263,7 +320,7 @@ impl ParseResult {
     /// caller input.
     #[must_use]
     pub fn preprocessed_source(&self) -> &str {
-        &self.cell.borrow_owner().source
+        self.cell.borrow_owner().preprocessed_source()
     }
 
     /// Resolve a location from this result's AST to its original source file and position.

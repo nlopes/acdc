@@ -9,10 +9,10 @@ use super::super::{
     RecognitionError,
     coordinator::{BlockCursor, BlockStepKind, Execution},
     document_parser,
+    input::{BlockInput, ReadRequest},
 };
 use super::{
-    DescriptionItemHead, DescriptionListScope, ListEntry, build_description_list,
-    warn_discarded_attachment,
+    DescriptionItemHead, DescriptionListScope, build_description_list, warn_discarded_attachment,
 };
 
 #[derive(Default)]
@@ -24,17 +24,25 @@ struct DescriptionChildren<'a> {
 impl BlockCursor {
     pub(super) fn construct_description_list<'a>(
         &mut self,
-        input: &'a str,
+        input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
-        entry: &ListEntry<'a>,
+        start: usize,
         metadata: &BlockParsingMetadata<'a>,
         accepted: &mut Execution<
             '_,
             impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
         >,
     ) -> Result<Result<Block<'a>, Error>, RecognitionError> {
+        let source = match input.prepare(
+            self,
+            state,
+            ReadRequest::ListHead(super::ListKind::Description),
+        ) {
+            Ok(source) => source,
+            Err(error) => return Ok(Err(error)),
+        };
         let (head, parent_scope, end) = document_parser::first_description_list_item(
-            input,
+            source,
             state,
             self.offset,
             self.base_offset,
@@ -44,7 +52,7 @@ impl BlockCursor {
         let result = self.collect_description_items(
             input,
             state,
-            entry,
+            start,
             metadata,
             (head, parent_scope),
             accepted,
@@ -55,20 +63,16 @@ impl BlockCursor {
                 let end = items.last().map_or(self.offset + self.base_offset, |item| {
                     item.location.absolute_end
                 });
-                build_description_list(
-                    metadata,
-                    state.create_location(entry.start + self.base_offset, end),
-                    items,
-                )
+                build_description_list(metadata, state.create_location(start, end), items)
             })
         })
     }
 
     fn collect_description_items<'a>(
         &mut self,
-        input: &'a str,
+        input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
-        entry: &ListEntry<'a>,
+        start: usize,
         metadata: &BlockParsingMetadata<'a>,
         initial: (DescriptionItemHead<'a>, Option<DescriptionListScope<'a>>),
         accepted: &mut Execution<
@@ -80,6 +84,7 @@ impl BlockCursor {
         let mut items = Vec::new();
         let mut first = true;
         loop {
+            let head_base = self.base_offset;
             let DescriptionItemHead { source, principal } = head;
             let principal = match principal {
                 Ok(principal) => principal,
@@ -88,9 +93,9 @@ impl BlockCursor {
             if first {
                 let end = source.principal_start + source.principal_content.trim_end().len();
                 let location = state.create_block_location(
-                    entry.start,
-                    end.max(source.term.delimiter_end),
-                    self.base_offset,
+                    start,
+                    end.max(source.term.delimiter_end) + head_base,
+                    0,
                 );
                 let shell = build_description_list(metadata, location, Vec::new());
                 if let Err(error) = accepted.run(&shell, state) {
@@ -113,9 +118,17 @@ impl BlockCursor {
             for error in children.errors {
                 warn_discarded_attachment(state, &error);
             }
-            items.push(source.build(state, principal, children.blocks, self.base_offset));
+            items.push(source.build(state, principal, children.blocks, head_base));
+            let source = match input.prepare(
+                self,
+                state,
+                ReadRequest::ListNext(super::ListKind::Description, "", super::ListPhase::Sibling),
+            ) {
+                Ok(source) => source,
+                Err(error) => return Ok(Err(error)),
+            };
             let (next, end) = document_parser::next_description_list_item(
-                input,
+                source,
                 state,
                 self.offset,
                 self.base_offset,
@@ -133,7 +146,7 @@ impl BlockCursor {
 
     fn collect_description_children<'a>(
         &mut self,
-        input: &'a str,
+        input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
         metadata: &BlockParsingMetadata<'a>,
         delimiter: &'a str,
@@ -145,8 +158,20 @@ impl BlockCursor {
         let mut children = DescriptionChildren::default();
         let mut continuing = false;
         loop {
+            let source = match input.prepare(
+                self,
+                state,
+                ReadRequest::ListNext(
+                    super::ListKind::Description,
+                    delimiter,
+                    super::ListPhase::Attachments,
+                ),
+            ) {
+                Ok(source) => source,
+                Err(error) => return Ok(Err(error)),
+            };
             let step = document_parser::description_list_next(
-                input,
+                source,
                 state,
                 self.offset,
                 self.base_offset,

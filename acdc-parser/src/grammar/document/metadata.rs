@@ -402,7 +402,7 @@ pub(super) fn media_attributes_ahead<'input>(
     line_start: usize,
     offset: usize,
 ) -> Option<RawAttributeList<'input>> {
-    let line = state.input.get(line_start + offset..)?.lines().next()?;
+    let line = state.source_tail(line_start + offset)?.lines().next()?;
     let start = line.find('[')? + 1;
     let end = line.rfind(']')?;
     let source = line.get(start..end)?;

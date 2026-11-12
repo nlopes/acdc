@@ -13,6 +13,7 @@ use super::{
     doctype::is_book_doctype,
     document_parser, finish,
     header::ParsedHeader,
+    input::{BlockInput, ReadRequest, TextInput},
     lists::ListEntry,
     metadata::{assign_block_caption, order_block_prefix_events},
     sections::expected_child_level,
@@ -26,7 +27,13 @@ pub(super) struct Execution<'handler, F> {
     failed: bool,
 }
 
-impl<F> Execution<'_, F> {
+impl<'handler, F> Execution<'handler, F> {
+    pub(super) fn new(callback: &'handler mut F) -> Self {
+        Self {
+            callback,
+            failed: false,
+        }
+    }
     pub(super) fn run<'a>(
         &mut self,
         block: &Block<'a>,
@@ -154,9 +161,9 @@ impl BlockCursor {
 
     /// Ordered construction enters each section after its heading recognition
     /// has returned. The recursive mode retains the ordinary parsing fast path.
-    fn collect<'a>(
+    pub(super) fn collect<'a>(
         &mut self,
-        input: &'a str,
+        input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
         blocks: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
@@ -165,7 +172,11 @@ impl BlockCursor {
         >,
     ) -> Result<Result<usize, Error>, RecognitionError> {
         loop {
-            let step = match self.advance(input, state)? {
+            let source = match input.prepare(self, state, ReadRequest::Block) {
+                Ok(source) => source,
+                Err(error) => return Ok(Err(error)),
+            };
+            let step = match self.advance(source, state)? {
                 Ok(step) => step,
                 Err(error) => return Ok(Err(error)),
             };
@@ -173,7 +184,7 @@ impl BlockCursor {
                 BlockStepKind::End(trailing) => {
                     blocks.extend(trailing);
                     *blocks = order_block_prefix_events(std::mem::take(blocks));
-                    return Ok(Ok(step.end));
+                    return Ok(Ok(self.base_offset + step.end));
                 }
                 kind @ (BlockStepKind::Block(_)
                 | BlockStepKind::Delimited(_)
@@ -190,7 +201,7 @@ impl BlockCursor {
 
     pub(super) fn construct<'a>(
         &mut self,
-        input: &'a str,
+        input: &mut impl BlockInput<'a>,
         state: &mut ParserState<'a>,
         kind: BlockStepKind<'a>,
         accepted: &mut Execution<
@@ -256,12 +267,9 @@ impl BlockCursor {
                 Ok(end) => end,
                 Err(error) => return Ok(Err(error)),
             };
-            self.offset = end;
-            section.location = state.create_block_location(
-                section.location.absolute_start,
-                self.base_offset + end,
-                0,
-            );
+            self.offset = child.offset;
+            self.base_offset = child.base_offset;
+            section.location = state.create_block_location(section.location.absolute_start, end, 0);
         }
         if let Some(request) = request {
             let mut parser = CursorContent { accepted };
@@ -315,10 +323,17 @@ where
         let mut blocks = Vec::new();
         let toc_start = state.toc_entries.len();
         let result = cursor
-            .collect(request.source, state, &mut blocks, self.accepted)
+            .collect(
+                &mut TextInput(request.source),
+                state,
+                &mut blocks,
+                self.accepted,
+            )
             .and_then(|result| match result {
-                Ok(end) => document_parser::block_sequence_end(request.source, state, end)
-                    .map(|()| Ok(blocks)),
+                Ok(end) => {
+                    document_parser::block_sequence_end(request.source, state, end - request.offset)
+                        .map(|()| Ok(blocks))
+                }
                 Err(error) => Ok(Err(error)),
             });
         match result {
@@ -362,11 +377,11 @@ where
             mode: ConstructionMode::Ordered,
         };
         let mut blocks = prefix.blocks;
-        let end = match cursor.collect(source, state, &mut blocks, self.accepted)? {
+        let end = match cursor.collect(&mut TextInput(source), state, &mut blocks, self.accepted)? {
             Ok(end) => end,
             Err(error) => return Ok(Err(error)),
         };
-        document_parser::block_sequence_end(source, state, end)?;
+        document_parser::block_sequence_end(source, state, end - offset)?;
         Ok(Ok(blocks))
     }
 }
@@ -399,11 +414,8 @@ pub(super) fn document_with<'a>(
     };
     let mut cursor = BlockCursor::new(prefix.body_offset, mode);
     let mut blocks = prefix.comments;
-    let mut execution = Execution {
-        callback: accepted,
-        failed: false,
-    };
-    let end = match cursor.collect(input, state, &mut blocks, &mut execution)? {
+    let mut execution = Execution::new(accepted);
+    let end = match cursor.collect(&mut TextInput(input), state, &mut blocks, &mut execution)? {
         Ok(end) => end,
         Err(error) => return Ok(Err(error)),
     };

@@ -90,23 +90,17 @@ pub(super) fn finish<'a>(
 }
 
 fn document_location(state: &ParserState<'_>, start: PositionWithOffset, end: usize) -> Location {
-    let mut end = end.min(state.input.len());
-    while end < state.input.len() && !state.input.is_char_boundary(end) {
-        end += 1;
-    }
+    let mut end = state.source_snap(end, crate::grammar::utf8_utils::RoundDirection::Forward);
     if end != 0 {
-        end = crate::grammar::utf8_utils::safe_decrement_offset(state.input, end);
+        end = state.source_step(end, crate::grammar::utf8_utils::RoundDirection::Backward);
     }
     // Whitespace-only input can put the start beyond the last content byte.
     let absolute_end = end.max(start.offset);
     let (start_position, end_position) =
-        if state.input.is_empty() || (start.offset == 0 && absolute_end == 0) {
+        if state.source_len() == 0 || (start.offset == 0 && absolute_end == 0) {
             (Position::new(1, 0), Position::new(1, 0))
         } else {
-            (
-                start.position,
-                state.line_map.offset_to_position(absolute_end, state.input),
-            )
+            (start.position, state.source_position(absolute_end))
         };
     Location {
         absolute_start: start.offset,

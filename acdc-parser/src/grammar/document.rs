@@ -8,6 +8,7 @@ mod delimited;
 mod doctype;
 mod finish;
 mod header;
+mod input;
 pub(super) mod lists;
 mod manpage;
 mod metadata;
@@ -17,11 +18,13 @@ mod quotes;
 mod references;
 mod revision;
 mod sections;
+mod source;
 mod table;
 mod verbatim;
 
 pub(crate) use coordinator::document;
 pub(crate) use peg::document_parser;
+pub(crate) use source::{SourceHandler, document_from_source};
 
 type RecognitionError = ::peg::error::ParseError<::peg::str::LineCol>;
 

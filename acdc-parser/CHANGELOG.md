@@ -95,6 +95,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset
   disables the cap. This limit and include `depth=` accept Ruby digit separators,
   such as `4_096`.
+- Nested list IDs specified with `[id=...]` now retain their correct source
+  locations inside compound blocks.
 
 - **Breaking since 0.11:** public names now distinguish table cells, reference
   targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
