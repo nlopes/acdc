@@ -83,6 +83,7 @@ impl EditorState {
         let line_numbers_container = doc
             .get_element_by_id("line-numbers")
             .ok_or("missing #line-numbers")?;
+        line_numbers_container.set_attribute("aria-hidden", "true")?;
         let line_numbers_pre = line_numbers_container
             .query_selector("pre")
             .map_err(|_| "failed to query #line-numbers pre")?
@@ -254,11 +255,15 @@ fn render_warnings_list(warnings: &[EditorWarning]) -> String {
 fn update_line_numbers(state: &EditorState) {
     let value = state.editor.value();
     let line_count = value.chars().filter(|&c| c == '\n').count() + 1;
-    let numbers: String = (1..=line_count)
-        .map(|n| n.to_string())
-        .collect::<Vec<_>>()
-        .join("\n");
-    state.line_numbers_pre.set_text_content(Some(&numbers));
+    // Mirror the source so CSS gives each number the height of its wrapped line.
+    // Keep empty lines, including the final line after a trailing newline.
+    let mut lines = String::new();
+    for (index, line) in value.split('\n').enumerate() {
+        let number = index + 1;
+        let text = crate::ast_highlight::escape_html(line);
+        let _ = write!(lines, r#"<span data-line="{number}">{text}</span>"#);
+    }
+    state.line_numbers_pre.set_inner_html(&lines);
 
     // Resize gutter to fit the widest line number: digits × 1ch + 1rem padding
     let digits = digit_count(line_count);
@@ -267,6 +272,7 @@ fn update_line_numbers(state: &EditorState) {
         .editor_container
         .style()
         .set_property("--gutter-width", &width);
+    sync_scroll(state);
 }
 
 /// Number of decimal digits in `n` (minimum 1).

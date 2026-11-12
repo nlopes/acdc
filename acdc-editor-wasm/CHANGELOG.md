@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Line numbers stay aligned with wrapped source lines when editing, scrolling,
+  or resizing the editor pane, so diagnostic locations match the gutter.
+
 - Restore clean strict Clippy builds for the WASM editor.
 
 - Legacy underlined headings are recognized and highlighted in builds without

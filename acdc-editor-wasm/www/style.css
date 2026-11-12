@@ -149,19 +149,29 @@ body.resizing .preview-pane {
     flex: 1;
     overflow: hidden; /* Handle scrolling within textarea/backdrop */
     --gutter-width: 3.5rem;
+    --gutter-background: #f0f1f3;
+    --gutter-border: #dee2e6;
+}
+
+/* Reserve the same scrollbar space in the textarea and both source mirrors. */
+#editor, #editor-backdrop, #line-numbers {
+    scrollbar-gutter: stable;
 }
 
 #line-numbers {
     position: absolute;
     top: 0;
     left: 0;
-    width: var(--gutter-width);
+    width: 100%;
     height: 100%;
     overflow: hidden;
     z-index: 1;
     pointer-events: none;
-    background: #f0f1f3;
-    border-right: 1px solid #dee2e6;
+    background: linear-gradient(to right,
+        var(--gutter-background) calc(var(--gutter-width) - 1px),
+        var(--gutter-border) calc(var(--gutter-width) - 1px),
+        var(--gutter-border) var(--gutter-width),
+        transparent var(--gutter-width));
     box-sizing: border-box;
 }
 
@@ -169,11 +179,28 @@ body.resizing .preview-pane {
     font-family: "Droid Sans Mono", "DejaVu Sans Mono", monospace;
     font-size: 14px;
     line-height: 1.5;
-    padding: 1rem 0.5rem 1rem 0;
+    padding: 1rem 1rem 1rem calc(var(--gutter-width) + 1rem);
     margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    color: transparent;
+    user-select: none;
+}
+
+#line-numbers pre > span {
+    display: block;
+    position: relative;
+    min-height: 1.5em;
+}
+
+#line-numbers pre > span::before {
+    content: attr(data-line);
+    position: absolute;
+    right: calc(100% + 1.5rem);
+    width: calc(var(--gutter-width) - 0.5rem);
+    white-space: nowrap;
     text-align: right;
     color: #999;
-    user-select: none;
 }
 
 #editor {
@@ -1392,8 +1419,8 @@ body.resizing .preview-pane {
     .preview-pane .pane-label { background: #252525; }
     .editor-note,
     .preview-note { background: #252525; border-bottom-color: #3a3a3a; color: #adb5bd; }
-    #line-numbers { background: #252525; border-right-color: #3a3a3a; }
-    #line-numbers pre { color: #666; }
+    .editor-container { --gutter-background: #252525; --gutter-border: #3a3a3a; }
+    #line-numbers pre > span::before { color: #666; }
     #editor { caret-color: #e0e0e0; }
     #highlight { color: #d4d4d4; }
     #parse-status.parse-ok { background: #1f3a26; color: #6bcf7f; box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3); }
