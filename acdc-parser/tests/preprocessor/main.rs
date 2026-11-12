@@ -6,6 +6,7 @@ mod ifeval_quoted;
 mod include_base_dir;
 mod include_encoding;
 mod include_indent_limit;
+mod include_leveloffset;
 mod include_max_depth;
 mod include_missing_fallback;
 mod include_remote_origin;

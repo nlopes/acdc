@@ -19,6 +19,8 @@ use crate::{
     DocumentAttributes, Error, SafeMode, SourceLocation, model::RawAttributes,
 };
 
+pub(crate) const INTERNAL_LEVELOFFSET_ATTR: &str = "__acdc_parser_internal_leveloffset";
+
 pub(crate) fn parse_ruby_integer_magnitude(value: &str) -> usize {
     let value = value.trim_start_matches(|ch: char| ch.is_ascii_whitespace());
     let value = value
