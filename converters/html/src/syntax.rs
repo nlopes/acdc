@@ -169,8 +169,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         diagnostics.as_deref_mut(),
     );
     let options = attributes
-        .map(|attributes| SourceLineOptions::from_attributes(attributes, &code))
-        .unwrap_or_default();
+        .map_or_default(|attributes| SourceLineOptions::from_attributes(attributes, &code));
     if options.is_empty() && links.is_empty() && callouts.is_empty() {
         return highlight_source(writer, &code, language, theme_name, mode, diagnostics);
     }
