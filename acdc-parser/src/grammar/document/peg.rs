@@ -952,7 +952,7 @@ peg::parser! {
         }
 
         // Marker-only lines can close inline formatting. Require a separator and
-        // title before ending a paragraph or consuming heading metadata.
+        // title before recognizing a heading or consuming heading metadata.
         rule atx_heading_prefix()
         = ("=" / "#")*<1,6> whitespace()+ !eol() &[_]
 
@@ -1401,12 +1401,6 @@ peg::parser! {
 
             Ok(())
         }
-
-        rule heading_boundary(offset: usize)
-        = at_line_start(offset)
-          (check_section_blocks() (attribute_or_anchor_line_match() eol()*)*
-          / (attribute_or_anchor_line_match() eol()*)+)
-          at_line_start(offset) atx_heading_prefix()
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(Title<'input>, &'input str), Error>
         = title:$([^'\n']*)
@@ -1951,8 +1945,6 @@ peg::parser! {
 
         rule callout_list_marker() -> &'input str = $("<" (digits() / ".") ">")
 
-        rule section_level_marker() -> &'input str = $(("=" / "#")+)
-
         // This restricted form excludes titles and document attributes, which
         // asciidoctor does not assign to an automatically nested list.
         rule nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
@@ -2054,10 +2046,6 @@ peg::parser! {
             matches.then_some(()).ok_or("not an ordinary parent item")
         }
 
-        // Helper rule to check if we're at the start of a section heading (lookahead)
-        // This is used to terminate list continuations when a section follows
-        rule at_section_start() = (attribute_or_anchor_line_match() eol()*)* atx_heading_prefix()
-
         // Helper rule to check if we're at an ordered list marker ahead (after newlines)
         rule at_ordered_marker_ahead() = eol()+ whitespace()* ordered_list_marker()
 
@@ -2135,7 +2123,6 @@ peg::parser! {
               &eol()
               / &at_list_item_start()
               / &("+" whitespace()* (eol() / ![_]))
-              / &at_section_start()
               / &at_list_separator_content()
               / &nested_unordered_child_after_metadata(offset, current_marker, parent_ordered_marker)
               / at_callout_list_item()
@@ -2149,7 +2136,6 @@ peg::parser! {
               &eol()
               / &at_list_item_start()
               / &("+" whitespace()* (eol() / ![_]))
-              / &at_section_start()
               / &at_list_separator_content()
               / &nested_ordered_child_after_metadata(offset, current_marker, parent_unordered_marker)
               / at_callout_list_item()
@@ -2297,7 +2283,7 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
+        // Stop at: blank line, list item start, explicit continuation marker, or list separator
         continuation_lines:unordered_list_principal_continuation(offset, marker, parent_ordered_marker)*
         first_line_end:position!()
         principal:list_item_principal(offset, block_metadata, first_line_start, first_line_end, first_line, &continuation_lines)
@@ -2592,7 +2578,7 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
+        // Stop at: blank line, list item start, explicit continuation marker, or list separator
         continuation_lines:ordered_list_principal_continuation(offset, marker, parent_unordered_marker)*
         first_line_end:position!()
         principal:list_item_principal(offset, block_metadata, first_line_start, first_line_end, first_line, &continuation_lines)
@@ -3011,13 +2997,12 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        // Stop at list markers, explicit continuations, blank lines, section
-        // headers, or block attributes.
+        // Stop at list markers, explicit continuations, blank lines, or block attributes.
         continuation_lines:(
             eol()
             !at_callout_list_item()
             !check_line_is_description_list(offset)
-            !(whitespace()* (unordered_list_marker() / ordered_list_marker() / section_level_marker() whitespace() / "[" / "+" whitespace()* eol() / eol()))
+            !(whitespace()* (unordered_list_marker() / ordered_list_marker() / "[" / "+" whitespace()* eol() / eol()))
             line:$((!(eol()) [_])*)
             { line }
         )*
@@ -3164,7 +3149,7 @@ peg::parser! {
         !check_line_is_description_list(offset)
         !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
         !("+" whitespace()* (eol() / ![_]))
-        !example_delimiter()
+        !(example_delimiter() (eol() / ![_]))
         !listing_delimiter()
         !literal_delimiter()
         !sidebar_delimiter()
@@ -3175,7 +3160,6 @@ peg::parser! {
         !(open_delimiter() (whitespace()* eol()))
         !markdown_code_delimiter()
         !attribute_or_anchor_line_match()
-        !heading_boundary(offset)
 
         rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = term_start:position!()
@@ -3644,7 +3628,7 @@ peg::parser! {
             / eol()* ![_]
             / eol() &attributes_line()
             / eol() &anchor_line_match()
-            / eol() example_delimiter()
+            / eol() example_delimiter() &(eol() / ![_])
             / eol() listing_delimiter()
             / eol() literal_delimiter()
             / eol() sidebar_delimiter()
@@ -3657,7 +3641,6 @@ peg::parser! {
             / eol() at_callout_parent_item(offset)
             / eol() attached_list_boundary(offset, parent_marker)
             / eol() &("+" whitespace()* (eol() / ![_]))  // Only a standalone plus continues a list.
-            / eol()* &heading_boundary(offset)
             ) [_]
         )+))
         {

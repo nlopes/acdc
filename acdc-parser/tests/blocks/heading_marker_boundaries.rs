@@ -105,12 +105,12 @@ fn standalone_hashes_close_multiline_highlights() -> Result<(), Error> {
 }
 
 #[test]
-fn titled_headings_still_interrupt_paragraphs() -> Result<(), Error> {
+fn titled_headings_at_block_boundaries_create_sections() -> Result<(), Error> {
     for marker in ["=", "#"] {
         for depth in 2..=6 {
             for separator in [" ", "\t", "  ", " \t "] {
                 let source = format!(
-                    "Before.\n{}{separator}Section\n\nBody.\n",
+                    "Before.\n\n{}{separator}Section\n\nBody.\n",
                     marker.repeat(depth)
                 );
                 let parsed = parse(&source, &Options::default())?;
@@ -171,7 +171,7 @@ fn heading_metadata_before_bare_markers_belongs_to_the_paragraph() -> Result<(),
 
 #[test]
 fn a_title_that_expands_to_empty_is_still_a_heading() -> Result<(), Error> {
-    let source = "= Document\n:blank:\n\nBefore.\n== {blank}\n\nBody.\n";
+    let source = "= Document\n:blank:\n\nBefore.\n\n== {blank}\n\nBody.\n";
     let parsed = parse(source, &Options::default())?;
     assert!(matches!(
         &*parsed

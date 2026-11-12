@@ -247,15 +247,15 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Ordinary paragraph before a heading",
+          "value": "Ordinary paragraph before a heading\n== Section title\nsection body",
           "location": [
             {
               "line": 21,
               "col": 1
             },
             {
-              "line": 21,
-              "col": 35
+              "line": 23,
+              "col": 12
             }
           ]
         }
@@ -266,71 +266,6 @@
       "location": [
         {
           "line": 20,
-          "col": 1
-        },
-        {
-          "line": 21,
-          "col": 35
-        }
-      ]
-    },
-    {
-      "name": "section",
-      "type": "block",
-      "title": [
-        {
-          "name": "text",
-          "type": "string",
-          "value": "Section title",
-          "location": [
-            {
-              "line": 22,
-              "col": 4
-            },
-            {
-              "line": 22,
-              "col": 16
-            }
-          ]
-        }
-      ],
-      "level": 1,
-      "blocks": [
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "section body",
-              "location": [
-                {
-                  "line": 23,
-                  "col": 1
-                },
-                {
-                  "line": 23,
-                  "col": 12
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 23,
-              "col": 1
-            },
-            {
-              "line": 23,
-              "col": 12
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 22,
           "col": 1
         },
         {

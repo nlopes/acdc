@@ -1,0 +1,46 @@
+= Heading boundaries
+:toc:
+
+Before.
+== Paragraph text
+After.
+
+* Item.
+## Unordered item text
+After.
+
+. Item.
+== Ordered item text
+After.
+
+Term:: Definition.
+## Description text
+After.
+
+----
+code <1>
+----
+<1> Explanation.
+== Callout text
+After.
+
+* Parent.
+** Nested.
+## Nested item text
+After.
+
+* Item.
++
+Before.
+== Attached paragraph text
+After.
+
+== Real section
+
+Body.
+=== Section paragraph text
+After.
+
+== Sibling section
+
+Body.

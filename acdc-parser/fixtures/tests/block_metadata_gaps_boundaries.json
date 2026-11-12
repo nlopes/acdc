@@ -180,7 +180,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Item",
+                  "value": "Item\n",
                   "location": [
                     {
                       "line": 13,
@@ -188,7 +188,22 @@
                     },
                     {
                       "line": 13,
-                      "col": 6
+                      "col": 7
+                    }
+                  ]
+                },
+                {
+                  "name": "anchor",
+                  "type": "inline",
+                  "id": "unordered-section",
+                  "location": [
+                    {
+                      "line": 14,
+                      "col": 1
+                    },
+                    {
+                      "line": 14,
+                      "col": 21
                     }
                   ]
                 }
@@ -199,8 +214,8 @@
                   "col": 1
                 },
                 {
-                  "line": 13,
-                  "col": 6
+                  "line": 14,
+                  "col": 21
                 }
               ]
             }
@@ -211,8 +226,8 @@
               "col": 1
             },
             {
-              "line": 13,
-              "col": 6
+              "line": 14,
+              "col": 21
             }
           ]
         },
@@ -236,26 +251,9 @@
               ]
             }
           ],
-          "metadata": {
-            "anchors": [
-              {
-                "id": "unordered-section",
-                "location": [
-                  {
-                    "line": 14,
-                    "col": 1
-                  },
-                  {
-                    "line": 14,
-                    "col": 22
-                  }
-                ]
-              }
-            ]
-          },
           "location": [
             {
-              "line": 14,
+              "line": 16,
               "col": 1
             },
             {
@@ -327,7 +325,7 @@
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Item",
+                  "value": "Item\n",
                   "location": [
                     {
                       "line": 22,
@@ -335,7 +333,22 @@
                     },
                     {
                       "line": 22,
-                      "col": 6
+                      "col": 7
+                    }
+                  ]
+                },
+                {
+                  "name": "anchor",
+                  "type": "inline",
+                  "id": "ordered-section",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 1
+                    },
+                    {
+                      "line": 23,
+                      "col": 19
                     }
                   ]
                 }
@@ -346,8 +359,8 @@
                   "col": 1
                 },
                 {
-                  "line": 22,
-                  "col": 6
+                  "line": 23,
+                  "col": 19
                 }
               ]
             }
@@ -358,8 +371,8 @@
               "col": 1
             },
             {
-              "line": 22,
-              "col": 6
+              "line": 23,
+              "col": 19
             }
           ]
         },
@@ -383,26 +396,9 @@
               ]
             }
           ],
-          "metadata": {
-            "anchors": [
-              {
-                "id": "ordered-section",
-                "location": [
-                  {
-                    "line": 23,
-                    "col": 1
-                  },
-                  {
-                    "line": 23,
-                    "col": 20
-                  }
-                ]
-              }
-            ]
-          },
           "location": [
             {
-              "line": 23,
+              "line": 25,
               "col": 1
             },
             {

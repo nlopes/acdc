@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Heading-like lines such as `== Title` and `## Title` inside paragraphs and
+  list items now remain text in both compatibility modes, matching Asciidoctor.
+  They no longer create extra sections or table of contents entries.
+
 - Tables now retain a final row completed by a row span from an earlier row,
   including combined column and row spans, without an incorrect incomplete-row
   warning. Both compatibility modes match Asciidoctor.

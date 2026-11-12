@@ -61,10 +61,6 @@ fn draft_matches_structure_before_style(
 )]
 #[case("verse", "Ordinary paragraph before metadata\n[quote]\nNext paragraph")]
 #[case(
-    "literal",
-    "Ordinary paragraph before a heading\n== Section title\nsection body"
-)]
-#[case(
     "source,text",
     " indented content before a delimiter\n----\nseparate listing body\n----"
 )]
@@ -101,6 +97,32 @@ fn draft_styled_paragraphs_keep_structural_boundaries(
     assert_eq!(first.location().absolute_start(), 0);
     assert_eq!(first.location().absolute_end() + 1, end);
     assert_eq!(parsed.warnings(), []);
+    Ok(())
+}
+
+#[rstest::rstest]
+fn styled_paragraphs_keep_heading_like_lines_in_their_text(
+    #[values("literal", "listing", "source,text", "verse")] style: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source =
+        format!("[{style}]\nOrdinary paragraph before a heading\n== Section title\nsection body");
+    let parsed = parse(
+        &source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let [BlockKind::Paragraph(paragraph)] = &*parsed
+        .document()
+        .blocks()
+        .map(BlockRef::kind)
+        .collect::<Vec<_>>()
+    else {
+        return Err("expected one styled paragraph".into());
+    };
+    assert_eq!(paragraph.location().absolute_start(), 0);
+    assert_eq!(paragraph.location().absolute_end() + 1, source.len());
+    assert_eq!(parsed.document().toc_entries().count(), 0);
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }
 

@@ -70,15 +70,15 @@
         {
           "name": "text",
           "type": "string",
-          "value": "[[my section id]]",
+          "value": "[[my section id]]\n== Section with Space in Anchor",
           "location": [
             {
               "line": 6,
               "col": 1
             },
             {
-              "line": 6,
-              "col": 17
+              "line": 7,
+              "col": 31
             }
           ]
         }
@@ -89,53 +89,19 @@
           "col": 1
         },
         {
-          "line": 6,
-          "col": 17
+          "line": 7,
+          "col": 31
         }
       ]
     },
     {
-      "name": "section",
+      "name": "paragraph",
       "type": "block",
-      "title": [
+      "inlines": [
         {
           "name": "text",
           "type": "string",
-          "value": "Section with Space in Anchor",
-          "location": [
-            {
-              "line": 7,
-              "col": 4
-            },
-            {
-              "line": 7,
-              "col": 31
-            }
-          ]
-        }
-      ],
-      "level": 1,
-      "blocks": [
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "The invalid double-bracket anchor above stays literal.",
-              "location": [
-                {
-                  "line": 9,
-                  "col": 1
-                },
-                {
-                  "line": 9,
-                  "col": 54
-                }
-              ]
-            }
-          ],
+          "value": "The invalid double-bracket anchor above stays literal.",
           "location": [
             {
               "line": 9,
@@ -150,7 +116,7 @@
       ],
       "location": [
         {
-          "line": 7,
+          "line": 9,
           "col": 1
         },
         {
