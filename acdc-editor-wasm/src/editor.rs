@@ -35,6 +35,7 @@ struct EditorState {
     window: Window,
     editor: HtmlTextAreaElement,
     compatibility_mode: Option<HtmlSelectElement>,
+    draft_spec_notice: Option<HtmlElement>,
     highlight: Element,
     backdrop: Element,
     preview: Element,
@@ -63,6 +64,10 @@ impl EditorState {
         let compatibility_mode = doc
             .get_element_by_id("compatibility-mode")
             .map(JsCast::dyn_into::<HtmlSelectElement>)
+            .transpose()?;
+        let draft_spec_notice = doc
+            .get_element_by_id("draft-spec-notice")
+            .map(JsCast::dyn_into::<HtmlElement>)
             .transpose()?;
         let highlight = doc
             .get_element_by_id("highlight")
@@ -104,6 +109,7 @@ impl EditorState {
             window,
             editor,
             compatibility_mode,
+            draft_spec_notice,
             highlight,
             backdrop,
             preview,
@@ -287,14 +293,14 @@ const fn digit_count(n: usize) -> u32 {
 fn parse_and_update_both(state: &EditorState) {
     let input = state.editor.value();
 
-    let result = state
-        .compatibility_mode
-        .as_ref()
-        .map_or_else(
-            || Ok(acdc_parser::CompatibilityMode::default()),
-            |select| select.value().parse::<acdc_parser::CompatibilityMode>(),
-        )
-        .and_then(|mode| crate::parse_and_render_with_mode(&input, mode));
+    let mode = state.compatibility_mode.as_ref().map_or_else(
+        || Ok(acdc_parser::CompatibilityMode::default()),
+        |select| select.value().parse::<acdc_parser::CompatibilityMode>(),
+    );
+    if let Some(notice) = &state.draft_spec_notice {
+        notice.set_hidden(!matches!(mode, Ok(acdc_parser::CompatibilityMode::Draft)));
+    }
+    let result = mode.and_then(|mode| crate::parse_and_render_with_mode(&input, mode));
     match result {
         Ok(result) => {
             // Trailing newline keeps the pre height in sync with the textarea

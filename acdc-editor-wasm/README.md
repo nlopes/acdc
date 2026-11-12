@@ -27,6 +27,8 @@ Use `www/index.html` as the host template. These elements are required:
 An optional `#compatibility-mode` select chooses `asciidoctor` or `draft` and
 updates highlighting, warnings, and the preview together. Without it, the editor
 uses Asciidoctor compatibility. The supplied template includes this control.
+Selecting **Draft spec** shows an optional `#draft-spec-notice` above the preview,
+explaining that the specification is not finalized and linking to the current draft.
 
 ### JavaScript initialization
 

@@ -18,10 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Choose Asciidoctor or Draft compatibility in the live editor. Changing the
+- Choose Asciidoctor or Draft spec compatibility in the live editor. Changing the
   selection updates highlighting, diagnostics, and the preview together. Rust
   callers can select the same mode with `parse_and_render_with_mode`; the
   existing API keeps its Asciidoctor default and disabled include loading.
+  Selecting Draft spec shows a notice above the preview that the specification
+  is not finalized, with a link to the current draft.
 
 - Keep source highlighting available around resolved typography.
 

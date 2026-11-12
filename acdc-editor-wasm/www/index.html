@@ -100,7 +100,7 @@
           <label for="compatibility-mode">Compatibility
             <select id="compatibility-mode">
               <option value="asciidoctor" selected>Asciidoctor</option>
-              <option value="draft">Draft</option>
+              <option value="draft">Draft spec</option>
             </select>
           </label>
         </div>
@@ -121,6 +121,7 @@
       <div class="resize-handle" id="resize-handle"></div>
       <div class="preview-pane">
         <div class="pane-label">Preview</div>
+        <p id="draft-spec-notice" class="preview-note" role="status" hidden>The AsciiDoc specification is not finalized. Read the <a href="https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/outline.adoc" target="_blank" rel="noopener noreferrer">current draft spec</a>.</p>
         <div id="preview"></div>
       </div>
     </main>

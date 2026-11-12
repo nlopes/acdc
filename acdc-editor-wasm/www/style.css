@@ -129,13 +129,18 @@ body.resizing .preview-pane {
     background: #f8f9fa;
 }
 
-.editor-note {
+.editor-note,
+.preview-note {
     margin: 0;
     padding: 6px 12px;
     font-size: 12px;
     color: #495057;
     background: #f8f9fa;
     border-bottom: 1px solid #dee2e6;
+}
+
+.preview-note a {
+    color: inherit;
 }
 
 /* Editor CSS from README */
@@ -1385,7 +1390,8 @@ body.resizing .preview-pane {
     .pane-label { color: #8b929a; border-bottom-color: #3a3a3a; }
     .editor-pane .pane-label,
     .preview-pane .pane-label { background: #252525; }
-    .editor-note { background: #252525; border-bottom-color: #3a3a3a; color: #adb5bd; }
+    .editor-note,
+    .preview-note { background: #252525; border-bottom-color: #3a3a3a; color: #adb5bd; }
     #line-numbers { background: #252525; border-right-color: #3a3a3a; }
     #line-numbers pre { color: #666; }
     #editor { caret-color: #e0e0e0; }
