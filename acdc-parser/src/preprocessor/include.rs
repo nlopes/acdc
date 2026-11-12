@@ -76,7 +76,6 @@ use peg::include_parser;
 use std::{
     cell::RefCell,
     collections::HashSet,
-    mem::take,
     path::{Component, Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -87,7 +86,7 @@ use url::Url;
 use crate::{
     CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
     IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options,
-    Preprocessor, SafeMode, Warning,
+    SafeMode, Warning,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
@@ -378,8 +377,48 @@ pub(super) struct IncludeResult {
     pub(crate) source_ranges: Vec<SourceRange>,
     pub(crate) included_files: HashSet<String>,
     pub(crate) conditionals: Vec<crate::ConditionalEvaluation>,
-    pub(crate) document_attributes: Option<crate::DocumentAttributes<'static>>,
     pub(super) comment_context: Option<super::comment::BlockContext>,
+    pub(super) input: Option<IncludeInput>,
+}
+
+#[derive(Debug)]
+pub(super) struct IncludeInput {
+    pub(super) source_origin: SourceOrigin,
+    pub(super) line_origins: Vec<SourceLineOrigin>,
+    pub(super) context: IncludeContext,
+    pub(super) attributes: Option<DocumentAttributes<'static>>,
+    pub(super) scope: Option<IncludeScope>,
+}
+
+#[derive(Debug)]
+pub(super) struct IncludeScope {
+    current: DocumentAttributeAssignment<'static>,
+    previous: DocumentAttributeAssignment<'static>,
+    mode: CompatibilityMode,
+    prefix: String,
+    suffix: String,
+}
+
+impl IncludeScope {
+    pub(super) fn finish(
+        self,
+        result: &mut super::PreprocessorResult<'_>,
+        attributes: &mut DocumentAttributes<'_>,
+    ) -> Result<(), Error> {
+        let mut scanner = CommentScanner::new(
+            crate::grammar::setext::is_enabled(self.mode),
+            std::mem::take(&mut result.comment_context),
+            self.mode,
+        );
+        scanner.record_expansion("\n\n", attributes);
+        if scanner.block_context().allows_scope_entry() {
+            Include::restore_leveloffset(attributes, self.previous, self.mode)?;
+        }
+        scanner.record(&self.suffix[2..], attributes);
+        result.comment_context = scanner.block_context();
+        Include::wrap_leveloffset(result, self.current, attributes, &self.prefix, &self.suffix);
+        Ok(())
+    }
 }
 
 enum UrlReadError {
@@ -424,8 +463,8 @@ impl IncludeResult {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             conditionals: Vec::new(),
-            document_attributes: None,
             comment_context: None,
+            input: None,
         }
     }
 
@@ -446,8 +485,8 @@ impl IncludeResult {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             conditionals: Vec::new(),
-            document_attributes: None,
             comment_context: None,
+            input: None,
         }
     }
 
@@ -462,8 +501,8 @@ impl IncludeResult {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             conditionals: Vec::new(),
-            document_attributes: None,
             comment_context: None,
+            input: None,
         }
     }
 }
@@ -869,16 +908,22 @@ impl<'a> Include<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             conditionals: Vec::new(),
-            document_attributes: None,
             comment_context: None,
+            input: None,
         };
         if is_asciidoc {
-            self.preprocess_selected_asciidoc(
-                &mut included,
-                source_origin,
-                line_origins,
-                scoped_options,
-            )?;
+            included.input = Some(self.prepare_input(source_origin, line_origins, scoped_options));
+            let full = match &self.selection {
+                ContentSelection::All => true,
+                ContentSelection::Lines(_) => false,
+                ContentSelection::Tags(filters) => super::tag::selects_all(filters),
+            };
+            if full
+                && !self.opts.iter().any(|option| option == "partial")
+                && let Some(name) = source_origin.include_name()
+            {
+                included.included_files.insert(name);
+            }
         } else {
             included.source_ranges =
                 Self::source_ranges_for_lines(&included.content, &line_origins, source_origin);
@@ -909,31 +954,32 @@ impl<'a> Include<'a> {
         Ok(Some(options))
     }
 
-    fn preprocess_selected_asciidoc(
+    fn prepare_input(
         &self,
-        included: &mut IncludeResult,
         source_origin: &SourceOrigin,
         line_origins: Vec<SourceLineOrigin>,
         scoped_options: Option<Box<Options<'a>>>,
-    ) -> Result<(), Error> {
+    ) -> IncludeInput {
         let mut context = self.context.clone();
         let scope = scoped_options.as_ref().map(|options| {
             let prefix = self.leveloffset_prefix();
             let mut scanner = CommentScanner::new(
                 crate::grammar::setext::is_enabled(self.options.compatibility_mode),
-                take(&mut context.block_context),
+                std::mem::take(&mut context.block_context),
                 self.options.compatibility_mode,
             );
             scanner.record_expansion(&prefix, &options.document_attributes);
             context.block_context = scanner.block_context();
-            (
-                Self::leveloffset_assignment(&options.document_attributes),
+            IncludeScope {
+                current: Self::leveloffset_assignment(&options.document_attributes),
+                previous: Self::leveloffset_assignment(&self.options.document_attributes),
+                mode: self.options.compatibility_mode,
                 prefix,
-                format!(
+                suffix: format!(
                     "\n\n{}",
                     Self::leveloffset_control(&self.options.document_attributes)
                 ),
-            )
+            }
         });
         if let Some(depth) = self.depth {
             let limit = context.depth.saturating_add(1).saturating_add(depth);
@@ -942,64 +988,21 @@ impl<'a> Include<'a> {
                 context.local_depth_limit = Some(depth);
             }
         }
-        let mut preprocessed = Preprocessor::nested(&self.warnings, context)
-            .process_mapped(
-                take(&mut included.content),
-                source_origin,
-                scoped_options.map_or_else(|| self.options.clone(), |options| *options),
-                line_origins,
-            )
-            .inspect_err(|_| {
-                tracing::error!("failed to process included content");
-            })?;
-        if let Some((current, prefix, suffix)) = scope {
-            let mut scanner = CommentScanner::new(
-                crate::grammar::setext::is_enabled(self.options.compatibility_mode),
-                preprocessed.result.comment_context,
-                self.options.compatibility_mode,
-            );
-            scanner.record_expansion("\n\n", &preprocessed.document_attributes);
-            if scanner.block_context().allows_scope_entry() {
-                self.restore_leveloffset(&mut preprocessed.document_attributes)?;
-            }
-            scanner.record(&suffix[2..], &preprocessed.document_attributes);
-            preprocessed.result.comment_context = scanner.block_context();
-            Self::wrap_leveloffset(
-                &mut preprocessed.result,
-                current,
-                &preprocessed.document_attributes,
-                &prefix,
-                &suffix,
-            );
+        IncludeInput {
+            source_origin: source_origin.clone(),
+            line_origins,
+            context,
+            attributes: scoped_options.map(|options| options.document_attributes.into_static()),
+            scope,
         }
-        included.content = preprocessed.result.text.into_owned();
-        included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
-        included.leveloffset_scopes = preprocessed.result.leveloffset_scopes;
-        included.source_ranges = preprocessed.result.source_ranges;
-        included.included_files = preprocessed.result.included_files;
-        included.conditionals = preprocessed.result.conditionals;
-        included.document_attributes = Some(preprocessed.document_attributes);
-        included.comment_context = Some(preprocessed.result.comment_context);
-        let full = match &self.selection {
-            ContentSelection::All => true,
-            ContentSelection::Lines(_) => false,
-            ContentSelection::Tags(filters) => super::tag::selects_all(filters),
-        };
-        if full
-            && !self.opts.iter().any(|option| option == "partial")
-            && let Some(name) = source_origin.include_name()
-        {
-            included.included_files.insert(name);
-        }
-        Ok(())
     }
 
     fn restore_leveloffset(
-        &self,
-        attributes: &mut DocumentAttributes<'static>,
+        attributes: &mut DocumentAttributes<'_>,
+        previous: DocumentAttributeAssignment<'static>,
+        mode: CompatibilityMode,
     ) -> Result<(), Error> {
-        let previous = Self::leveloffset_assignment(&self.options.document_attributes);
-        if self.options.compatibility_mode == CompatibilityMode::Draft {
+        if mode == CompatibilityMode::Draft {
             // Restore the already accepted snapshot without interpreting its text again.
             attributes.normalize_assignment("leveloffset".into(), previous);
             return Ok(());
@@ -1020,11 +1023,7 @@ impl<'a> Include<'a> {
             value,
             ignored_value: None,
         };
-        super::attribute::apply_declaration(
-            &declaration,
-            attributes,
-            self.options.compatibility_mode,
-        )
+        super::attribute::apply_declaration(&declaration, attributes, mode)
     }
 
     fn leveloffset_assignment(
