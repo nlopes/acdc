@@ -146,10 +146,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cannot change later includes or conditionals, unlike source-changing
   Asciidoctor extensions.
 
-- Faster parsing of paragraphs, mixed ASCII and Unicode text, formatting, inline
-  passthroughs, and duplicated ordinary table cells (`3*|text`) in both
-  compatibility modes, including text expanded from attributes, while
-  preserving substitution rules and source locations.
+- Faster parsing of paragraphs, deeply nested blocks, mixed ASCII and Unicode
+  text, formatting, inline passthroughs, and duplicated ordinary table cells
+  (`3*|text`) in both compatibility modes, including text expanded from
+  attributes, while preserving substitution rules and source locations.
 
 - Keyboard macros with deeply nested brackets no longer abort parsing with a
   stack overflow when `:experimental:` is enabled. Both compatibility modes

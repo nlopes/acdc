@@ -1,17 +1,20 @@
 //! Cooperate with the reader between committed construction steps.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
 use crate::{
-    AttributeName, Block, Document, DocumentAttributeAssignment, Error,
+    AttributeName, Block, Document, DocumentAttributeAssignment, DocumentAttributes, Error,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
-    grammar::{ParserState, source::SourceIndex},
+    grammar::{
+        LineMap, ParserState,
+        source::{SourceIndex, SourceView},
+    },
     preprocessor::{PreprocessorResult, SourceReader},
 };
 
 use super::{
     construction::ConstructionMode,
-    coordinator::{BlockCursor, Execution},
+    coordinator::{BlockCursor, Execution, document_with},
     document_parser,
     input::{BlockInput, ReadRequest},
     lists::{ListKind, ListPhase, OrdinaryListKind},
@@ -26,8 +29,8 @@ pub(crate) trait SourceHandler {
     fn accepted<'a>(
         &mut self,
         block: &Block<'a>,
-        state: &ParserState<'a>,
-    ) -> Result<Assignments<'a>, Error>;
+        attributes: &DocumentAttributes<'a>,
+    ) -> Result<Assignments<'a>, String>;
 }
 
 #[derive(Clone, Copy)]
@@ -78,8 +81,9 @@ struct SourceStart<'a> {
 pub(super) struct SourceInput<'a> {
     reader: Option<SourceReader<'a>>,
     pub(super) index: Rc<SourceIndex<'a>>,
-    pub(super) result: Option<PreprocessorResult<'static>>,
+    pub(super) result: Option<PreprocessorResult<'a>>,
     updates: PendingAssignments,
+    failed: bool,
 }
 
 impl<'a> SourceInput<'a> {
@@ -93,6 +97,7 @@ impl<'a> SourceInput<'a> {
             index,
             result: None,
             updates,
+            failed: false,
         }
     }
 
@@ -103,9 +108,10 @@ impl<'a> SourceInput<'a> {
     ) -> Result<Option<&'a str>, Error> {
         loop {
             if offset < self.index.len() {
-                let tail = self
-                    .index
-                    .tail(offset)
+                let tail = state
+                    .source_tail(offset)
+                    .filter(|tail| !tail.is_empty())
+                    .or_else(|| self.index.tail(offset))
                     .ok_or_else(|| source_error(state, offset, "missing emitted source line"))?;
                 let end = tail.find('\n').map_or(tail.len(), |end| end + 1);
                 return Ok(tail.get(..end));
@@ -119,7 +125,7 @@ impl<'a> SourceInput<'a> {
                     DocumentAttributeAssignment::Unset => RawAttributeValue::Unset,
                 };
                 reader
-                    .options
+                    .options_mut()
                     .document_attributes
                     .assign_document_value(name, value, false, false, None)?;
             }
@@ -150,6 +156,15 @@ impl<'a> SourceInput<'a> {
     fn kind(line: &'a str, state: &mut ParserState<'a>) -> SourceLine<'a> {
         // Classification is read-only and shares the document grammar's raw
         // recognizers. Only the accepted construction pass builds inline nodes.
+        if line == "\n" {
+            return SourceLine::Blank;
+        }
+        // Alphabetic lines can introduce a macro or a description item. All
+        // other block openers start with punctuation, digits, or whitespace.
+        // These reject filters avoid starting PEG for ordinary prose lines.
+        if is_prose_line(line) {
+            return SourceLine::Text;
+        }
         document_parser::source_line(line, state).unwrap_or(SourceLine::Text)
     }
 
@@ -435,6 +450,9 @@ impl<'a> SourceInput<'a> {
         while let Some(next) = self.line(offset, state)? {
             let next_start = offset;
             offset += next.len();
+            if next == "\n" {
+                break;
+            }
             if first
                 && !verbatim
                 && crate::grammar::setext::is_title(line.trim_end_matches('\n'))
@@ -454,8 +472,11 @@ impl<'a> SourceInput<'a> {
                     SourceLine::Blank | SourceLine::Continuation
                 ))
                 || (!verbatim
-                    && document_parser::source_paragraph_boundary(next, state, next_start, parent)
-                        .is_ok())
+                    && (next == "\n"
+                        || document_parser::source_paragraph_boundary(
+                            next, state, next_start, parent,
+                        )
+                        .is_ok()))
             {
                 break;
             }
@@ -528,8 +549,25 @@ impl<'a> SourceInput<'a> {
     }
 }
 
-impl<'a> BlockInput<'a> for SourceInput<'a> {
-    fn prepare(
+impl<'a> SourceInput<'a> {
+    #[inline]
+    fn buffered_prose(&self, cursor: &mut BlockCursor, state: &ParserState<'a>) -> Option<&'a str> {
+        let start = cursor.base_offset + cursor.offset;
+        if let Some(origin) = state.input_origin.as_ref().filter(|origin| {
+            Rc::ptr_eq(&origin.index, &self.index)
+                && origin.base <= start
+                && origin.base + state.input.len() <= self.index.len()
+        }) && let Some(tail) = state.input.get(start - origin.base..)
+            && complete_prose_prefix(tail)
+        {
+            cursor.offset = start - origin.base;
+            cursor.base_offset = origin.base;
+            return Some(state.input);
+        }
+        None
+    }
+
+    fn prepare_window(
         &mut self,
         cursor: &mut BlockCursor,
         state: &mut ParserState<'a>,
@@ -537,19 +575,20 @@ impl<'a> BlockInput<'a> for SourceInput<'a> {
     ) -> Result<&'a str, Error> {
         let start = cursor.base_offset + cursor.offset;
         let end = self.scan(start, request, state)?;
-        let active = state.source_view();
-        let view = if active.origin.as_ref().is_some_and(|origin| {
+        if let Some(origin) = state.input_origin.as_ref().filter(|origin| {
             Rc::ptr_eq(&origin.index, &self.index)
                 && origin.base <= start
-                && end <= origin.base + active.input.len()
-                && origin.base + active.input.len() <= self.index.len()
+                && end <= origin.base + state.input.len()
+                && origin.base + state.input.len() <= self.index.len()
         }) {
-            active
-        } else {
-            self.index
-                .window(start..end, state.arena)
-                .ok_or_else(|| source_error(state, start, "missing accepted source window"))?
-        };
+            cursor.offset = start - origin.base;
+            cursor.base_offset = origin.base;
+            return Ok(state.input);
+        }
+        let view = self
+            .index
+            .window(start..end, state.arena)
+            .ok_or_else(|| source_error(state, start, "missing accepted source window"))?;
         let base = view.origin.as_ref().map_or(0, |origin| origin.base);
         cursor.offset = start - base;
         cursor.base_offset = base;
@@ -557,6 +596,50 @@ impl<'a> BlockInput<'a> for SourceInput<'a> {
         state.set_source_view(view);
         Ok(source)
     }
+}
+
+impl<'a> BlockInput<'a> for SourceInput<'a> {
+    #[inline]
+    fn prepare(
+        &mut self,
+        cursor: &mut BlockCursor,
+        state: &mut ParserState<'a>,
+        request: ReadRequest<'a>,
+    ) -> Result<&'a str, Error> {
+        if matches!(request, ReadRequest::Block)
+            && let Some(source) = self.buffered_prose(cursor, state)
+        {
+            return Ok(source);
+        }
+        let result = self.prepare_window(cursor, state, request);
+        self.failed |= result.is_err();
+        result
+    }
+
+    fn failed(&self) -> bool {
+        self.failed
+    }
+}
+
+fn is_prose_line(line: &str) -> bool {
+    line.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+        && !line.contains("::")
+        && !line.contains(";;")
+}
+
+/// A blank after a few ordinary lines proves the first block can commit
+/// within the existing buffer. Bound the probe so adjacent headings without
+/// blank lines cannot repeatedly scan the remainder of a large source chunk.
+fn complete_prose_prefix(source: &str) -> bool {
+    for line in source.trim_start_matches('\n').lines().take(4) {
+        if line.is_empty() {
+            return true;
+        }
+        if !is_prose_line(line) {
+            return false;
+        }
+    }
+    false
 }
 
 fn source_error(state: &ParserState<'_>, offset: usize, message: &str) -> Error {
@@ -577,12 +660,33 @@ fn recognition_error(mut error: super::RecognitionError, state: &ParserState<'_>
 }
 
 pub(crate) fn document_from_source<'a>(
-    reader: SourceReader<'a>,
+    mut reader: SourceReader<'a>,
     state: &mut ParserState<'a>,
     handler: &mut dyn SourceHandler,
-    finish_source: impl FnOnce(String) -> &'a str,
-) -> Result<(Document<'a>, Vec<crate::ConditionalEvaluation>), Error> {
+    conditionals: &mut Vec<crate::ConditionalEvaluation>,
+    finish_source: impl FnOnce(Cow<'a, str>) -> &'a str,
+) -> Result<Document<'a>, Error> {
+    if let Some(result) = reader.take_pass_through() {
+        let source = finish_source(result.text);
+        if !std::ptr::eq(state.input, source) {
+            state.set_source_view(SourceView {
+                input: source,
+                line_map: Rc::new(LineMap::new(source)),
+                origin: None,
+            });
+        }
+        let mut callback = |block: &Block<'a>, state: &mut ParserState<'a>| {
+            execute_source_handler(handler, block, state, None)
+        };
+        let document = document_with(source, state, ConstructionMode::Ordered, &mut callback)
+            .map_err(|error| recognition_error(error, state))??;
+        *conditionals = result.conditionals;
+        return Ok(document);
+    }
     let updates = PendingAssignments::default();
+    let mut callback = |block: &Block<'a>, state: &mut ParserState<'a>| {
+        execute_source_handler(handler, block, state, Some(&updates))
+    };
     let index = state
         .input_origin
         .as_ref()
@@ -600,31 +704,6 @@ pub(crate) fn document_from_source<'a>(
         .map_err(|error| recognition_error(error, state))??;
     let mut cursor = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
     let mut blocks = prefix.comments;
-    let mut callback = |block: &Block<'a>, state: &mut ParserState<'a>| {
-        for (name, assignment) in handler.accepted(block, state)? {
-            let name = state.intern_cow(name);
-            let value = match assignment {
-                DocumentAttributeAssignment::Set(value) => RawAttributeValue::Resolved(value),
-                DocumentAttributeAssignment::Unset => RawAttributeValue::Unset,
-            };
-            if let Some(event) = state.apply_document_attribute(
-                &AttributeDeclaration {
-                    name,
-                    value,
-                    ignored_value: None,
-                },
-                false,
-                block.location().clone(),
-            ) && state.nested_parent_attributes.is_none()
-            {
-                updates.borrow_mut().push((
-                    name.to_owned().into(),
-                    event.assignment().clone().into_static(),
-                ));
-            }
-        }
-        Ok(())
-    };
     let end = cursor
         .collect(
             &mut input,
@@ -637,7 +716,7 @@ pub(crate) fn document_from_source<'a>(
         .result
         .take()
         .ok_or_else(|| source_error(state, end, "document ended before source exhaustion"))?;
-    let source = finish_source(result.text.into_owned());
+    let source = finish_source(result.text);
     state.input = source;
     state.input_origin = None;
     state.source_scope_offset = 0;
@@ -653,5 +732,58 @@ pub(crate) fn document_from_source<'a>(
         prefix.attributes,
         blocks,
     )?;
-    Ok((document, result.conditionals))
+    *conditionals = result.conditionals;
+    Ok(document)
+}
+
+#[inline]
+fn execute_source_handler<'a>(
+    handler: &mut dyn SourceHandler,
+    block: &Block<'a>,
+    state: &mut ParserState<'a>,
+    updates: Option<&PendingAssignments>,
+) -> Result<(), Error> {
+    let assignments = handler
+        .accepted(block, &state.document_attributes)
+        .map_err(|message| {
+            Error::Extension(
+                Box::new(state.create_error_source_location(block.location().clone())),
+                message,
+            )
+        })?;
+    if !assignments.is_empty() {
+        apply_assignments(assignments, block, state, updates);
+    }
+    Ok(())
+}
+
+fn apply_assignments<'a>(
+    assignments: Assignments<'a>,
+    block: &Block<'a>,
+    state: &mut ParserState<'a>,
+    updates: Option<&PendingAssignments>,
+) {
+    for (name, assignment) in assignments {
+        let name = state.intern_cow(name);
+        let value = match assignment {
+            DocumentAttributeAssignment::Set(value) => RawAttributeValue::Resolved(value),
+            DocumentAttributeAssignment::Unset => RawAttributeValue::Unset,
+        };
+        if let Some(event) = state.apply_document_attribute(
+            &AttributeDeclaration {
+                name,
+                value,
+                ignored_value: None,
+            },
+            false,
+            block.location().clone(),
+        ) && state.nested_parent_attributes.is_none()
+            && let Some(updates) = updates
+        {
+            updates.borrow_mut().push((
+                name.to_owned().into(),
+                event.assignment().clone().into_static(),
+            ));
+        }
+    }
 }

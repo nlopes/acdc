@@ -185,17 +185,23 @@ impl BlockCursor {
                 return Ok(Ok(children));
             };
             let child = match child {
-                Ok(BlockStepKind::List(entry)) => {
-                    self.construct_list(input, state, &entry, metadata, accepted)?
+                Ok(BlockStepKind::List(entry)) => self.construct_list_into(
+                    input,
+                    state,
+                    &entry,
+                    metadata,
+                    &mut children.blocks,
+                    accepted,
+                )?,
+                Ok(kind) => {
+                    self.construct_into(input, state, kind, &mut children.blocks, accepted)?
                 }
-                Ok(kind) => self.construct(input, state, kind, accepted)?,
                 Err(error) => Err(error),
             };
             match child {
-                Ok(block) => children.blocks.push(block),
-                Err(error) if accepted.failed() => return Ok(Err(error)),
+                Err(error) if accepted.failed() || input.failed() => return Ok(Err(error)),
                 Err(error) if step.warn_on_error => children.errors.push(error),
-                Err(_) => {}
+                Ok(()) | Err(_) => {}
             }
         }
     }

@@ -17,7 +17,9 @@ use crate::{
         },
         document::{
             author::{derive_author_attrs, register_author_attrs},
-            construction::{ConstructionMode, DeferredContent, RecognizedContent, commit_content},
+            construction::{
+                ConstructionMode, DelimitedConstruction, QuoteConstruction, commit_content,
+            },
             coordinator::{BlockParent, BlockStep, BlockStepKind, DocumentPrefix, NestedPrefix},
             delimited::{DelimitedKind, DelimitedParams, build_delimited_block},
             doctype::{is_book_doctype, is_manpage_doctype},
@@ -36,9 +38,9 @@ use crate::{
             },
             metadata::{
                 AttributeBlockForm, AttributeOrAnchorLine, BlockMetadataLine, MetadataComment,
-                ParsedAttributeList, RawAttributeList, TitleSource, finish_block_parsing_metadata,
-                media_attributes_ahead, merge_macro_metadata, metadata_comment,
-                metadata_marks_discrete_heading, order_block_prefix_events,
+                ParsedAttributeList, RawAttributeList, TitleSource, assign_block_caption,
+                finish_block_parsing_metadata, media_attributes_ahead, merge_macro_metadata,
+                metadata_comment, metadata_marks_discrete_heading, order_block_prefix_events,
                 parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
                 resolve_title, route_block_positions, route_media_attributes, select_heading_style,
                 thematic_break_anchors,
@@ -51,7 +53,7 @@ use crate::{
             source::{SourceLine, ordinary_kind},
             table::{
                 InitialAttributes, PreparedTableCellParagraph, TableClosing, TableParseParams,
-                parse_table_block_impl,
+                construction::TableConstruction, parse_table_block_impl,
             },
         },
         helpers::{
@@ -103,11 +105,21 @@ peg::parser! {
             }
         }}
 
+        // Inactive source handling can collect the complete body directly.
+        // Reuse ordinary construction without moving each accepted block
+        // through the ordered driver's larger construction-request enum.
+        pub(in crate::grammar::document) rule remaining_blocks(offset: usize) -> Result<(Vec<Block<'input>>, usize), Error>
+        = resume_at(offset) blocks:blocks(0, None, None) end:position!() eol()*
+        { blocks.map(|blocks| (blocks, end)) }
+
         #[no_eof]
         pub(in crate::grammar::document) rule next_block(offset: usize, base_offset: usize, parent: BlockParent, mode: ConstructionMode) -> Result<BlockStep<'input>, Error>
         = resume_at(offset) step:(
             !trailing_block_metadata_match()
-              block:recognized_block(base_offset, parent.level, parent.kind, mode)
+              block:(
+                ordered_construction(mode) block:recognized_block(base_offset, parent.level, parent.kind, mode) { block }
+                / recursive_construction(mode) block:block(base_offset, parent.level, parent.kind) { block.map(BlockStepKind::Block) }
+              )
               end:position!()
             { block.map(|kind| BlockStep { kind, end }) }
             / eol()* &same_or_higher_level_section(base_offset, parent.level)
@@ -168,7 +180,18 @@ peg::parser! {
         = quoted_paragraph_params(0, 0) (eol() / ![_])
 
         rule ordered_construction(mode: ConstructionMode)
-        = {? matches!(mode, ConstructionMode::Ordered).then_some(()).ok_or("recursive construction") }
+        = #{|_, position| if matches!(mode, ConstructionMode::Ordered) {
+            peg::RuleResult::Matched(position, ())
+        } else {
+            peg::RuleResult::Failed
+        }}
+
+        rule recursive_construction(mode: ConstructionMode)
+        = #{|_, position| if matches!(mode, ConstructionMode::Recursive) {
+            peg::RuleResult::Matched(position, ())
+        } else {
+            peg::RuleResult::Failed
+        }}
 
         pub(in crate::grammar::document) rule block_sequence_end(offset: usize)
         = resume_at(offset) eol()*
@@ -684,7 +707,7 @@ peg::parser! {
         }
 
         pub(in crate::grammar::document) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
-        = blocks:(!trailing_block_metadata_match() block:block(offset, parent_section_level, direct_parent_section_kind, ConstructionMode::Recursive) { block })*
+        = blocks:(!trailing_block_metadata_match() block:block(offset, parent_section_level, direct_parent_section_kind) { block })*
           trailing:trailing_block_metadata(offset)?
         {
             let mut blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
@@ -775,9 +798,19 @@ peg::parser! {
             blocks.into_iter().collect()
         }
 
-        rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>, mode: ConstructionMode) -> Result<Block<'input>, Error>
-        = value:recognized_block(offset, parent_section_level, direct_parent_section_kind, mode)
-        { value.and_then(|value| value.into_ready(state)) }
+        // Ordinary children return blocks directly instead of copying them
+        // through the ordered driver's deferred-construction representation.
+        // Both dispatchers use the same syntax recognizers and node builders.
+        rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
+        = eol()* !same_or_higher_level_section(offset, parent_section_level)
+          block:(
+            comment_line_block(offset)
+            / document_attribute_block(offset)
+            / &"[" block:discrete_header(offset) { block }
+            / section(offset, parent_section_level, direct_parent_section_kind, ConstructionMode::Recursive)
+            / section_setext(offset, parent_section_level, direct_parent_section_kind, ConstructionMode::Recursive)
+            / block_generic(offset, parent_section_level)
+          ) { block }
 
         rule recognized_block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>, mode: ConstructionMode) -> Result<BlockStepKind<'input>, Error>
         = eol()*
@@ -795,7 +828,34 @@ peg::parser! {
             section:section(offset, parent_section_level, direct_parent_section_kind, mode) { section.map(BlockStepKind::Block) } /
             // Legacy underlined sections are recognized in Asciidoctor mode.
             section_setext:section_setext(offset, parent_section_level, direct_parent_section_kind, mode) { section_setext.map(BlockStepKind::Block) } /
-            block_generic(offset, parent_section_level, mode)
+            (
+                start:position!()
+                block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+                    bm.map_err(|_| {
+                        tracing::error!("error parsing block metadata in block_generic");
+                        "block metadata parse error"
+                    })
+                })
+                block:(
+                    ordered_construction(mode) params:generic_delimited_params(start, offset) { Ok(BlockStepKind::Delimited(DelimitedConstruction { metadata: BlockParsingMetadata::default(), params })) }
+                    / ordered_construction(mode) params:table_params(start, offset) { Ok(BlockStepKind::Table(TableConstruction { metadata: BlockParsingMetadata::default(), params })) }
+                    / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim.map(BlockStepKind::Block) }
+            / recovered:excessive_list_item(start, offset, &block_metadata) { recovered.map(BlockStepKind::Block) }
+                    / extension:extension_macro(start, offset, &block_metadata) { extension.map(BlockStepKind::Block) }
+                    / image:image(start, offset, &block_metadata) { image.map(BlockStepKind::Block) }
+                    / audio:audio(start, offset, &block_metadata) { audio.map(BlockStepKind::Block) }
+                    / video:video(start, offset, &block_metadata) { video.map(BlockStepKind::Block) }
+                    / toc:toc(start, offset, &block_metadata) { toc.map(BlockStepKind::Block) }
+                    / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break.map(BlockStepKind::Block) }
+                    / page_break:page_break(start, offset, &block_metadata) { page_break.map(BlockStepKind::Block) }
+                    / ordered_construction(mode) body_offset:position!() kind:committed_list_kind(offset, &block_metadata, true) { Ok(BlockStepKind::List(ListEntry { start, body_offset, metadata: None, kind })) }
+                    / ordered_construction(mode) params:quoted_paragraph_params(start, offset) { Ok(BlockStepKind::Quote(QuoteConstruction { metadata: BlockParsingMetadata::default(), params })) }
+                    / ordered_construction(mode) params:markdown_blockquote_params(start, offset) { Ok(BlockStepKind::Quote(QuoteConstruction { metadata: BlockParsingMetadata::default(), params })) }
+                    / paragraph:paragraph(start, offset, &block_metadata) { paragraph.map(BlockStepKind::Block) }
+                ) {
+                    block.map(|content| commit_content(state, block_metadata, content))
+                }
+            )
         )
         { block }
 
@@ -1388,43 +1448,37 @@ peg::parser! {
         }
 
         rule section_content(mode: ConstructionMode, offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
-        = recursive_section_content(mode) blocks:blocks(offset, parent_section_level, direct_parent_section_kind) { blocks }
+        = recursive_construction(mode) blocks:blocks(offset, parent_section_level, direct_parent_section_kind) { blocks }
         / { Ok(vec![]) }
 
-        rule recursive_section_content(mode: ConstructionMode)
-        = {? matches!(mode, ConstructionMode::Recursive).then_some(()).ok_or("section body belongs to the coordinator") }
-
-        rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>, mode: ConstructionMode) -> Result<BlockStepKind<'input>, Error>
+        rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
-        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
-            bm.map_err(|_| {
+          block_metadata:(metadata:block_metadata(offset, parent_section_level) {?
+            metadata.map_err(|_| {
                 tracing::error!("error parsing block metadata in block_generic");
                 "block metadata parse error"
             })
-        })
-        block:(
-            ordered_construction(mode) params:generic_delimited_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Delimited(params))) }
-            / ordered_construction(mode) params:table_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Table(params))) }
-            / delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block.map(RecognizedContent::Continue) }
-            / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim.map(RecognizedContent::Continue) }
-            / recovered:excessive_list_item(start, offset, &block_metadata) { recovered.map(RecognizedContent::Continue) }
-            / extension:extension_macro(start, offset, &block_metadata) { extension.map(RecognizedContent::Continue) }
-            / image:image(start, offset, &block_metadata) { image.map(RecognizedContent::Continue) }
-            / audio:audio(start, offset, &block_metadata) { audio.map(RecognizedContent::Continue) }
-            / video:video(start, offset, &block_metadata) { video.map(RecognizedContent::Continue) }
-            / toc:toc(start, offset, &block_metadata) { toc.map(RecognizedContent::Continue) }
-            / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break.map(RecognizedContent::Continue) }
-            / page_break:page_break(start, offset, &block_metadata) { page_break.map(RecognizedContent::Continue) }
-            / ordered_construction(mode) body_offset:position!() kind:committed_list_kind(offset, &block_metadata, true) { Ok(RecognizedContent::Break(DeferredContent::List { start, body_offset, kind })) }
-            / list:list(start, offset, &block_metadata) { list.map(RecognizedContent::Continue) }
-            / ordered_construction(mode) params:quoted_paragraph_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Quote(params))) }
-            / quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph.map(RecognizedContent::Continue) }
-            / ordered_construction(mode) params:markdown_blockquote_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Quote(params))) }
-            / markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote.map(RecognizedContent::Continue) }
-            / paragraph:paragraph(start, offset, &block_metadata) { paragraph.map(RecognizedContent::Continue) }
-        ) {
-            block.map(|content| commit_content(state, block_metadata, content))
-        }
+          })
+          block:(
+            delimited_block(start, offset, &block_metadata)
+            / styled_verbatim_paragraph(start, offset, &block_metadata)
+            / excessive_list_item(start, offset, &block_metadata)
+            / extension_macro(start, offset, &block_metadata)
+            / image(start, offset, &block_metadata)
+            / audio(start, offset, &block_metadata)
+            / video(start, offset, &block_metadata)
+            / toc(start, offset, &block_metadata)
+            / thematic_break(start, offset, &block_metadata)
+            / page_break(start, offset, &block_metadata)
+            / list(start, offset, &block_metadata)
+            / quoted_paragraph(start, offset, &block_metadata)
+            / markdown_blockquote(start, offset, &block_metadata)
+            / paragraph(start, offset, &block_metadata)
+          ) {
+            let mut block = block?;
+            assign_block_caption(state, &mut block);
+            Ok(block)
+          }
 
         // Block parsing for continuation context - lists inside continuations cannot consume
         // further continuations (those belong to the parent item that started the continuation)
@@ -1467,28 +1521,28 @@ peg::parser! {
             comment:(eol()* comment_start:position!() c:(
                 comment_line_block_keep_eol(offset)
                 / comment_block(comment_start, offset, &block_metadata)
-            ) { c }) { comment.map(RecognizedContent::Continue) }
-            / ordered_construction(mode) params:generic_delimited_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Delimited(params))) }
-            / ordered_construction(mode) params:table_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Table(params))) }
-            / delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block.map(RecognizedContent::Continue) }
-            / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim.map(RecognizedContent::Continue) }
-            / recovered:excessive_list_item(start, offset, &block_metadata) { recovered.map(RecognizedContent::Continue) }
-            / extension:extension_macro(start, offset, &block_metadata) { extension.map(RecognizedContent::Continue) }
-            / image:image(start, offset, &block_metadata) { image.map(RecognizedContent::Continue) }
-            / audio:audio(start, offset, &block_metadata) { audio.map(RecognizedContent::Continue) }
-            / video:video(start, offset, &block_metadata) { video.map(RecognizedContent::Continue) }
-            / toc:toc(start, offset, &block_metadata) { toc.map(RecognizedContent::Continue) }
-            / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break.map(RecognizedContent::Continue) }
-            / page_break:page_break(start, offset, &block_metadata) { page_break.map(RecognizedContent::Continue) }
+            ) { c }) { comment.map(BlockStepKind::Block) }
+            / ordered_construction(mode) params:generic_delimited_params(start, offset) { Ok(BlockStepKind::Delimited(DelimitedConstruction { metadata: BlockParsingMetadata::default(), params })) }
+            / ordered_construction(mode) params:table_params(start, offset) { Ok(BlockStepKind::Table(TableConstruction { metadata: BlockParsingMetadata::default(), params })) }
+            / recursive_construction(mode) delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block.map(BlockStepKind::Block) }
+            / verbatim:styled_verbatim_paragraph(start, offset, &block_metadata) { verbatim.map(BlockStepKind::Block) }
+            / recovered:excessive_list_item(start, offset, &block_metadata) { recovered.map(BlockStepKind::Block) }
+            / extension:extension_macro(start, offset, &block_metadata) { extension.map(BlockStepKind::Block) }
+            / image:image(start, offset, &block_metadata) { image.map(BlockStepKind::Block) }
+            / audio:audio(start, offset, &block_metadata) { audio.map(BlockStepKind::Block) }
+            / video:video(start, offset, &block_metadata) { video.map(BlockStepKind::Block) }
+            / toc:toc(start, offset, &block_metadata) { toc.map(BlockStepKind::Block) }
+            / thematic_break:thematic_break(start, offset, &block_metadata) { thematic_break.map(BlockStepKind::Block) }
+            / page_break:page_break(start, offset, &block_metadata) { page_break.map(BlockStepKind::Block) }
             // Lists in continuation context cannot consume further continuations
-            / ordered_construction(mode) body_offset:position!() kind:committed_list_kind(offset, &block_metadata, false) { Ok(RecognizedContent::Break(DeferredContent::List { start, body_offset, kind })) }
-            / list:list_with_continuation(start, offset, &block_metadata, false) { list.map(RecognizedContent::Continue) }
-            / ordered_construction(mode) params:quoted_paragraph_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Quote(params))) }
-            / quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph.map(RecognizedContent::Continue) }
-            / ordered_construction(mode) params:markdown_blockquote_params(start, offset) { Ok(RecognizedContent::Break(DeferredContent::Quote(params))) }
-            / markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote.map(RecognizedContent::Continue) }
+            / ordered_construction(mode) body_offset:position!() kind:committed_list_kind(offset, &block_metadata, false) { Ok(BlockStepKind::List(ListEntry { start, body_offset, metadata: None, kind })) }
+            / recursive_construction(mode) list:list_with_continuation(start, offset, &block_metadata, false) { list.map(BlockStepKind::Block) }
+            / ordered_construction(mode) params:quoted_paragraph_params(start, offset) { Ok(BlockStepKind::Quote(QuoteConstruction { metadata: BlockParsingMetadata::default(), params })) }
+            / recursive_construction(mode) quoted_paragraph:quoted_paragraph(start, offset, &block_metadata) { quoted_paragraph.map(BlockStepKind::Block) }
+            / ordered_construction(mode) params:markdown_blockquote_params(start, offset) { Ok(BlockStepKind::Quote(QuoteConstruction { metadata: BlockParsingMetadata::default(), params })) }
+            / recursive_construction(mode) markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote.map(BlockStepKind::Block) }
             / !(eol()+ attached_list_marker())
-              paragraph:paragraph_with_list_boundary(start, offset, &block_metadata, parent_marker) { paragraph.map(RecognizedContent::Continue) }
+              paragraph:paragraph_with_list_boundary(start, offset, &block_metadata, parent_marker) { paragraph.map(BlockStepKind::Block) }
         ) {
             block.map(|content| commit_content(state, block_metadata, content))
         }
@@ -1946,15 +2000,15 @@ peg::parser! {
 
         rule native_list_entry(offset: usize, entry: &ListEntry<'input>, parent_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = kind:unordered_kind(entry.kind) parent:nested_same(kind)
-          list:unordered_list_nested(entry.start, offset, entry.metadata.as_ref().unwrap_or(parent_metadata), parent, kind.parent_other, kind.has_own_metadata) { list }
+          list:unordered_list_nested(entry.start, offset, entry.metadata.as_deref().unwrap_or(parent_metadata), parent, kind.parent_other, kind.has_own_metadata) { list }
         / kind:unordered_kind(entry.kind) parent_is_none(kind.parent_same)
-          list:unordered_list(entry.start, offset, entry.metadata.as_ref().unwrap_or(parent_metadata), kind.parent_other, kind.allow_continuation, !kind.has_own_metadata) { list }
+          list:unordered_list(entry.start, offset, entry.metadata.as_deref().unwrap_or(parent_metadata), kind.parent_other, kind.allow_continuation, !kind.has_own_metadata) { list }
         / kind:ordered_kind(entry.kind) parent:nested_same(kind)
-          list:ordered_list_nested(entry.start, offset, entry.metadata.as_ref().unwrap_or(parent_metadata), parent, kind.parent_other, kind.has_own_metadata) { list }
+          list:ordered_list_nested(entry.start, offset, entry.metadata.as_deref().unwrap_or(parent_metadata), parent, kind.parent_other, kind.has_own_metadata) { list }
         / kind:ordered_kind(entry.kind) parent_is_none(kind.parent_same)
-          list:ordered_list(entry.start, offset, entry.metadata.as_ref().unwrap_or(parent_metadata), kind.parent_other, kind.allow_continuation, !kind.has_own_metadata) { list }
-        / callout_kind(entry.kind) list:callout_list(entry.start, offset, entry.metadata.as_ref().unwrap_or(parent_metadata)) { list }
-        / description_kind(entry.kind) list:description_list(entry.start, offset, entry.metadata.as_ref().unwrap_or(parent_metadata)) { list }
+          list:ordered_list(entry.start, offset, entry.metadata.as_deref().unwrap_or(parent_metadata), kind.parent_other, kind.allow_continuation, !kind.has_own_metadata) { list }
+        / callout_kind(entry.kind) list:callout_list(entry.start, offset, entry.metadata.as_deref().unwrap_or(parent_metadata)) { list }
+        / description_kind(entry.kind) list:description_list(entry.start, offset, entry.metadata.as_deref().unwrap_or(parent_metadata)) { list }
 
         rule description_list_ahead(offset: usize)
         = !at_list_item_start() !at_callout_list_item() !at_description_parent_item(offset)
@@ -1976,13 +2030,13 @@ peg::parser! {
         rule unordered_child_entry_with_metadata(offset: usize, metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> ListEntry<'input>
         = start:position!() own:parsed_nested_list_metadata(offset, metadata.parent_section_level)
           nested_list_metadata_gap()* kind:unordered_child_kind(offset, current_marker, parent_ordered_marker, true) nested_kind_allowed(kind, &own)
-        { ListEntry { start, body_offset: span_end, metadata: Some(own), kind } }
+        { ListEntry { start, body_offset: span_end, metadata: Some(Box::new(own)), kind } }
 
         rule unordered_child_entry(offset: usize, metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> ListEntry<'input>
         = start:position!() kind:unordered_child_kind(offset, current_marker, parent_ordered_marker, false)
           content_metadata:(
-              callout_kind(kind) child:nested_list_content_metadata(metadata) { Some(child) }
-              / description_kind(kind) child:nested_list_content_metadata(metadata) { Some(child) }
+              callout_kind(kind) child:nested_list_content_metadata(metadata) { Some(Box::new(child)) }
+              / description_kind(kind) child:nested_list_content_metadata(metadata) { Some(Box::new(child)) }
               / { None }
           )
         { ListEntry { start, body_offset: start, metadata: content_metadata, kind } }
@@ -1999,13 +2053,13 @@ peg::parser! {
         rule ordered_child_entry_with_metadata(offset: usize, metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> ListEntry<'input>
         = start:position!() own:parsed_nested_list_metadata(offset, metadata.parent_section_level)
           nested_list_metadata_gap()* kind:ordered_child_kind(offset, current_marker, parent_unordered_marker, true) nested_kind_allowed(kind, &own)
-        { ListEntry { start, body_offset: span_end, metadata: Some(own), kind } }
+        { ListEntry { start, body_offset: span_end, metadata: Some(Box::new(own)), kind } }
 
         rule ordered_child_entry(offset: usize, metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> ListEntry<'input>
         = start:position!() kind:ordered_child_kind(offset, current_marker, parent_unordered_marker, false)
           content_metadata:(
-              callout_kind(kind) child:nested_list_content_metadata(metadata) { Some(child) }
-              / description_kind(kind) child:nested_list_content_metadata(metadata) { Some(child) }
+              callout_kind(kind) child:nested_list_content_metadata(metadata) { Some(Box::new(child)) }
+              / description_kind(kind) child:nested_list_content_metadata(metadata) { Some(Box::new(child)) }
               / { None }
           )
         { ListEntry { start, body_offset: start, metadata: content_metadata, kind } }
@@ -2082,7 +2136,7 @@ peg::parser! {
                 kind:unordered_kind(kind) entry:unordered_child_after_principal(base, metadata, marker, kind.parent_other) { entry }
                 / kind:ordered_kind(kind) entry:ordered_child_after_principal(base, metadata, marker, kind.parent_other) { entry }
                 / callout_kind(kind) entry:callout_child_after_principal(base, metadata) { entry }
-            ) end:position!() { ListStep { kind: ListStepKind::Break(Ok(BlockStepKind::List(entry))), end } }
+            ) end:position!() { ListStep { kind: ListStepKind::List(entry), end } }
             / list_phase(phase, ListPhase::Attachments) !at_list_separator()
               value:(
                   parent:(kind:unordered_kind(kind) { (Some(ListMarker::Unordered(marker)), kind.allow_continuation) }
@@ -2091,11 +2145,11 @@ peg::parser! {
                   (list_continuation_immediate_prefix(base)
                     / list_continuation_allowed(parent.1) list_continuation_ancestor_prefix(base))
                   block:recognized_block_in_continuation(base, metadata.parent_section_level, parent.0, ConstructionMode::Ordered)
-                  end:position!() { ListStep { kind: ListStepKind::Break(block), end } }
+                  end:position!() { ListStep { kind: ListStepKind::block(block), end } }
                   / entry:(
                       kind:unordered_kind(kind) entry:unordered_child_after_attachment(base, metadata, marker, kind.parent_other) { entry }
                       / kind:ordered_kind(kind) entry:ordered_child_after_attachment(base, metadata, marker, kind.parent_other) { entry }
-                  ) end:position!() { ListStep { kind: ListStepKind::Break(Ok(BlockStepKind::List(entry))), end } }
+                  ) end:position!() { ListStep { kind: ListStepKind::List(entry), end } }
               ) { value }
             / list_phase(phase, ListPhase::Sibling) head:(
                 kind:unordered_kind(kind)
@@ -2918,11 +2972,11 @@ peg::parser! {
             start:position!()
             metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
             kind:callout_child_kind(offset) body_offset:position!()
-            { ListEntry { start, body_offset, metadata: Some(metadata), kind } }
+            { ListEntry { start, body_offset, metadata: Some(Box::new(metadata)), kind } }
             / eol()* callout_child_marker(offset) start:position!()
             metadata:nested_list_content_metadata(block_metadata)
             kind:callout_child_kind(offset) body_offset:position!()
-            { ListEntry { start, body_offset, metadata: Some(metadata), kind } }
+            { ListEntry { start, body_offset, metadata: Some(Box::new(metadata)), kind } }
         ) { child }
 
         rule callout_child_kind(offset: usize) -> ListKind<'input>
@@ -3217,7 +3271,7 @@ peg::parser! {
           { ListEntry { start, body_offset, metadata: None, kind } }
         / !at_callout_parent_item(offset) &at_callout_list_item() start:position!()
           metadata:nested_list_content_metadata(block_metadata)
-          { ListEntry { start, body_offset: start, metadata: Some(metadata), kind: ListKind::Callout } }
+          { ListEntry { start, body_offset: start, metadata: Some(Box::new(metadata)), kind: ListKind::Callout } }
 
         rule description_ordinary_child_kind(offset: usize, own: bool) -> ListKind<'input>
         = scope:ordinary_list_scope(offset) kind:(
@@ -3239,7 +3293,7 @@ peg::parser! {
               &at_callout_list_item() structural_block_boundaries(&metadata) { ListKind::Callout }
               / kind:description_ordinary_child_kind(offset, true) { kind }
           ) body_offset:position!()
-        { ListEntry { start, body_offset, metadata: Some(metadata), kind } }
+        { ListEntry { start, body_offset, metadata: Some(Box::new(metadata)), kind } }
 
         // A blank line before `+` returns from a nested description to its ordinary parent.
         rule description_continuation_gap(offset: usize)

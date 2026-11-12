@@ -219,6 +219,13 @@ fn is_escaped_directive(line: &str) -> bool {
     })
 }
 
+fn has_attribute_driven_styles(text: &str) -> bool {
+    text.contains('{')
+        && text
+            .lines()
+            .any(|line| line.starts_with('[') && line.contains('{'))
+}
+
 /// Caller permissions, include limits, and block state for one parse.
 #[derive(Debug, Clone)]
 struct IncludeContext {
@@ -806,7 +813,7 @@ impl Preprocessor {
     /// `Cow::Borrowed` (optionally trimming a single trailing newline to match
     /// `str::lines`'s drop-trailing-empty behavior). Slow path: rebuild the
     /// buffer line-by-line as before.
-    fn normalize(input: &str) -> Cow<'_, str> {
+    pub(crate) fn normalize(input: &str) -> Cow<'_, str> {
         // Match the original behavior of `input.lines()`: a single trailing
         // newline (`\n` or `\r\n`) is dropped.
         let trimmed = input
@@ -865,11 +872,7 @@ impl Preprocessor {
             self.include_context.block_context.clone(),
             options.compatibility_mode,
         );
-        let mut style_options = (text.contains('{')
-            && text
-                .lines()
-                .any(|line| line.starts_with('[') && line.contains('{')))
-        .then(|| options.clone());
+        let mut style_options = has_attribute_driven_styles(text).then(|| options.clone());
         for line in text.lines() {
             if scanner.preserves_comment_line(line) {
                 scanner.record(line, attributes);

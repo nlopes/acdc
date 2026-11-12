@@ -439,6 +439,7 @@ fn parse_with_session(
     parse_with_source_handler(input, options, session, None)
 }
 
+#[inline]
 fn parse_with_source_handler(
     input: &str,
     options: &Options<'_>,
@@ -633,36 +634,47 @@ fn parse_ordered_source(
     session: Option<&mut extensions::Session>,
     handler: &mut dyn grammar::SourceHandler,
 ) -> Result<ParseResult, Error> {
-    let owner = parsed::OwnedInput::new(input.into());
+    let owner =
+        parsed::OwnedInput::new(Preprocessor::normalize(input).into_owned().into_boxed_str());
     let warnings_for_state = Rc::clone(&warnings_handle);
     let options = options.into_static();
-    ParseResult::try_new_with_metadata(owner, warnings_handle, move |owner| {
-        let reader = preprocessor::SourceReader::new(
-            &owner.source,
-            file_path.as_deref(),
-            &options,
-            Rc::clone(&warnings_for_state),
-            &owner.arena,
-        )?;
-        let mut state =
-            grammar::ParserState::new_source(&owner.arena, Rc::new(reader.options.clone()));
-        state.current_file = file_path.clone().map(std::sync::Arc::new);
-        state.warnings = warnings_for_state;
-        state.warn_unsupported_compat_mode(None);
-        if state.document_attributes.contains_key("toc2") {
-            state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
-        }
-        let result = grammar::document_from_source(reader, &mut state, handler, |source| {
-            owner.finish_source(source)
-        })
-        .and_then(|(document, conditionals)| {
-            let source_files = parsed::SourceFiles::new(file_path, &state.source_ranges);
-            finish_parsed_document(document, &mut state, session, owner.preprocessed_source())
-                .map(|document| (document, source_files, conditionals))
-        });
-        state.emit_warnings();
-        result
-    })
+    ParseResult::try_new_with_metadata(
+        owner,
+        warnings_handle,
+        move |owner, source_files, conditionals| {
+            let reader = preprocessor::SourceReader::from_normalized(
+                &owner.source,
+                file_path.as_deref(),
+                options,
+                Rc::clone(&warnings_for_state),
+                &owner.arena,
+            )?;
+            let mut state = grammar::ParserState::new(
+                reader.pass_through_input().unwrap_or(""),
+                &owner.arena,
+                Rc::clone(&reader.options),
+            );
+            state.current_file = file_path.clone().map(std::sync::Arc::new);
+            state.warnings = warnings_for_state;
+            state.warn_unsupported_compat_mode(None);
+            if state.document_attributes.contains_key("toc2") {
+                state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
+            }
+            let result = grammar::document_from_source(
+                reader,
+                &mut state,
+                handler,
+                conditionals,
+                |source| owner.finish_source(source),
+            )
+            .and_then(|document| {
+                *source_files = parsed::SourceFiles::new(file_path, &state.source_ranges);
+                finish_parsed_document(document, &mut state, session, owner.preprocessed_source())
+            });
+            state.emit_warnings();
+            result
+        },
+    )
 }
 
 /// Parse inline `AsciiDoc` content from a string.

@@ -1,7 +1,5 @@
 //! Requests retained after a block recognizer has returned.
 
-use std::ops::ControlFlow;
-
 use crate::{
     Block, Error,
     grammar::{ParserState, helpers::BlockParsingMetadata},
@@ -12,56 +10,27 @@ use super::{
     delimited::{
         ContentParser, ContentRequest, DelimitedParams, build_delimited_block_with_parser,
     },
-    lists::{ListEntry, ListKind},
     metadata::assign_block_caption,
     quotes::{QuoteParams, build_quote_with_parser},
-    table::{TableParseParams, construction::TableConstruction},
 };
 
-/// Shared block dispatch retains the metadata until its content form commits.
-pub(super) type RecognizedContent<'a> = ControlFlow<DeferredContent<'a>, Block<'a>>;
-
-pub(super) enum DeferredContent<'a> {
-    Delimited(DelimitedParams<'a>),
-    Table(TableParseParams<'a>),
-    Quote(QuoteParams<'a>),
-    List {
-        start: usize,
-        body_offset: usize,
-        kind: ListKind<'a>,
-    },
-}
-
+/// Attach metadata after the content alternative commits. Keeping the final
+/// step representation avoids copying ready blocks through another large enum.
+#[inline]
 pub(super) fn commit_content<'a>(
-    state: &mut ParserState<'a>,
+    state: &ParserState<'a>,
     metadata: BlockParsingMetadata<'a>,
-    content: RecognizedContent<'a>,
+    mut content: BlockStepKind<'a>,
 ) -> BlockStepKind<'a> {
-    match content {
-        ControlFlow::Continue(mut block) => {
-            assign_block_caption(state, &mut block);
-            BlockStepKind::Block(block)
-        }
-        ControlFlow::Break(DeferredContent::Delimited(params)) => {
-            BlockStepKind::Delimited(DelimitedConstruction { metadata, params })
-        }
-        ControlFlow::Break(DeferredContent::Table(params)) => {
-            BlockStepKind::Table(TableConstruction { metadata, params })
-        }
-        ControlFlow::Break(DeferredContent::Quote(params)) => {
-            BlockStepKind::Quote(QuoteConstruction { metadata, params })
-        }
-        ControlFlow::Break(DeferredContent::List {
-            start,
-            body_offset,
-            kind,
-        }) => BlockStepKind::List(ListEntry {
-            start,
-            body_offset,
-            metadata: Some(metadata),
-            kind,
-        }),
+    match &mut content {
+        BlockStepKind::Block(block) => assign_block_caption(state, block),
+        BlockStepKind::Delimited(request) => request.metadata = metadata,
+        BlockStepKind::Table(request) => request.metadata = metadata,
+        BlockStepKind::Quote(request) => request.metadata = metadata,
+        BlockStepKind::List(entry) => entry.metadata = Some(Box::new(metadata)),
+        BlockStepKind::End(_) => {}
     }
+    content
 }
 
 /// Ordinary parsing retains complete PEG construction. The ordered mode
@@ -78,8 +47,8 @@ pub(super) struct DelimitedConstruction<'a> {
 }
 
 pub(super) struct QuoteConstruction<'a> {
-    metadata: BlockParsingMetadata<'a>,
-    params: QuoteParams<'a>,
+    pub(super) metadata: BlockParsingMetadata<'a>,
+    pub(super) params: QuoteParams<'a>,
 }
 
 impl<'a> QuoteConstruction<'a> {

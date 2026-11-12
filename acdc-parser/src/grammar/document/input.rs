@@ -16,6 +16,11 @@ pub(super) enum ReadRequest<'a> {
 }
 
 pub(super) trait BlockInput<'a> {
+    /// Source failures cannot be recovered as malformed nested content.
+    fn failed(&self) -> bool {
+        false
+    }
+
     fn prepare(
         &mut self,
         cursor: &mut BlockCursor,

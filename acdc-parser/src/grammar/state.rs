@@ -716,28 +716,13 @@ impl<'a> ParserState<'a> {
         Self::with_input(input, Rc::new(LineMap::new(input)), None, arena, options)
     }
 
+    #[cfg(test)]
     pub(super) fn new_with_source(
         view: SourceView<'a>,
         arena: &'a Bump,
         options: Rc<Options<'a>>,
     ) -> Self {
         Self::with_input(view.input, view.line_map, view.origin, arena, options)
-    }
-
-    pub(crate) fn new_source(arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
-        Self::new_with_source(
-            SourceView {
-                input: "",
-                line_map: Rc::new(LineMap::new("")),
-                origin: Some(Rc::new(WindowOrigin {
-                    base: 0,
-                    first_line: 1,
-                    index: Rc::default(),
-                })),
-            },
-            arena,
-            options,
-        )
     }
 
     fn with_input(

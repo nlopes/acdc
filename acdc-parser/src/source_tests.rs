@@ -1,11 +1,97 @@
 use crate::{
-    AttributeName, Block, CompatibilityMode, DocumentAttributeAssignment, Error, IncludeLoader,
-    Options, SafeMode,
+    AttributeName, Block, CompatibilityMode, DocumentAttributeAssignment, DocumentAttributes,
+    Error, IncludeLoader, Options, SafeMode,
     extensions::{BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroInvocation, Registry},
-    grammar::{ParserState, SourceHandler},
+    grammar::SourceHandler,
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+#[derive(Default)]
+struct CountAccepted(usize);
+
+impl SourceHandler for CountAccepted {
+    fn accepted<'a>(
+        &mut self,
+        _: &Block<'a>,
+        _: &DocumentAttributes<'a>,
+    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, String> {
+        self.0 += 1;
+        Ok(Vec::new())
+    }
+}
+
+// Keep the A1 seam private while measuring it in optimized builds. Run this
+// ignored test alone through nextest with --release and --nocapture. The
+// output directory and order can be set for paired, alternating runs.
+#[test]
+#[ignore = "on-demand Criterion measurement of the private source driver"]
+fn benchmark_ordered_source_driver() -> TestResult {
+    use std::{hint::black_box, time::Duration};
+
+    use criterion::{BenchmarkId, Criterion};
+
+    let output = std::env::var_os("ACDC_SOURCE_BENCH_OUTPUT")
+        .ok_or("set ACDC_SOURCE_BENCH_OUTPUT to the Criterion output directory")?;
+    let mut criterion = Criterion::default()
+        .sample_size(30)
+        .warm_up_time(Duration::from_secs(1))
+        .measurement_time(Duration::from_secs(2))
+        .nresamples(10_000)
+        .without_plots()
+        .output_directory(std::path::Path::new(&output));
+    let directory = tempfile::tempdir()?;
+    std::fs::write(
+        directory.path().join("part.adoc"),
+        "Included paragraph.\n\n".repeat(100),
+    )?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Safe)
+        .with_base_dir(directory.path())
+        .build()?;
+    let nested = "====\n****\n* Parent\n** Child\n****\n====\n\n".repeat(1000);
+    let includes = "include::part.adoc[]\n\n".repeat(20);
+    let paragraphs = "A cheap callback follows this paragraph.\n\n".repeat(1000);
+    let inputs = [
+        ("basic", include_str!("../fixtures/tests/basic_header.adoc")),
+        ("cheap_callbacks_1000", &paragraphs),
+        ("large_nested", &nested),
+        ("includes", &includes),
+    ];
+    let ordered_first = std::env::var_os("ACDC_SOURCE_BENCH_ORDERED_FIRST").is_some();
+    let order = if ordered_first {
+        [true, false]
+    } else {
+        [false, true]
+    };
+    let mut group = criterion.benchmark_group("source_driver");
+    for (name, input) in inputs {
+        for ordered in order {
+            let path = if ordered { "ordered" } else { "native" };
+            let mut handler = CountAccepted::default();
+            let selected = ordered.then_some(&mut handler as &mut dyn SourceHandler);
+            let _ = crate::parse_with_source_handler(input, &options, None, selected)?;
+            if ordered && name == "cheap_callbacks_1000" {
+                assert_eq!(handler.0, 1000);
+            }
+            group.bench_with_input(BenchmarkId::new(name, path), &input, |b, input| {
+                b.iter(|| {
+                    let mut handler = CountAccepted::default();
+                    let selected = ordered.then_some(&mut handler as &mut dyn SourceHandler);
+                    let parsed = crate::parse_with_source_handler(
+                        black_box(input),
+                        &options,
+                        None,
+                        selected,
+                    );
+                    black_box((parsed, handler.0))
+                });
+            });
+        }
+    }
+    group.finish();
+    Ok(())
+}
 
 #[rstest::rstest]
 #[case::setext("Title\n=====\nAuthor Name\n:thing: Value\n\nBody.")]
@@ -15,9 +101,60 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 #[case::leading_blanks("\n\n= Title\n\nBody.")]
 #[case::empty("")]
 #[case::blank("\n\n")]
+#[case::normalized("\u{feff}= Title\r\n\r\nBody.\r\n")]
 fn source_driver_preserves_prefix_forms(#[case] input: &str) -> TestResult {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         assert_equivalent(input, mode)?;
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::prose("Ordinary café prose with a https://example.com[link].\n\nAfter.")]
+#[case::colon_description("term:: Description.\nother:: Another item.")]
+#[case::semicolon_description("term;; Description.\nother;; Another item.")]
+#[case::setext("Heading\n-------\n\nBody.")]
+#[case::media("image::example.png[]\n\nAfter.")]
+#[case::admonition("NOTE: First line.\nSecond line.\n\nAfter.")]
+fn source_driver_prose_filters_preserve_native_forms(#[case] input: &str) -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        assert_equivalent(input, mode)?;
+    }
+    Ok(())
+}
+
+#[test]
+fn source_driver_pass_through_keeps_committed_attribute_timing() -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let mut handler = Configure::default();
+        let input = "configure::first[]\n\nValue {enabled}.";
+        let parsed =
+            crate::parse_with_source_handler(input, &options(mode)?, None, Some(&mut handler))?;
+        assert_eq!(handler.events, ["first"]);
+        assert_eq!(parsed.preprocessed_source(), input);
+        assert!(serde_json::to_string(parsed.document_storage())?.contains("Value yes."));
+    }
+    Ok(())
+}
+
+#[test]
+fn source_driver_resumes_attribute_driven_comment_styles() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    std::fs::write(directory.path().join("part.adoc"), "Exposed include.")?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = options(mode)?
+            .into_builder()
+            .with_safe_mode(SafeMode::Safe)
+            .with_base_dir(directory.path())
+            .build()?;
+        let input = "= Entry\n:enabled: comment\n\nconfigure::first[]\n\n[{enabled}]\n--\ninclude::part.adoc[]\n--";
+        let parsed = crate::parse_with_source_handler(
+            input,
+            &options,
+            None,
+            Some(&mut Configure::default()),
+        )?;
+        assert!(parsed.preprocessed_source().contains("Exposed include."));
     }
     Ok(())
 }
@@ -26,8 +163,8 @@ impl SourceHandler for () {
     fn accepted<'a>(
         &mut self,
         _: &Block<'a>,
-        _: &ParserState<'a>,
-    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, Error> {
+        _: &DocumentAttributes<'a>,
+    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, String> {
         Ok(Vec::new())
     }
 }
@@ -302,17 +439,95 @@ fn source_driver_respects_caller_attribute_locks_for_parser_and_reader() -> Test
 
 struct Failed;
 
+struct FailedProse;
+
+impl SourceHandler for FailedProse {
+    fn accepted<'a>(
+        &mut self,
+        block: &Block<'a>,
+        _: &DocumentAttributes<'a>,
+    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, String> {
+        if matches!(block, Block::Paragraph(_)) {
+            return Err("stop after the committed paragraph".into());
+        }
+        Ok(Vec::new())
+    }
+}
+
+#[test]
+fn source_driver_buffered_prose_commits_before_later_include_reads() -> TestResult {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let reads = Arc::new(AtomicUsize::default());
+        let provider_reads = Arc::clone(&reads);
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Safe)
+            .with_base_dir("/virtual")
+            .with_include_loader(IncludeLoader::custom(
+                move |_: &crate::IncludeSourceTarget| {
+                    provider_reads.fetch_add(1, Ordering::Relaxed);
+                    Ok(crate::IncludeSource::from_bytes(
+                        b"First paragraph.\n\nSecond paragraph.\n\n".to_vec(),
+                    ))
+                },
+            ))
+            .build()?;
+        let result = crate::parse_with_source_handler(
+            "include::part.adoc[]\n\ninclude::later.adoc[]",
+            &options,
+            None,
+            Some(&mut FailedProse),
+        );
+        assert!(matches!(result, Err(Error::Extension(..))), "{result:?}");
+        assert_eq!(reads.load(Ordering::Relaxed), 1);
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::unordered("* Parent\n** Child\n+\n")]
+#[case::ordered(". Parent\n.. Child\n+\n")]
+#[case::description("* Parent\nterm:: Child\n+\n")]
+fn source_driver_fatal_reader_error_escapes_nested_recovery(#[case] prefix: &str) -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Safe)
+            .with_base_dir("/virtual")
+            .with_include_loader(IncludeLoader::custom(|_: &crate::IncludeSourceTarget| {
+                Err(crate::IncludeSourceError::new(
+                    crate::IncludeSourceErrorKind::Fatal,
+                    "document store is unavailable",
+                ))
+            }))
+            .build()?;
+        let input = format!("{prefix}include::part.adoc[]");
+        for ordered in [false, true] {
+            let mut handler = ();
+            let selected = ordered.then_some(&mut handler as &mut dyn SourceHandler);
+            let result = crate::parse_with_source_handler(&input, &options, None, selected);
+            assert!(
+                matches!(&result, Err(Error::IncludeSource(error)) if error.kind() == crate::IncludeSourceErrorKind::Fatal),
+                "{mode:?}, ordered={ordered}: {result:?}"
+            );
+        }
+    }
+    Ok(())
+}
+
 impl SourceHandler for Failed {
     fn accepted<'a>(
         &mut self,
         block: &Block<'a>,
-        _: &ParserState<'a>,
-    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, Error> {
-        if let Block::Extension(extension) = block {
-            Err(Error::Extension(
-                Box::new(extension.invocation.location.clone()),
-                "stop source processing".into(),
-            ))
+        _: &DocumentAttributes<'a>,
+    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, String> {
+        if matches!(block, Block::Extension(_)) {
+            Err("stop source processing".into())
         } else {
             Ok(Vec::new())
         }
@@ -382,8 +597,8 @@ impl SourceHandler for Configure {
     fn accepted<'a>(
         &mut self,
         block: &Block<'a>,
-        _: &ParserState<'a>,
-    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, Error> {
+        _: &DocumentAttributes<'a>,
+    ) -> Result<Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>, String> {
         let Block::Extension(extension) = block else {
             return Ok(Vec::new());
         };

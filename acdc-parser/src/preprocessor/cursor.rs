@@ -7,7 +7,8 @@ use crate::{Error, Options};
 use super::{
     CommentScanner, ConditionalFrame, DirectiveContext, Preprocessor, PreprocessorResult,
     PreprocessorState, SkimmedFrontMatter, SourceLineOrigin, SourceOrigin, attribute,
-    consume_front_matter, has_attribute_continuation, has_include_directive_shape,
+    consume_front_matter, has_attribute_continuation, has_attribute_driven_styles,
+    has_include_directive_shape,
     include::{IncludeResult, IncludeScope},
     is_escaped_directive, skim_front_matter,
 };
@@ -630,6 +631,7 @@ impl<'input> InputCursor<'input> {
             || self.bulk_consumed
             || self.line_number != 1
             || self.front_matter.is_some()
+            || include_root && has_attribute_driven_styles(self.out.input)
             || self
                 .preprocessor
                 .nested_attributes_must_propagate(self.out.input)
