@@ -6,9 +6,9 @@ use crate::{
     Anchor, Attribution, Audio, Author, Block, BlockMetadata, CalloutList, CalloutListItem,
     CalloutMarker, CiteTitle, Comment, CommentKind, CompatibilityMode, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListDefinition, DescriptionListItem,
-    DescriptionListTerm, DiscreteHeading, Document, DocumentAttribute, DocumentAttributes, Error,
-    Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
-    Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
+    DescriptionListTerm, DiscreteHeading, DocumentAttribute, DocumentAttributes, Error, Header,
+    Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
+    Paragraph, Plain, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
     UnorderedList, Video, Warning, WarningKind,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
@@ -19,6 +19,7 @@ use crate::{
         },
         document::{
             author::{derive_author_attrs, register_author_attrs},
+            coordinator::{BlockStep, DocumentPrefix},
             delimited::{DelimitedKind, DelimitedParams, build_delimited_block},
             doctype::{is_book_doctype, is_manpage_doctype},
             header::{ParsedHeader, header_span, merge_header_metadata},
@@ -40,12 +41,7 @@ use crate::{
                 thematic_break_anchors,
             },
             paragraph::{ParagraphParams, build_paragraph, paragraph_text_end},
-            references::{
-                ParsedSectionHeader, ReferenceCatalog, collect_header_references,
-                collect_references, finalize_inline_semantics, normalize_bibliography_lists,
-                register_document_references, register_section_header, resolve_source_target,
-                resolve_xref_target,
-            },
+            references::{ParsedSectionHeader, register_section_header},
             revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
             sections::{apply_leveloffset, expected_child_level},
             table::{
@@ -62,15 +58,9 @@ use crate::{
         setext,
         state::BlockContext,
     },
-    model::{
-        ListLevel, SectionKind, SectionLevel, Substitution, caption, section, substitution::HEADER,
-    },
+    model::{ListLevel, SectionKind, SectionLevel, Substitution, substitution::HEADER},
 };
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::{borrow::Cow, rc::Rc};
 
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState<'input>) for str {
@@ -81,188 +71,40 @@ peg::parser! {
         inject span_start(_input, l, _r) -> usize { l }
         inject span_end(_input, _l, r) -> usize { r }
 
-        // The document location excludes leading and trailing empty lines.
-        pub(crate) rule document() -> Result<Document<'input>, Error>
-        = eol()* start:position() comments_before_header:(comment:leading_comment() eol()* { comment })* header_result:header() prepare_manpage_front_matter() header_attributes:header_attribute_snapshot() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
-            let ParsedHeader { header, untitled_location: untitled_header_location } = header_result?;
-            let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
-
-            // Ensure end offset is on a valid UTF-8 boundary
-            let mut document_end_offset = end;
-            if document_end_offset > state.input.len() {
-                document_end_offset = state.input.len();
-            }
-            // If not on a boundary, round forward to the next boundary
-            while document_end_offset < state.input.len() && !state.input.is_char_boundary(document_end_offset) {
-                document_end_offset += 1;
-            }
-            let document_end_offset = if document_end_offset == 0 {
-                0
-            } else {
-                crate::grammar::utf8_utils::safe_decrement_offset(state.input, document_end_offset)
-            };
-
-            // Ensure the invariant: absolute_start <= absolute_end
-            let (absolute_start, absolute_end) = if start.offset > document_end_offset {
-                // This can happen with whitespace-only input where eol()* consumes all content
-                // In this case, treat as an empty document at the start position
-                (start.offset, start.offset)
-            } else {
-                (start.offset, document_end_offset)
-            };
-
-            // Special case for truly empty input: TCK expects column 0
-            // Only for zero-byte input, not whitespace-only
-            let (start_position, end_position) = if state.input.is_empty() || (absolute_start == 0 && absolute_end == 0) {
-                // Whitespace-only documents should use column 1
-                (Position::new(1, 0), Position::new(1, 0))
-            } else {
-                (
-                    start.position,
-                    state.line_map.offset_to_position(absolute_end, state.input)
-                )
-            };
-
-            // Warn when a top-level section skips level 1 (e.g. a document that
-            // jumps straight to `=== Heading`). Matches asciidoctor's "section
-            // title out of sequence" check.
-            //
-            // The document root sits at level 0 — so every top-level section is
-            // expected at level 1 — once it is "anchored" by a document title or
-            // by preamble body content (a paragraph, list, ...) before the first
-            // section. When anchored, asciidoctor flags *each* top-level section
-            // deeper than level 1 (not just the first). A document that opens
-            // directly with a section (no title, no preamble) is not anchored:
-            // that first section sets the base level and neither it nor its
-            // same-or-shallower siblings are out of sequence. Comments are
-            // transparent and never anchor. Sections nested under another section
-            // are validated separately, in the `section` rule itself.
-            //
-            // `toc_entries` is populated while parsing and is empty exactly when
-            // the document has no sections — checking it first lets section-less
-            // documents skip the body scan entirely. Otherwise we walk only the
-            // top-level blocks (preamble + sibling sections, never nested content)
-            // and stop at the first section in the un-anchored case.
-            if !state.toc_entries.is_empty() {
-                let mut anchored = header.as_ref().is_some_and(|h| !h.title.is_empty());
-                let mut seen_section = false;
-                for block in &blocks {
-                    if let Block::Section(section) = block {
-                        if !anchored {
-                            // Un-anchored leading section: it establishes the base
-                            // level, so neither it nor its siblings can be out of
-                            // sequence. Nothing left to check.
-                            break;
-                        }
-                        if section.level > 1 {
-                            let location = state
-                                .create_error_source_location(section.location.clone());
-                            state.add_warning(Warning::new(
-                                WarningKind::SectionLevelOutOfSequence {
-                                    expected: 1,
-                                    got: section.level,
-                                },
-                                Some(location),
-                            ));
-                        }
-                        seen_section = true;
-                    } else if !seen_section && !matches!(block, Block::Comment(_)) {
-                        // Preamble content before the first section anchors the
-                        // document at level 0.
-                        anchored = true;
-                    }
-                }
-            }
-
-            // Assign caption ordinals over the finished tree. Numbering here cannot be
-            // disturbed by PEG backtracking, and it runs before the reference catalog so that
-            // catalog can later carry a target's caption label and ordinal.
-            normalize_bibliography_lists(state, &mut blocks);
-            let mut header = header;
-            crate::grammar::reference_text::resolve_tree(state, &mut header, &mut blocks)?;
-            crate::grammar::document::table::finalize_footnotes(&mut blocks);
-            caption::renumber_captions(&mut blocks);
-
-            let header_has_anchor = header.as_ref().is_some_and(|header| {
-                header.metadata.id.is_some() || !header.metadata.anchors.is_empty()
-            });
-            let mut references = ReferenceCatalog {
-                entries: HashMap::with_capacity(state.toc_entries.len() + usize::from(header_has_anchor)),
-                next_suffix: HashMap::new(),
-                natural_targets: HashMap::new(),
-            };
-            let mut xrefs = Vec::new();
-            if let Some(header) = &header {
-                collect_header_references(state, header, &header_attributes, &mut references, &mut xrefs);
-            }
-            collect_references(state, &mut blocks, &mut references, &mut xrefs);
-            let is_book = is_book_doctype(&header_attributes);
-            section::number_parsed_sections(
-                &mut blocks,
-                &mut state.toc_entries,
-                &mut references.entries,
-                is_book,
-            );
-            let toc_entries = state.toc_entries.clone();
-
-            let mut document = Document {
-                header,
-                untitled_header_location,
-                // Source remapping assigns each boundary its own file after parsing.
-                // A document can start in the entry file and end in an included file.
-                location: Location {
-                    absolute_start,
-                    absolute_end,
-                    start: start_position,
-                    end: end_position,
-                },
-                attributes: header_attributes,
-                blocks,
-                footnotes: state.footnote_tracker.borrow().footnotes.clone(),
-                toc_entries,
-                references: references.entries,
-            };
-            register_document_references(state, &mut document, &xrefs, &mut references.natural_targets)?;
-            let reference_ids = document.references.keys().copied().collect::<HashSet<_>>();
-
-            // An internal `<<id>>` whose target is absent from the catalog is an
-            // unresolved (broken) reference. Inter-document/external targets
-            // (those addressing another resource) are not validated here.
-            for xref in xrefs {
-                let source_target = resolve_source_target(state, xref.target, xref.source_syntax);
-                let target = source_target.unwrap_or_else(|| resolve_xref_target(
-                    xref.target,
-                    xref.resolve_natural_target,
-                    &reference_ids,
-                    &references.natural_targets,
-                ));
-                let target_is_local = source_target.is_some()
-                    || xref.source_syntax.target_is_local(target);
-                if target_is_local && xref.automatic
-                    && let Some(reference) = document.references.get_mut(target)
-                    && reference.is_bibliography()
-                {
-                    reference.automatic_citation = true;
-                }
-                if target_is_local && !reference_ids.contains(target)
-                {
-                    let source_location = state.create_error_source_location(xref.location);
-                    state.add_warning(Warning::new(
-                        WarningKind::UnresolvedReference {
-                            target: target.to_string(),
-                        },
-                        Some(source_location),
-                    ));
-                }
-            }
-            finalize_inline_semantics(
-                state,
-                &mut document,
-                &reference_ids,
-                &references.natural_targets,
-            )?;
-            Ok(document)
+        #[no_eof]
+        pub(in crate::grammar::document) rule document_prefix() -> Result<DocumentPrefix<'input>, Error>
+        = eol()* start:position()
+          comments:(comment:leading_comment() eol()* { comment })*
+          header:header() prepare_manpage_front_matter()
+          attributes:header_attribute_snapshot() body_offset:position!()
+        {
+            Ok(DocumentPrefix {
+                start,
+                header: header?,
+                attributes,
+                comments: comments.into_iter().collect::<Result<_, _>>()?,
+                body_offset,
+            })
         }
+
+        // Jump to an accepted boundary without rescanning or copying its prefix.
+        rule resume_at(offset: usize)
+        = #{|input, _| {
+            if input.is_char_boundary(offset) {
+                peg::RuleResult::Matched(offset, ())
+            } else {
+                peg::RuleResult::Failed
+            }
+        }}
+
+        #[no_eof]
+        pub(in crate::grammar::document) rule next_block(offset: usize) -> Result<BlockStep<'input>, Error>
+        = resume_at(offset) step:(
+            !trailing_block_metadata_match() block:block(0, None, None) end:position!()
+            { block.map(|block| BlockStep::block(block, end)) }
+            / trailing:trailing_block_metadata(0)? end:position!() eol()* ![_]
+            { trailing.transpose().map(|blocks| BlockStep::end(blocks.unwrap_or_default(), end)) }
+        ) { step }
 
         rule header_attribute_snapshot() -> DocumentAttributes<'input>
         = {

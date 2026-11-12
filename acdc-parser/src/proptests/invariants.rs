@@ -85,7 +85,7 @@ proptest! {
             let arena = bumpalo::Bump::new();
             let mut state = crate::grammar::ParserState::new(&result.text, &arena, Rc::new(options.clone()));
             state.leveloffset_ranges = result.leveloffset_ranges;
-            if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
+            if let Ok(Ok(doc)) = crate::grammar::parse_document(&result.text, &mut state) {
                 let text = &result.text;
                 walk_document_locations(&doc, &mut |loc, ctx| {
                     assert!(

@@ -578,7 +578,7 @@ fn parse_input(
             if state.document_attributes.contains_key("toc2") {
                 state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
             }
-            let result = match grammar::document_parser::document(&owner.source, &mut state) {
+            let result = match grammar::parse_document(&owner.source, &mut state) {
                 Ok(Ok(mut doc)) => {
                     grammar::reference_text::finish_document(&mut state, &mut doc)?;
                     if let Some(session) = session

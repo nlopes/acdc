@@ -2,8 +2,10 @@
 
 mod author;
 mod callouts;
+mod coordinator;
 mod delimited;
 mod doctype;
+mod finish;
 mod header;
 pub(super) mod lists;
 mod manpage;
@@ -16,6 +18,7 @@ mod sections;
 mod table;
 mod verbatim;
 
+pub(crate) use coordinator::document;
 pub(crate) use peg::document_parser;
 
 #[cfg(test)]
