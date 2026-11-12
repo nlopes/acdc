@@ -468,7 +468,7 @@ fn selection_highlighting_and_folding_use_original_utf16_source() -> TestResult 
         };
         actual.push((line, column, token.length, token.token_type));
     }
-    assert!(actual.iter().all(|token| token.0 == 2 || token.0 == 6));
+    assert!(actual.iter().all(|token| matches!(token.0, 0 | 2 | 4 | 6)));
     assert!(actual.contains(&(6, 4, 7, 4)));
     let folds: Vec<FoldingRange> = serde_json::from_value(client.send_request(
         "textDocument/foldingRange",

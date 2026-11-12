@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Semantic highlighting covers document and block titles, table separators and
+  cell content, header and column styles, list markers, block delimiters,
+  attribute values and references, and inline macros. Bold, italic, code,
+  highlighted, subscript, and superscript text have distinct style modifiers.
+  Nested styles combine, and multiline content stays highlighted on every line.
+  Emacs users can use the documented Eglot setup to replace `adoc-mode` colors.
+  Source blocks receive a code face; embedded language highlighting remains unsupported.
+
 - Set `compatibilityMode` to `asciidoctor` (the default) or `draft` in initialization
   options or resource-scoped workspace settings. Changing the mode refreshes analysis
   and workspace symbols; previews use the same mode, including unsaved includes.

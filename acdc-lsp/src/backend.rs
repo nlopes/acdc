@@ -990,6 +990,7 @@ impl LanguageServer for Backend {
                 SemanticTokensResult::Tokens(semantic_tokens::compute_semantic_tokens(
                     ast.document(),
                     &doc.conditionals,
+                    &doc.includes,
                     doc.text(),
                 ))
             })

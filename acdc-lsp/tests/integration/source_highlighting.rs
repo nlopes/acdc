@@ -48,7 +48,79 @@ fn source_range(line: u32, text: &str, spelling: &str) -> Result<Range, Box<dyn 
 }
 
 #[test]
-fn shared_description_body_is_highlighted_once_with_existing_term_policy() -> TestResult {
+fn expanded_syntax_tokens_expose_styles_and_nonoverlapping_table_ranges() -> TestResult {
+    let project = Project::new("expanded-syntax-tokens")?;
+    let source = "= Styling\r\n:who: Ada\r\n\r\n[%header,cols=\"1,1\"]\r\n|===\r\n|Name|Email\r\n|Peter Sutherland|peter.sutherland@example.com\r\n|😀 *Bold _both_*|`code`\r\n|===\r\n\r\n////\r\nfirst comment\r\nsecond comment\r\n////\r\n";
+    for mode in ["asciidoctor", "draft"] {
+        let mut client = LspTestClient::new()?;
+        let initialized = client.initialize_with_options(json!({"compatibilityMode":mode}))?;
+        let legend = initialized
+            .pointer("/capabilities/semanticTokensProvider/legend/tokenModifiers")
+            .and_then(serde_json::Value::as_array)
+            .ok_or("semantic token modifiers")?;
+        let flag = |name: &str| -> Result<u32, Box<dyn Error>> {
+            let bit = legend
+                .iter()
+                .position(|modifier| modifier.as_str() == Some(name))
+                .ok_or("style modifier")?;
+            Ok(1 << u32::try_from(bit)?)
+        };
+        let bold = flag("bold")?;
+        let italic = flag("italic")?;
+        let code = flag("code")?;
+        let uri = project.uri(&format!("{mode}.adoc"))?;
+        client.open_document(&uri, source)?;
+        let tokens = decoded(&mut client, &uri)?;
+        for (spelling, kind, flags) in [
+            ("Styling", 0, 0),
+            ("Ada", 3, 0),
+            ("Name", 4, bold),
+            ("peter.sutherland@example.com", 1, 0),
+            ("*Bold ", 4, bold),
+            ("_both_", 4, bold | italic),
+            ("`code`", 3, code),
+            ("first comment", 5, 0),
+            ("second comment", 5, 0),
+        ] {
+            let (line, text) = source
+                .lines()
+                .enumerate()
+                .find(|(_, text)| text.contains(spelling))
+                .ok_or("source line")?;
+            let range = source_range(u32::try_from(line)?, text, spelling)?;
+            assert!(
+                tokens.contains(&[
+                    range.start.line,
+                    range.start.character,
+                    range.end.character - range.start.character,
+                    kind,
+                    flags
+                ]),
+                "{mode}: {spelling}: {tokens:?}"
+            );
+        }
+        let mut previous = (0, 0);
+        for token in &tokens {
+            assert!(
+                token[2] > 0 && (token[0], token[1]) >= previous,
+                "{mode}: overlapping or empty token: {token:?}"
+            );
+            previous = (token[0], token[1] + token[2]);
+        }
+        assert_eq!(
+            tokens
+                .iter()
+                .filter(|token| token[0] == 6 && token[3] == 8 && token[2] == 1)
+                .count(),
+            2
+        );
+        client.shutdown();
+    }
+    Ok(())
+}
+
+#[test]
+fn shared_description_terms_and_body_are_highlighted_once() -> TestResult {
     let project = Project::new("shared-description-highlighting")?;
     let source = "*First*::\r\n*Second*:: *Shared*.\r\n+\r\n*Attached*.\r\n";
     for mode in ["asciidoctor", "draft"] {
@@ -57,7 +129,12 @@ fn shared_description_body_is_highlighted_once_with_existing_term_policy() -> Te
         let uri = project.uri(&format!("{mode}.adoc"))?;
         client.open_document(&uri, source)?;
         let tokens = decoded(&mut client, &uri)?;
-        for (line, spelling) in [(1, "*Shared*"), (3, "*Attached*")] {
+        for (line, spelling) in [
+            (0, "*First*"),
+            (1, "*Second*"),
+            (1, "*Shared*"),
+            (3, "*Attached*"),
+        ] {
             let text = source.lines().nth(usize::try_from(line)?).ok_or("line")?;
             let range = source_range(line, text, spelling)?;
             assert_eq!(
@@ -69,21 +146,21 @@ fn shared_description_body_is_highlighted_once_with_existing_term_policy() -> Te
                             range.start.character,
                             range.end.character - range.start.character,
                             4,
-                            0
+                            8
                         ])
                     .count(),
                 1,
                 "{mode}: {tokens:?}"
             );
         }
-        assert_eq!(tokens.iter().filter(|token| token[3] == 4).count(), 2);
+        assert_eq!(tokens.iter().filter(|token| token[3] == 4).count(), 4);
         client.shutdown();
     }
     Ok(())
 }
 
 #[test]
-fn source_highlighting_keeps_macro_curved_and_include_policies() -> TestResult {
+fn source_highlighting_covers_macro_and_curved_content_without_foreign_tokens() -> TestResult {
     let project = Project::new("source-highlight-policies")?;
     let uri = project.uri("document.adoc")?;
     fs::write(
@@ -100,35 +177,51 @@ fn source_highlighting_keeps_macro_curved_and_include_policies() -> TestResult {
         client.open_document(&uri, &source)?;
         let tokens = decoded(&mut client, &uri)?;
         let image = source_range(5, body, "image:icon.svg[*Alt*]")?;
-        let bold = source_range(5, body, "*bold*")?;
+        let macro_name = source_range(5, body, "image:icon.svg[")?;
         assert!(
             tokens.contains(&[
                 5,
-                image.start.character,
-                image.end.character - image.start.character,
+                macro_name.start.character,
+                macro_name.end.character - macro_name.start.character,
                 1,
                 0
             ]),
             "{mode}: {tokens:?}"
         );
-        assert!(
-            tokens.contains(&[
-                5,
-                bold.start.character,
-                bold.end.character - bold.start.character,
-                4,
-                0
-            ]),
-            "{mode}: {tokens:?}"
-        );
+        for spelling in ["*Alt*", "*curved*", "*bold*"] {
+            let range = source_range(5, body, spelling)?;
+            assert!(
+                tokens.contains(&[
+                    5,
+                    range.start.character,
+                    range.end.character - range.start.character,
+                    4,
+                    8
+                ]),
+                "{mode}: {tokens:?}"
+            );
+        }
         assert_eq!(
             tokens.iter().filter(|token| token[0] == 5).count(),
-            2,
+            5,
             "{mode}: {tokens:?}"
         );
         assert!(
-            tokens.iter().all(|token| matches!(token[0], 1 | 5 | 6)),
+            tokens
+                .iter()
+                .all(|token| matches!(token[0], 0 | 1 | 3 | 5 | 6)),
             "{mode}: {tokens:?}"
+        );
+        let include = source.lines().nth(3).ok_or("include directive")?;
+        assert!(
+            tokens.contains(&[3, 0, u32::try_from(include.encode_utf16().count())?, 1, 0]),
+            "{mode}: include directive has a token"
+        );
+        assert!(
+            tokens
+                .iter()
+                .any(|token| [token[0], token[1], token[2], token[3]] == [6, 0, 6, 2]),
+            "attribute reference uses its authored source spelling"
         );
         let alt = source_range(5, body, "Alt")?;
         let selections: Vec<SelectionRange> = serde_json::from_value(client.send_request(
@@ -143,6 +236,30 @@ fn source_highlighting_keeps_macro_curved_and_include_policies() -> TestResult {
                     && usize::try_from(token[1] + token[2])? <= text.encode_utf16().count()
             );
         }
+        client.shutdown();
+    }
+    Ok(())
+}
+
+#[test]
+fn include_tokens_preserve_commented_and_escaped_source() -> TestResult {
+    let project = Project::new("include-token-comments")?;
+    fs::write(project.path().join("child.adoc"), "Included text.\n")?;
+    let source = "= Includes\n\ninclude::child.adoc[]\n\n////\ninclude::child.adoc[]\n////\n\n----\n\\include::child.adoc[]\n----\n";
+    for mode in ["asciidoctor", "draft"] {
+        let mut client = LspTestClient::new()?;
+        client.initialize_with_options(json!({"compatibilityMode":mode}))?;
+        let uri = project.uri(&format!("{mode}.adoc"))?;
+        client.open_document(&uri, source)?;
+        let tokens = decoded(&mut client, &uri)?;
+        assert!(tokens.contains(&[2, 0, 21, 1, 0]), "{mode}: {tokens:?}");
+        assert!(tokens.contains(&[5, 0, 21, 5, 0]), "{mode}: {tokens:?}");
+        assert!(tokens.contains(&[9, 0, 22, 3, 32]), "{mode}: {tokens:?}");
+        assert!(
+            !tokens
+                .iter()
+                .any(|token| matches!(token[0], 5 | 9) && token[3] == 1)
+        );
         client.shutdown();
     }
     Ok(())
@@ -164,7 +281,7 @@ fn authored_section_ids_share_definition_highlighting() -> TestResult {
             .filter(|token| token[3] == 0)
             .map(|token| (token[0], token[4]))
             .collect::<Vec<_>>();
-        assert_eq!(sections, [(3, 2), (6, 2), (8, 0)], "{mode}");
+        assert_eq!(sections, [(0, 0), (3, 2), (6, 2), (8, 0)], "{mode}");
         client.shutdown();
     }
     Ok(())
@@ -246,7 +363,7 @@ fn conditional_overlays_follow_body_changes_and_selected_nested_includes() -> Te
                         bold.start.character,
                         bold.end.character - bold.start.character,
                         4,
-                        0
+                        8
                     ]));
                     assert_eq!(tokens.iter().filter(|token| token[0] == line).count(), 1);
                 }

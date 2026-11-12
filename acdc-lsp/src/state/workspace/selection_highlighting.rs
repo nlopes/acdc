@@ -136,10 +136,15 @@ fn selected_reindented_includes_preserve_primary_selection_highlights_and_folds(
     let tokens = decoded_tokens(semantic_tokens::compute_semantic_tokens(
         ast.document(),
         &doc.conditionals,
+        &doc.includes,
         doc.text(),
     ));
-    assert!(tokens.contains(&(6, 3, 7, 4, 0)));
-    assert!(tokens.iter().all(|(line, ..)| *line == 2 || *line == 6));
+    assert!(tokens.contains(&(6, 3, 7, 4, 8)));
+    assert!(
+        tokens
+            .iter()
+            .all(|(line, ..)| matches!(line, 0 | 2 | 4 | 6))
+    );
     let folds = folding::compute_folding_ranges(ast.document(), doc.text());
     assert!(folds.iter().all(|fold| fold.start_line == 2));
     assert!(
@@ -162,6 +167,7 @@ fn nested_disabled_highlighting_has_unique_line_bounded_utf16_tokens() -> TestRe
     let tokens = decoded_tokens(semantic_tokens::compute_semantic_tokens(
         ast.document(),
         &doc.conditionals,
+        &doc.includes,
         doc.text(),
     ));
     let distinct: HashSet<_> = tokens.iter().copied().collect();

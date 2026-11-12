@@ -24,7 +24,14 @@ A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered 
 
 ### Syntax
 
-- **Semantic Tokens** - Rich syntax highlighting for sections, macros, attributes, formatting, comments, and anchors
+- **Semantic Tokens** - Syntax highlighting for titles, tables, lists, block delimiters,
+  attributes, macros, inline formatting, comments, and anchors. Nested styles combine,
+  and multiline content receives a token on each line.
+
+The server supplies token types and formatting modifiers; the editor chooses the colors.
+In addition to standard modifiers, it reports `disabled`, `bold`, `italic`, `code`,
+`highlight`, `subscript`, and `superscript`. Clients can style these separately.
+Source blocks receive a code face, without language-specific Rust or JavaScript tokens.
 
 ## Installation
 
@@ -210,9 +217,49 @@ Add to your Emacs config:
 ;; Auto-start eglot for AsciiDoc files
 (add-hook 'adoc-mode-hook 'eglot-ensure)
 
-;; Optional: enable semantic highlighting
-(setq eglot-enable-semantic-highlighting t)
 ```
+
+Eglot with `eglot-semantic-tokens-mode` support enables semantic tokens when it
+connects. The `eglot-enable-semantic-highlighting` variable is not an Eglot setting.
+By default, Eglot adds its faces to `adoc-mode`'s existing colors.
+
+To use acdc-lsp as the primary highlighter, add the following after requiring
+Eglot. This keeps `adoc-mode` for editing and replaces its font-lock rules.
+Keep `font-lock-mode` enabled: Eglot uses it to apply tokens.
+
+```elisp
+(defface eglot-semantic-bold '((t (:inherit bold)))
+  "Bold AsciiDoc text." :group 'eglot-semantic-faces)
+(defface eglot-semantic-italic '((t (:inherit italic)))
+  "Italic AsciiDoc text." :group 'eglot-semantic-faces)
+(defface eglot-semantic-code '((t (:inherit fixed-pitch)))
+  "AsciiDoc code." :group 'eglot-semantic-faces)
+(defface eglot-semantic-highlight '((t (:inherit highlight)))
+  "Highlighted AsciiDoc text." :group 'eglot-semantic-faces)
+(defface eglot-semantic-subscript '((t (:height 0.9)))
+  "AsciiDoc subscript source." :group 'eglot-semantic-faces)
+(defface eglot-semantic-superscript '((t (:height 0.9)))
+  "AsciiDoc superscript source." :group 'eglot-semantic-faces)
+(defface eglot-semantic-disabled '((t (:inherit shadow)))
+  "Inactive AsciiDoc source." :group 'eglot-semantic-faces)
+
+(defun acdc-lsp-use-semantic-highlighting ()
+  "Use acdc-lsp tokens for colors in an AsciiDoc buffer."
+  (setq-local font-lock-defaults '(nil t))
+  (font-lock-refresh-defaults)
+  (setq-local eglot-semantic-token-modifiers
+              (append '("bold" "italic" "code" "highlight"
+                        "subscript" "superscript" "disabled")
+                      eglot-semantic-token-modifiers)))
+
+(add-hook 'adoc-mode-hook #'acdc-lsp-use-semantic-highlighting)
+```
+
+Reopen existing AsciiDoc buffers after adding this setup. Token types use Eglot's
+normal faces, so they follow your Emacs theme. The faces above add formatting;
+subscript and superscript source use smaller text while retaining their delimiters.
+Removing the hook and reopening the buffer restores `adoc-mode` highlighting.
+Until the server connects, the buffer has plain text colors.
 
 To select a backend for one project, add a `.dir-locals.el` file at the project root:
 

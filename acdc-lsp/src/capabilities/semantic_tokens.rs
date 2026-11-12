@@ -8,9 +8,15 @@
 //! - Inline formatting (bold, italic, etc.) (`variable`)
 //! - Comments (`comment`)
 
-use acdc_parser::ast::{
-    BlockKind, ContentRef, DocumentRef, IdOrigin, InlineKind, LocationRef, SectionRef,
-    StructuralRef,
+mod normalize;
+mod syntax;
+
+#[cfg(test)]
+mod coverage_tests;
+
+use acdc_parser::{
+    Location,
+    ast::{ContentRef, DocumentRef, InlineKind, LocationRef},
 };
 use tower_lsp_server::ls_types::{
     Range, SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
@@ -28,12 +34,12 @@ const TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::NAMESPACE, // 0 - section titles
     SemanticTokenType::FUNCTION,  // 1 - macros (xref, link, image, include)
     SemanticTokenType::PROPERTY,  // 2 - attribute names
-    SemanticTokenType::STRING,    // 3 - attribute values, link text
+    SemanticTokenType::STRING,    // 3 - attribute values, source code
     SemanticTokenType::VARIABLE,  // 4 - formatted text (bold, italic)
     SemanticTokenType::COMMENT,   // 5 - comments
     SemanticTokenType::KEYWORD,   // 6 - admonition labels
     SemanticTokenType::DECORATOR, // 7 - anchors
-    SemanticTokenType::OPERATOR,  // 8 - formatting markers (**, __, etc.)
+    SemanticTokenType::OPERATOR,  // 8 - delimiters, list markers, cell separators
 ];
 
 /// Semantic token modifiers
@@ -41,7 +47,21 @@ const TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
     SemanticTokenModifier::DECLARATION,     // 0 - anchor definitions
     SemanticTokenModifier::DEFINITION,      // 1 - section with ID
     SemanticTokenModifier::new("disabled"), // 2 - inactive conditional content
+    SemanticTokenModifier::new("bold"),
+    SemanticTokenModifier::new("italic"),
+    SemanticTokenModifier::new("code"),
+    SemanticTokenModifier::new("highlight"),
+    SemanticTokenModifier::new("subscript"),
+    SemanticTokenModifier::new("superscript"),
 ];
+
+const BOLD: u32 = 1 << 3;
+const ITALIC: u32 = 1 << 4;
+const CODE: u32 = 1 << 5;
+const HIGHLIGHT: u32 = 1 << 6;
+const SUBSCRIPT: u32 = 1 << 7;
+const SUPERSCRIPT: u32 = 1 << 8;
+const FORMATTING_MODIFIERS: u32 = BOLD | ITALIC | CODE | HIGHLIGHT | SUBSCRIPT | SUPERSCRIPT;
 
 /// Create the semantic tokens legend for capability registration
 #[must_use]
@@ -71,6 +91,8 @@ struct RawToken {
     length: u32,
     token_type: u32,
     token_modifiers: u32,
+    // Base syntax, inline markup, directives, then inactive-source overlays.
+    priority: u8,
 }
 
 /// Compute semantic tokens for a document, including conditional directive awareness.
@@ -78,34 +100,64 @@ struct RawToken {
 pub(crate) fn compute_semantic_tokens(
     doc: DocumentRef<'_>,
     conditionals: &[ConditionalBlock],
+    includes: &[(String, Location)],
     text: &str,
 ) -> SemanticTokens {
     let mut tokens: Vec<RawToken> = Vec::new();
     let source = LineIndex::new(text);
 
-    for block in doc.blocks() {
-        collect_tokens_from_structure(block.into(), &source, &mut tokens);
-    }
+    syntax::collect(doc, &source, &mut tokens);
+    collect_include_tokens(includes, &source, &mut tokens);
     collect_conditional_tokens(conditionals, &source, &mut tokens);
-
-    // Sort by position for delta encoding
-    tokens.sort_by_key(|token| {
-        (
-            token.line,
-            token.start_char,
-            token.length,
-            token.token_type,
-            token.token_modifiers,
-        )
-    });
-    tokens.dedup();
-
-    // Delta encode
-    let encoded = delta_encode(tokens);
+    let encoded = delta_encode(normalize::tokens(&tokens));
 
     SemanticTokens {
         result_id: None,
         data: encoded,
+    }
+}
+
+fn collect_include_tokens(
+    includes: &[(String, Location)],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
+    for (_, location) in includes {
+        if !is_primary_location(location) {
+            continue;
+        }
+        let Some(mut range) = source.range(location) else {
+            continue;
+        };
+        let Some(line) = source.line(range.start.line) else {
+            continue;
+        };
+        if range.start.line != range.end.line
+            || !line.trim_start().starts_with("include::")
+            || !line.trim().ends_with(']')
+        {
+            continue;
+        }
+        if tokens.iter().any(|token| {
+            token.line == range.start.line
+                && token.token_type == 5
+                && token.start_char <= range.start.character
+                && token.start_char + token.length >= range.end.character
+        }) {
+            continue;
+        }
+        let Some(start) = range
+            .start
+            .character
+            .checked_sub(to_lsp_u32("include::".len()))
+        else {
+            continue;
+        };
+        range.start.character = start;
+        range.end.character = source
+            .line_width(range.end.line)
+            .unwrap_or(range.end.character);
+        add_token_for_range(range, 1, 0, source, tokens);
     }
 }
 
@@ -126,6 +178,7 @@ fn collect_conditional_tokens(
                 length,
                 token_type: 6, // KEYWORD
                 token_modifiers: 0,
+                priority: 2,
             });
         }
 
@@ -140,6 +193,7 @@ fn collect_conditional_tokens(
                 length,
                 token_type: 6, // KEYWORD
                 token_modifiers: 0,
+                priority: 2,
             });
         }
 
@@ -157,116 +211,11 @@ fn collect_conditional_tokens(
                         length,
                         token_type: 5,      // COMMENT
                         token_modifiers: 4, // bit 2 = disabled
+                        priority: 3,
                     });
                 }
             }
         }
-    }
-}
-
-fn collect_tokens_from_structure(
-    node: StructuralRef<'_>,
-    source: &LineIndex<'_>,
-    tokens: &mut Vec<RawToken>,
-) {
-    match node {
-        StructuralRef::Block(block) => match block.kind() {
-            BlockKind::Section(section) => add_section_token(section, source, tokens),
-            BlockKind::Paragraph(paragraph) => {
-                collect_tokens_from_inlines(paragraph.content(), source, tokens);
-            }
-            BlockKind::Listing(block) => {
-                collect_tokens_from_inlines(block.content(), source, tokens);
-            }
-            BlockKind::Literal(block) => {
-                collect_tokens_from_inlines(block.content(), source, tokens);
-            }
-            BlockKind::Verse(block) => collect_tokens_from_inlines(block.content(), source, tokens),
-            BlockKind::DelimitedComment(comment) => {
-                add_token_for_location(comment.location(), 5, 0, source, tokens);
-            }
-            BlockKind::Admonition(admonition) => {
-                add_token_for_location(admonition.location(), 6, 0, source, tokens);
-            }
-            BlockKind::Comment(comment) => {
-                add_token_for_location(comment.location(), 5, 0, source, tokens);
-            }
-            BlockKind::DocumentAttribute(attribute) => {
-                if is_primary_location(attribute.location())
-                    && source.range(attribute.location()).is_some()
-                {
-                    add_attribute_token(
-                        attribute.name(),
-                        attribute.location().start().line() - 1,
-                        source,
-                        tokens,
-                    );
-                }
-            }
-            BlockKind::Example(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Quote(_)
-            | BlockKind::UnorderedList(_)
-            | BlockKind::OrderedList(_)
-            | BlockKind::DescriptionList(_) => {}
-            BlockKind::TableOfContents(_)
-            | BlockKind::DiscreteHeading(_)
-            | BlockKind::ThematicBreak(_)
-            | BlockKind::PageBreak(_)
-            | BlockKind::CalloutList(_)
-            | BlockKind::Image(_)
-            | BlockKind::Audio(_)
-            | BlockKind::Video(_)
-            | BlockKind::Table(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Stem(_)
-            | _ => return,
-        },
-        StructuralRef::ListItem(item) => {
-            collect_tokens_from_inlines(item.principal(), source, tokens);
-        }
-        StructuralRef::DescriptionListItem(_) => {}
-        StructuralRef::DescriptionListDefinition(definition) => {
-            if let Some(principal) = definition.principal() {
-                collect_tokens_from_inlines(principal, source, tokens);
-            }
-        }
-        StructuralRef::DescriptionListTerm(_)
-        | StructuralRef::Document(_)
-        | StructuralRef::Header(_)
-        | StructuralRef::CalloutListItem(_)
-        | StructuralRef::TableRow(_)
-        | StructuralRef::TableCell(_)
-        | _ => return,
-    }
-    for child in node.children() {
-        collect_tokens_from_structure(child, source, tokens);
-    }
-}
-
-fn add_section_token(section: SectionRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
-    let Some(title) = section.title() else { return };
-    let mut inlines = title.inlines();
-    let Some(first) = inlines.next() else { return };
-    let last = inlines.next_back().unwrap_or(first);
-    let start = first.location().start();
-    let end = last.location().end();
-    if [start, end].into_iter().all(|position| {
-        position
-            .include_chain()
-            .is_none_or(|mut chain| chain.next().is_none())
-    }) && let Some(range) = source.range_between(start, end)
-    {
-        let modifiers = if section
-            .id()
-            .is_some_and(|id| id.origin() == IdOrigin::Explicit)
-        {
-            2
-        } else {
-            0
-        };
-        add_token_for_range(range, 0, modifiers, source, tokens);
     }
 }
 
@@ -276,32 +225,34 @@ fn collect_tokens_from_inlines(
     tokens: &mut Vec<RawToken>,
 ) {
     for inline in content.inlines() {
-        match inline.kind() {
+        let style = match inline.kind() {
             InlineKind::CrossReference(_)
             | InlineKind::Link(_)
             | InlineKind::UrlMacro(_)
             | InlineKind::Autolink(_)
             | InlineKind::Mailto(_)
             | InlineKind::Image(_)
-            | InlineKind::Icon(_) => {
-                add_token_for_location(inline.location(), 1, 0, source, tokens);
+            | InlineKind::Icon(_)
+            | InlineKind::Footnote(_)
+            | InlineKind::KeyboardShortcut(_)
+            | InlineKind::Button(_)
+            | InlineKind::MenuPath(_) => Some((1, 0)),
+            InlineKind::Anchor(_) => Some((7, 1)),
+            InlineKind::Bold(_) => Some((4, BOLD)),
+            InlineKind::Italic(_) => Some((4, ITALIC)),
+            InlineKind::Monospace(_) | InlineKind::Passthrough(_) | InlineKind::Stem(_) => {
+                Some((3, CODE))
             }
-            InlineKind::Anchor(_) => {
-                add_token_for_location(inline.location(), 7, 1, source, tokens);
+            InlineKind::Highlight(_) => Some((4, HIGHLIGHT)),
+            InlineKind::Subscript(_) => Some((4, SUBSCRIPT)),
+            InlineKind::Superscript(_) => Some((4, SUPERSCRIPT)),
+            InlineKind::Callout(_) => Some((8, 0)),
+            InlineKind::IndexTerm(_) => Some((7, 0)),
+            InlineKind::Plain(_) => {
+                syntax::attribute_references(inline.location(), source, tokens);
+                None
             }
-            InlineKind::Bold(_)
-            | InlineKind::Italic(_)
-            | InlineKind::Monospace(_)
-            | InlineKind::Highlight(_)
-            | InlineKind::Subscript(_)
-            | InlineKind::Superscript(_) => {
-                add_token_for_location(inline.location(), 4, 0, source, tokens);
-                for field in inline.content_fields() {
-                    collect_tokens_from_inlines(field.content(), source, tokens);
-                }
-            }
-            InlineKind::Plain(_)
-            | InlineKind::Symbol(_)
+            InlineKind::Symbol(_)
             | InlineKind::CharacterReference(_)
             | InlineKind::Raw(_)
             | InlineKind::Verbatim(_)
@@ -309,15 +260,13 @@ fn collect_tokens_from_inlines(
             | InlineKind::SingleQuotedSpan(_)
             | InlineKind::StandaloneCurvedApostrophe(_)
             | InlineKind::LineBreak(_)
-            | InlineKind::Callout(_)
-            | InlineKind::Footnote(_)
-            | InlineKind::KeyboardShortcut(_)
-            | InlineKind::Button(_)
-            | InlineKind::MenuPath(_)
-            | InlineKind::Passthrough(_)
-            | InlineKind::Stem(_)
-            | InlineKind::IndexTerm(_)
-            | _ => {}
+            | _ => None,
+        };
+        if let Some((kind, modifiers)) = style {
+            add_token_for_location(inline.location(), kind, modifiers, source, tokens);
+        }
+        for field in inline.content_fields() {
+            collect_tokens_from_inlines(field.content(), source, tokens);
         }
     }
 }
@@ -346,6 +295,7 @@ fn add_attribute_token(name: &str, line: u32, source: &LineIndex<'_>, tokens: &m
             length: range.end.character - range.start.character,
             token_type: 2, // PROPERTY
             token_modifiers: 0,
+            priority: 1,
         });
     }
 }
@@ -374,23 +324,41 @@ fn add_token_for_range(
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
-    // Keep highlighting multiline nodes on their first physical line.
-    let end = if range.start.line == range.end.line {
-        range.end.character
-    } else {
-        let Some(width) = source.line_width(range.start.line) else {
+    add_range_with_priority(range, token_type, token_modifiers, 1, source, tokens);
+}
+
+fn add_range_with_priority(
+    range: Range,
+    token_type: u32,
+    token_modifiers: u32,
+    priority: u8,
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
+    for line in range.start.line..=range.end.line {
+        let Some(width) = source.line_width(line) else {
             return;
         };
-        width
-    };
-    if end > range.start.character {
-        tokens.push(RawToken {
-            line: range.start.line,
-            start_char: range.start.character,
-            length: end - range.start.character,
-            token_type,
-            token_modifiers,
-        });
+        let start_char = if line == range.start.line {
+            range.start.character
+        } else {
+            0
+        };
+        let end = if line == range.end.line {
+            range.end.character
+        } else {
+            width
+        };
+        if end > start_char {
+            tokens.push(RawToken {
+                line,
+                start_char,
+                length: end - start_char,
+                token_type,
+                token_modifiers,
+                priority,
+            });
+        }
     }
 }
 
@@ -432,7 +400,7 @@ mod tests {
     fn tokens_use_utf16_columns_and_stop_at_line_end() -> Result<(), Box<dyn std::error::Error>> {
         let text = "😀 *bold*\n*multi\nline*\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], text);
         let first = tokens.data.first().ok_or("missing token")?;
         assert_eq!(first.delta_start, 3);
         assert_eq!(first.length, 6);
@@ -495,7 +463,7 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let text = "Text.\r\n\r\n:!name:\r\n:name!:\r\n:other: value\r\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document(), &[], text);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], text);
         let actual: Vec<_> = tokens
             .data
             .iter()
@@ -508,7 +476,10 @@ mod tests {
                 )
             })
             .collect();
-        assert_eq!(actual, [(2, 2, 4, 2), (1, 1, 4, 2), (1, 1, 5, 2)]);
+        assert_eq!(
+            actual,
+            [(2, 2, 4, 2), (1, 1, 4, 2), (1, 1, 5, 2), (0, 7, 5, 3)]
+        );
         Ok(())
     }
 
@@ -523,7 +494,7 @@ Some content.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], content);
         // Should have at least tokens for section titles
         assert_ne!(tokens.data, []);
         Ok(())
@@ -541,7 +512,7 @@ See <<target>> for more.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document(), &[], content);
+        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], content);
         // Should have tokens for section, anchor, and xref
         assert!(tokens.data.len() >= 2);
         Ok(())
@@ -553,11 +524,25 @@ See <<target>> for more.
         assert!(legend.token_types.contains(&SemanticTokenType::NAMESPACE));
         assert!(legend.token_types.contains(&SemanticTokenType::FUNCTION));
         assert!(legend.token_types.contains(&SemanticTokenType::COMMENT));
-        assert_eq!(legend.token_modifiers.len(), 3);
+        assert_eq!(legend.token_modifiers.len(), 9);
         assert_eq!(
             legend.token_modifiers.get(2),
             Some(&SemanticTokenModifier::new("disabled"))
         );
+        for name in [
+            "bold",
+            "italic",
+            "code",
+            "highlight",
+            "subscript",
+            "superscript",
+        ] {
+            assert!(
+                legend
+                    .token_modifiers
+                    .contains(&SemanticTokenModifier::new(name))
+            );
+        }
     }
 
     #[test]
@@ -578,7 +563,7 @@ See <<target>> for more.
             end_line: Some(2),
         }];
 
-        let tokens = compute_semantic_tokens(doc, &conditionals, content);
+        let tokens = compute_semantic_tokens(doc, &conditionals, &[], content);
         // Should have tokens: ifdef line (KEYWORD), inactive content (COMMENT+disabled), endif (KEYWORD)
         assert!(tokens.data.len() >= 3);
 
@@ -641,7 +626,7 @@ See <<target>> for more.
             end_line: Some(2),
         }];
 
-        let tokens = compute_semantic_tokens(doc, &conditionals, content);
+        let tokens = compute_semantic_tokens(doc, &conditionals, &[], content);
         // Active block: should have KEYWORD tokens for directives but NO disabled tokens
         let mut abs_tokens = Vec::new();
         let mut prev_line = 0u32;
