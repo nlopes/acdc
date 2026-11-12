@@ -106,6 +106,135 @@ fn assert_budget_error(result: Result<String, Error>, file: &str, line: u32) -> 
 }
 
 #[test]
+fn resumable_input_applies_changes_before_later_conditionals_and_includes() -> TestResult {
+    let sources = Sources::new(&[("body.adoc", "Included.")]);
+    let mut options = sources.options()?;
+    let preprocessor = Preprocessor::new(&options, Rc::default());
+    let arena = bumpalo::Bump::new();
+    let source = SourceOrigin::entry_file(
+        &std::env::temp_dir().join("acdc-include-budget/entry.adoc"),
+        options.base_dir.as_deref(),
+    )?;
+    let input = "configure::[]\n\nifdef::enabled[]\ninclude::body.adoc[]\nendif::[]";
+    let mut cursor = cursor::InputCursor::new(
+        &preprocessor,
+        input,
+        Some(&source),
+        &mut options,
+        Vec::new(),
+        None,
+        &arena,
+    );
+    assert!(cursor.advance(&mut options)?);
+    assert_eq!(sources.opened(), Vec::<String>::new());
+    options
+        .document_attributes
+        .set_text("enabled".into(), "".into());
+    let result = cursor.read_all(&mut options)?;
+    assert_eq!(result.text, "configure::[]\n\nIncluded.");
+    assert_eq!(sources.opened(), ["body.adoc"]);
+    assert!(
+        result
+            .conditionals
+            .first()
+            .ok_or("missing conditional")?
+            .is_active()
+    );
+    let offset = result.text.find("Included.").ok_or("missing include")?;
+    let range = SourceRange::find_containing(&result.source_ranges, offset)
+        .ok_or("missing include source range")?;
+    assert_eq!(
+        range.file.as_deref().and_then(Path::file_name),
+        Some(std::ffi::OsStr::new("body.adoc"))
+    );
+    assert_eq!(range.start_line, 1);
+    Ok(())
+}
+
+#[test]
+fn resumable_input_does_not_open_a_later_include_before_advancing() -> TestResult {
+    let sources = Sources::new(&[("first.adoc", "First."), ("next.adoc", "Next.")]);
+    let mut options = sources.options()?;
+    let preprocessor = Preprocessor::new(&options, Rc::default());
+    let arena = bumpalo::Bump::new();
+    let source = SourceOrigin::entry_file(
+        &std::env::temp_dir().join("acdc-include-budget/entry.adoc"),
+        options.base_dir.as_deref(),
+    )?;
+    let mut cursor = cursor::InputCursor::new(
+        &preprocessor,
+        "include::first.adoc[]\ninclude::next.adoc[]",
+        Some(&source),
+        &mut options,
+        Vec::new(),
+        None,
+        &arena,
+    );
+    assert_eq!(sources.opened(), Vec::<String>::new());
+    assert!(cursor.advance(&mut options)?);
+    assert_eq!(sources.opened(), ["first.adoc"]);
+    let result = cursor.read_all(&mut options)?;
+    assert_eq!(result.text, "First.\nNext.");
+    assert_eq!(sources.opened(), ["first.adoc", "next.adoc"]);
+    Ok(())
+}
+
+#[test]
+fn resumable_input_pauses_inside_an_include_and_preserves_nested_source_chains() -> TestResult {
+    for mode in [
+        crate::CompatibilityMode::Draft,
+        crate::CompatibilityMode::Asciidoctor,
+    ] {
+        let sources = Sources::new(&[
+            (
+                "outer.adoc",
+                "configure::[]\nifdef::enabled[]\ninclude::child.adoc[]\nendif::[]",
+            ),
+            ("child.adoc", "Nested."),
+            ("after.adoc", "After."),
+        ]);
+        let mut options = sources
+            .options()?
+            .into_builder()
+            .with_compatibility_mode(mode)
+            .build()?;
+        let preprocessor = Preprocessor::new(&options, Rc::default());
+        let arena = bumpalo::Bump::new();
+        let source = SourceOrigin::entry_file(
+            &std::env::temp_dir().join("acdc-include-budget/entry.adoc"),
+            options.base_dir.as_deref(),
+        )?;
+        let mut cursor = cursor::InputCursor::new(
+            &preprocessor,
+            "include::outer.adoc[]\ninclude::after.adoc[]",
+            Some(&source),
+            &mut options,
+            Vec::new(),
+            None,
+            &arena,
+        );
+        assert!(cursor.advance(&mut options)?);
+        assert!(cursor.advance(&mut options)?);
+        assert_eq!(sources.opened(), ["outer.adoc"]);
+        options
+            .document_attributes
+            .set_text("enabled".into(), "".into());
+        let result = cursor.read_all(&mut options)?;
+        assert_eq!(result.text, "configure::[]\nNested.\nAfter.");
+        assert_eq!(sources.opened(), ["outer.adoc", "child.adoc", "after.adoc"]);
+        let offset = result
+            .text
+            .find("Nested.")
+            .ok_or("missing nested content")?;
+        let range = SourceRange::find_containing(&result.source_ranges, offset)
+            .ok_or("missing nested source range")?;
+        assert_eq!(range.file_chain, ["outer.adoc", "child.adoc"]);
+        assert_eq!(range.start_line, 1);
+    }
+    Ok(())
+}
+
+#[test]
 fn include_budget_is_shared_by_siblings_and_counts_utf8_bytes() -> TestResult {
     let sources = Sources::new(&[("a.log", "é"), ("b.log", "bbb")]);
     let options = sources.options()?;
