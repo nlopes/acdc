@@ -54,7 +54,7 @@ fn main() {
 
 === Tables
 .List of night agents
-[%header,cols="30%,"]
+[%header,cols="30%,70%"]
 |===
 |Name|Email
 |Peter Sutherland|peter.sutherland@example.com
