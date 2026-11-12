@@ -208,6 +208,8 @@ impl<'a> Options<'a> {
 
     pub(crate) fn prepare_for_parse(mut self, input_kind: InputKind<'_>) -> Self {
         initialize_intrinsics(&mut self.document_attributes, self.safe_mode, input_kind);
+        self.document_attributes
+            .prepare_attribute_limit(self.safe_mode);
         self
     }
 

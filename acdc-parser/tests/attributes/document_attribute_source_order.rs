@@ -9,6 +9,37 @@ use acdc_parser::{
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn relative_leveloffset_events_contain_the_resolved_value() -> Result<(), Error> {
+    let parsed = parse(
+        "= Header\n:leveloffset: 1\n\nBody.\n\n:leveloffset: +1\n\nNext.\n\n:leveloffset: -1\n\nLast.",
+        &Options::default(),
+    )?;
+    assert_eq!(
+        parsed
+            .document()
+            .attributes()
+            .get("leveloffset")
+            .and_then(DocumentAttributeValue::text),
+        Some("1")
+    );
+    let values = parsed
+        .document()
+        .blocks()
+        .filter_map(|block| {
+            let BlockKind::DocumentAttribute(event) = block.kind() else {
+                return None;
+            };
+            event
+                .assignment()
+                .value()
+                .and_then(DocumentAttributeValue::text)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(values, ["2", "1"]);
+    Ok(())
+}
+
+#[test]
 fn document_attributes_are_the_header_snapshot() -> Result<(), Error> {
     let parsed = parse(
         "= Header\n:imagesdir: header\n\nimage::before.png[]\n\n:imagesdir: body\n\nimage::after.png[]\n",

@@ -1299,6 +1299,18 @@ over a semicolon as the range separator. Malformed numbers remain errors so an
 invalid selection cannot silently include the whole file. This strict validation
 differs from Asciidoctor's leading-decimal conversion.
 
+## Attribute value limits
+
+The caller attribute `max-attribute-value-size` caps document-defined text values
+in UTF-8 bytes. Values are truncated at a complete character. Secure mode defaults
+to 4096 bytes; other modes have no default cap. The cap is fixed when parsing
+starts. Document content cannot change this caller-only control.
+Truncated values also affect subsequent include targets.
+Setting the caller attribute without a value applies a zero-byte cap; explicitly
+unsetting it disables the cap, including in Secure mode. Decimal digit separators
+are accepted, so `max-attribute-value-size=4_096` sets a 4096-byte cap. Relative
+`leveloffset` assignments are resolved before the cap applies.
+
 ## Include targets
 
 Include targets may contain internal spaces. Leading or trailing ASCII whitespace

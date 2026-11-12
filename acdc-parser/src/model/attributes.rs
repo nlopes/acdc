@@ -195,6 +195,55 @@ impl<'a> DocumentAttributeValue<'a> {
         }
     }
 
+    fn truncate_text(&mut self, limit: usize) {
+        let (ValueKind::Text(text) | ValueKind::Passthrough { text, .. }) = &mut self.0 else {
+            return;
+        };
+        if text.len() <= limit {
+            return;
+        }
+        let mut end = limit;
+        while !text.is_char_boundary(end) {
+            end -= 1;
+        }
+        match text {
+            Cow::Borrowed(value) => *value = &value[..end],
+            Cow::Owned(value) => value.truncate(end),
+        }
+        if let ValueKind::Passthrough {
+            ranges, fragments, ..
+        } = &mut self.0
+        {
+            *ranges = ranges
+                .iter()
+                .filter(|range| range.range.start < end)
+                .cloned()
+                .map(|mut range| {
+                    range.range.end = range.range.end.min(end);
+                    range
+                })
+                .collect();
+            *fragments = fragments
+                .iter()
+                .filter(|fragment| fragment.range.start < end)
+                .cloned()
+                .map(|mut fragment| {
+                    if fragment.range.end > end && fragment.source.take().is_some() {
+                        // Replay would restore text removed by the value limit.
+                        fragment.substitutions = fragment
+                            .substitutions
+                            .iter()
+                            .filter(|&stage| *stage != crate::Substitution::Attributes)
+                            .cloned()
+                            .collect();
+                    }
+                    fragment.range.end = fragment.range.end.min(end);
+                    fragment
+                })
+                .collect();
+        }
+    }
+
     fn stored_text(&self) -> Option<&Cow<'a, str>> {
         match &self.0 {
             ValueKind::Text(value) | ValueKind::Passthrough { text: value, .. } => Some(value),
@@ -541,6 +590,7 @@ pub struct DocumentAttributes<'a> {
     entries: FxHashMap<AttributeName<'a>, StoredAssignment<'a>>,
     base: Option<Arc<FxHashMap<AttributeName<'static>, DocumentAttributeValue<'static>>>>,
     entry_filter: EntryFilter,
+    max_attribute_value_size: Option<usize>,
 }
 
 impl<'a> DocumentAttributes<'a> {
@@ -627,7 +677,9 @@ impl fmt::Debug for DocumentAttributes<'_> {
 
 impl PartialEq for DocumentAttributes<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.entries == other.entries && self.base == other.base
+        self.entries == other.entries
+            && self.base == other.base
+            && self.max_attribute_value_size == other.max_attribute_value_size
     }
 }
 
@@ -637,6 +689,7 @@ impl Default for DocumentAttributes<'_> {
             entries: FxHashMap::default(),
             base: Some(default_document_attribute_values()),
             entry_filter: EntryFilter::default(),
+            max_attribute_value_size: None,
         }
     }
 }
@@ -649,6 +702,7 @@ impl<'a> DocumentAttributes<'a> {
             entries: FxHashMap::default(),
             base,
             entry_filter: EntryFilter::default(),
+            max_attribute_value_size: None,
         }
         .into_input_map();
         for (name, stored) in entries {
@@ -703,6 +757,7 @@ impl<'a> DocumentAttributes<'a> {
             entries: FxHashMap::default(),
             base: None,
             entry_filter: EntryFilter::default(),
+            max_attribute_value_size: None,
         }
     }
 
@@ -827,6 +882,21 @@ impl<'a> DocumentAttributes<'a> {
         self.set_entry(name, assignment, state);
     }
 
+    pub(crate) fn prepare_attribute_limit(&mut self, safe_mode: crate::SafeMode) {
+        self.max_attribute_value_size = self
+            .get("max-attribute-value-size")
+            .map(|value| {
+                crate::document_attribute::parse_ruby_integer_magnitude(
+                    value.text().unwrap_or_default(),
+                )
+            })
+            .or_else(|| {
+                (safe_mode == crate::SafeMode::Secure
+                    && !self.is_explicit("max-attribute-value-size"))
+                .then_some(4096)
+            });
+    }
+
     pub(crate) fn assign_document_value(
         &mut self,
         name: AttributeName<'a>,
@@ -943,8 +1013,30 @@ impl<'a> DocumentAttributes<'a> {
         if assignment_decision(&name, current, &request) == AssignmentDecision::Reject {
             return Ok(None);
         }
-        let entry = validate_assignment_value(&name, request.raw)
+        let mut entry = validate_assignment_value(&name, request.raw)
             .map_err(|invalid| invalid.into_error(&name, request.source_location))?;
+        if request.state.origin == AttributeOrigin::Document
+            && let DocumentAttributeAssignment::Set(value) = &mut entry
+        {
+            if name == "leveloffset"
+                && value
+                    .text()
+                    .is_some_and(|text| text.starts_with(['+', '-']))
+            {
+                let current = self
+                    .text("leveloffset")
+                    .map_or(0, crate::document_attribute::ruby_to_isize);
+                *value = current
+                    .saturating_add(crate::document_attribute::ruby_to_isize(
+                        value.text().unwrap_or_default(),
+                    ))
+                    .to_string()
+                    .into();
+            }
+            if let Some(limit) = self.max_attribute_value_size {
+                value.truncate_text(limit);
+            }
+        }
         self.set_entry(name, entry.clone(), request.state);
         Ok(Some(entry))
     }
@@ -1102,6 +1194,7 @@ impl<'a> DocumentAttributes<'a> {
             entries: other_entries,
             base,
             entry_filter: _,
+            max_attribute_value_size: _,
         } = other;
         if let Some(base) = base {
             if self.base.is_none() {
@@ -1159,6 +1252,7 @@ impl<'a> DocumentAttributes<'a> {
                 .collect(),
             base: self.base.clone(),
             entry_filter: self.entry_filter.clone(),
+            max_attribute_value_size: self.max_attribute_value_size,
         }
     }
 
@@ -1169,6 +1263,7 @@ impl<'a> DocumentAttributes<'a> {
             entries,
             base,
             entry_filter: _,
+            max_attribute_value_size,
         } = self;
         let entries = entries
             .into_iter()
@@ -1186,6 +1281,7 @@ impl<'a> DocumentAttributes<'a> {
             entries,
             base,
             entry_filter: EntryFilter::default(),
+            max_attribute_value_size,
         };
         attributes.rebuild_entry_filter();
         attributes

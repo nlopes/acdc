@@ -564,7 +564,8 @@
         "fields": [
           "entries",
           "base",
-          "entry_filter"
+          "entry_filter",
+          "max_attribute_value_size"
         ],
         "variants": {}
       },
@@ -584,6 +585,9 @@
         "entry_filter": {
           "policy": "use-effective-semantic-values-and-exact-textual",
           "upstream": "#/properties/attributes"
+        },
+        "max_attribute_value_size": {
+          "policy": "source-state"
         }
       },
       "strict_export_group": "document-values"

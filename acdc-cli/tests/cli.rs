@@ -2774,3 +2774,63 @@ fn nonconforming_manpage_title_warns_by_default_and_remains_fatal_with_strict()
     }
     Ok(())
 }
+
+#[cfg(feature = "html")]
+#[test]
+fn attribute_value_limits_preserve_presence_unsets_and_digit_separators()
+-> Result<(), Box<dyn Error>> {
+    for mode in ["asciidoctor", "draft"] {
+        for safe_mode in ["unsafe", "secure"] {
+            for (assignment, expected) in [
+                ("max-attribute-value-size", "Value: ."),
+                ("max-attribute-value-size!", "Value: abcdef."),
+                ("max-attribute-value-size=4_096", "Value: abcdef."),
+                ("max-attribute-value-size=4_096@", "Value: abcdef."),
+            ] {
+                let output = run_acdc(
+                    &[
+                        "convert",
+                        "--stdin",
+                        "--embedded",
+                        "-o",
+                        "-",
+                        "--compatibility-mode",
+                        mode,
+                        "--safe-mode",
+                        safe_mode,
+                        "-a",
+                        assignment,
+                    ],
+                    Some(":value: abcdef\n\nValue: {value}."),
+                )?;
+                assert!(output.status.success(), "{}", output_text(&output.stderr));
+                assert!(
+                    output_text(&output.stdout).contains(&format!("<p>{expected}</p>")),
+                    "{}",
+                    output_text(&output.stdout)
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn capped_relative_leveloffset_controls_rendered_heading_levels() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &[
+            "convert",
+            "--stdin",
+            "--embedded",
+            "-o",
+            "-",
+            "-a",
+            "max-attribute-value-size=1",
+        ],
+        Some(":leveloffset: +10\n\n== Real section"),
+    )?;
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(output_text(&output.stdout).contains("<h3 id=\"_real_section\">Real section</h3>"));
+    Ok(())
+}
