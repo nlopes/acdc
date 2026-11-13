@@ -842,9 +842,9 @@ impl<'a> Include<'a> {
 
     /// Apply `indent` and check the shared budget before processing nested directives.
     fn process_selected_content(
-        &self,
+        self,
         selected: reader::Selected,
-        source_origin: &SourceOrigin,
+        source_origin: SourceOrigin,
         resolved_source: &Path,
         is_asciidoc: bool,
     ) -> Result<IncludeResult, Error> {
@@ -912,7 +912,6 @@ impl<'a> Include<'a> {
             input: None,
         };
         if is_asciidoc {
-            included.input = Some(self.prepare_input(source_origin, line_origins, scoped_options));
             let full = match &self.selection {
                 ContentSelection::All => true,
                 ContentSelection::Lines(_) => false,
@@ -924,9 +923,10 @@ impl<'a> Include<'a> {
             {
                 included.included_files.insert(name);
             }
+            included.input = Some(self.prepare_input(source_origin, line_origins, scoped_options));
         } else {
             included.source_ranges =
-                Self::source_ranges_for_lines(&included.content, &line_origins, source_origin);
+                Self::source_ranges_for_lines(&included.content, &line_origins, &source_origin);
         }
         Ok(included)
     }
@@ -955,32 +955,31 @@ impl<'a> Include<'a> {
     }
 
     fn prepare_input(
-        &self,
-        source_origin: &SourceOrigin,
+        self,
+        source_origin: SourceOrigin,
         line_origins: Vec<SourceLineOrigin>,
         scoped_options: Option<Box<Options<'a>>>,
     ) -> IncludeInput {
-        let mut context = self.context.clone();
-        let scope = scoped_options.as_ref().map(|options| {
-            let prefix = self.leveloffset_prefix();
+        let scope = scoped_options.as_ref().map(|options| IncludeScope {
+            current: Self::leveloffset_assignment(&options.document_attributes),
+            previous: Self::leveloffset_assignment(&self.options.document_attributes),
+            mode: self.options.compatibility_mode,
+            prefix: self.leveloffset_prefix(),
+            suffix: format!(
+                "\n\n{}",
+                Self::leveloffset_control(&self.options.document_attributes)
+            ),
+        });
+        let mut context = self.context;
+        if let (Some(scope), Some(options)) = (&scope, &scoped_options) {
             let mut scanner = CommentScanner::new(
                 crate::grammar::setext::is_enabled(self.options.compatibility_mode),
                 std::mem::take(&mut context.block_context),
                 self.options.compatibility_mode,
             );
-            scanner.record_expansion(&prefix, &options.document_attributes);
+            scanner.record_expansion(&scope.prefix, &options.document_attributes);
             context.block_context = scanner.block_context();
-            IncludeScope {
-                current: Self::leveloffset_assignment(&options.document_attributes),
-                previous: Self::leveloffset_assignment(&self.options.document_attributes),
-                mode: self.options.compatibility_mode,
-                prefix,
-                suffix: format!(
-                    "\n\n{}",
-                    Self::leveloffset_control(&self.options.document_attributes)
-                ),
-            }
-        });
+        }
         if let Some(depth) = self.depth {
             let limit = context.depth.saturating_add(1).saturating_add(depth);
             if limit < context.max_depth {
@@ -989,7 +988,7 @@ impl<'a> Include<'a> {
             }
         }
         IncludeInput {
-            source_origin: source_origin.clone(),
+            source_origin,
             line_origins,
             context,
             attributes: scoped_options.map(|options| options.document_attributes.into_static()),
@@ -1305,7 +1304,7 @@ impl<'a> Include<'a> {
     }
 
     pub(crate) fn process(
-        &self,
+        self,
         attribute_list_as_written: &str,
         source_provider: &dyn IncludeSourceProvider,
     ) -> Result<IncludeResult, Error> {
@@ -1314,7 +1313,7 @@ impl<'a> Include<'a> {
                 TargetContentOutcome::Content(content) => content,
                 TargetContentOutcome::Fallback(result) => return Ok(*result),
             };
-        self.process_selected_content(content, &source_origin, &resolved_source, is_asciidoc)
+        self.process_selected_content(content, source_origin, &resolved_source, is_asciidoc)
     }
 
     fn read_file_target(
@@ -1833,10 +1832,11 @@ mod tests {
             .provider()
             .ok_or("system include loader must provide a source provider")?;
 
+        let warnings = Rc::clone(&include.warnings);
         let result = include.process("opts=optional", source_provider)?;
 
         assert_eq!(result.content, "");
-        assert!(include.warnings.borrow().is_empty());
+        assert!(warnings.borrow().is_empty());
         assert!(logs_contain(
             "optional include dropped because include file not found"
         ));

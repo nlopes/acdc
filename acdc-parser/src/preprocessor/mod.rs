@@ -1421,9 +1421,9 @@ impl Preprocessor {
     ) -> Result<PreprocessorResult<'input>, Error> {
         let arena = bumpalo::Bump::new();
         cursor::InputCursor::new(
-            self,
+            self.clone(),
             normalized.as_ref(),
-            source_origin,
+            source_origin.cloned(),
             options,
             line_origins,
             front_matter,
@@ -1603,9 +1603,9 @@ mod tests {
             let arena = bumpalo::Bump::new();
             let normalized = Preprocessor::normalize(input);
             let result = cursor::InputCursor::new(
-                &preprocessor,
+                preprocessor.clone(),
                 &normalized,
-                Some(&origin),
+                Some(origin.clone()),
                 &mut options,
                 Vec::new(),
                 None,

@@ -364,9 +364,9 @@ impl<'input> InputCursor<'input> {
     }
 
     pub(super) fn new(
-        preprocessor: &Preprocessor,
+        preprocessor: Preprocessor,
         input: &'input str,
-        source_origin: Option<&SourceOrigin>,
+        source_origin: Option<SourceOrigin>,
         options: &mut Options<'_>,
         line_origins: Vec<SourceLineOrigin>,
         front_matter: Option<SkimmedFrontMatter>,
@@ -385,20 +385,21 @@ impl<'input> InputCursor<'input> {
                 .document_attributes
                 .set_text("front-matter".into(), value.clone().into());
         }
-        let mut out = PreprocessorState::new(input, source_origin, line_origins);
+        let mut out = PreprocessorState::new(input, source_origin.as_ref(), line_origins);
         out.record_leveloffset(options);
+        let scanner = CommentScanner::new(
+            crate::grammar::setext::is_enabled(options.compatibility_mode),
+            preprocessor.include_context.block_context.clone(),
+            options.compatibility_mode,
+        );
         Self {
-            preprocessor: preprocessor.clone(),
-            source_origin: source_origin.cloned(),
+            preprocessor,
+            source_origin,
             arena,
             lines,
             line_number,
             out,
-            scanner: CommentScanner::new(
-                crate::grammar::setext::is_enabled(options.compatibility_mode),
-                preprocessor.include_context.block_context.clone(),
-                options.compatibility_mode,
-            ),
+            scanner,
             conditionals: Vec::new(),
             front_matter,
             include: None,
@@ -571,9 +572,9 @@ impl<'input> InputCursor<'input> {
                 .flatten();
             let preprocessor = Preprocessor::nested(&self.preprocessor.warnings, input.context);
             let cursor = Self::new(
-                &preprocessor,
+                preprocessor,
                 text,
-                Some(&input.source_origin),
+                Some(input.source_origin),
                 options,
                 input.line_origins,
                 front_matter,
