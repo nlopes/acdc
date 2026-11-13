@@ -114,9 +114,9 @@ impl<'a> SourceReader<'a> {
             });
         }
         let cursor = InputCursor::new(
-            &preprocessor,
+            preprocessor,
             normalized,
-            Some(&origin),
+            Some(origin),
             Rc::make_mut(&mut options),
             Vec::new(),
             front_matter,

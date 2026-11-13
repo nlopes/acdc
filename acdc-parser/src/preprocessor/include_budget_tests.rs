@@ -117,9 +117,9 @@ fn resumable_input_applies_changes_before_later_conditionals_and_includes() -> T
     )?;
     let input = "configure::[]\n\nifdef::enabled[]\ninclude::body.adoc[]\nendif::[]";
     let mut cursor = cursor::InputCursor::new(
-        &preprocessor,
+        preprocessor,
         input,
-        Some(&source),
+        Some(source),
         &mut options,
         Vec::new(),
         None,
@@ -162,9 +162,9 @@ fn resumable_input_does_not_open_a_later_include_before_advancing() -> TestResul
         options.base_dir.as_deref(),
     )?;
     let mut cursor = cursor::InputCursor::new(
-        &preprocessor,
+        preprocessor,
         "include::first.adoc[]\ninclude::next.adoc[]",
-        Some(&source),
+        Some(source),
         &mut options,
         Vec::new(),
         None,
@@ -205,9 +205,9 @@ fn resumable_input_pauses_inside_an_include_and_preserves_nested_source_chains()
             options.base_dir.as_deref(),
         )?;
         let mut cursor = cursor::InputCursor::new(
-            &preprocessor,
+            preprocessor,
             "include::outer.adoc[]\ninclude::after.adoc[]",
-            Some(&source),
+            Some(source),
             &mut options,
             Vec::new(),
             None,
