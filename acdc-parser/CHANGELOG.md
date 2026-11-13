@@ -301,6 +301,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   locally in combined documents. It can redirect genuine external references;
   it does not scope duplicate IDs or resolve Antora resources.
 
+- Extension authors can rewrite a parsed document before conversion and allocate
+  generated text that is released with the document.
+
 ### Fixed
 
 - Tables with an integer `cols` value, such as `[cols=3]`, have that many

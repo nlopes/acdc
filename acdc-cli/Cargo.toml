@@ -25,6 +25,7 @@ acdc-converters-terminal = { workspace = true, optional = true }
 acdc-converters-manpage = { workspace = true, optional = true }
 acdc-converters-markdown = { workspace = true, optional = true }
 acdc-converters-pdf = { workspace = true, optional = true }
+acdc-diagram = { workspace = true, optional = true }
 chrono = { workspace = true, optional = true }
 clap.workspace = true
 crossterm.workspace = true
@@ -43,7 +44,7 @@ tempfile.workspace = true
 
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html", "lint"]
+default = ["diagram", "html", "lint"]
 
 # Output converters
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
@@ -53,6 +54,8 @@ pdf = ["dep:acdc-converters-pdf", "dep:chrono"] # PDF converter backed by the Ru
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
 # Document tools
+# Generate diagrams from [plantuml], [graphviz], ... blocks before conversion.
+diagram = ["dep:acdc-diagram"]
 lint = ["dep:acdc-lint"]                       # AsciiDoc lint command
 
 # Syntax highlighting for source blocks in selected HTML and terminal backends.

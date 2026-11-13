@@ -1,7 +1,6 @@
 use miette::Result as MietteResult;
 use std::{
     borrow::Cow,
-    error::Error,
     fmt::Display,
     io::BufReader,
     path::{Path, PathBuf},
@@ -526,10 +525,20 @@ where
         let parser_options = converter.parser_options();
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
-        let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
+        let mut parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
             .map_err(|error| error::display(&error))?;
+        let mut diagram_warnings = Vec::new();
+        apply_diagrams(
+            &mut parsed,
+            base_options,
+            converter.name(),
+            None,
+            &mut diagram_warnings,
+        )
+        .map_err(|error| error::display(&error))?;
         let mut summary = ConversionSummary {
-            warning_count: parsed.warnings().render(WarningRenderContext::new()),
+            warning_count: parsed.warnings().render(WarningRenderContext::new())
+                + diagram_warnings.render(WarningRenderContext::new()),
             ..ConversionSummary::default()
         };
         let result = converter
@@ -570,6 +579,7 @@ where
         let mut summary = vec![convert_parse_result(
             (file.clone(), parse_result, None),
             &converter,
+            base_options,
             false,
         )]
         .report()?;
@@ -618,7 +628,7 @@ where
         base_options.clone()
     };
 
-    let file_results: Vec<FileResult<P::Error>> = files_to_process
+    let file_results: Vec<FileResult> = files_to_process
         .par_iter()
         .map(|file| -> Result<_, P::Error> {
             let converter = make_converter(converter_options.clone(), document_attributes.clone())?;
@@ -631,7 +641,12 @@ where
                 let result = parse_file(file, parser_options);
                 (file.clone(), result, None)
             };
-            Ok(convert_parse_result(entry, &converter, show_timings))
+            Ok(convert_parse_result(
+                entry,
+                &converter,
+                base_options,
+                show_timings,
+            ))
         })
         .collect::<Result<_, _>>()
         .map_err(|e| error::display(&e))?;
@@ -651,19 +666,34 @@ where
 fn convert_parse_result<P>(
     (file, parse_result, parse_dur): TimedParseResult,
     converter: &P,
+    base_options: &Options,
     show_timings: bool,
-) -> FileResult<P::Error>
+) -> FileResult
 where
     P: acdc_converters_core::Converter<'static>,
+    P::Error: 'static,
 {
     let now = Instant::now();
+    let mut diagram_warnings = Vec::new();
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
-            let result = converter.convert(parsed.document(), Some(&file));
+            let result = apply_diagrams(
+                &mut parsed,
+                base_options,
+                converter.name(),
+                Some(&file),
+                &mut diagram_warnings,
+            )
+            .map_err(|error| error::display(&error))
+            .and_then(|()| {
+                converter
+                    .convert(parsed.document(), Some(&file))
+                    .map_err(|error| error::display(&error))
+            });
             (result, parser_warnings)
         }
-        Err(error) => (Err(error.into()), Vec::new()),
+        Err(error) => (Err(error::display(&error)), Vec::new()),
     };
     let convert_dur = show_timings.then(|| now.elapsed());
 
@@ -671,20 +701,22 @@ where
         path: file,
         result,
         parser_warnings,
+        diagram_warnings,
         parse_dur,
         convert_dur,
     }
 }
 
-struct FileResult<E> {
+struct FileResult {
     path: PathBuf,
-    result: Result<ConversionResult, E>,
+    result: MietteResult<ConversionResult>,
     parser_warnings: Vec<Warning>,
+    diagram_warnings: Vec<acdc_converters_core::Warning>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
 }
 
-impl<E> FileResult<E> {
+impl FileResult {
     fn timing_entry(&self) -> Option<TimingEntry> {
         Some(TimingEntry {
             path: self.path.clone(),
@@ -712,10 +744,7 @@ trait FileResultsReporter {
     fn report(self) -> MietteResult<ConversionSummary>;
 }
 
-impl<E> FileResultsReporter for Vec<FileResult<E>>
-where
-    E: Error + 'static,
-{
+impl FileResultsReporter for Vec<FileResult> {
     fn report(self) -> MietteResult<ConversionSummary> {
         let mut summary = ConversionSummary::default();
         let mut errors = Vec::new();
@@ -723,6 +752,9 @@ where
         for file_result in self {
             summary.warning_count += file_result
                 .parser_warnings
+                .render(WarningRenderContext::new().with_file(&file_result.path));
+            summary.warning_count += file_result
+                .diagram_warnings
                 .render(WarningRenderContext::new().with_file(&file_result.path));
             match file_result.result {
                 Ok(result) => {
@@ -737,9 +769,8 @@ where
 
         if !errors.is_empty() {
             eprintln!("\nFailed to process {} file(s):", errors.len());
-            for (idx, (file, err)) in errors.iter().enumerate() {
+            for (idx, (file, report)) in errors.iter().enumerate() {
                 eprintln!("\n{}. File: {}", idx + 1, file.display());
-                let report = error::display(err);
                 eprintln!("{report:?}");
             }
             return Err(miette::miette!(
@@ -750,6 +781,95 @@ where
 
         Ok(summary)
     }
+}
+
+/// The failure type of the diagram pass, or an uninhabited stand-in when the
+/// `diagram` feature is off, so the call sites need no `cfg` of their own.
+#[cfg(feature = "diagram")]
+type DiagramError = acdc_diagram::Error;
+#[cfg(not(feature = "diagram"))]
+type DiagramError = std::convert::Infallible;
+
+/// Generate the document's diagrams, rewriting each diagram block into the
+/// image it produced.
+///
+/// This runs between parsing and conversion, so every backend sees ordinary
+/// image blocks. Collect warnings for the caller to report and count. With
+/// `:diagram-on-error: abort`, return the first failure without converting
+/// that document.
+#[cfg(feature = "diagram")]
+fn apply_diagrams(
+    parsed: &mut ParseResult,
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+    warnings: &mut Vec<acdc_converters_core::Warning>,
+) -> Result<(), DiagramError> {
+    let converter = acdc_diagram::Processor::new(diagram_options(base_options, backend, file));
+    parsed.with_document_mut(|document, arena| converter.process(document, arena, warnings))
+}
+
+/// Tell the diagram pass where the document lives and where its output goes.
+///
+/// `imagesdir` and the diagram cache are resolved against the output
+/// directory, which is the directory `--out-file` names, or the document's own
+/// directory when the output path is derived or goes to stdout.
+#[cfg(feature = "diagram")]
+fn diagram_options(
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> acdc_diagram::Options {
+    fn directory_of(path: &Path) -> Option<PathBuf> {
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(Path::to_path_buf)
+    }
+
+    let base_dir = file
+        .and_then(directory_of)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let output_dir = match base_options.output_destination() {
+        OutputDestination::File(path) => directory_of(path).unwrap_or_else(|| base_dir.clone()),
+        OutputDestination::Stdout | OutputDestination::Derived => base_dir.clone(),
+    };
+
+    acdc_diagram::Options::builder()
+        .base_dir(base_dir)
+        .output_dir(output_dir)
+        .backend(backend)
+        .unsafe_mode(matches!(base_options.safe_mode(), SafeMode::Unsafe))
+        .build()
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "diagram"))]
+#[allow(clippy::unnecessary_wraps)]
+fn apply_diagrams(
+    _parsed: &mut ParseResult,
+    _base_options: &Options,
+    _backend: &'static str,
+    _file: Option<&Path>,
+    _warnings: &mut Vec<acdc_converters_core::Warning>,
+) -> Result<(), DiagramError> {
+    Ok(())
+}
+
+/// The diagram pass for the terminal paths, whose only error channel is the
+/// terminal converter's own error type.
+///
+/// An abort is carried through as an I/O error holding the diagram failure's
+/// message, which is what the caller ends up printing.
+#[cfg(feature = "terminal")]
+fn apply_diagrams_as(
+    parsed: &mut ParseResult,
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+    warnings: &mut Vec<acdc_converters_core::Warning>,
+) -> Result<(), acdc_converters_terminal::Error> {
+    apply_diagrams(parsed, base_options, backend, file, warnings)
+        .map_err(|error| std::io::Error::other(error.to_string()).into())
 }
 
 /// A parsed document paired with its source path and optional parse timing.
@@ -804,7 +924,7 @@ impl WarningRenderer for [acdc_converters_core::Warning] {
 mod tests {
     #[cfg(feature = "pdf")]
     use crate::Commands;
-    use std::convert::Infallible;
+    use std::{convert::Infallible, error::Error};
 
     #[cfg(feature = "pdf")]
     use clap::{CommandFactory, Parser};
@@ -1034,10 +1154,13 @@ mod tests {
         let warning = directory.path().join("warning.adoc");
         let clean = directory.path().join("clean.adoc");
         let captured = directory.path().join("pager.txt");
-        std::fs::write(
-            &warning,
-            "= Warnings\n\n== First\n\n==== Skipped\n\nRetained body.\n\n[source,php,options=mixed]\n----\n<?php echo 1; ?>\n----\n",
-        )?;
+        let source = "= Warnings\n\n== First\n\n==== Skipped\n\nRetained body.\n\n[source,php,options=mixed]\n----\n<?php echo 1; ?>\n----\n";
+        #[cfg(feature = "diagram")]
+        let source = format!(
+            "{source}\n{}",
+            include_str!("../../fixtures/diagram_warning.adoc")
+        );
+        std::fs::write(&warning, source)?;
         std::fs::write(&clean, "Clean pager body.\n")?;
         let options = Options::builder()
             .safe_mode(SafeMode::Unsafe)
@@ -1059,7 +1182,7 @@ mod tests {
         let warning_count =
             run_terminal_through_pager(&converter, &options, &[warning, clean], pager)?;
 
-        assert_eq!(warning_count, 2);
+        assert_eq!(warning_count, 2 + usize::from(cfg!(feature = "diagram")));
         let rendered = std::fs::read_to_string(captured)?;
         assert!(rendered.contains("Retained body."));
         assert!(rendered.contains("Clean pager body."));
@@ -1272,7 +1395,15 @@ fn run_terminal_stdin(
     let parser_options = converter.parser_options();
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
-    let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
+    let mut parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
+    let mut diagram_warnings = Vec::new();
+    apply_diagrams_as(
+        &mut parsed,
+        base_options,
+        converter.name(),
+        None,
+        &mut diagram_warnings,
+    )?;
 
     // Try pager. The pager's screen takeover would visually bury anything we
     // eprintln! before it exits, so we drain warnings up front and print them
@@ -1292,6 +1423,7 @@ fn run_terminal_stdin(
         drop(parsed);
         let _ = pager.wait()?;
         let warning_count = parser_warnings.render(WarningRenderContext::new())
+            + diagram_warnings.render(WarningRenderContext::new())
             + converter_warnings.render(WarningRenderContext::new());
         return Ok(ConversionSummary {
             warning_count,
@@ -1299,7 +1431,8 @@ fn run_terminal_stdin(
         });
     }
     let mut summary = ConversionSummary {
-        warning_count: parsed.warnings().render(WarningRenderContext::new()),
+        warning_count: parsed.warnings().render(WarningRenderContext::new())
+            + diagram_warnings.render(WarningRenderContext::new()),
         ..ConversionSummary::default()
     };
     summary.record(
@@ -1325,11 +1458,18 @@ fn run_terminal_through_pager(
     if let Some(pager_stdin) = pager.stdin.take() {
         let mut writer = BufWriter::new(pager_stdin);
         let source = converter.warning_source();
-        let mut diagnostics =
-            acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
         for file in files {
             let mut parsed = parse_terminal_file(base_options, converter.parser_options(), file)?;
             let parser_warnings = parsed.take_warnings();
+            apply_diagrams_as(
+                &mut parsed,
+                base_options,
+                converter.name(),
+                Some(file),
+                &mut converter_warnings,
+            )?;
+            let mut diagnostics =
+                acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
             converter.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
@@ -1375,7 +1515,17 @@ fn run_terminal_with_pager(
             run_terminal_through_pager(&converter, base_options, files_to_process, pager)?;
     } else {
         for file in files_to_process {
-            let parsed = parse_terminal_file(base_options, converter.parser_options(), file)?;
+            let mut parsed = parse_terminal_file(base_options, converter.parser_options(), file)?;
+            let mut diagram_warnings = Vec::new();
+            apply_diagrams_as(
+                &mut parsed,
+                base_options,
+                converter.name(),
+                Some(file),
+                &mut diagram_warnings,
+            )?;
+            summary.warning_count +=
+                diagram_warnings.render(WarningRenderContext::new().with_file(file));
             summary.warning_count += parsed
                 .warnings()
                 .render(WarningRenderContext::new().with_file(file));

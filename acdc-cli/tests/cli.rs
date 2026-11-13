@@ -580,6 +580,90 @@ const WARNING_SOURCE: &str = "= Warnings\n\n== First\n\n==== Skipped\n\nRetained
 #[cfg(any(feature = "html", feature = "terminal"))]
 const SECTION_WARNING: &str = "section title out of sequence";
 
+#[cfg(all(feature = "diagram", any(feature = "html", feature = "terminal")))]
+#[test]
+fn fail_on_warnings_counts_diagrams_and_preserves_abort() -> Result<(), Box<dyn Error>> {
+    let source = include_str!("../fixtures/diagram_warning.adoc");
+    for backend in [
+        #[cfg(feature = "html")]
+        "html",
+        #[cfg(feature = "terminal")]
+        "terminal",
+    ] {
+        for input_mode in ["stdin", "file", "files"] {
+            for policy in ["log", "fail", "abort"] {
+                let directory = tempdir()?;
+                let input = directory.path().join("warning.adoc");
+                let clean = directory.path().join("clean.adoc");
+                let destination = directory.path().join("result.txt");
+                fs::write(&input, source)?;
+                fs::write(&clean, "Clean diagram test body.\n")?;
+                let input_arg = input.to_string_lossy();
+                let clean_arg = clean.to_string_lossy();
+                let destination_arg = destination.to_string_lossy();
+                let mut args = vec!["convert", "--backend", backend];
+                if backend == "terminal" {
+                    args.push("--no-pager");
+                }
+                match policy {
+                    "fail" => args.push("--fail-on-warnings"),
+                    "abort" => args.extend(["-a", "diagram-on-error=abort"]),
+                    _ => {}
+                }
+                match input_mode {
+                    "stdin" => args.extend(["--stdin", "--out-file", "-"]),
+                    "file" => args.extend([input_arg.as_ref(), "--out-file", &destination_arg]),
+                    _ => args.extend([clean_arg.as_ref(), input_arg.as_ref()]),
+                }
+                let output = run_acdc(&args, (input_mode == "stdin").then_some(source))?;
+                let stderr = output_text(&output.stderr);
+                assert_eq!(
+                    output.status.code(),
+                    Some(i32::from(policy != "log")),
+                    "{args:?}: {stderr}"
+                );
+                assert_eq!(
+                    stderr.matches("unknown diagram output format").count(),
+                    1,
+                    "{args:?}: {stderr}"
+                );
+                assert_eq!(
+                    stderr.contains("conversion emitted 1 warning"),
+                    policy == "fail",
+                    "{args:?}: {stderr}"
+                );
+                let output_path = if input_mode == "file" {
+                    Some(destination.clone())
+                } else if input_mode == "files" && backend == "html" {
+                    assert!(
+                        fs::read_to_string(clean.with_extension("html"))?
+                            .contains("Clean diagram test body.")
+                    );
+                    Some(input.with_extension("html"))
+                } else {
+                    None
+                };
+                if policy == "abort" {
+                    assert!(!output_text(&output.stdout).contains("Retained diagram body."));
+                    if let Some(path) = output_path {
+                        assert!(!path.exists(), "{}", path.display());
+                    }
+                } else {
+                    let rendered = match output_path {
+                        Some(path) => fs::read_to_string(path)?,
+                        None => output_text(&output.stdout),
+                    };
+                    assert!(
+                        rendered.contains("Retained diagram body."),
+                        "{args:?}: {rendered}"
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(feature = "html")]
 #[test]
 fn fail_on_warnings_handles_stdin_and_remains_independent_of_strict() -> Result<(), Box<dyn Error>>

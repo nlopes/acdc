@@ -1,0 +1,24 @@
+[package]
+name = "acdc-diagram"
+version = "0.1.0"
+edition.workspace = true
+description = "Diagram generation for acdc: turns `[plantuml]`, `[graphviz]`, … blocks into generated images"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+acdc-converters-core.workspace = true
+acdc-parser.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+rstest.workspace = true
+
+[lints]
+workspace = true

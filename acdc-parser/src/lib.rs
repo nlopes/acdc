@@ -202,7 +202,9 @@ pub use model::{
     substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
-pub use parsed::{ConditionalEvaluation, OwnedSource, ParseInlineResult, ParseResult};
+pub use parsed::{
+    ConditionalEvaluation, DocumentArena, OwnedSource, ParseInlineResult, ParseResult,
+};
 pub use source_provider::{
     IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
     IncludeSourceProvider, IncludeSourceTarget,
@@ -548,8 +550,11 @@ fn parse_input(
         source_files,
         result.conditionals,
         move |owner| {
-            let mut state =
-                grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
+            let mut state = grammar::ParserState::new(
+                &owner.source,
+                owner.arena.bump(),
+                Rc::new(options_owned),
+            );
             state.current_file = file_path.map(std::sync::Arc::new);
             state.leveloffset_ranges = result.leveloffset_ranges;
             state.source_ranges = source_ranges;
@@ -620,7 +625,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
 
     ParseInlineResult::try_new(owner, warnings_handle, move |owner| {
         let mut state =
-            grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
+            grammar::ParserState::new(&owner.source, owner.arena.bump(), Rc::new(options_owned));
         state.scope = grammar::ParserScope::Inline;
         state
             .inline_ctx
