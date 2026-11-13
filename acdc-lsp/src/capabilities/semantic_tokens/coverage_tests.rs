@@ -81,7 +81,7 @@ fn table_separators_and_cell_content_use_original_spelling() -> TestResult {
 
 #[test]
 fn block_syntax_and_multiline_content_receive_tokens() -> TestResult {
-    let source = "= Document\n:author: Ada\n\n== Section\n\n.List title\n* [x] Item\n\nTerm:: Definition\n\n[source,rust]\n----\nfn main() {\n    println!(\"hello\");\n}\n----\n\n////\nfirst comment\nsecond comment\n////\n\nNOTE: Body text.\n";
+    let source = "= Document\n:author: Ada\n\n== Section\n\n.List title\n* [x] Item\n\nTerm:: Definition\n\n[source]\n----\nfn main() {\n    println!(\"hello\");\n}\n----\n\n////\nfirst comment\nsecond comment\n////\n\nNOTE: Body text.\n";
     let tokens = decoded(source)?;
     for spelling in [
         "Document",
@@ -92,7 +92,7 @@ fn block_syntax_and_multiline_content_receive_tokens() -> TestResult {
         "*",
         "[x]",
         "::",
-        "[source,rust]",
+        "[source]",
         "----",
         "NOTE:",
     ] {

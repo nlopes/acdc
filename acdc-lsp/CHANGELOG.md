@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   highlighted, subscript, and superscript text have distinct style modifiers.
   Nested styles combine, and multiline content stays highlighted on every line.
   Emacs users can use the documented Eglot setup to replace `adoc-mode` colors.
-  Source blocks receive a code face; embedded language highlighting remains unsupported.
+  Untagged source blocks receive a code face; language-tagged bodies are left to
+  the editor's embedded-language highlighter.
 
 - Set `compatibilityMode` to `asciidoctor` (the default) or `draft` in initialization
   options or resource-scoped workspace settings. Changing the mode refreshes analysis
@@ -54,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and backend-specific defaults.
 
 ### Fixed
+
+- Document outlines label untitled source blocks with their language, such as
+  `Source (json)`, instead of `Listing`. Explicit block titles remain the name.
+
+- Language-tagged source blocks no longer cover embedded syntax colors with a
+  uniform code style. In Zed, use `semantic_tokens: "combined"` to retain
+  Tree-sitter injections such as JSON highlighting in `[source,json]` blocks.
 
 - Builds without the default preview features no longer emit unused-code warnings.
 
