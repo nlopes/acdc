@@ -9,7 +9,7 @@ use super::{
     PreprocessorState, SkimmedFrontMatter, SourceLineOrigin, SourceOrigin, attribute,
     consume_front_matter, has_attribute_continuation, has_attribute_driven_styles,
     has_include_directive_shape,
-    include::{IncludeResult, IncludeScope},
+    include::{IncludeInput, IncludeResult, IncludeScope},
     is_escaped_directive, skim_front_matter,
 };
 
@@ -27,6 +27,12 @@ pub(super) struct InputCursor<'input> {
     front_matter: Option<String>,
     include: Option<IncludeFrame<'input>>,
     bulk_consumed: bool,
+}
+
+#[derive(Clone, Copy)]
+enum ReadMode {
+    Complete,
+    Resumable,
 }
 
 struct IncludeFrame<'input> {
@@ -175,7 +181,7 @@ impl<'input> InputCursor<'input> {
             let Some(line) = self.lines.next() else {
                 return Ok(Advance::End);
             };
-            self.process_line(line, options)?;
+            self.process_line(line, options, ReadMode::Resumable)?;
             self.line_number += 1;
         }
         let Some(text) = self.emitted_text(start) else {
@@ -426,12 +432,17 @@ impl<'input> InputCursor<'input> {
         let Some(line) = self.lines.next() else {
             return Ok(false);
         };
-        self.process_line(line, options)?;
+        self.process_line(line, options, ReadMode::Complete)?;
         self.line_number += 1;
         Ok(true)
     }
 
-    fn process_line(&mut self, line: &'input str, options: &mut Options<'_>) -> Result<(), Error> {
+    fn process_line(
+        &mut self,
+        line: &'input str,
+        options: &mut Options<'_>,
+        mode: ReadMode,
+    ) -> Result<(), Error> {
         if self.conditionals.last().is_none_or(|frame| frame.active)
             && self.scanner.preserves_comment_line(line)
         {
@@ -478,7 +489,7 @@ impl<'input> InputCursor<'input> {
             }
             self.out.push_source_line(line, self.line_number);
         } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
-            return self.process_directive_line(line, options);
+            return self.process_directive_line(line, options, mode);
         } else {
             self.out.push_source_line(line, self.line_number);
         }
@@ -490,6 +501,7 @@ impl<'input> InputCursor<'input> {
         &mut self,
         line: &'input str,
         options: &mut Options<'_>,
+        mode: ReadMode,
     ) -> Result<(), Error> {
         if is_escaped_directive(line) {
             self.out.note_source_line(self.line_number);
@@ -497,7 +509,7 @@ impl<'input> InputCursor<'input> {
             self.scanner
                 .record(&line[1..], &options.document_attributes);
         } else if has_include_directive_shape(line) {
-            self.process_include_line(line, options)?;
+            self.process_include_line(line, options, mode)?;
         } else {
             self.out.push_source_line(line, self.line_number);
             self.scanner.record(line, &options.document_attributes);
@@ -509,6 +521,7 @@ impl<'input> InputCursor<'input> {
         &mut self,
         line: &'input str,
         options: &mut Options<'_>,
+        mode: ReadMode,
     ) -> Result<(), Error> {
         let origin = self.out.origin_of_line(self.line_number);
         let ctx = DirectiveContext {
@@ -560,39 +573,85 @@ impl<'input> InputCursor<'input> {
             return Ok(());
         };
         if let Some(input) = included.input.take() {
-            if let Some(attributes) = input.attributes {
-                options.document_attributes = attributes;
-            }
-            let normalized = Preprocessor::normalize(&included.content);
-            let text = self.arena.alloc_str(&normalized);
-            let front_matter = options
-                .document_attributes
-                .contains_key("skip-front-matter")
-                .then(|| skim_front_matter(text.lines()))
-                .flatten();
-            let preprocessor = Preprocessor::nested(&self.preprocessor.warnings, input.context);
-            let cursor = Self::new(
-                preprocessor,
-                text,
-                Some(input.source_origin),
-                options,
-                input.line_origins,
-                front_matter,
-                self.arena,
-            );
-            self.include = Some(IncludeFrame {
-                result: included,
-                cursor: Box::new(cursor),
-                input_line: self.line_number,
-                scope: input.scope,
-                pending_blank: None,
-                prefix_emitted: false,
-                emitted_end: self.out.byte_offset,
-            });
+            self.start_include(included, input, options, mode);
         } else {
             self.accept_include(included, self.line_number, options);
         }
         Ok(())
+    }
+
+    fn start_include(
+        &mut self,
+        mut included: IncludeResult,
+        input: IncludeInput,
+        options: &mut Options<'_>,
+        mode: ReadMode,
+    ) {
+        if let Some(attributes) = input.attributes {
+            options.document_attributes = attributes;
+        }
+        let normalized = Preprocessor::normalize(&included.content);
+        let front_matter = options
+            .document_attributes
+            .contains_key("skip-front-matter")
+            .then(|| skim_front_matter(normalized.lines()))
+            .flatten();
+        let preprocessor = Preprocessor::nested(&self.preprocessor.warnings, input.context);
+        // Complete-input preprocessing can retain the owned selected text when
+        // the shared scanner proves it unchanged. Ordered readers must keep
+        // stable cursor storage until the included blocks have committed.
+        if matches!(mode, ReadMode::Complete)
+            && input.scope.is_none()
+            && front_matter.is_none()
+            && !preprocessor.nested_attributes_must_propagate(&normalized)
+            && let Some(scanner) = preprocessor.try_pass_through(
+                &normalized,
+                crate::grammar::setext::is_enabled(options.compatibility_mode),
+                options,
+            )
+        {
+            included.source_ranges = {
+                let mut out = PreprocessorState::new(
+                    &normalized,
+                    Some(&input.source_origin),
+                    input.line_origins,
+                );
+                for (idx, line) in normalized.lines().enumerate() {
+                    out.note_source_line(idx + 1);
+                    out.byte_offset += line.len() + 1;
+                }
+                out.flush_run();
+                out.source_ranges
+            };
+            let length = normalized.len();
+            if let Cow::Owned(text) = normalized {
+                included.content = text;
+            } else {
+                included.content.truncate(length);
+            }
+            included.comment_context = Some(scanner.block_context());
+            self.accept_include(included, self.line_number, options);
+            return;
+        }
+        let text = self.arena.alloc_str(&normalized);
+        let cursor = Self::new(
+            preprocessor,
+            text,
+            Some(input.source_origin),
+            options,
+            input.line_origins,
+            front_matter,
+            self.arena,
+        );
+        self.include = Some(IncludeFrame {
+            result: included,
+            cursor: Box::new(cursor),
+            input_line: self.line_number,
+            pending_blank: None,
+            scope: input.scope,
+            prefix_emitted: false,
+            emitted_end: self.out.byte_offset,
+        });
     }
 
     fn accept_include(&mut self, mut included: IncludeResult, line: usize, options: &Options<'_>) {

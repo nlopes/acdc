@@ -96,7 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disables the cap. This limit and include `depth=` accept Ruby digit separators,
   such as `4_096`.
 - Documents with AsciiDoc includes use fewer allocations while preserving source
-  locations and include policies.
+  locations and include policies. Short `lines=` and `tag=` selections also use
+  less memory during ordinary parsing.
 
 - Nested list IDs specified with `[id=...]` now retain their correct source
   locations inside compound blocks.
