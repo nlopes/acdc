@@ -21,6 +21,22 @@ impl SourceHandler for CountAccepted {
     }
 }
 
+#[rstest::rstest]
+#[case::paragraph("[role=note]\nA paragraph.")]
+#[case::anchor("[[anchor]]\n.Title\nA paragraph.")]
+#[case::listing("[source,rust]\n----\nlet answer = 42;\n----")]
+#[case::image(".Caption\n[role=note]\nimage::target.png[]")]
+fn source_driver_calls_handler_once_after_block_disambiguation(#[case] input: &str) -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let mut handler = CountAccepted::default();
+        let parsed = crate::parse_with_source_handler(input, &options, None, Some(&mut handler))?;
+        assert_eq!(parsed.document().blocks().count(), 1);
+        assert_eq!(handler.0, 1);
+    }
+    Ok(())
+}
+
 // Keep the A1 seam private while measuring it in optimized builds. Run this
 // ignored test alone through nextest with --release and --nocapture. The
 // output directory and order can be set for paired, alternating runs.
