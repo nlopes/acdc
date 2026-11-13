@@ -19,6 +19,9 @@ pub(super) fn collect(
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
+    if document.header().is_none() {
+        collect_titleless_header(source, tokens);
+    }
     for node in StructuralRef::Document(document).descendants() {
         match node {
             StructuralRef::Header(header) => collect_header(header, source, tokens),
@@ -64,6 +67,51 @@ pub(super) fn collect(
             | StructuralRef::TableCell(_)
             | _ => {}
         }
+    }
+}
+
+// The parser consumes leading header attributes even without a title, but then
+// exposes neither a HeaderRef nor DocumentAttribute blocks for that region.
+// Stop at the header boundary so verbatim body text cannot become attributes.
+fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+    let mut comment_delimiter = None;
+    let mut continuation = false;
+    let mut seen_attribute = false;
+    for line in 0.. {
+        let Some(text) = source.line(line) else {
+            break;
+        };
+        let text = text.trim_end_matches(['\r', '\n']);
+        if let Some(delimiter) = comment_delimiter {
+            if text == delimiter {
+                comment_delimiter = None;
+            }
+            continue;
+        }
+        if text.trim().is_empty() {
+            if seen_attribute {
+                break;
+            }
+            continue;
+        }
+        if continuation {
+            line_bytes(line, 0..text.len(), 3, 0, source, tokens);
+            continuation = text.trim_end().ends_with(" \\");
+            continue;
+        }
+        if text.len() >= 4 && text.bytes().all(|byte| byte == b'/') {
+            comment_delimiter = Some(text);
+            continue;
+        }
+        if text.starts_with("//") {
+            continue;
+        }
+        let Some((name, _)) = text.strip_prefix(':').and_then(|rest| rest.split_once(':')) else {
+            break;
+        };
+        attribute_line(name.trim_matches('!'), line, source, tokens);
+        seen_attribute = true;
+        continuation = text.trim_end().ends_with(" \\");
     }
 }
 
