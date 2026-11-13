@@ -139,3 +139,50 @@ fn emitted_nested_include_pauses_before_later_directives() -> TestResult {
     assert!(text.contains("== Inner"));
     Ok(())
 }
+
+#[test]
+fn selected_include_pass_through_matches_resumable_source_maps() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let file = directory.path().join("part.adoc");
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Safe)
+            .with_include_loader(IncludeLoader::System)
+            .with_base_dir(directory.path())
+            .with_attribute("skip-front-matter", true)
+            .build()?;
+        for included in [
+            "\u{feff}// tag::keep[]\r\n  é\t\r\n\r\n    世界\r\n// end::keep[]\r\n",
+            "first\n\nthird\n\nfifth\n\n",
+            "---\ntitle: Front matter\n---\n\nBody.\n",
+            ":kind: comment\n[{kind}]\n--\ninclude::missing.adoc[]\n--\n",
+        ] {
+            std::fs::write(&file, included)?;
+            for directive in [
+                "include::part.adoc[]",
+                "include::part.adoc[lines=1;3;5,indent=2]",
+                "include::part.adoc[tag=keep,indent=0]",
+            ] {
+                let source = format!("before\n\n{directive}\n\nafter");
+                let expected = Preprocessor::process(&source, &options, Rc::default())?;
+                let arena = bumpalo::Bump::new();
+                let mut reader = SourceReader::new(&source, None, &options, Rc::default(), &arena)?;
+                let mut text = String::new();
+                while let Some(chunk) = reader.next()? {
+                    assert_eq!(chunk.start, text.len());
+                    text.push_str(chunk.text);
+                }
+                let actual = reader.finish()?;
+                text.truncate(actual.text.len());
+                assert_eq!(text, expected.text, "{included:?} in {source:?}");
+                assert_eq!(actual.text, expected.text);
+                assert_eq!(
+                    actual.source_ranges, expected.source_ranges,
+                    "{included:?} in {source:?}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
