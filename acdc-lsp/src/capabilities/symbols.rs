@@ -2,8 +2,8 @@
 
 use acdc_converters_core::InlineTextTransform;
 use acdc_parser::ast::{
-    AdmonitionRef, BlockKind, BlockRef, ContentRef, DocumentAttributeRef, DocumentRef,
-    ParagraphRef, SectionRef, SourceRef, StructuralRef,
+    AdmonitionRef, AttributeValueRef, BlockKind, BlockRef, ContentRef, DocumentAttributeRef,
+    DocumentRef, ParagraphRef, SectionRef, SourceRef, StructuralRef,
 };
 use tower_lsp_server::ls_types::{DocumentSymbol, Range, SymbolKind};
 
@@ -226,11 +226,11 @@ fn block_to_symbol(block: BlockRef<'_>, range: Range) -> Option<DocumentSymbol> 
             range,
             Some("Page break".to_string()),
         )),
+        BlockKind::Listing(_) => Some(listing_to_symbol(block, range)),
         BlockKind::Example(_)
         | BlockKind::Sidebar(_)
         | BlockKind::Open(_)
         | BlockKind::Quote(_)
-        | BlockKind::Listing(_)
         | BlockKind::Literal(_)
         | BlockKind::Table(_)
         | BlockKind::Passthrough(_)
@@ -298,13 +298,13 @@ fn delimited_block_to_symbol(block: BlockRef<'_>, range: Range) -> DocumentSymbo
         BlockKind::Sidebar(_) => ("Sidebar", SymbolKind::STRUCT),
         BlockKind::Open(_) => ("Open block", SymbolKind::STRUCT),
         BlockKind::Quote(_) => ("Quote", SymbolKind::STRUCT),
-        BlockKind::Listing(_) => ("Listing", SymbolKind::STRING),
         BlockKind::Literal(_) => ("Literal", SymbolKind::STRING),
         BlockKind::Table(_) => ("Table", SymbolKind::STRUCT),
         BlockKind::Passthrough(_) => ("Passthrough", SymbolKind::STRING),
         BlockKind::Verse(_) => ("Verse", SymbolKind::STRING),
         BlockKind::Stem(_) => ("Stem", SymbolKind::STRING),
-        BlockKind::DelimitedComment(_)
+        BlockKind::Listing(_)
+        | BlockKind::DelimitedComment(_)
         | BlockKind::TableOfContents(_)
         | BlockKind::Admonition(_)
         | BlockKind::DiscreteHeading(_)
@@ -328,6 +328,36 @@ fn delimited_block_to_symbol(block: BlockRef<'_>, range: Range) -> DocumentSymbo
         kind,
         range,
         Some(default_name.to_string()),
+    )
+}
+
+fn listing_to_symbol(block: BlockRef<'_>, range: Range) -> DocumentSymbol {
+    let language = block
+        .attributes()
+        .and_then(|attributes| attributes.get("language"))
+        .and_then(AttributeValueRef::as_str)
+        .map(str::trim)
+        .filter(|language| !language.is_empty());
+    let label = language.map_or_else(
+        || {
+            if block
+                .attributes()
+                .and_then(|attributes| attributes.get("style"))
+                .and_then(AttributeValueRef::as_str)
+                == Some("source")
+            {
+                "Source".to_string()
+            } else {
+                "Listing".to_string()
+            }
+        },
+        |language| format!("Source ({language})"),
+    );
+    make_symbol(
+        title_or_default(block.title(), &label),
+        SymbolKind::STRING,
+        range,
+        Some(label),
     )
 }
 
