@@ -1017,25 +1017,9 @@ impl<'a> DocumentAttributes<'a> {
             .map_err(|invalid| invalid.into_error(&name, request.source_location))?;
         if request.state.origin == AttributeOrigin::Document
             && let DocumentAttributeAssignment::Set(value) = &mut entry
+            && let Some(limit) = self.max_attribute_value_size
         {
-            if name == "leveloffset"
-                && value
-                    .text()
-                    .is_some_and(|text| text.starts_with(['+', '-']))
-            {
-                let current = self
-                    .text("leveloffset")
-                    .map_or(0, crate::document_attribute::ruby_to_isize);
-                *value = current
-                    .saturating_add(crate::document_attribute::ruby_to_isize(
-                        value.text().unwrap_or_default(),
-                    ))
-                    .to_string()
-                    .into();
-            }
-            if let Some(limit) = self.max_attribute_value_size {
-                value.truncate_text(limit);
-            }
+            value.truncate_text(limit);
         }
         self.set_entry(name, entry.clone(), request.state);
         Ok(Some(entry))

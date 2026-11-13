@@ -562,7 +562,8 @@ impl<'a> ParserState<'a> {
         let key = Cow::Borrowed(*name);
         let set = !matches!(value, RawAttributeValue::Unset);
         let previous_attributes = (key == "reftext").then(|| Rc::clone(&self.document_attributes));
-        let (value, profile_warning) = value.resolve_with_warning(&self.document_attributes);
+        let (value, profile_warning) =
+            declaration.resolve_value(&self.document_attributes, self.options.compatibility_mode);
         let force_locked = self
             .nested_parent_attributes
             .as_ref()

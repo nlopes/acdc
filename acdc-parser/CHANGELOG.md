@@ -33,10 +33,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Missing target attributes follow the selected `attribute-missing` recovery policy.
   Escaped references and invalid reference names remain literal, and quoted
   attribute values can contain closing brackets.
-- Include `leveloffset` values now restore their parent scope. Unsigned values
-  replace the active offset; signed values adjust it, including nested includes.
-  Verbatim examples do not affect subsequent headings. Body attribute events
-  report resolved offsets, and document locations retain authored include boundaries.
+- Include `leveloffset` values now follow the selected compatibility mode.
+  Asciidoctor mode interprets signed document entries before reference expansion
+  and reapplies previous signed values when leaving an include, matching
+  Asciidoctor. Draft keeps expansion before relative arithmetic and restores the
+  prior effective offset. Unsigned include offsets
+  replace the active value; signed offsets adjust it, including nested includes.
+  Both modes honor caller-locked offsets and `max-attribute-value-size` for
+  include overrides. Leading zeros are retained, so `leveloffset=01` with a
+  one-byte cap applies offset `0`, matching Asciidoctor. Verbatim examples do
+  not affect subsequent headings, and document locations retain authored include
+  boundaries.
 - `max-attribute-value-size` truncates document-defined text at a complete UTF-8
   character, including resolved relative `leveloffset` values. Secure mode defaults
   to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset

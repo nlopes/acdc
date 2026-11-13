@@ -35,9 +35,17 @@ pub(super) fn prepare_manpage_name_attributes<'input>(
 
     if let Some(section) = section {
         let mut attributes = DocumentAttributes::clone(&state.document_attributes);
-        for AttributeDeclaration { name, value } in section.metadata_attributes {
-            let value = value.resolve(&attributes);
-            let _ = attributes.assign_document_value(name.into(), value, false, false, None);
+        for declaration in section.metadata_attributes {
+            let value = declaration
+                .resolve_value(&attributes, state.options.compatibility_mode)
+                .0;
+            let _ = attributes.assign_document_value(
+                declaration.name.into(),
+                value,
+                false,
+                false,
+                None,
+            );
         }
 
         let name = apply_attribute_substitutions(&section.attributes.name, HEADER, &attributes);

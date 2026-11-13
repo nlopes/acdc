@@ -1,0 +1,13 @@
+= Offset references
+:number: 1
+:signed: +1
+:leveloffset: 1
+
+:leveloffset: {signed}
+
+== Referenced sign
+
+:leveloffset: 1
+:leveloffset: +{number}
+
+== Referenced magnitude

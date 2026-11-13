@@ -3,33 +3,45 @@ mod peg;
 use peg::attribute_parser;
 
 use crate::{
-    Error, Options,
+    CompatibilityMode, DocumentAttributes, Error, Options,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
 };
 
 #[tracing::instrument(level = "trace", skip_all, fields(input_len = line.len()))]
 pub(super) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
     match attribute_parser::document_attribute(line) {
-        Ok(AttributeDeclaration { name, value }) => {
-            let value = value.resolve(&options.document_attributes).into_static();
-            let value = if matches!(&value, RawAttributeValue::Resolved(value) if value.text() == Some(""))
-            {
-                RawAttributeValue::Set
-            } else {
-                value
-            };
-            options.document_attributes.assign_document_value(
-                name.to_owned().into(),
-                value,
-                true,
-                false,
-                None,
-            )?;
-        }
+        Ok(declaration) => apply_declaration(
+            &declaration,
+            &mut options.document_attributes,
+            options.compatibility_mode,
+        )?,
         Err(_) => {
             tracing::warn!("failed to parse attribute line");
         }
     }
+    Ok(())
+}
+
+/// Resolve and apply document entries and include scope changes through one policy.
+pub(super) fn apply_declaration(
+    declaration: &AttributeDeclaration<'_>,
+    attributes: &mut DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let value = declaration.resolve_value(attributes, mode).0.into_static();
+    let value = if matches!(&value, RawAttributeValue::Resolved(value) if value.text() == Some(""))
+    {
+        RawAttributeValue::Set
+    } else {
+        value
+    };
+    attributes.assign_document_value(
+        declaration.name.to_owned().into(),
+        value,
+        true,
+        false,
+        None,
+    )?;
     Ok(())
 }
 
