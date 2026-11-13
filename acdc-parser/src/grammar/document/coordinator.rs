@@ -126,24 +126,36 @@ impl BlockCursor {
         }
     }
 
-    #[inline]
+    #[cfg(test)]
     pub(super) fn advance<'a>(
         &mut self,
         input: &'a str,
         state: &mut ParserState<'a>,
     ) -> Result<Result<BlockStep<'a>, Error>, RecognitionError> {
-        let step = document_parser::next_block(
+        let mut step = BlockStep::end(Vec::new(), self.offset);
+        Ok(self.advance_into(input, state, &mut step)?.map(|()| step))
+    }
+
+    #[inline]
+    fn advance_into<'a>(
+        &mut self,
+        input: &'a str,
+        state: &mut ParserState<'a>,
+        step: &mut BlockStep<'a>,
+    ) -> Result<Result<(), Error>, RecognitionError> {
+        let result = document_parser::next_block(
             input,
             state,
             self.offset,
             self.base_offset,
             self.parent,
             self.mode,
+            step,
         )?;
-        if let Ok(step) = &step {
+        if result.is_ok() {
             self.offset = step.end;
         }
-        Ok(step)
+        Ok(result)
     }
 
     pub(super) fn section(&self, section: &crate::Section<'_>, state: &ParserState<'_>) -> Self {
@@ -179,10 +191,10 @@ impl BlockCursor {
                 Ok(source) => source,
                 Err(error) => return Ok(Err(error)),
             };
-            let step = match self.advance(source, state)? {
-                Ok(step) => step,
-                Err(error) => return Ok(Err(error)),
-            };
+            let mut step = BlockStep::end(Vec::new(), self.offset);
+            if let Err(error) = self.advance_into(source, state, &mut step)? {
+                return Ok(Err(error));
+            }
             let kind = match step.kind {
                 BlockStepKind::End(trailing) => {
                     blocks.extend(trailing);

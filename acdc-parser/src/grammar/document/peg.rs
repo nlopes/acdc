@@ -112,21 +112,24 @@ peg::parser! {
         = resume_at(offset) blocks:blocks(0, None, None) end:position!() eol()*
         { blocks.map(|blocks| (blocks, end)) }
 
+        // Write the result only in the terminal action of an accepted branch.
+        // This public no_eof rule has no later match that can fail. Handlers run
+        // in the coordinator after success, outside all PEG actions.
         #[no_eof]
-        pub(in crate::grammar::document) rule next_block(offset: usize, base_offset: usize, parent: BlockParent, mode: ConstructionMode) -> Result<BlockStep<'input>, Error>
-        = resume_at(offset) step:(
+        pub(in crate::grammar::document) rule next_block(offset: usize, base_offset: usize, parent: BlockParent, mode: ConstructionMode, output: &mut BlockStep<'input>) -> Result<(), Error>
+        = resume_at(offset) result:(
             !trailing_block_metadata_match()
               block:(
                 ordered_construction(mode) block:recognized_block(base_offset, parent.level, parent.kind, mode) { block }
                 / recursive_construction(mode) block:block(base_offset, parent.level, parent.kind) { block.map(BlockStepKind::Block) }
               )
               end:position!()
-            { block.map(|kind| BlockStep { kind, end }) }
+            { block.map(|kind| { *output = BlockStep { kind, end }; }) }
             / eol()* &same_or_higher_level_section(base_offset, parent.level)
-            { Ok(BlockStep::end(Vec::new(), offset)) }
+            { *output = BlockStep::end(Vec::new(), offset); Ok(()) }
             / trailing:trailing_block_metadata(base_offset)? end:position!() eol()* ![_]
-            { trailing.transpose().map(|blocks| BlockStep::end(blocks.unwrap_or_default(), end)) }
-        ) { step }
+            { trailing.transpose().map(|blocks| { *output = BlockStep::end(blocks.unwrap_or_default(), end); }) }
+        ) { result }
 
         // Read-only line probes share the actual block recognizers. The source
         // driver uses them to collect one unit, then constructs that unit once.
