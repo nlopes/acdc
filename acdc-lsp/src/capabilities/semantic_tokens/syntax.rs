@@ -386,7 +386,7 @@ fn collect_block(
         BlockKind::Paragraph(node) => {
             collect_tokens_from_inlines(node.content(), source, mode, tokens);
         }
-        BlockKind::Listing(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
+        BlockKind::Listing(node) => listing(block, node.content(), source, mode, tokens),
         BlockKind::Literal(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
         BlockKind::Passthrough(node) => {
             verbatim(block.kind(), node.content(), source, mode, tokens);
@@ -573,6 +573,24 @@ fn delimiter_locations(kind: BlockKind<'_>) -> [Option<LocationRef<'_>>; 2] {
         | BlockKind::Video(_)
         | BlockKind::TableOfContents(_)
         | _ => [None, None],
+    }
+}
+
+fn listing(
+    block: BlockRef<'_>,
+    body: ContentRef<'_>,
+    source: &LineIndex<'_>,
+    mode: CompatibilityMode,
+    tokens: &mut Vec<RawToken>,
+) {
+    let language = block
+        .attributes()
+        .and_then(|attributes| attributes.get("language"))
+        .and_then(AttributeValueRef::as_str);
+    // Leave tagged source bodies to the editor's injected highlighter,
+    // including when substitutions have produced parsed inline content.
+    if language.is_none_or(|language| language.trim().is_empty()) {
+        verbatim(block.kind(), body, source, mode, tokens);
     }
 }
 
