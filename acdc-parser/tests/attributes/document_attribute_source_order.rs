@@ -1,12 +1,62 @@
 use std::fmt::Write;
 
 use acdc_parser::{
-    AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue, Options, SafeMode,
+    AttributeValue, CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue,
+    Options, SafeMode,
     ast::{BlockKind, BlockRef},
     parse,
 };
 
 type Error = Box<dyn std::error::Error>;
+
+#[rstest::rstest]
+#[case("{signed}", "+1", "2")]
+#[case("{negative}", "-1", "0")]
+#[case("+{number}", "1", "2")]
+#[case("-{number}", "1", "0")]
+#[case("pass:a[{signed}]", "+1", "2")]
+fn leveloffset_references_follow_the_selected_mode(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(false, true)] body: bool,
+    #[case] value: &str,
+    #[case] asciidoctor: &str,
+    #[case] draft: &str,
+) -> Result<(), Error> {
+    let boundary = if body { "\nBody.\n\n" } else { "" };
+    let source = format!(
+        "= Document\n:number: 1\n:signed: +1\n:negative: -1\n:leveloffset: 1\n{boundary}:leveloffset: {value}\n\n== Section"
+    );
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let parsed = parse(&source, &options)?;
+    let document = parsed.document();
+    let actual = if body {
+        document.blocks().find_map(|block| {
+            let BlockKind::DocumentAttribute(event) = block.kind() else {
+                return None;
+            };
+            (event.name() == "leveloffset")
+                .then(|| {
+                    event
+                        .assignment()
+                        .value()
+                        .and_then(DocumentAttributeValue::text)
+                })
+                .flatten()
+        })
+    } else {
+        document
+            .attributes()
+            .get("leveloffset")
+            .and_then(DocumentAttributeValue::text)
+    };
+    let expected = if mode == CompatibilityMode::Asciidoctor {
+        asciidoctor
+    } else {
+        draft
+    };
+    assert_eq!(actual, Some(expected));
+    Ok(())
+}
 
 #[test]
 fn relative_leveloffset_events_contain_the_resolved_value() -> Result<(), Error> {

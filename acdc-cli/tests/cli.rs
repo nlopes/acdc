@@ -2834,3 +2834,80 @@ fn capped_relative_leveloffset_controls_rendered_heading_levels() -> Result<(), 
     assert!(output_text(&output.stdout).contains("<h3 id=\"_real_section\">Real section</h3>"));
     Ok(())
 }
+
+#[cfg(feature = "html")]
+#[test]
+fn referenced_leveloffset_renders_in_the_selected_mode() -> Result<(), Box<dyn Error>> {
+    for (mode, heading) in [("asciidoctor", "h3"), ("draft", "h4")] {
+        for value in ["{signed}", "+{number}"] {
+            for caller in ["leveloffset=1@", "leveloffset=1"] {
+                let source =
+                    format!(":number: 1\n:signed: +1\n\n:leveloffset: {value}\n\n== Real section");
+                let output = run_acdc(
+                    &[
+                        "convert",
+                        "--stdin",
+                        "--embedded",
+                        "-o",
+                        "-",
+                        "--compatibility-mode",
+                        mode,
+                        "-a",
+                        caller,
+                    ],
+                    Some(&source),
+                )?;
+                assert!(output.status.success(), "{}", output_text(&output.stderr));
+                let heading = if caller.ends_with('@') { heading } else { "h3" };
+                assert!(
+                    output_text(&output.stdout).contains(&format!(
+                        "<{heading} id=\"_real_section\">Real section</{heading}>"
+                    )),
+                    "{}",
+                    output_text(&output.stdout)
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn include_leveloffset_limits_apply_in_both_modes() -> Result<(), Box<dyn Error>> {
+    let directory = tempdir()?;
+    let main = directory.path().join("main.adoc");
+    fs::write(
+        directory.path().join("child.adoc"),
+        "== Child\n\nOffset: {leveloffset}.",
+    )?;
+    for mode in ["asciidoctor", "draft"] {
+        for (offset, limit, expected) in [("01", "1", "0"), ("1", "0", "")] {
+            fs::write(&main, format!("include::child.adoc[leveloffset={offset}]"))?;
+            let output = run_acdc(
+                &[
+                    "convert",
+                    "--embedded",
+                    "--safe-mode",
+                    "unsafe",
+                    "--compatibility-mode",
+                    mode,
+                    "-a",
+                    &format!("max-attribute-value-size={limit}"),
+                    "-o",
+                    "-",
+                    &main.to_string_lossy(),
+                ],
+                None,
+            )?;
+            assert!(output.status.success(), "{}", output_text(&output.stderr));
+            let html = output_text(&output.stdout);
+            assert!(html.contains("<h2 id=\"_child\">Child</h2>"), "{html}");
+            assert!(
+                html.contains(&format!("<p>Offset: {expected}.</p>")),
+                "{html}"
+            );
+        }
+    }
+    Ok(())
+}

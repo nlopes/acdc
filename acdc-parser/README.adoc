@@ -1640,8 +1640,24 @@ invalid selection cannot silently include the whole file. This strict validation
 differs from Asciidoctor's leading-decimal conversion.
 
 An include's unsigned `leveloffset` replaces the active offset. A signed value
-adjusts it. The previous value is restored after an explicit include offset;
-changes inside an include without an explicit offset affect following content.
+adjusts it. Include attribute references are expanded before interpreting the
+offset in both compatibility modes. Both modes honor caller-locked offsets and
+`max-attribute-value-size` when an include requests an override. Unsigned values
+retain their text until the limit applies: `leveloffset=01` with a one-byte cap
+sets offset `0`.
+
+For document entries, Asciidoctor mode interprets literal signed offsets before
+expanding attribute references. Starting at offset `1`, `:leveloffset: {delta}`
+with `delta=+1` sets offset `1`, and `:leveloffset: +{number}` with `number=1`
+also keeps offset `1`. Draft mode expands references first, following
+https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-002-block-attrlist-parsing.adoc[SDR-2's attribute-entry preprocessing model].
+Both entries therefore set offset `2`.
+
+After an explicit include offset, Asciidoctor mode reapplies the previous value
+as a document entry. A signed value introduced through a reference can therefore
+adjust the offset again on return, matching Asciidoctor. Draft restores the
+previous effective offset. Changes inside an include without an explicit offset
+affect following content in both modes.
 
 == Attribute value limits
 

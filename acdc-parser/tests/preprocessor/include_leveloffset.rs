@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_parser::{
-    CompatibilityMode, Options, SafeMode,
+    AttributeValue, CompatibilityMode, Options, SafeMode,
     ast::{BlockKind, BlockRef, InlineKind},
     parse, parse_file,
 };
@@ -201,6 +201,155 @@ fn included_leveloffset_change_leaks_without_an_explicit_include_offset() -> Tes
             ("Before".to_string(), 1),
             ("Included".to_string(), 2),
             ("Following".to_string(), 2),
+        ]
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn referenced_leveloffset_controls_include_targets_in_the_selected_mode(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write("1.adoc", "== One")?;
+    directory.write("2.adoc", "== Two")?;
+    let main = directory.write(
+        "main.adoc",
+        ":number: 1\n:leveloffset: 1\n\n:leveloffset: +{number}\n\ninclude::{leveloffset}.adoc[]\n\n== After",
+    )?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_compatibility_mode(mode)
+        .build()?;
+    let result = parse_file(&main, &options)?;
+    let mut sections = Vec::new();
+    collect_sections(result.document().blocks(), &mut sections)?;
+    let expected: [(String, u8); 2] = if mode == CompatibilityMode::Asciidoctor {
+        [("One".into(), 2), ("After".into(), 2)]
+    } else {
+        [("Two".into(), 3), ("After".into(), 3)]
+    };
+    assert_eq!(sections, expected);
+    Ok(())
+}
+
+#[rstest::rstest]
+fn signed_reference_restoration_follows_the_selected_mode(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write("inner.adoc", "== Inner")?;
+    directory.write(
+        "child.adoc",
+        "== Child\n\ninclude::inner.adoc[leveloffset=+1]\n\n== Child Tail",
+    )?;
+    let main = directory.write(
+        "main.adoc",
+        ":signed: +1\n:leveloffset: 1\n\n:leveloffset: {signed}\n\n== Before\n\ninclude::child.adoc[leveloffset=+1]\n\n== After",
+    )?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_compatibility_mode(mode)
+        .build()?;
+    let result = parse_file(&main, &options)?;
+    let mut sections = Vec::new();
+    collect_sections(result.document().blocks(), &mut sections)?;
+    let levels = if mode == CompatibilityMode::Asciidoctor {
+        [2, 3, 4, 3, 4]
+    } else {
+        [3, 4, 5, 4, 3]
+    };
+    let titles = ["Before", "Child", "Inner", "Child Tail", "After"];
+    assert_eq!(
+        sections,
+        titles
+            .map(String::from)
+            .into_iter()
+            .zip(levels)
+            .collect::<Vec<_>>()
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn caller_include_leveloffset_honors_shared_policy(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(false, true)] locked: bool,
+    #[values(false, true)] present: bool,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write("child.adoc", "== Child")?;
+    let main = directory.write(
+        "main.adoc",
+        "== Before\n\ninclude::child.adoc[leveloffset=+1]\n\n== After",
+    )?;
+    let builder = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_compatibility_mode(mode);
+    let value: AttributeValue<'_> = if present { "1".into() } else { false.into() };
+    let options = if locked {
+        builder.with_attribute("leveloffset", value)
+    } else {
+        builder.with_default_attribute("leveloffset", value)
+    }
+    .build()?;
+    let result = parse_file(&main, &options)?;
+    let mut sections = Vec::new();
+    collect_sections(result.document().blocks(), &mut sections)?;
+    let parent = 1 + u8::from(present);
+    let child = if locked { parent } else { parent + 1 };
+    assert_eq!(
+        sections,
+        [
+            ("Before".to_string(), parent),
+            ("Child".to_string(), child),
+            ("After".to_string(), parent)
+        ]
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case("01", None, "01", 2)]
+#[case("01", Some("1"), "0", 1)]
+#[case("1", Some("0"), "", 1)]
+#[case("+10", Some("1"), "1", 2)]
+#[case("{shift}", Some("1"), "0", 1)]
+#[case("\" +01 \"", None, "1", 2)]
+#[case("\" 01\"", Some("1"), "0", 1)]
+fn include_leveloffset_preserves_text_until_assignment(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] offset: &str,
+    #[case] limit: Option<&str>,
+    #[case] expected: &str,
+    #[case] level: u8,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write(
+        "child.adoc",
+        "== Offset {leveloffset}.\n\ninclude::selected-{leveloffset}.adoc[]",
+    )?;
+    directory.write(&format!("selected-{expected}.adoc"), "== Selected")?;
+    let main = directory.write(
+        "main.adoc",
+        &format!("include::child.adoc[leveloffset={offset}]\n\n== After"),
+    )?;
+    let mut builder = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_compatibility_mode(mode)
+        .with_attribute("shift", "01");
+    if let Some(limit) = limit {
+        builder = builder.with_attribute("max-attribute-value-size", limit);
+    }
+    let result = parse_file(&main, &builder.build()?)?;
+    let mut sections = Vec::new();
+    collect_sections(result.document().blocks(), &mut sections)?;
+    assert_eq!(
+        sections,
+        [
+            (format!("Offset {expected}."), level),
+            ("Selected".into(), level),
+            ("After".into(), 1),
         ]
     );
     Ok(())

@@ -15,8 +15,9 @@ use chrono::{DateTime, Local, TimeZone, Utc};
 use rustc_hash::FxHashMap;
 
 use crate::{
-    AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
-    DocumentAttributes, Error, SafeMode, SourceLocation, model::RawAttributes,
+    AttributeName, AttributeValue, CompatibilityMode, DocumentAttributeAssignment,
+    DocumentAttributeValue, DocumentAttributes, Error, SafeMode, SourceLocation,
+    model::RawAttributes,
 };
 
 pub(crate) const INTERNAL_LEVELOFFSET_ATTR: &str = "__acdc_parser_internal_leveloffset";
@@ -468,6 +469,56 @@ pub(crate) struct AttributeDeclaration<'a> {
     pub(crate) value: RawAttributeValue<'a>,
 }
 
+impl<'a> AttributeDeclaration<'a> {
+    pub(crate) fn resolve_value(
+        &self,
+        attributes: &DocumentAttributes<'_>,
+        mode: CompatibilityMode,
+    ) -> (RawAttributeValue<'a>, Option<String>) {
+        // Asciidoctor resolves literal signed offsets before attribute substitutions.
+        // A sign introduced by a reference therefore remains an absolute value.
+        if self.name == "leveloffset"
+            && mode == CompatibilityMode::Asciidoctor
+            && let RawAttributeValue::Text(text) = &self.value
+            && let Some(value) = resolve_relative_leveloffset(text, attributes, mode)
+        {
+            return (RawAttributeValue::Resolved(value.into()), None);
+        }
+        let (mut value, warning) = self.value.resolve_with_warning(attributes);
+        if self.name == "leveloffset"
+            && mode == CompatibilityMode::Draft
+            && let RawAttributeValue::Resolved(resolved) = &value
+            && let Some(text) = resolved.text()
+            && let Some(offset) = resolve_relative_leveloffset(text, attributes, mode)
+        {
+            value = RawAttributeValue::Resolved(offset.into());
+        }
+        (value, warning)
+    }
+}
+
+fn resolve_relative_leveloffset(
+    text: &str,
+    attributes: &DocumentAttributes<'_>,
+    mode: CompatibilityMode,
+) -> Option<String> {
+    let current = attributes.text("leveloffset").map_or(0, ruby_to_isize);
+    let resolved = match mode {
+        CompatibilityMode::Asciidoctor => {
+            if let Some(value) = text.strip_prefix('+') {
+                current.saturating_add(ruby_to_isize(value))
+            } else {
+                current.saturating_sub(ruby_to_isize(text.strip_prefix('-')?))
+            }
+        }
+        CompatibilityMode::Draft if text.starts_with(['+', '-']) => {
+            current.saturating_add(ruby_to_isize(text))
+        }
+        CompatibilityMode::Draft => return None,
+    };
+    Some(resolved.to_string())
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum RawAttributeValue<'a> {
     Text(Cow<'a, str>),
@@ -484,10 +535,6 @@ impl RawAttributeValue<'_> {
             Self::Set => RawAttributeValue::Set,
             Self::Unset => RawAttributeValue::Unset,
         }
-    }
-
-    pub(crate) fn resolve(&self, attributes: &DocumentAttributes<'_>) -> Self {
-        self.resolve_with_warning(attributes).0
     }
 
     pub(crate) fn resolve_with_warning(
