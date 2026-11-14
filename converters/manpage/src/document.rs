@@ -19,10 +19,7 @@ const SEE_THE_AUTHOR_SECTION: &str = r#"[see the "AUTHOR(S)" section]"#;
 
 /// Format an author's full name for display.
 pub(crate) fn format_author_name(author: AuthorRef<'_>) -> String {
-    match author.middle_name() {
-        Some(middle) => format!("{} {middle} {}", author.first_name(), author.last_name()),
-        None => format!("{} {}", author.first_name(), author.last_name()),
-    }
+    acdc_converters_core::author_name(author)
 }
 
 /// Format the author line for the comment header.

@@ -1055,20 +1055,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                             String::new()
                         }
                     )?;
-                    write!(
+                    writeln!(
                         self.writer,
-                        "{} ",
-                        crate::inlines::escape_role(author.first_name())
+                        "{}</span><br>",
+                        crate::inlines::escape_role(&acdc_converters_core::author_name(author))
                     )?;
-                    if let Some(middle_name) = author.middle_name() {
-                        write!(self.writer, "{} ", crate::inlines::escape_role(middle_name))?;
-                    }
-                    write!(
-                        self.writer,
-                        "{}",
-                        crate::inlines::escape_role(author.last_name())
-                    )?;
-                    writeln!(self.writer, "</span><br>")?;
                     if let Some(email) = author.email() {
                         let email = crate::inlines::escape_role(email);
                         // Emit on a single line, like asciidoctor: a newline

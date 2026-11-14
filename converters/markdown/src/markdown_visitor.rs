@@ -1048,13 +1048,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_author(&mut self, author: AuthorRef<'_>) -> Result<(), Error> {
         write!(
             self.writer,
-            "{} ",
-            Self::escape_markdown(author.first_name())
+            "{}",
+            Self::escape_markdown(&acdc_converters_core::author_name(author))
         )?;
-        if let Some(middle_name) = author.middle_name() {
-            write!(self.writer, "{} ", Self::escape_markdown(middle_name))?;
-        }
-        write!(self.writer, "{}", Self::escape_markdown(author.last_name()))?;
         if let Some(email) = author.email() {
             write!(self.writer, " <{}>", Self::escape_markdown(email))?;
         }

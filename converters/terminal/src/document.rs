@@ -105,12 +105,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
 fn visit_author<W: Write + ?Sized>(author: AuthorRef<'_>, w: &mut W) -> Result<(), io::Error> {
     w.queue(PrintStyledContent(
-        format!("{} ", author.first_name()).italic(),
+        acdc_converters_core::author_name(author).italic(),
     ))?;
-    if let Some(middle_name) = author.middle_name() {
-        w.queue(PrintStyledContent(format!("{middle_name} ").italic()))?;
-    }
-    w.queue(PrintStyledContent(author.last_name().italic()))?;
     if let Some(email) = author.email() {
         w.queue(PrintStyledContent(format!(" <{email}>").italic()))?;
     }
@@ -172,7 +168,7 @@ mod tests {
         let mut visitor = TerminalVisitor::new(buffer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, (&doc).into())?;
         let buffer = visitor.into_writer();
-        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
+        assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn M Doe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
         Ok(())
     }
 

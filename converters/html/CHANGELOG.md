@@ -282,6 +282,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A single-name author, such as `Jane`, no longer ends with a space in the
+  `<meta name="author">` tag and the header, matching Asciidoctor. This also
+  applies to the `html5s` backend.
+
 - Admonition image alternatives now preserve the same resolved caption text as the visible caption.
 
 - Image alternative text and tooltips retain curved quotation marks.

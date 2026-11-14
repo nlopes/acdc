@@ -77,6 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A single-name author, such as `Jane`, no longer ends with a space in the
+  author line.
+
 - Quote and verse credits now preserve resolved typography and explicit passthrough settings consistently with other output formats.
 
 - Block `subs=` settings work in every build. Literal and escaped text,

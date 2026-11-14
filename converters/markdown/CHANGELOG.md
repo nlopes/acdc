@@ -99,6 +99,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A single-name author, such as `Jane`, no longer ends with a space in the
+  author line.
+
 - Literal angle brackets in prose and formatted captions remain visible text instead of becoming HTML tags, links, or blockquotes in Markdown. Explicit raw passthroughs keep their markup.
 
 - Generated indexes sort and combine entries by their resolved labels. Catalog

@@ -42,6 +42,7 @@ terminal_fixture_catalog!([
     (index_compound_table_cell, false),
     (subs_verbatim_index, false),
     (document, false),
+    (author_single_name, false),
     (xref_title_emphasis, true),
     (article_special_section_numbering, false),
     (article_special_section_numbering_all, false),

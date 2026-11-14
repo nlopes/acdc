@@ -47,12 +47,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 }
 
 fn render_author<W: Write + ?Sized>(author: AuthorRef<'_>, w: &mut W) -> Result<(), Error> {
-    write!(w, "<meta name=\"author\" content=\"")?;
-    write!(w, "{} ", escape_role(author.first_name()))?;
-    if let Some(middle_name) = author.middle_name() {
-        write!(w, "{} ", escape_role(middle_name))?;
-    }
-    write!(w, "{}", escape_role(author.last_name()))?;
-    writeln!(w, "\">")?;
+    writeln!(
+        w,
+        "<meta name=\"author\" content=\"{}\">",
+        escape_role(&acdc_converters_core::author_name(author))
+    )?;
     Ok(())
 }

@@ -22,7 +22,7 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Converter as _, Diagnostics, InlineTextTransform, Options, PrettyDuration,
-    TraversalContext, Warning, document_attribute_text,
+    TraversalContext, Warning, author_name, document_attribute_text,
     icon::{
         IconMode, custom_image_source as admonition_icon_source, image_source as icon_image_source,
     },
@@ -1265,19 +1265,6 @@ fn parse_document_locale(value: &str) -> Result<DocumentLocale, TypstError> {
 
 fn metadata_attribute(attributes: DocumentAttributesRef<'_>, name: &str) -> Option<String> {
     document_attribute_text(attributes.get(name)).map(str::to_owned)
-}
-
-fn author_name(author: acdc_parser::ast::AuthorRef<'_>) -> String {
-    [
-        Some(author.first_name()),
-        author.middle_name(),
-        Some(author.last_name()),
-    ]
-    .into_iter()
-    .flatten()
-    .filter(|part| !part.is_empty())
-    .collect::<Vec<_>>()
-    .join(" ")
 }
 
 fn collect_pdf_preparation(doc: DocumentRef<'_>) -> PdfPreparation {

@@ -1,0 +1,4 @@
+[1m[4mDocument Title[0m
+[3mby [0m[3mJane[0m, [3mJohn M. Doe[0m
+
+By Jane and John M. Doe.

@@ -1,0 +1,37 @@
+'\" t
+.\"     Title: single-author
+.\"    Author: Jane
+.\" Generator: acdc 0.1.0
+.\"      Date: 2025-01-01
+.\"    Manual: Sample Manual
+.\"    Source: Sample Project 1.0
+.\"  Language: English
+.\"
+.TH "SINGLE\-AUTHOR" "1" "2025-01-01" "Sample Project 1.0" "Sample Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+single\-author \- A command by a single\-name author
+.SH "SYNOPSIS"
+.sp
+\fBsingle\-author\fR
+.SH "AUTHOR"
+.sp
+\fBJane\fP

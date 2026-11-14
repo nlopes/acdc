@@ -1,7 +1,7 @@
 use std::fmt::Write as _;
 
 use acdc_converters_core::{
-    Doctype, TraversalContext, document_attribute_text,
+    Doctype, TraversalContext, author_name, document_attribute_text,
     icon::IconMode,
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
@@ -19,7 +19,7 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, PdfVisitor, admonition_icon_source, author_name, is_page_breakable_table,
+    Error, PdfVisitor, admonition_icon_source, is_page_breakable_table,
     is_unbreakable_delimited_block, is_unbreakable_paragraph,
     pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };

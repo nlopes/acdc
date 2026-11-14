@@ -39,7 +39,8 @@ use std::{
 
 use acdc_parser::{
     AttributeValue, DocumentAttributeValue, DocumentAttributes, Error, Options as ParserOptions,
-    OptionsBuilder as ParserOptionsBuilder, SafeMode, ast::DocumentRef,
+    OptionsBuilder as ParserOptionsBuilder, SafeMode,
+    ast::{AuthorRef, DocumentRef},
 };
 
 mod backend;
@@ -67,6 +68,22 @@ pub use doctype::Doctype;
 pub use document_attributes::TraversalContext;
 pub use inline_text::InlineTextTransform;
 pub use warning::{Diagnostics, Warning, WarningSource};
+
+/// An author's full name: the first, middle, and last names that are present,
+/// separated by single spaces. A single-name author has only a first name.
+#[must_use]
+pub fn author_name(author: AuthorRef<'_>) -> String {
+    [
+        Some(author.first_name()),
+        author.middle_name(),
+        Some(author.last_name()),
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ")
+}
 
 /// Return stored text, or empty text for presence.
 /// Integer values return none.

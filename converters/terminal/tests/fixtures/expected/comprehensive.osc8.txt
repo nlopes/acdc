@@ -1,5 +1,5 @@
 [1m[4mComprehensive Terminal Test: A Subtitle[0m
-[3mby [0m[3mFirst [0m[3mAuthor[0m[3m <first@example.com>[0m, [3mJane [0m[3mM. [0m[3mDoe[0m[3m <jane@example.com>[0m
+[3mby [0m[3mFirst Author[0m[3m <first@example.com>[0m, [3mJane M. Doe[0m[3m <jane@example.com>[0m
 [2mVersion 1.2[0m[2m, [0m[2m2024-03-15[0m
 [2m[3mSpring release[0m
 

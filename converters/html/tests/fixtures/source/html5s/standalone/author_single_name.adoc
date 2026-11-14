@@ -1,0 +1,1 @@
+../../html/standalone/author_single_name.adoc

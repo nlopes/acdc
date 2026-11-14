@@ -1,0 +1,15 @@
+= single-author(1)
+Jane
+:doctype: manpage
+:manmanual: Sample Manual
+:mansource: Sample Project 1.0
+:docdate: 2025-01-01
+:revdate: 2025-01-01
+
+== Name
+
+single-author - A command by a single-name author
+
+== Synopsis
+
+*single-author*
