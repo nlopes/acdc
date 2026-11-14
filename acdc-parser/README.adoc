@@ -1641,6 +1641,11 @@ first setting, with a source location for document entries and no location for
 caller input. Unsets, ignored assignments, and the valid `toc2` CSS class do
 not warn. Asciidoctor accepts the deprecated alias without this warning.
 
+An unset entry with text after it, such as `:!foo: ignored` or
+`:foo!: ignored`, still unsets the attribute and ignores the text. It adds a
+located `WarningKind::UnsetAttributeValue` warning, including when the caller
+locked the attribute. Asciidoctor ignores the text without a warning.
+
 A section directly nested in a `++[++bibliography++]++` section remains in the AST and
 adds a located warning to `ParseResult::warnings()`. Parsing and conversion
 continue. Asciidoctor keeps the same content but reports the condition at error

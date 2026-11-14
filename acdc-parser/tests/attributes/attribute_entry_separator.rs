@@ -1,10 +1,11 @@
 //! An attribute entry needs whitespace or the end of the line after `:name:`.
 //!
 //! This follows asciidoctor's `AttributeEntryRx`: a line such as `:foo:bar` is
-//! ordinary text in every position, and it never sets `foo`.
+//! ordinary text in every position, and it never sets `foo`. An unset entry
+//! ignores any text after the separator; unlike asciidoctor, acdc warns.
 
 use acdc_parser::{
-    CompatibilityMode, DocumentAttributeValue, Options,
+    CompatibilityMode, DocumentAttributeValue, Options, ParseResult, WarningKind,
     ast::{BlockKind, BlockRef, ContentRef, DocumentRef, HeaderRef, InlineKind},
     parse,
 };
@@ -13,6 +14,24 @@ type Error = Box<dyn std::error::Error>;
 
 fn options(mode: CompatibilityMode) -> Result<Options<'static>, Error> {
     Ok(Options::builder().with_compatibility_mode(mode).build()?)
+}
+
+/// The ignored-text warnings for unset entries, as `(name, text, line)`.
+fn unset_value_warnings(parsed: &ParseResult) -> Vec<(String, String, Option<u32>)> {
+    parsed
+        .warnings()
+        .iter()
+        .filter_map(|warning| {
+            if let WarningKind::UnsetAttributeValue { name, value } = &warning.kind {
+                let line = warning
+                    .source_location()
+                    .map(|source| source.location.start.line);
+                Some((name.clone(), value.clone(), line))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 fn text(content: ContentRef<'_>) -> Result<String, Error> {
@@ -171,6 +190,89 @@ fn name_text_line_ending_in_backslash_is_not_continued(
     Ok(())
 }
 
+const CONDITIONALS: &str =
+    "ifdef::foo[]\nfoo is set\nendif::[]\nifndef::foo[]\nfoo is unset\nendif::[]\n";
+
+/// An unset entry ignores the text after the separator, in conditionals as
+/// well as in attribute references, and warns once about the ignored text.
+#[rstest::rstest]
+fn unset_entry_with_text_unsets_and_warns(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(
+        (":!foo: ignored", "ignored"),
+        (":foo!: ignored", "ignored"),
+        (":!foo:\tignored", "ignored"),
+        (":!foo: first \\\nsecond", "first second")
+    )]
+    case: (&str, &str),
+    #[values(true, false)] in_header: bool,
+) -> Result<(), Error> {
+    let (entry, ignored) = case;
+    let gap = if in_header { "" } else { "\n" };
+    let source = format!("= Title\n:foo: yes\n{gap}{entry}\n\n{CONDITIONALS}\n{{foo}}\n");
+    let parsed = parse(&source, &options(mode)?)?;
+    let document = parsed.document();
+    let expected: &[&str] = if in_header {
+        &["foo is unset", "{foo}"]
+    } else {
+        &["attribute foo", "foo is unset", "{foo}"]
+    };
+    assert_eq!(body(document)?, expected, "{source:?}");
+    assert_eq!(
+        document.attributes().get("foo").is_none(),
+        in_header,
+        "{source:?}"
+    );
+    let line = if in_header { 3 } else { 4 };
+    assert_eq!(
+        unset_value_warnings(&parsed),
+        [("foo".to_owned(), ignored.to_owned(), Some(line))],
+        "{source:?}"
+    );
+    Ok(())
+}
+
+/// The warning covers every place an entry applies: an untitled header, block
+/// metadata, and a caller-locked attribute whose unset is rejected.
+#[rstest::rstest]
+fn unset_entry_with_text_warns_wherever_it_applies(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(":!foo: ignored\n\nBody\n", &options(mode)?)?;
+    assert_eq!(
+        unset_value_warnings(&parsed),
+        [("foo".to_owned(), "ignored".to_owned(), Some(1))]
+    );
+    let parsed = parse("= Title\n\n[.lead]\n:bar!: also\nPara\n", &options(mode)?)?;
+    assert_eq!(
+        unset_value_warnings(&parsed),
+        [("bar".to_owned(), "also".to_owned(), Some(4))]
+    );
+    let locked = Options::builder()
+        .with_compatibility_mode(mode)
+        .with_attribute("foo", "locked")
+        .build()?;
+    let parsed = parse("= Title\n:!foo: ignored\n\n{foo}\n", &locked)?;
+    assert_eq!(body(parsed.document())?, ["locked"]);
+    assert_eq!(
+        unset_value_warnings(&parsed),
+        [("foo".to_owned(), "ignored".to_owned(), Some(2))]
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn unset_entry_without_separator_is_text(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(":!foo:ignored", ":foo!:ignored")] line: &str,
+) -> Result<(), Error> {
+    let source = format!("= Title\n:foo: yes\n\n{line}\n\n{CONDITIONALS}");
+    let parsed = parse(&source, &options(mode)?)?;
+    assert_eq!(body(parsed.document())?, [line, "foo is set"], "{source:?}");
+    assert_eq!(unset_value_warnings(&parsed), [], "{source:?}");
+    Ok(())
+}
+
 #[rstest::rstest]
 fn entries_with_separator_or_line_end_still_apply(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
@@ -190,6 +292,7 @@ fn entries_with_separator_or_line_end_still_apply(
         format!(":a: 1\n{line}\n\nBody\n"),
     ] {
         let parsed = parse(&source, &options)?;
+        assert_eq!(parsed.warnings(), [], "{source:?}");
         let attributes = parsed.document().attributes();
         assert!(attributes.is_explicit("foo"), "{source:?}");
         let actual = attributes.get("foo");
@@ -213,6 +316,7 @@ fn entries_with_separator_or_line_end_still_apply(
         format!("= Title\n\n{line}\nPara\n"),
     ] {
         let parsed = parse(&source, &options)?;
+        assert_eq!(parsed.warnings(), [], "{source:?}");
         let blocks = body(parsed.document())?;
         assert_eq!(
             blocks.first().map(String::as_str),

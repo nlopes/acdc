@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drops `bar` from the output, or continues onto the next line when it ends in
   ` \`. On the line after the document title it is the author line, and later
   in the header it ends the header.
+- An unset entry with text after it, such as `:!foo: ignored` or
+  `:foo!: ignored`, now also unsets `foo` for `ifdef` and `ifndef`. Before, only
+  attribute references treated `foo` as unset. The text is still ignored, and
+  the entry now adds a located `WarningKind::UnsetAttributeValue` warning;
+  Asciidoctor ignores the text without a warning.
 
 - Faster processing of included files, especially `lines=` and tag selections,
   while preserving resource limits, source locations, and compatibility modes.

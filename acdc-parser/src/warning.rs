@@ -50,6 +50,7 @@ impl Warning {
             WarningKind::UnsupportedCompatMode => "unsupported-compat-mode",
             WarningKind::UnsupportedCounter { .. } => "unsupported-counter",
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
+            WarningKind::UnsetAttributeValue { .. } => "unset-attribute-value",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
         };
@@ -133,6 +134,9 @@ impl Warning {
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
+            WarningKind::UnsetAttributeValue { .. } => Some(
+                "An unset entry such as `:!name:` or `:name!:` takes no value. Remove the text after it, or use `:name: value` to set the attribute.",
+            ),
             WarningKind::ContentRecovery { .. }
             | WarningKind::UnsupportedCounter { .. }
             | WarningKind::Other(_) => None,
@@ -334,6 +338,17 @@ pub enum WarningKind {
         value: String,
         /// Short description of the registered value domain.
         expected: &'static str,
+    },
+
+    /// An unset attribute entry (`:!name:` or `:name!:`) has text after the
+    /// separator. The entry still unsets the attribute and the text is ignored.
+    /// Asciidoctor ignores the text without a warning.
+    #[error("unset attribute entry `{name}` ignores the text `{value}`")]
+    UnsetAttributeValue {
+        /// Document attribute name.
+        name: String,
+        /// The ignored text.
+        value: String,
     },
 
     /// An unsupported counter reference was omitted from the output.

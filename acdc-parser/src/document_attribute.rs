@@ -465,6 +465,8 @@ pub(crate) fn processor_assignment_state(
 pub(crate) struct AttributeDeclaration<'a> {
     pub(crate) name: &'a str,
     pub(crate) value: RawAttributeValue<'a>,
+    /// Text after the separator of an unset entry, which the entry ignores.
+    pub(crate) ignored_value: Option<Cow<'a, str>>,
 }
 
 impl<'a> AttributeDeclaration<'a> {

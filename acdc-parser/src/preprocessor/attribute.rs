@@ -90,7 +90,12 @@ mod tests {
     #[test]
     fn value_without_separator_is_not_a_declaration() -> Result<(), Error> {
         let mut options = options();
-        for line in [":name:value", ":name:value \\"] {
+        for line in [
+            ":name:value",
+            ":name:value \\",
+            ":!name:value",
+            ":name!:value",
+        ] {
             assert!(!is_declaration(line), "{line}");
             parse_line(&mut options, line)?;
         }
@@ -101,8 +106,22 @@ mod tests {
             ":name:\tvalue",
             ":!name:",
             ":name!:",
+            ":!name: value",
+            ":name!:\tvalue",
         ] {
             assert!(is_declaration(line), "{line}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unset_ignores_value() -> Result<(), Error> {
+        for line in [":!name: ignored", ":name!: ignored"] {
+            let mut options = options();
+            parse_line(&mut options, ":name: set")?;
+            parse_line(&mut options, line)?;
+            assert!(options.document_attributes.is_explicit("name"), "{line}");
+            assert_eq!(options.document_attributes.get("name"), None, "{line}");
         }
         Ok(())
     }

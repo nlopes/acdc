@@ -552,7 +552,21 @@ impl<'a> ParserState<'a> {
         in_header: bool,
         location: Location,
     ) -> Option<DocumentAttribute<'a>> {
-        let AttributeDeclaration { name, value } = declaration;
+        let AttributeDeclaration {
+            name,
+            value,
+            ignored_value,
+        } = declaration;
+        // The text is ignored whether or not policy accepts the unset.
+        if let Some(ignored) = ignored_value {
+            self.add_warning(Warning::new(
+                WarningKind::UnsetAttributeValue {
+                    name: (*name).to_owned(),
+                    value: ignored.to_string(),
+                },
+                Some(self.create_error_source_location(location.clone())),
+            ));
+        }
         if *name == "leveloffset"
             && let Some(scope) = self
                 .leveloffset_scopes
@@ -1052,6 +1066,7 @@ mod tests {
                         &AttributeDeclaration {
                             name: "local",
                             value: RawAttributeValue::Text(Cow::Borrowed("child")),
+                            ignored_value: None,
                         },
                         false,
                         child.create_location(0, 0),
@@ -1101,6 +1116,7 @@ mod tests {
                     &AttributeDeclaration {
                         name: "example-caption",
                         value: RawAttributeValue::Text(Cow::Borrowed(value)),
+                        ignored_value: None,
                     },
                     false,
                     state.create_location(0, 0),

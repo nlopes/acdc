@@ -4168,14 +4168,14 @@ peg::parser! {
         value:document_attribute_value()?
         {
             let (set, key) = key_entry;
-            let attr_value = if !set {
-                RawAttributeValue::Unset
+            let (attr_value, ignored_value) = if !set {
+                (RawAttributeValue::Unset, value)
             } else if let Some(v) = value {
-                RawAttributeValue::Text(v)
+                (RawAttributeValue::Text(v), None)
             } else {
-                RawAttributeValue::Set
+                (RawAttributeValue::Set, None)
             };
-            AttributeDeclaration { name: key, value: attr_value }
+            AttributeDeclaration { name: key, value: attr_value, ignored_value }
         }
         / expected!("document attribute key starting with ':'")
 

@@ -899,6 +899,7 @@ impl<'a> Include<'a> {
             name: "leveloffset",
             // Include scope values follow attribute-entry whitespace rules.
             value: RawAttributeValue::Text(value.trim_start_matches([' ', '\t']).into()),
+            ignored_value: None,
         };
         super::attribute::apply_declaration(
             &declaration,
@@ -1017,6 +1018,7 @@ impl<'a> Include<'a> {
         let declaration = AttributeDeclaration {
             name: "leveloffset",
             value,
+            ignored_value: None,
         };
         super::attribute::apply_declaration(
             &declaration,
