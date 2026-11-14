@@ -88,6 +88,26 @@ mod tests {
     }
 
     #[test]
+    fn value_without_separator_is_not_a_declaration() -> Result<(), Error> {
+        let mut options = options();
+        for line in [":name:value", ":name:value \\"] {
+            assert!(!is_declaration(line), "{line}");
+            parse_line(&mut options, line)?;
+        }
+        assert!(!options.document_attributes.is_explicit("name"));
+        for line in [
+            ":name:",
+            ":name: value",
+            ":name:\tvalue",
+            ":!name:",
+            ":name!:",
+        ] {
+            assert!(is_declaration(line), "{line}");
+        }
+        Ok(())
+    }
+
+    #[test]
     fn empty_expansion_becomes_presence_during_preprocessing() -> Result<(), Error> {
         let mut options = options();
         parse_line(&mut options, ":source:")?;

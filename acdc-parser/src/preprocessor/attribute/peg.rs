@@ -5,7 +5,9 @@ peg::parser! {
         pub(in crate::preprocessor::attribute) rule document_attribute() -> AttributeDeclaration<'input>
             = ":" "!" name:name() ":" { AttributeDeclaration { name, value: RawAttributeValue::Unset } }
             / ":" name:name() "!" ":" { AttributeDeclaration { name, value: RawAttributeValue::Unset } }
-            / ":" name:name() ":" whitespace()? value:value()? {
+            // As in asciidoctor, a value must be separated from `:name:` by
+            // whitespace, so `:name:text` is not an attribute entry.
+            / ":" name:name() ":" value:(whitespace() value:value() { value })? {
                 AttributeDeclaration {
                     name,
                     value: value.map_or(RawAttributeValue::Set, |text| RawAttributeValue::Text(text.into())),

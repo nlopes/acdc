@@ -4154,7 +4154,9 @@ peg::parser! {
         }
 
         // Document attribute parsing
-        // Works identically in both header and block metadata contexts
+        // Works identically in both header and block metadata contexts.
+        // As in asciidoctor, the closing `:` must be followed by whitespace or
+        // the end of the line, so `:name:text` is ordinary text.
         rule document_attribute_match() -> AttributeDeclaration<'input>
         = ":"
         key_entry:(
@@ -4162,7 +4164,7 @@ peg::parser! {
             / key:$([^('!' | ':' | '\n')]+) "!" { (false, key) }
             / key:$([^':' | '\n']+) { (true, key) }
         )
-        ":" &" "?
+        ":" &([' ' | '\t' | '\n'] / ![_])
         value:document_attribute_value()?
         {
             let (set, key) = key_entry;

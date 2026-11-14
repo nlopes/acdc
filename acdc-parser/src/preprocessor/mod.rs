@@ -174,12 +174,14 @@ impl DirectiveContext<'_> {
 /// directive is silently left as literal content.
 const DIRECTIVE_PREFIXES: [&str; 4] = ["include::", "ifdef::", "ifndef::", "ifeval::"];
 
-// The separator after :name: is outside the value. A lone backslash value
-// must not consume the following line as a continuation.
+// The separator after :name: is required and is outside the value, so
+// `:name:text \` is not an attribute entry. A lone backslash value must not
+// consume the following line as a continuation.
 fn has_attribute_continuation(line: &str) -> bool {
     line.strip_prefix(':')
         .and_then(|entry| entry.split_once(':'))
-        .is_some_and(|(_, value)| value.trim_start_matches([' ', '\t']).ends_with(" \\"))
+        .and_then(|(_, value)| value.strip_prefix([' ', '\t']))
+        .is_some_and(|value| value.trim_start_matches([' ', '\t']).ends_with(" \\"))
 }
 
 /// Whether `line` has the complete outer shape of an Asciidoctor include

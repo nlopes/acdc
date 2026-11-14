@@ -5,6 +5,7 @@ mod attribute_boundaries;
 mod attribute_brace_escapes;
 mod attribute_configuration;
 mod attribute_continuation;
+mod attribute_entry_separator;
 mod attribute_first_code;
 mod attribute_mapping;
 mod attribute_parts;

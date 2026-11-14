@@ -26,6 +26,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   header, with or without a title.
 - A footnote in the document title is no longer registered twice when an anchor
   or attribute list precedes the title.
+- An attribute entry now needs whitespace or the end of the line after
+  `:name:`, matching Asciidoctor in both compatibility modes. A line such as
+  `:foo:bar` is ordinary text: it no longer sets `foo` (including for `ifdef`),
+  drops `bar` from the output, or continues onto the next line when it ends in
+  ` \`. On the line after the document title it is the author line, and later
+  in the header it ends the header.
 
 - Faster processing of included files, especially `lines=` and tag selections,
   while preserving resource limits, source locations, and compatibility modes.
