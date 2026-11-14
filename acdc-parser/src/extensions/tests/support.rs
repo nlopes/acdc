@@ -1,8 +1,11 @@
 #![allow(clippy::expect_used)]
 
 use acdc_parser::{
-    ElementAttributes,
-    extensions::{BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroInvocation, Registry},
+    ElementAttributes, Error,
+    extensions::{
+        BlockBuilder, BlockMacro, BlockMacroOutput, BlockMacroProcessor, DocumentEditor,
+        MacroInvocation, Registry, TreeProcessor, TreeProcessorRegistration,
+    },
 };
 
 #[derive(Default)]
@@ -57,7 +60,60 @@ pub(super) fn registry() -> Registry {
     builder
         .register(BlockMacro::new("configure", || configure).with_positional_attributes(["value"]))
         .expect("valid fixture macro");
+    builder
+        .register(BlockMacro::new("query", || Defer))
+        .expect("valid query fixture macro");
+    builder
+        .register_tree_processor(TreeProcessorRegistration::new("query", || Query))
+        .expect("valid query fixture processor");
     builder.build()
+}
+
+struct Query;
+
+impl TreeProcessor for Query {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        let requests: Vec<_> = editor
+            .deferred_blocks()
+            .iter()
+            .filter(|request| request.invocation.name == "query")
+            .map(|request| request.target().clone())
+            .collect();
+        if requests.is_empty() {
+            return Ok(());
+        }
+        let targets: Vec<_> = editor
+            .query()
+            .blocks()
+            .filter(|view| view.attributes().is_some() && !requests.contains(view.target()))
+            .map(|view| view.target().clone())
+            .collect();
+        for target in &targets {
+            let id = editor.ensure_id(target)?.to_owned();
+            assert_eq!(editor.ensure_id(target)?, id);
+        }
+        let query = editor.query();
+        let observations: Vec<_> = query.blocks()
+            .filter(|view| !requests.contains(view.target()))
+            .map(|view| {
+                let title = view.title_source();
+                serde_json::json!({
+                    "context": format!("{:?}", view.context()),
+                    "id": view.output_id(),
+                    "section": view.containing_section().and_then(|target| query.get(target)).and_then(|section| section.output_id()),
+                    "raw_title": title.map(acdc_parser::extensions::TitleSource::raw_source),
+                    "title_line": title.map(|title| title.source_location().location.start.line),
+                    "substitutions": title.map(acdc_parser::extensions::TitleSource::substitutions),
+                    "label": title.and_then(|title| title.attributes().get("label")).and_then(acdc_parser::DocumentAttributeValue::as_str),
+                    "caption": view.caption().map(|caption| format!("{caption:?}")),
+                })
+            }).collect();
+        let text = serde_json::Value::Array(observations).to_string();
+        for request in requests {
+            editor.replace_placeholder(&request, BlockBuilder::paragraph(text.clone()))?;
+        }
+        Ok(())
+    }
 }
 
 pub(super) fn configure(
