@@ -1,0 +1,36 @@
+= Semantic queries
+:label: Early
+:figure-caption: Picture
+
+query::[]
+
+.[[_acdc_2]]Authored collision {label}
+image::first.svg[]
+
+[#authored]
+== Outer {label}
+
+.Compound {label}
+[example]
+--
+* Item
++
+.Attached {label}
+image::attached.svg[]
+--
+
+[discrete]
+=== Discrete {label}
+
+[cols=a]
+|===
+|== Cell {label}
+
+.Cell figure {label}
+image::cell.svg[]
+|===
+
+configure::label[Late]
+
+[title='{label} attribute']
+Paragraph.

@@ -10,13 +10,150 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, InlineNode, Options, SafeMode, WarningKind,
-    extensions::{BlockContext, Registry, TargetError},
+    Block, CompatibilityMode, InlineNode, Options, SafeMode, WarningKind,
+    extensions::{BlockBuilder, BlockContext, DocumentEditor, Registry, TargetError},
 };
 
 use super::support;
 
 type TestResult = Result<(), Box<dyn Error>>;
+
+#[test]
+fn extensions_queries_visit_every_container_in_depth_first_order() -> TestResult {
+    use BlockContext::{
+        Admonition, CalloutList, DescriptionList, Example, Image, Listing, Open, OrderedList,
+        Quote, Section, Sidebar, Table, UnorderedList,
+    };
+    let cases: &[(&str, &[BlockContext])] = &[
+        ("--\nimage::one.svg[]\n--", &[Open, Image]),
+        ("====\nimage::one.svg[]\n====", &[Example, Image]),
+        ("****\nimage::one.svg[]\n****", &[Sidebar, Image]),
+        ("____\nimage::one.svg[]\n____", &[Quote, Image]),
+        ("[NOTE]\n====\nimage::one.svg[]\n====", &[Admonition, Image]),
+        (
+            "* One\n** Nested\n+\nimage::one.svg[]\n\n* Two\n+\nimage::two.svg[]",
+            &[UnorderedList, UnorderedList, Image, Image],
+        ),
+        (
+            ". One\n.. Nested\n+\nimage::one.svg[]\n\n. Two\n+\nimage::two.svg[]",
+            &[OrderedList, OrderedList, Image, Image],
+        ),
+        (
+            "Term:: Definition\n+\nimage::one.svg[]\n\nOther:: Definition\n+\nimage::two.svg[]",
+            &[DescriptionList, Image, Image],
+        ),
+        (
+            "----\nCode <1>\n----\n<1> Explanation\n+\nimage::one.svg[]",
+            &[Listing, CalloutList, Image],
+        ),
+        (
+            "[cols=a,options=\"header,footer\"]\n|===\n|Header\n\n|image::one.svg[]\n\n|image::two.svg[]\n|===",
+            &[Table, Image, Image],
+        ),
+    ];
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for (body, expected) in cases {
+            let source = format!("= Document\n\n== Outer\n\n{body}");
+            let result = Registry::default().parse(&source, &options)?;
+            let query = result.query();
+            let observed = query
+                .blocks()
+                .map(|view| view.context())
+                .collect::<Vec<_>>();
+            let expected = std::iter::once(Section)
+                .chain(expected.iter().copied())
+                .collect::<Vec<_>>();
+            assert_eq!(observed, expected, "{mode:?}: {body}");
+            let outer = query.select(Section).next().ok_or("outer")?;
+            for view in query.blocks().skip(1) {
+                assert_eq!(
+                    view.containing_section(),
+                    (view.context() != Image || !body.contains("|===")).then_some(outer.target()),
+                    "{mode:?}: {body}"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn extensions_queries_observe_edits_and_reject_foreign_or_removed_handles() -> TestResult {
+    let source =
+        "[#gone]\n== Gone\n\n.Pending title\ndefer::[]\n\n[#stay]\n== Stay\n\nSurviving paragraph.";
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let registry = support::registry();
+        let mut result = registry.parse(source, &options)?;
+        let foreign = registry.parse(source, &options)?;
+        let handles = result
+            .query()
+            .blocks()
+            .map(|view| view.target().clone())
+            .collect::<Vec<_>>();
+        let reused_id = result
+            .ensure_id(handles.get(1).ok_or("pending")?)?
+            .to_owned();
+        let mut editor = DocumentEditor::new(&mut result);
+        for target in foreign.query().blocks().map(|view| view.target().clone()) {
+            assert!(editor.query().get(&target).is_none());
+            assert!(editor.ensure_id(&target).is_err());
+            assert!(
+                editor
+                    .insert_before(&target, BlockBuilder::paragraph("Invalid"))
+                    .is_err()
+            );
+            assert!(
+                editor
+                    .replace_placeholder(&target, BlockBuilder::paragraph("Invalid"))
+                    .is_err()
+            );
+            assert!(editor.remove_section(&target).is_err());
+            assert!(editor.discard_placeholder(&target).is_err());
+        }
+        let section = handles.first().ok_or("section")?;
+        let pending = handles.get(1).ok_or("pending")?;
+        let stay = handles.get(2).ok_or("stay")?;
+        let snapshot = handles.clone();
+        assert_eq!(editor.query().select(BlockContext::Extension).count(), 1);
+        editor.remove_section(section)?;
+        assert!(editor.deferred_blocks().is_empty());
+        assert_eq!(editor.query().select(BlockContext::Extension).count(), 0);
+        let new = editor.insert_before(
+            stay,
+            BlockBuilder::paragraph("New owner").with_id(reused_id.clone()),
+        )?;
+        assert_eq!(
+            editor.query().get(&new).and_then(|view| view.output_id()),
+            Some(reused_id.as_str())
+        );
+        assert!(!snapshot.contains(&new));
+        for removed in [section, pending] {
+            assert!(editor.query().get(removed).is_none());
+            assert!(editor.ensure_id(removed).is_err());
+            assert!(
+                editor
+                    .insert_before(removed, BlockBuilder::paragraph("Invalid"))
+                    .is_err()
+            );
+            assert!(editor.remove_section(removed).is_err());
+            assert!(
+                editor
+                    .replace_placeholder(removed, BlockBuilder::paragraph("Invalid"))
+                    .is_err()
+            );
+            assert!(editor.discard_placeholder(removed).is_err());
+        }
+        let surviving = snapshot
+            .iter()
+            .filter(|target| editor.query().get(target).is_some())
+            .count();
+        assert_eq!(surviving, 2);
+        assert_eq!(editor.query().blocks().count(), 3);
+    }
+    Ok(())
+}
 
 #[test]
 fn extensions_query_targets_are_document_local_and_preserve_deferred_identity() -> TestResult {
@@ -97,11 +234,19 @@ fn extensions_ids_avoid_authored_inline_and_generated_section_ids() -> TestResul
 
 #[test]
 fn extensions_ids_preserve_existing_ids_and_query_order() -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        ids_preserve_existing_ids_and_query_order(mode)?;
+    }
+    Ok(())
+}
+
+fn ids_preserve_existing_ids_and_query_order(mode: CompatibilityMode) -> TestResult {
     let input =
         "[#authored]\nimage::one.svg[]\n\nimage::two.svg[]\n\n== Heading\n\nimage::three.svg[]";
     let registry = Registry::default();
-    let mut first = registry.parse(input, &Options::default())?;
-    let mut second = registry.parse(input, &Options::default())?;
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let mut first = registry.parse(input, &options)?;
+    let mut second = registry.parse(input, &options)?;
     let first_targets: Vec<_> = first
         .query()
         .blocks()
