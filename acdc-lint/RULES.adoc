@@ -117,6 +117,8 @@ Members:
 * xref:lint-table-incomplete-row[table-incomplete-row]
 * xref:lint-table-column-count[table-column-count]
 * xref:lint-table-cell-overflow[table-cell-overflow]
+* xref:lint-header-only-attribute[header-only-attribute]
+* xref:lint-unset-attribute-value[unset-attribute-value]
 
 [[group-source-format]]
 === `source-format`
@@ -750,6 +752,85 @@ Allow this lint only while cleaning them up.
 |===
 |Name |Role
 |===
+----
+
+[[lint-header-only-attribute]]
+=== `header-only-attribute`
+
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
+
+==== What it does
+
+Reports body attribute entries that set or unset an attribute acdc reads only from the document header, such as `doctype`, `toc`, `source-highlighter`, `stylesheet`, or `description`.
+Attributes that acdc applies in the body, such as `icons`, `stem`, and `sectnums`, are not reported.
+
+==== Why it is bad
+
+The first empty line after the document title ends the header.
+Header attributes grouped with empty lines therefore become body entries, and the document silently loses its doctype, table of contents, or source highlighting.
+
+==== Drawbacks
+
+A body entry still changes later attribute references, so an author may set one of these attributes in the body on purpose to use it as a variable.
+Allow this lint at that location when the entry is intentional.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+= User Guide
+:description: How to install the product.
+
+:doctype: book
+:toc: left
+----
+
+.Good
+[source,asciidoc]
+----
+= User Guide
+:description: How to install the product.
+// layout
+:doctype: book
+:toc: left
+----
+
+[[lint-unset-attribute-value]]
+=== `unset-attribute-value`
+
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
+
+==== What it does
+
+Reports text after an unset attribute entry such as `:!name: text` or `:name!: text`.
+
+==== Why it is bad
+
+The entry unsets the attribute and the text is ignored.
+The text usually means the author meant to set the attribute instead.
+
+==== Drawbacks
+
+Asciidoctor accepts the text silently, so documents shared with Asciidoctor may contain it.
+Removing the text doesn't change the output.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+:!toc: left
+----
+
+.Good
+[source,asciidoc]
+----
+:!toc:
 ----
 
 [[lint-delimited-block-minimal-delimiter]]

@@ -95,6 +95,10 @@ pub enum LintId {
     TableColumnCount,
     /// Surface parser warnings for table cells that exceed the column count.
     TableCellOverflow,
+    /// Surface parser warnings for header-only attributes set in the body.
+    HeaderOnlyAttribute,
+    /// Surface parser warnings for text after an unset attribute entry.
+    UnsetAttributeValue,
     /// Use the minimum required delimiter length for delimited blocks.
     DelimitedBlockMinimalDelimiter,
     /// Put whitespace after heading markers.
@@ -372,6 +376,29 @@ pub const LINTS: &[LintInfo] = &[
         explanation: "Surfaces parser warnings for cells that overflow the configured table column \
                       count. Overflowing cells indicate that the table structure is ambiguous.",
         help: Some("remove extra cells or increase the configured column count"),
+    },
+    LintInfo {
+        name: "header-only-attribute",
+        id: LintId::HeaderOnlyAttribute,
+        default_level: LintLevel::Warn,
+        summary: "set header-only attributes in the document header",
+        explanation: "Surfaces parser warnings for body attribute entries that set or unset an \
+                      attribute acdc reads only from the document header, such as `doctype`, \
+                      `toc`, or `source-highlighter`. An empty line ends the header, so these \
+                      entries often follow one by mistake and have no effect.",
+        help: Some(
+            "move the entry into the header, or replace the empty line before it with a comment line",
+        ),
+    },
+    LintInfo {
+        name: "unset-attribute-value",
+        id: LintId::UnsetAttributeValue,
+        default_level: LintLevel::Warn,
+        summary: "do not give unset attribute entries a value",
+        explanation: "Surfaces parser warnings for text after an unset attribute entry such as \
+                      `:!name: text` or `:name!: text`. The entry unsets the attribute and the \
+                      text is ignored.",
+        help: Some("remove the text after the entry, or use `:name: value` to set the attribute"),
     },
     LintInfo {
         name: "delimited-block-minimal-delimiter",
@@ -664,6 +691,8 @@ fn is_document_structure(lint: LintId) -> bool {
             | LintId::TableIncompleteRow
             | LintId::TableColumnCount
             | LintId::TableCellOverflow
+            | LintId::HeaderOnlyAttribute
+            | LintId::UnsetAttributeValue
     )
 }
 
@@ -1485,6 +1514,16 @@ mod tests {
 
     const ONE_SENTENCE: LintSelector = LintSelector::Lint(LintId::OneSentencePerLine);
     const SYMMETRIC_TITLE: LintSelector = LintSelector::Lint(LintId::SectionTitleSymmetricMarker);
+
+    /// `LintId::info` indexes `LINTS` by the enum value, so a new lint must be
+    /// added at the same position in both.
+    #[test]
+    fn lint_registry_follows_lint_id_order() {
+        for (index, info) in LINTS.iter().enumerate() {
+            assert_eq!(info.id as usize, index, "{}", info.name);
+            assert_eq!(info.id.name(), info.name);
+        }
+    }
 
     #[test]
     fn parses_lint_names() {

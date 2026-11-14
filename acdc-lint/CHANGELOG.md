@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- New `header-only-attribute` lint reports body entries for attributes that only
+  take effect in the document header, such as `doctype` or `toc` after the empty
+  line that ends the header. New `unset-attribute-value` lint reports text after
+  an unset entry such as `:!toc: left`. Both report parser warnings, warn by
+  default, and belong to the `document-structure` group.
+
 - Sentence checks visit a shared description-list definition once and keep term
   punctuation separate from definition prose.
 

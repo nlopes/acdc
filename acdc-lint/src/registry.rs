@@ -80,6 +80,8 @@ const PARSER_WARNINGS: &[LintId] = &[
     LintId::TableIncompleteRow,
     LintId::TableColumnCount,
     LintId::TableCellOverflow,
+    LintId::HeaderOnlyAttribute,
+    LintId::UnsetAttributeValue,
 ];
 const MULTIPLE_DOCUMENT_TITLE: &[LintId] = &[LintId::MultipleDocumentTitle];
 const DELIMITED_BLOCKS: &[LintId] = &[LintId::DelimitedBlockMinimalDelimiter];
