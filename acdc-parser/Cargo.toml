@@ -50,7 +50,7 @@ ureq = { version = "3.1", optional = true }
 [dev-dependencies]
 jsonschema = { version = "0.59", default-features = false }
 sha2.workspace = true
-syn = { version = "2", features = ["full"] }
+syn = { version = "3", features = ["full"] }
 criterion = { version = "0.8", features = ["html_reports"] }
 libtest-mimic = "0.8.2"
 pretty_assertions.workspace = true

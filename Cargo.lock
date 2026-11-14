@@ -253,7 +253,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "stats_alloc",
- "syn 2.0.119",
+ "syn 3.0.3",
  "tempfile",
  "thiserror",
  "tracing",
