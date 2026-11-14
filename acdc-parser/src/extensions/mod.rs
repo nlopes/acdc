@@ -7,7 +7,7 @@
 //!
 //! struct Greeting;
 //! impl BlockMacroProcessor for Greeting {
-//!     fn process(&mut self, call: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
+//!     fn process(&mut self, call: &MacroInvocation<'_>, _: &mut acdc_parser::extensions::MacroExecutionContext) -> Result<BlockMacroOutput, String> {
 //!         Ok(BlockMacroOutput::Paragraph(format!("Hello, {}!", call.target)))
 //!     }
 //! }
@@ -21,13 +21,42 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
-//! On success, each accepted macro runs once, in document order, after the document is accepted.
-//! Its attribute snapshot reflects the macro's position. The host repairs catalogs
-//! after the callbacks finish.
-//! Callbacks cannot affect conditionals, includes, or later parsing. Deferred
-//! blocks retain their arguments and a session-local identity; they are not
+//! Each accepted macro runs once at its committed block boundary, in source order.
+//! Its attribute snapshot reflects the macro's position. The callback's mutable
+//! [`MacroExecutionContext`] queues attribute sets and unsets. The host applies
+//! accepted changes as body attribute events before advancing the source reader.
+//! Caller locks, intrinsic restrictions, and nested-document policy still apply.
+//! Callback errors stop parsing; effects from earlier callbacks are not undone.
+//! Deferred blocks retain their arguments and a session-local identity; they are not
 //! renderable content. `ExtensionParseResult::finish()` rejects unresolved requests
 //! and returns an ordinary `ParseResult` for conversion.
+//!
+//! Source ordering also applies inside compound bodies and pipe/exclamation
+//! `AsciiDoc` cells. Other table formats retain buffered preprocessing. Nested
+//! attributes follow the normal inheritance policy and remain local to the cell.
+//! A table cannot silently discard a cell after its callback executed; that
+//! layout failure is a located extension error. Preprocessing selects authored
+//! cell content once; duplicate cells run their own handlers over that selection.
+//!
+//! ```
+//! use acdc_parser::{Options, extensions::{
+//!     BlockMacro, BlockMacroOutput, MacroExecutionContext, MacroInvocation, Registry,
+//! }};
+//!
+//! let mut builder = Registry::builder();
+//! builder.register(BlockMacro::new("configure", || {
+//!     |call: &MacroInvocation<'_>, context: &mut MacroExecutionContext| {
+//!         context.set_attribute("audience", call.target.to_string());
+//!         Ok(BlockMacroOutput::None)
+//!     }
+//! }))?;
+//! let parsed = builder.build().parse(
+//!     "configure::expert[]\n\nifdef::audience[]\nVisible to {audience}.\nendif::[]",
+//!     &Options::default(),
+//! )?.finish()?;
+//! assert!(parsed.conditionals().next().unwrap().is_active());
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 //!
 //! Query parsed blocks by semantic context and let the host assign link targets:
 //!
@@ -61,7 +90,7 @@
 //!
 //! struct Request;
 //! impl BlockMacroProcessor for Request {
-//!     fn process(&mut self, _: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
+//!     fn process(&mut self, _: &MacroInvocation<'_>, _: &mut acdc_parser::extensions::MacroExecutionContext) -> Result<BlockMacroOutput, String> {
 //!         Ok(BlockMacroOutput::Deferred)
 //!     }
 //! }
@@ -105,7 +134,8 @@ pub(crate) use traversal::{TablePart, compound_body_mut, ordinary_list_items_mut
 mod tree_processor;
 
 pub use block_macro::{
-    BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroContext, MacroInvocation, MacroTarget,
+    BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroContext, MacroExecutionContext,
+    MacroInvocation, MacroTarget,
 };
 pub use builder::BlockBuilder;
 pub use deferred::{DeferredBlock, ExtensionBlock, PlaceholderId};

@@ -31,7 +31,8 @@ pub(crate) use attributes::{
     BlockAttributeMode, block_attribute_line, block_attribute_style, style_overrides_block_form,
 };
 pub(crate) use document::{
-    SourceHandler, document as parse_document, document_from_source, document_parser,
+    SourceAssignments, SourceHandler, document as parse_document, document_from_source,
+    document_parser,
 };
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,

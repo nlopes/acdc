@@ -230,6 +230,7 @@ impl crate::extensions::BlockMacroProcessor for UnusedProcessor {
     fn process(
         &mut self,
         _: &crate::extensions::MacroInvocation<'_>,
+        _: &mut crate::extensions::MacroExecutionContext,
     ) -> Result<crate::extensions::BlockMacroOutput, String> {
         Err("internal boundary tests do not execute public processors".into())
     }

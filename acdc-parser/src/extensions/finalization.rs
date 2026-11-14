@@ -118,12 +118,3 @@ fn failure(document: &crate::Document<'_>, error: impl std::fmt::Display) -> Err
         error.to_string(),
     )
 }
-
-pub(crate) fn repair_macros(document: &mut crate::Document<'_>) -> Result<(), Error> {
-    document
-        .rebuild_footnotes()
-        .map_err(|error| failure(document, error))?;
-    document
-        .rebuild_references_and_toc()
-        .map_err(|error| failure(document, error))
-}

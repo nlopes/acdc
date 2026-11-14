@@ -208,7 +208,11 @@ fn diagnostic_collection_benchmark(c: &mut Criterion) {
 struct CheapMacro;
 
 impl BlockMacroProcessor for CheapMacro {
-    fn process(&mut self, invocation: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
+    fn process(
+        &mut self,
+        invocation: &MacroInvocation<'_>,
+        _: &mut acdc_parser::extensions::MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String> {
         black_box(invocation);
         Ok(BlockMacroOutput::None)
     }

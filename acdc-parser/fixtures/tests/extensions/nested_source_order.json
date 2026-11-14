@@ -1,0 +1,252 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "mode": "outer"
+  },
+  "blocks": [
+    {
+      "name": "example",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "====",
+      "blocks": [
+        {
+          "name": "mode",
+          "type": "attribute",
+          "value": "compound",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "{\"attributes\":{\"first\":\"fallback\"},\"call\":1,\"mode\":\"compound\",\"positional\":[],\"target\":\"compound\"}",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "footnote_scope": true,
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "{\"attributes\":{\"first\":\"fallback\"},\"call\":2,\"mode\":\"compound\",\"positional\":[],\"target\":\"compound\"}",
+                        "location": [
+                          {
+                            "line": 1,
+                            "col": 1,
+                            "file": [
+                              "../includes/extensions/session_order.adoc"
+                            ]
+                          },
+                          {
+                            "line": 1,
+                            "col": 16,
+                            "file": [
+                              "../includes/extensions/session_order.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 1,
+                        "col": 1,
+                        "file": [
+                          "../includes/extensions/session_order.adoc"
+                        ]
+                      },
+                      {
+                        "line": 1,
+                        "col": 16,
+                        "file": [
+                          "../includes/extensions/session_order.adoc"
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "{\"attributes\":{\"first\":\"a,b\",\"second\":\"\"},\"call\":3,\"mode\":\"compound\",\"positional\":[\"a,b\"],\"target\":\"compound\"}",
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 1,
+                            "file": [
+                              "../includes/extensions/session_order.adoc"
+                            ]
+                          },
+                          {
+                            "line": 6,
+                            "col": 31,
+                            "file": [
+                              "../includes/extensions/session_order.adoc"
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 6,
+                        "col": 1,
+                        "file": [
+                          "../includes/extensions/session_order.adoc"
+                        ]
+                      },
+                      {
+                        "line": 6,
+                        "col": 31,
+                        "file": [
+                          "../includes/extensions/session_order.adoc"
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 12,
+            "col": 1
+          },
+          {
+            "line": 18,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{\"attributes\":{\"first\":\"fallback\"},\"call\":4,\"mode\":\"compound\",\"positional\":[],\"target\":\"compound\"}",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 16
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 20,
+      "col": 16
+    }
+  ]
+}

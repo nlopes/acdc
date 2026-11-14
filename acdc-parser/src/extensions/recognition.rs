@@ -58,6 +58,7 @@ pub(crate) fn recognize<'a>(
         if argument.name.is_some() && argument.is_unset() {
             continue;
         }
+        let empty_slot = argument.is_empty_slot();
         let value = state.intern_str(&argument.value);
         if let Some(name) = argument.name {
             attributes.set(
@@ -66,7 +67,7 @@ pub(crate) fn recognize<'a>(
             );
         } else {
             positional.resize(slot, None);
-            positional.push((!value.is_empty()).then_some(value));
+            positional.push((!empty_slot).then_some(value));
         }
     }
     for (name, value) in descriptor.positional.iter().zip(&positional) {
