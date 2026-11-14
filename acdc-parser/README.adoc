@@ -1650,8 +1650,9 @@ A body entry for an attribute that only takes effect in the header adds a
 located `WarningKind::HeaderOnlyAttribute` warning. The entry still applies for
 later attribute references, but the feature is unchanged. This covers document
 setup (`doctype`, `toc`, `toclevels`, `toc-title`, `toc-class`),
-`source-highlighter`, `eqnums`, HTML page settings, `untitled-label`, manpage
-metadata, and document metadata such as `description`, `author`, and
+`source-highlighter`, `eqnums`, HTML page settings including acdc's own
+`dark-mode`, `highlight-style`, `highlight-css`, and `csp`, `untitled-label`,
+manpage metadata, and document metadata such as `description`, `author`, and
 `revnumber`. Attributes that acdc applies in the body, such as `icons`, `stem`,
 `sectnums`, and `nofooter`, don't warn. Caller-supplied values and entries a
 caller lock rejects don't warn either. Asciidoctor doesn't warn.

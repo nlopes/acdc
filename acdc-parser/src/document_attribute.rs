@@ -325,16 +325,20 @@ const READ_ONLY_PREFIXES: &[&str] = &[
     "filetype-",
     "safe-mode-",
 ];
-/// Header-only attributes that acdc's consumers read only from the
-/// end-of-header snapshot, so a body entry doesn't change what they control.
-/// Body entries still apply in source order for attribute references.
-/// Header-only attributes that acdc honors in the body, such as `icons` and
-/// `stem`, and ones it doesn't implement are not listed. Keep it sorted.
+/// Attributes that acdc's consumers read only from the end-of-header
+/// snapshot, so a body entry doesn't change what they control: header-only
+/// attributes from the language's attribute reference, and acdc's own `csp`, `dark-mode`,
+/// `highlight-css`, and `highlight-style`. Body entries still apply in source
+/// order for attribute references. Header-only attributes that acdc honors in
+/// the body, such as `icons` and `stem`, and ones it doesn't implement are not
+/// listed. Keep it sorted.
 const HEADER_ONLY_EXACT: &[&str] = &[
     "author",
     "authorinitials",
     "authors",
     "copycss",
+    "csp",
+    "dark-mode",
     "description",
     "docinfo",
     "docinfodir",
@@ -343,6 +347,8 @@ const HEADER_ONLY_EXACT: &[&str] = &[
     "email",
     "eqnums",
     "firstname",
+    "highlight-css",
+    "highlight-style",
     "keywords",
     "lang",
     "lastname",
@@ -1079,6 +1085,7 @@ mod tests {
             "source-highlighter",
             "author",
             "mansource",
+            "dark-mode",
         ] {
             assert!(is_header_only(name), "{name}");
         }

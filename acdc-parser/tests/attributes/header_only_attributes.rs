@@ -72,6 +72,27 @@ fn unset_in_the_body_warns_like_a_set(
     Ok(())
 }
 
+/// acdc's own HTML settings are read from the header too.
+#[rstest::rstest]
+fn acdc_header_settings_in_the_body_warn(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let parsed = parse(
+        "= Title\n\n:dark-mode:\n:highlight-style: github-dark\n:highlight-css: class\n:csp: default-src 'self'\n\nText.\n",
+        &options(mode)?,
+    )?;
+    assert_eq!(
+        header_only_warnings(&parsed),
+        warned(&[
+            ("dark-mode", 3),
+            ("highlight-style", 4),
+            ("highlight-css", 5),
+            ("csp", 6)
+        ])
+    );
+    Ok(())
+}
+
 #[rstest::rstest]
 fn body_entries_acdc_applies_in_the_body_do_not_warn(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
