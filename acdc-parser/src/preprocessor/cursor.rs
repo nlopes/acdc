@@ -152,6 +152,24 @@ impl Emission<'_> {
 }
 
 impl<'input> InputCursor<'input> {
+    pub(super) fn table_header_lookahead(&self) -> Vec<&'input str> {
+        if let Some(include) = &self.include {
+            include.cursor.table_header_lookahead()
+        } else {
+            let mut remaining = self.lines.clone();
+            let Some(first) = remaining.next() else {
+                return Vec::new();
+            };
+            let mut lines = vec![first];
+            if first.trim().is_empty()
+                && let Some(next) = remaining.find(|line| !line.trim().is_empty())
+            {
+                lines.push(next);
+            }
+            lines
+        }
+    }
+
     pub(super) fn can_finish_without_reading(&mut self) -> bool {
         self.lines.peek().is_none()
             && self

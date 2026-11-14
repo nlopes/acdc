@@ -2,6 +2,7 @@
 
 mod author;
 mod callouts;
+mod compound;
 mod construction;
 mod coordinator;
 mod delimited;

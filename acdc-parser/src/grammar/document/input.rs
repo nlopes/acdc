@@ -16,6 +16,30 @@ pub(super) enum ReadRequest<'a> {
 }
 
 pub(super) trait BlockInput<'a> {
+    /// Complete text does not expose resumable reader operations.
+    fn source_input(&mut self) -> Option<&mut super::source::SourceInput<'a>> {
+        None
+    }
+
+    fn at_boundary(
+        &mut self,
+        source: &'a str,
+        cursor: &BlockCursor,
+        state: &mut ParserState<'a>,
+    ) -> bool {
+        self.source_input()
+            .and_then(|source| source.boundary())
+            .is_some_and(|delimiter| {
+                source
+                    .get(cursor.offset..)
+                    .and_then(|tail| tail.split_inclusive('\n').next())
+                    .is_some_and(|line| {
+                        super::document_parser::source_block_close(line, state, delimiter, false)
+                            .is_ok()
+                    })
+            })
+    }
+
     /// Source failures cannot be recovered as malformed nested content.
     fn failed(&self) -> bool {
         false

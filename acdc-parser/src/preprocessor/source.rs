@@ -131,6 +131,12 @@ impl<'a> SourceReader<'a> {
         })
     }
 
+    pub(crate) fn table_header_lookahead(&self) -> Vec<&'a str> {
+        self.cursor
+            .as_ref()
+            .map_or_else(Vec::new, InputCursor::table_header_lookahead)
+    }
+
     pub(crate) fn options_mut(&mut self) -> &mut Options<'static> {
         Rc::make_mut(&mut self.options)
     }

@@ -27,7 +27,7 @@ impl BlockCursor {
         output: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<(), Error>, RecognitionError> {
         let metadata = entry.metadata.as_deref().unwrap_or(parent_metadata);
@@ -77,7 +77,7 @@ impl BlockCursor {
         output: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<(), Error>, RecognitionError> {
         let (list_kind, start, head) = frame;
@@ -105,7 +105,7 @@ impl BlockCursor {
             },
             vec![item],
         );
-        if let Err(error) = accepted.run(&block, state) {
+        if let Err(error) = accepted.run(&mut block, state, output) {
             return Ok(Err(error));
         }
         let mut items = Vec::new();
@@ -187,7 +187,7 @@ impl BlockCursor {
         context: (ListKind<'a>, &'a str, &'a str),
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<Vec<Block<'a>>, Error>, RecognitionError> {
         let (kind, base_marker, marker) = context;
@@ -199,6 +199,9 @@ impl BlockCursor {
                     Ok(source) => source,
                     Err(error) => return Ok(Err(error)),
                 };
+            if input.at_boundary(source, self, state) {
+                break;
+            }
             let step = document_parser::list_next(
                 source,
                 state,

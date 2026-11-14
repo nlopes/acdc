@@ -1,6 +1,7 @@
 //! Table blocks and cell content.
 
 pub(super) mod construction;
+mod streaming;
 #[cfg(test)]
 mod tests;
 
@@ -46,6 +47,113 @@ pub(super) struct TableParseParams<'a> {
     pub(super) content: &'a str,
     pub(super) default_separator: &'a str,
     pub(super) closing: TableClosing<'a>,
+}
+
+pub(super) struct TableSettings {
+    pub(super) separator: String,
+    pub(super) ncols: Option<usize>,
+    pub(super) column_formats: Vec<ColumnFormat>,
+}
+
+pub(super) fn table_settings(
+    state: &ParserState<'_>,
+    block_metadata: &BlockParsingMetadata<'_>,
+    table_location: &Location,
+    default_separator: &str,
+    report_warnings: bool,
+) -> Result<TableSettings, Error> {
+    let separator = if let Some(AttributeValue::String(sep)) =
+        block_metadata.metadata.attributes.get("separator")
+    {
+        sep.to_string()
+    } else if let Some(AttributeValue::String(format)) =
+        block_metadata.metadata.attributes.get("format")
+    {
+        match &**format {
+            "csv" => ",",
+            "dsv" => ":",
+            "tsv" => "\t",
+            unknown_format => {
+                if report_warnings {
+                    state.add_warning(Warning::new(
+                        WarningKind::TableUnknownFormat {
+                            format: unknown_format.to_string(),
+                        },
+                        Some(state.create_error_source_location(table_location.clone())),
+                    ));
+                }
+                default_separator
+            }
+        }
+        .to_string()
+    } else {
+        default_separator.to_string()
+    };
+
+    let (ncols, column_formats) = if let Some(AttributeValue::String(cols)) =
+        block_metadata.metadata.attributes.get("cols")
+    {
+        let cols = if cols.contains(' ') {
+            Cow::Owned(cols.replace(' ', ""))
+        } else {
+            Cow::Borrowed(cols.as_ref())
+        };
+        let mut specs = Vec::new();
+        let count_only = !cols.is_empty()
+            && cols.bytes().all(|byte| byte.is_ascii_digit())
+            && (cols.len() == 1 || !cols.starts_with('0'));
+        if count_only {
+            let count = cols.parse::<usize>().unwrap_or(MAX_TABLE_COLUMNS + 1);
+            if count > MAX_TABLE_COLUMNS {
+                return Err(table_limit_error(
+                    state,
+                    table_location.clone(),
+                    "column count",
+                    count,
+                    MAX_TABLE_COLUMNS,
+                ));
+            }
+            specs.resize(count, ColumnFormat::default());
+        } else {
+            for input in cols.split(if cols.contains(',') { ',' } else { ';' }) {
+                let Some((multiplier, spec, width_error)) = parse_column_spec(input) else {
+                    continue;
+                };
+                if report_warnings && let Some(width) = width_error {
+                    state.add_warning(Warning::new(
+                        WarningKind::ContentRecovery {
+                            message: format!(
+                                "table column width `{width}` exceeds the maximum of {}; using proportional width 1",
+                                u32::MAX,
+                            ).into(),
+                        },
+                        Some(state.create_error_source_location(table_location.clone())),
+                    ));
+                }
+                let column_count = specs.len().saturating_add(multiplier);
+                if column_count > MAX_TABLE_COLUMNS {
+                    return Err(table_limit_error(
+                        state,
+                        table_location.clone(),
+                        "column count",
+                        column_count,
+                        MAX_TABLE_COLUMNS,
+                    ));
+                }
+                specs.extend(std::iter::repeat_n(spec, multiplier));
+            }
+        }
+
+        ((!specs.is_empty()).then_some(specs.len()), specs)
+    } else {
+        (None, Vec::new())
+    };
+
+    Ok(TableSettings {
+        separator,
+        ncols,
+        column_formats,
+    })
 }
 
 fn table_limit_error(
@@ -237,90 +345,17 @@ fn parse_table_with_cells<'input>(
         }
     };
 
-    let separator = if let Some(AttributeValue::String(sep)) =
-        block_metadata.metadata.attributes.get("separator")
-    {
-        sep.to_string()
-    } else if let Some(AttributeValue::String(format)) =
-        block_metadata.metadata.attributes.get("format")
-    {
-        match &**format {
-            "csv" => ",",
-            "dsv" => ":",
-            "tsv" => "\t",
-            unknown_format => {
-                state.add_warning(Warning::new(
-                    WarningKind::TableUnknownFormat {
-                        format: unknown_format.to_string(),
-                    },
-                    Some(state.create_error_source_location(table_location.clone())),
-                ));
-                default_separator
-            }
-        }
-        .to_string()
-    } else {
-        default_separator.to_string()
-    };
-
-    let (ncols, column_formats) = if let Some(AttributeValue::String(cols)) =
-        block_metadata.metadata.attributes.get("cols")
-    {
-        let cols = if cols.contains(' ') {
-            Cow::Owned(cols.replace(' ', ""))
-        } else {
-            Cow::Borrowed(cols.as_ref())
-        };
-        let mut specs = Vec::new();
-        let count_only = !cols.is_empty()
-            && cols.bytes().all(|byte| byte.is_ascii_digit())
-            && (cols.len() == 1 || !cols.starts_with('0'));
-        if count_only {
-            let count = cols.parse::<usize>().unwrap_or(MAX_TABLE_COLUMNS + 1);
-            if count > MAX_TABLE_COLUMNS {
-                return Err(table_limit_error(
-                    state,
-                    table_location.clone(),
-                    "column count",
-                    count,
-                    MAX_TABLE_COLUMNS,
-                ));
-            }
-            specs.resize(count, ColumnFormat::default());
-        } else {
-            for input in cols.split(if cols.contains(',') { ',' } else { ';' }) {
-                let Some((multiplier, spec, width_error)) = parse_column_spec(input) else {
-                    continue;
-                };
-                if let Some(width) = width_error {
-                    state.add_warning(Warning::new(
-                        WarningKind::ContentRecovery {
-                            message: format!(
-                                "table column width `{width}` exceeds the maximum of {}; using proportional width 1",
-                                u32::MAX,
-                            ).into(),
-                        },
-                        Some(state.create_error_source_location(table_location.clone())),
-                    ));
-                }
-                let column_count = specs.len().saturating_add(multiplier);
-                if column_count > MAX_TABLE_COLUMNS {
-                    return Err(table_limit_error(
-                        state,
-                        table_location.clone(),
-                        "column count",
-                        column_count,
-                        MAX_TABLE_COLUMNS,
-                    ));
-                }
-                specs.extend(std::iter::repeat_n(spec, multiplier));
-            }
-        }
-
-        ((!specs.is_empty()).then_some(specs.len()), specs)
-    } else {
-        (None, Vec::new())
-    };
+    let TableSettings {
+        separator,
+        ncols,
+        column_formats,
+    } = table_settings(
+        state,
+        block_metadata,
+        &table_location,
+        default_separator,
+        true,
+    )?;
 
     let mut has_header = block_metadata.metadata.options.contains(&"header");
 
@@ -755,8 +790,11 @@ fn parse_table_cell_with_parser<'a>(
             &mut state.document_attributes,
         ));
 
+        let outer_separator =
+            std::mem::replace(&mut state.raw_cell_separator, parser.raw_cell_separator());
         let result =
             parser.nested_document(state, content, cell_start_offset, &mut initial_attributes);
+        state.raw_cell_separator = outer_separator;
 
         if result.is_err() {
             state.footnote_tracker.borrow_mut().discard_definitions();

@@ -27,6 +27,13 @@ pub(crate) fn recognize<'a>(
                 format!("unregistered block macro: {name}"),
             )
         })?;
+    let decode = |source: &'a str| {
+        state.raw_cell_separator.map_or(source, |separator| {
+            state.intern_cow(crate::blocks::table::decode_cell_escapes(source, separator))
+        })
+    };
+    let target = decode(target);
+    let arguments = decode(arguments);
     let target = state.intern_cow(apply_attribute_substitutions(
         target,
         &[Substitution::Attributes],
