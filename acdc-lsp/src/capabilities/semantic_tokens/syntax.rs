@@ -96,7 +96,7 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
         }
         if continuation {
             line_bytes(line, 0..text.len(), 3, 0, source, tokens);
-            continuation = text.trim_end().ends_with(" \\");
+            continuation = continues_value(text);
             continue;
         }
         if text.len() >= 4 && text.bytes().all(|byte| byte == b'/') {
@@ -106,12 +106,21 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
         if text.starts_with("//") {
             continue;
         }
-        let Some((name, _)) = text.strip_prefix(':').and_then(|rest| rest.split_once(':')) else {
+        let Some((name, value)) = text.strip_prefix(':').and_then(|rest| rest.split_once(':'))
+        else {
             break;
         };
         attribute_line(name.trim_matches('!'), line, source, tokens);
-        continuation = text.trim_end().ends_with(" \\");
+        continuation = continues_value(value.trim_start_matches([' ', '\t']));
     }
+}
+
+// Like the parser, ` \` continues a value only after at least one character,
+// so a lone `\` is a literal value.
+fn continues_value(text: &str) -> bool {
+    text.trim_end()
+        .strip_suffix(" \\")
+        .is_some_and(|rest| !rest.is_empty())
 }
 
 fn collect_header(header: HeaderRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {

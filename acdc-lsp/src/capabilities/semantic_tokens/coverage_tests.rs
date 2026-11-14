@@ -289,3 +289,31 @@ fn leading_attribute_scan_stops_at_body_content() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn lone_backslash_value_does_not_continue_into_body() -> TestResult {
+    let tokens = decoded(":value: \\\nFollowing paragraph.\n")?;
+    assert!(
+        !tokens
+            .iter()
+            .any(|token| token.0 == 1 && token.3 == "string"),
+        "{tokens:?}"
+    );
+
+    let tokens = decoded(":value: \\\n----\n:x: y\n----\n")?;
+    assert!(
+        !tokens
+            .iter()
+            .any(|token| token.0 == 2 && token.3 == "property"),
+        "{tokens:?}"
+    );
+
+    let tokens = decoded(":a: one \\\ntwo\n")?;
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.0 == 1 && token.2 == "two" && token.3 == "string"),
+        "{tokens:?}"
+    );
+    Ok(())
+}
