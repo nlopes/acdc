@@ -107,6 +107,9 @@ pub(crate) fn compute_semantic_tokens(
     let source = LineIndex::new(text);
 
     syntax::collect(doc, &source, &mut tokens);
+    // Before include tokens, so a directive inside a header comment block
+    // stays a comment.
+    syntax::header(doc, conditionals, includes, &source, &mut tokens);
     collect_include_tokens(includes, &source, &mut tokens);
     collect_conditional_tokens(conditionals, &source, &mut tokens);
     let encoded = delta_encode(normalize::tokens(&tokens));

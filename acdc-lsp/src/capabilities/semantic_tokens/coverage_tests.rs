@@ -1,11 +1,33 @@
+use acdc_parser::{
+    CompatibilityMode, IncludeLoader, IncludeSource, IncludeSourceError, IncludeSourceErrorKind,
+    IncludeSourceTarget, Options, SafeMode,
+};
+
 use super::*;
+use crate::state::{document::evaluated_conditionals, extract_includes};
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 type HighlightedToken = (u32, u32, String, String, Vec<String>);
 
+const MODES: [CompatibilityMode; 2] = [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft];
+
 fn decoded(text: &str) -> Result<Vec<HighlightedToken>, Box<dyn std::error::Error>> {
-    let parsed = acdc_parser::parse(text, &acdc_parser::Options::default())?;
-    let tokens = compute_semantic_tokens(parsed.document(), &[], &[], text);
+    decoded_in(text, &Options::default())
+}
+
+/// Decode tokens with the conditionals and includes the workspace records.
+fn decoded_in(
+    text: &str,
+    options: &Options<'_>,
+) -> Result<Vec<HighlightedToken>, Box<dyn std::error::Error>> {
+    let parsed = acdc_parser::parse(text, options)?;
+    let conditionals = evaluated_conditionals(text, &parsed);
+    let tokens = compute_semantic_tokens(
+        parsed.document(),
+        &conditionals,
+        &extract_includes(text),
+        text,
+    );
     let mut line = 0;
     let mut column = 0;
     let mut previous_end = (0, 0);
@@ -382,5 +404,259 @@ fn attribute_entries_need_a_name_and_separator() -> TestResult {
             .any(|token| token.0 == 1 && token.2 == "b" && token.3 == "property"),
         "{tokens:?}"
     );
+    Ok(())
+}
+
+fn options(mode: CompatibilityMode) -> Result<Options<'static>, Box<dyn std::error::Error>> {
+    with_includes(mode, &[])
+}
+
+/// Serve the named files to `include::` directives.
+fn with_includes(
+    mode: CompatibilityMode,
+    files: &[(&'static str, &'static str)],
+) -> Result<Options<'static>, Box<dyn std::error::Error>> {
+    let files = files.to_vec();
+    Ok(Options::builder()
+        .with_compatibility_mode(mode)
+        .with_safe_mode(SafeMode::Server)
+        // Nothing is read from disk; the loader serves `files`.
+        .with_base_dir(std::path::PathBuf::from("/acdc-lsp-tests"))
+        .with_include_loader(IncludeLoader::custom(
+            move |target: &IncludeSourceTarget| {
+                if let IncludeSourceTarget::File(path) = target
+                    && let Some((_, text)) = files
+                        .iter()
+                        .find(|(name, _)| path.file_name().is_some_and(|file| file == *name))
+                {
+                    return Ok(IncludeSource::from_string((*text).to_owned()));
+                }
+                Err(IncludeSourceError::new(
+                    IncludeSourceErrorKind::NotFound,
+                    "unknown test file",
+                ))
+            },
+        ))
+        .build()?)
+}
+
+fn has_token(tokens: &[HighlightedToken], line: u32, spelling: &str, kind: &str) -> bool {
+    tokens
+        .iter()
+        .any(|token| token.0 == line && token.2 == spelling && token.3 == kind)
+}
+
+fn has_kind_on_line(tokens: &[HighlightedToken], line: u32, kind: &str) -> bool {
+    tokens
+        .iter()
+        .any(|token| token.0 == line && token.3 == kind)
+}
+
+#[test]
+fn header_entries_and_comments_are_highlighted_with_and_without_a_title() -> TestResult {
+    for mode in MODES {
+        for (source, offset) in [
+            (
+                ":a: 1\n// note\n:b: 2 \\\ncontinued\n////\n:x: y\n////\n:c: 3\n\nPara\n",
+                0,
+            ),
+            (
+                "= Title\n:a: 1\n// note\n:b: 2 \\\ncontinued\n////\n:x: y\n////\n:c: 3\n\nPara\n",
+                1,
+            ),
+        ] {
+            let tokens = decoded_in(source, &options(mode)?)?;
+            let message = format!("{mode:?} {source:?}: {tokens:?}");
+            assert!(has_token(&tokens, offset, "a", "property"), "{message}");
+            assert!(
+                has_token(&tokens, offset + 1, "// note", "comment"),
+                "{message}"
+            );
+            assert!(has_token(&tokens, offset + 2, "b", "property"), "{message}");
+            assert!(
+                has_token(&tokens, offset + 3, "continued", "string"),
+                "{message}"
+            );
+            assert!(
+                has_token(&tokens, offset + 4, "////", "operator"),
+                "{message}"
+            );
+            // A commented-out entry is a comment, not an attribute.
+            assert!(
+                has_token(&tokens, offset + 5, ":x: y", "comment"),
+                "{message}"
+            );
+            assert!(
+                !has_kind_on_line(&tokens, offset + 5, "property"),
+                "{message}"
+            );
+            assert!(
+                has_token(&tokens, offset + 6, "////", "operator"),
+                "{message}"
+            );
+            assert!(has_token(&tokens, offset + 7, "c", "property"), "{message}");
+            assert!(
+                !has_kind_on_line(&tokens, offset + 9, "property"),
+                "{message}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn asciidoctor_header_spans_empty_lines_before_the_title() -> TestResult {
+    let source = ":a: 1\n\n// note\n\n:b: 2\n\n= Title\n:c: 3\n\nPara\n";
+    let tokens = decoded_in(source, &options(CompatibilityMode::Asciidoctor)?)?;
+    assert!(has_token(&tokens, 0, "a", "property"), "{tokens:?}");
+    assert!(has_token(&tokens, 2, "// note", "comment"), "{tokens:?}");
+    assert!(has_token(&tokens, 4, "b", "property"), "{tokens:?}");
+    assert!(has_token(&tokens, 6, "Title", "namespace"), "{tokens:?}");
+    assert!(has_token(&tokens, 7, "c", "property"), "{tokens:?}");
+    Ok(())
+}
+
+#[test]
+fn trailing_header_comments_outside_the_span_are_highlighted() -> TestResult {
+    for mode in MODES {
+        for (source, line) in [
+            (":a: 1\n// one\n// two\n\nPara\n", 1),
+            ("= Title\n:a: 1\n// one\n// two\n\nPara\n", 2),
+        ] {
+            let tokens = decoded_in(source, &options(mode)?)?;
+            assert!(
+                has_token(&tokens, line, "// one", "comment"),
+                "{mode:?}: {tokens:?}"
+            );
+            assert!(
+                has_token(&tokens, line + 1, "// two", "comment"),
+                "{mode:?}: {tokens:?}"
+            );
+            assert!(
+                !has_kind_on_line(&tokens, line + 3, "comment"),
+                "{mode:?}: {tokens:?}"
+            );
+        }
+
+        // A folded value maps to its entry's first line, so the span ends there.
+        let tokens = decoded_in("= Title\n:a: one \\\ntwo\n\nPara\n", &options(mode)?)?;
+        assert!(
+            has_token(&tokens, 2, "two", "string"),
+            "{mode:?}: {tokens:?}"
+        );
+        assert!(
+            !has_kind_on_line(&tokens, 4, "string"),
+            "{mode:?}: {tokens:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn directive_lines_inside_the_header_do_not_end_it() -> TestResult {
+    for mode in MODES {
+        let source = ":a: 1\nifdef::a[]\n:b: 2\nendif::[]\n:c: 3\n\nPara\n";
+        let tokens = decoded_in(source, &options(mode)?)?;
+        for (line, name) in [(0, "a"), (2, "b"), (4, "c")] {
+            assert!(
+                has_token(&tokens, line, name, "property"),
+                "{mode:?}: {tokens:?}"
+            );
+        }
+        for line in [1, 3] {
+            assert!(
+                has_kind_on_line(&tokens, line, "keyword"),
+                "{mode:?}: {tokens:?}"
+            );
+            assert!(
+                !has_kind_on_line(&tokens, line, "property"),
+                "{mode:?}: {tokens:?}"
+            );
+        }
+
+        // An excluded comment delimiter cannot hide the entries after it.
+        let source = "= Title\n:a: 1\nifdef::missing[]\n////\nendif::[]\n:b: 2\n\nPara\n";
+        let tokens = decoded_in(source, &options(mode)?)?;
+        assert!(
+            !has_kind_on_line(&tokens, 3, "operator"),
+            "{mode:?}: {tokens:?}"
+        );
+        assert!(
+            has_token(&tokens, 5, "b", "property"),
+            "{mode:?}: {tokens:?}"
+        );
+    }
+    Ok(())
+}
+
+/// Whether the start and end of the header span are in included files.
+fn span_in_includes(
+    source: &str,
+    options: &Options<'_>,
+) -> Result<(bool, bool), Box<dyn std::error::Error>> {
+    let parsed = acdc_parser::parse(source, options)?;
+    let span = parsed.document().header_location().ok_or("no header")?;
+    Ok((
+        span.start().include_chain().is_some(),
+        span.end().include_chain().is_some(),
+    ))
+}
+
+#[test]
+fn header_highlighting_stops_at_included_text() -> TestResult {
+    let files = [
+        ("attributes.adoc", ":b: 2\n:c: 3\n"),
+        ("more.adoc", ":d: 4\n"),
+    ];
+    for mode in MODES {
+        let options = with_includes(mode, &files)?;
+
+        // The header ends in an included file.
+        for (source, line) in [
+            (":a: 1\ninclude::attributes.adoc[]\n\nPara\n", 0),
+            ("= Title\n:a: 1\ninclude::attributes.adoc[]\n\nPara\n", 1),
+        ] {
+            assert_eq!(span_in_includes(source, &options)?, (false, true));
+            let tokens = decoded_in(source, &options)?;
+            assert!(
+                has_token(&tokens, line, "a", "property"),
+                "{mode:?}: {tokens:?}"
+            );
+            assert!(
+                has_kind_on_line(&tokens, line + 1, "function"),
+                "{mode:?}: {tokens:?}"
+            );
+        }
+
+        // Entries between two includes, ending in the second.
+        let source = ":a: 1\ninclude::attributes.adoc[]\n:x: 2\ninclude::more.adoc[]\n\nPara\n";
+        assert_eq!(span_in_includes(source, &options)?, (false, true));
+        let tokens = decoded_in(source, &options)?;
+        assert!(
+            has_token(&tokens, 0, "a", "property"),
+            "{mode:?}: {tokens:?}"
+        );
+        assert!(
+            has_token(&tokens, 2, "x", "property"),
+            "{mode:?}: {tokens:?}"
+        );
+
+        // The header starts in an included file.
+        let source = "include::attributes.adoc[]\n= Title\n:a: 1\n// note\n\nPara\n";
+        assert_eq!(span_in_includes(source, &options)?, (true, false));
+        let tokens = decoded_in(source, &options)?;
+        assert!(
+            has_token(&tokens, 1, "Title", "namespace"),
+            "{mode:?}: {tokens:?}"
+        );
+        assert!(
+            has_token(&tokens, 2, "a", "property"),
+            "{mode:?}: {tokens:?}"
+        );
+        assert!(
+            has_token(&tokens, 3, "// note", "comment"),
+            "{mode:?}: {tokens:?}"
+        );
+    }
     Ok(())
 }

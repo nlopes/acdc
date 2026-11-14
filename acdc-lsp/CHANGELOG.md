@@ -57,6 +57,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Semantic highlighting leading document attributes with a blank line before title.
 
+- Header highlighting follows the parsed header, with or without a title.
+  Comment lines and comment blocks in the header are highlighted as comments,
+  so an entry commented out in a `////` block is no longer shown as an
+  attribute. Entries after a conditional directive stay highlighted, and a
+  header that starts or ends in an included file keeps highlighting for its
+  lines in the open document.
+
 - Builds without the default preview features no longer emit unused-code warnings.
 
 - IDs without recorded source coordinates no longer produce navigation targets

@@ -1,8 +1,8 @@
 use acdc_parser::{
-    ColumnStyle,
+    ColumnStyle, Location,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, DocumentRef, HeaderRef,
-        IdOrigin, LocationRef, StructuralRef, TableRef, TableRowRef,
+        IdOrigin, LocationRef, PositionRef, StructuralRef, TableRef, TableRowRef,
     },
 };
 use tower_lsp_server::ls_types::{Position, Range};
@@ -12,16 +12,13 @@ use super::{
     add_token_for_location, add_token_for_range, byte_range_to_utf16_range,
     collect_tokens_from_inlines, is_primary_location,
 };
-use crate::convert::position_to_offset;
+use crate::{convert::position_to_offset, state::ConditionalBlock};
 
 pub(super) fn collect(
     document: DocumentRef<'_>,
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
-    if document.header().is_none() {
-        collect_titleless_header(source, tokens);
-    }
     for node in StructuralRef::Document(document).descendants() {
         match node {
             StructuralRef::Header(header) => collect_header(header, source, tokens),
@@ -70,25 +67,71 @@ pub(super) fn collect(
     }
 }
 
-// The parser consumes leading header attributes even without a title, but then
-// exposes neither a HeaderRef nor DocumentAttribute blocks for that region.
-// Keep scanning across empty lines, as asciidoctor does before the document
-// title; an entry gets the same tokens whether it lands in the header or the
-// body. Stop at the first line that is neither an attribute entry nor a comment
-// so body text cannot become attributes.
-fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
-    let mut comment_delimiter = None;
+/// Highlight the attribute entries and comments in the document header.
+///
+/// The parser consumes them without creating blocks, so this reads the lines
+/// of its header span, with or without a title. Other lines in the span, such
+/// as the title, author and revision lines, block metadata, and preprocessor
+/// directives, get their tokens elsewhere.
+pub(super) fn header(
+    document: DocumentRef<'_>,
+    conditionals: &[ConditionalBlock],
+    includes: &[(String, Location)],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
+    let Some(span) = document.header_location() else {
+        return;
+    };
+    let Some((first, last)) = header_lines(span, includes) else {
+        return;
+    };
+    let inactive = |line: u32| {
+        let line = line as usize;
+        conditionals.iter().any(|conditional| {
+            !conditional.is_active
+                && conditional
+                    .end_line
+                    .is_some_and(|end| conditional.start_line < line && line < end)
+        })
+    };
+    let ends_in_primary = outermost_include(span.end()).is_none();
+    let mut comment_delimiter: Option<&str> = None;
     let mut continuation = false;
-    for line in 0.. {
+    for line in first.. {
         let Some(text) = source.line(line) else {
             break;
         };
         let text = text.trim_end_matches(['\r', '\n']);
-        // Like the parser, accept comment delimiters with trailing whitespace.
+        // The span can stop short of the header's last source lines: a value
+        // folded from continuation lines maps to its entry's first line, and
+        // the preprocessor drops line comments that directly follow the header.
+        if line > last {
+            if !ends_in_primary || inactive(line) || text.trim().is_empty() {
+                break;
+            }
+            if continuation {
+                line_bytes(line, 0..text.len(), 3, 0, source, tokens);
+                continuation = continues_value(text);
+            } else if is_line_comment(text) {
+                line_bytes(line, 0..text.len(), 5, 0, source, tokens);
+            } else {
+                break;
+            }
+            continue;
+        }
+        // Comment blocks bypass preprocessor directives, so they are tracked
+        // before conditionals.
         if let Some(delimiter) = comment_delimiter {
             if text.trim_end() == delimiter {
                 comment_delimiter = None;
+                line_bytes(line, 0..delimiter.len(), 8, 0, source, tokens);
+            } else {
+                line_bytes(line, 0..text.len(), 5, 0, source, tokens);
             }
+            continue;
+        }
+        if inactive(line) {
             continue;
         }
         if text.trim().is_empty() {
@@ -100,29 +143,93 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
             continuation = continues_value(text);
             continue;
         }
-        let delimiter = text.trim_end();
-        if delimiter.len() >= 4 && delimiter.bytes().all(|byte| byte == b'/') {
+        if let Some(delimiter) = comment_block_delimiter(text) {
             comment_delimiter = Some(delimiter);
-            continue;
+            line_bytes(line, 0..delimiter.len(), 8, 0, source, tokens);
+        } else if is_line_comment(text) {
+            line_bytes(line, 0..text.len(), 5, 0, source, tokens);
+        } else if let Some((name, value)) = attribute_entry(text) {
+            attribute_line(name, line, source, tokens);
+            continuation = continues_value(value);
         }
-        // Like the parser, a line comment is `//` not followed by another `/`;
-        // other slash-prefixed text starts a paragraph and ends the scan.
-        if text.starts_with("//") && !text.starts_with("///") {
-            continue;
-        }
-        let Some((name, value)) = text.strip_prefix(':').and_then(|rest| rest.split_once(':'))
-        else {
-            break;
-        };
-        // Like the parser and asciidoctor, an entry needs a name, then
-        // whitespace or the end of the line after `:name:`.
-        let name = name.trim_matches('!');
-        if name.is_empty() || !(value.is_empty() || value.starts_with([' ', '\t'])) {
-            break;
-        }
-        attribute_line(name, line, source, tokens);
-        continuation = continues_value(value.trim_start_matches([' ', '\t']));
     }
+}
+
+/// The header's first and last lines in the primary file, 0-based.
+///
+/// Either end of the span can sit in an included file. The include directive
+/// that reached it then bounds the primary lines: the first matching directive
+/// after the start for the end, or the last one before the end for the start.
+/// Directive targets are raw text, so a target that needs attribute
+/// substitution falls back to the nearest directive. That can only shorten the
+/// range.
+fn header_lines(span: LocationRef<'_>, includes: &[(String, Location)]) -> Option<(u32, u32)> {
+    let zero_based = |position: PositionRef<'_>| position.line().saturating_sub(1);
+    let directives: Vec<_> = includes
+        .iter()
+        .filter(|(_, location)| is_primary_location(location))
+        .map(|(target, location)| {
+            (
+                target.as_str(),
+                zero_based(LocationRef::from(location).start()),
+            )
+        })
+        .collect();
+    let start = outermost_include(span.start());
+    let end = outermost_include(span.end());
+
+    let last = match end {
+        None => zero_based(span.end()),
+        Some(target) => {
+            let from = if start.is_none() {
+                zero_based(span.start())
+            } else {
+                0
+            };
+            let after_start = || directives.iter().filter(|(_, line)| *line >= from);
+            after_start()
+                .find(|(written, _)| *written == target)
+                .or_else(|| after_start().next())?
+                .1
+        }
+    };
+    let first = match start {
+        None => zero_based(span.start()),
+        Some(target) => {
+            let before_end = || directives.iter().filter(|(_, line)| *line <= last);
+            before_end()
+                .rfind(|(written, _)| *written == target)
+                .or_else(|| before_end().next_back())?
+                .1
+                + 1
+        }
+    };
+    (first <= last).then_some((first, last))
+}
+
+fn outermost_include(position: PositionRef<'_>) -> Option<&str> {
+    position.include_chain().and_then(|mut chain| chain.next())
+}
+
+/// A `////` comment block delimiter. Like the parser, trailing whitespace is
+/// accepted.
+fn comment_block_delimiter(text: &str) -> Option<&str> {
+    let delimiter = text.trim_end();
+    (delimiter.len() >= 4 && delimiter.bytes().all(|byte| byte == b'/')).then_some(delimiter)
+}
+
+/// Like the parser, a line comment is `//` not followed by another `/`.
+fn is_line_comment(text: &str) -> bool {
+    text.starts_with("//") && !text.starts_with("///")
+}
+
+/// The name and value of an attribute entry line. Like the parser, an entry
+/// needs a name, then whitespace or the end of the line after `:name:`.
+fn attribute_entry(text: &str) -> Option<(&str, &str)> {
+    let (name, value) = text.strip_prefix(':')?.split_once(':')?;
+    let name = name.trim_matches('!');
+    (!name.is_empty() && (value.is_empty() || value.starts_with([' ', '\t'])))
+        .then(|| (name, value.trim_start_matches([' ', '\t'])))
 }
 
 // Like the parser, ` \` continues a value only after at least one character,
@@ -139,16 +246,6 @@ fn collect_header(header: HeaderRef<'_>, source: &LineIndex<'_>, tokens: &mut Ve
     }
     if let Some(subtitle) = header.subtitle() {
         content(subtitle, 0, 0, source, tokens);
-    }
-    if let Some(range) = primary_range(header.location(), source) {
-        for line in range.start.line..=range.end.line {
-            if let Some(text) = source.line(line)
-                && let Some(rest) = text.trim_start().strip_prefix(':')
-                && let Some((name, _)) = rest.split_once(':')
-            {
-                attribute_line(name.trim_matches('!'), line, source, tokens);
-            }
-        }
     }
 }
 

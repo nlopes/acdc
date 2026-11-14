@@ -388,7 +388,7 @@ fn evaluate_condition(
 }
 
 /// Recover primary-source spellings with the decisions made by preprocessing.
-pub(super) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<ConditionalBlock> {
+pub(crate) fn evaluated_conditionals(text: &str, parsed: &ParseResult) -> Vec<ConditionalBlock> {
     let lines: Vec<_> = text.lines().collect();
     parsed
         .conditionals()
