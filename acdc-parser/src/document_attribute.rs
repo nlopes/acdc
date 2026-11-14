@@ -383,6 +383,31 @@ pub(crate) fn is_header_only(name: &str) -> bool {
     HEADER_ONLY_EXACT.binary_search(&name).is_ok()
 }
 
+/// Join the lines of a wrapped attribute value. Every line but the last ends
+/// with a wrap marker. A soft wrap (` \`) drops its backslash and joins the next
+/// line after the space, and a hard wrap (` + \`) keeps its marker and a line
+/// break, as Asciidoctor does.
+pub(crate) fn join_wrapped_value(lines: &[&str]) -> String {
+    // Each line keeps at most its own length plus a line break.
+    let mut value = String::with_capacity(lines.iter().map(|line| line.len() + 1).sum());
+    let mut line_break = false;
+    for line in lines {
+        if line_break {
+            value.push('\n');
+        }
+        line_break = line.ends_with(" + \\");
+        if line_break {
+            value.push_str(line);
+        } else if let Some(text) = line.strip_suffix(" \\") {
+            value.push_str(text);
+            value.push(' ');
+        } else {
+            value.push_str(line);
+        }
+    }
+    value
+}
+
 /// Look up a static specification without allocating.
 fn attribute_spec(name: &str) -> AttributeSpec {
     if let Some(spec) = default_spec(name) {

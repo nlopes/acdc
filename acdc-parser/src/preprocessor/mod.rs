@@ -646,10 +646,10 @@ impl<'input> PreprocessorState<'input> {
         }
     }
 
-    /// Emit synthesized content (a collapsed attribute continuation or active
-    /// single-line conditional) as its own standalone [`SourceRange`] anchored at
-    /// `src_start_line`, so it never shares a run with surrounding lines whose
-    /// output-newline count would otherwise be miscounted.
+    /// Emit synthesized content (an active single-line conditional) as its own
+    /// standalone [`SourceRange`] anchored at `src_start_line`, so it never
+    /// shares a run with surrounding lines whose output-newline count would
+    /// otherwise be miscounted.
     fn push_chunk(&mut self, content: String, input_line: usize) {
         self.flush_run();
         let start = self.byte_offset;
@@ -888,7 +888,8 @@ impl Preprocessor {
             if is_escaped_directive(line) {
                 return None;
             }
-            // `process_inner` collapses multi-line attribute continuations.
+            // `process_inner` reads continuation lines as part of the entry,
+            // never as directives or delimiters, which this scan can't tell.
             if scanner.allows_attribute_entries() && has_attribute_continuation(line) {
                 return None;
             }
@@ -1048,26 +1049,33 @@ impl Preprocessor {
         ))
     }
 
+    /// Join a wrapped attribute entry into one line for the preprocessor's
+    /// attribute state. Returns the joined entry and the continuation lines
+    /// it consumed, as written.
     #[tracing::instrument(skip_all, fields(line_number = line_number))]
     fn process_continuation<'a, I: Iterator<Item = &'a str>>(
         line: &str,
         lines: &mut std::iter::Peekable<I>,
         line_number: &mut usize,
-    ) -> String {
+    ) -> (String, Vec<&'a str>) {
         let mut attribute_content = String::with_capacity(line.len() * 2);
+        let mut continuation_lines = Vec::new();
         if line.ends_with(" + \\") {
             attribute_content.push_str(line);
             attribute_content.push('\n');
         } else if line.ends_with(" \\") {
             attribute_content.push_str(line.trim_end_matches('\\'));
         }
-        while let Some(next_line) = lines.peek() {
-            let next_line = next_line.trim();
+        while let Some(&written) = lines.peek() {
+            let next_line = written.trim();
             // An explicit continuation owns the next nonblank line, even if
             // it looks like another attribute declaration.
             if next_line.is_empty() {
                 break;
             }
+            lines.next();
+            continuation_lines.push(written);
+            *line_number += 1;
             // If we get here, and we get a hard wrap, keep everything as is.
             // If we get here, and we get a soft wrap, then remove the newline.
             // Anything else means we're at the end of the wrapped attribute, so
@@ -1075,20 +1083,14 @@ impl Preprocessor {
             if next_line.ends_with(" + \\") {
                 attribute_content.push_str(next_line);
                 attribute_content.push('\n');
-                lines.next();
-                *line_number += 1;
             } else if next_line.ends_with(" \\") {
                 attribute_content.push_str(next_line.trim_end_matches('\\'));
-                lines.next();
-                *line_number += 1;
             } else {
                 attribute_content.push_str(next_line);
-                lines.next();
-                *line_number += 1;
                 break;
             }
         }
-        attribute_content
+        (attribute_content, continuation_lines)
     }
 
     /// Check if a line is a verbatim or raw block delimiter.
@@ -1633,14 +1635,18 @@ impl Preprocessor {
             }
 
             if scanner.allows_attribute_entries() && has_attribute_continuation(line) {
-                // The attribute spans `[continuation_start_line, line_number]`;
-                // emit it as its own range anchored at its first line.
+                // Apply the joined value here, but emit the source lines
+                // unchanged: the grammar joins them again, so locations inside
+                // the entry stay in source coordinates.
                 let continuation_start_line = line_number;
-                let attribute_content =
+                let (attribute_content, continuation_lines) =
                     Self::process_continuation(line, &mut lines, &mut line_number);
                 attribute::parse_line(options, attribute_content.as_str())?;
                 out.record_leveloffset(options);
-                out.push_chunk(attribute_content, continuation_start_line);
+                out.push_source_line(line, continuation_start_line);
+                for (offset, continued) in continuation_lines.into_iter().enumerate() {
+                    out.push_source_line(continued, continuation_start_line + 1 + offset);
+                }
                 scanner.record(line, &options.document_attributes);
                 // `process_continuation` advanced `line_number` over the absorbed
                 // continuation lines but not the attribute line itself; the `continue`

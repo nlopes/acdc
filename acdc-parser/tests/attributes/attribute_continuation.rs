@@ -1,8 +1,9 @@
 use acdc_parser::{
-    DocumentAttributeValue, Options,
-    ast::{BlockKind, BlockRef, ContentRef, InlineKind},
+    CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue, Options,
+    ast::{BlockKind, BlockRef, ContentRef, InlineKind, LocationRef, StructuralRef},
     parse,
 };
+use rstest::rstest;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -144,5 +145,117 @@ fn attribute_continuation_keeps_colon_prefixed_lines_in_the_value() -> Result<()
         "After [First :other: Still value text]."
     );
     assert_eq!(paragraph.location().start().line(), 5);
+    Ok(())
+}
+
+fn options(mode: CompatibilityMode) -> Result<Options<'static>, Error> {
+    Ok(Options::builder().with_compatibility_mode(mode).build()?)
+}
+
+/// `(start line, start column, end line, end column)`.
+fn span(location: LocationRef<'_>) -> (u32, u32, u32, u32) {
+    (
+        location.start().line(),
+        location.start().column(),
+        location.end().line(),
+        location.end().column(),
+    )
+}
+
+/// An attribute entry block as `(name, value, span)`.
+type Entry = (String, String, (u32, u32, u32, u32));
+
+/// Each attribute entry block in the document, nested ones included.
+fn entries(source: &str, options: &Options<'_>) -> Result<Vec<Entry>, Error> {
+    let parsed = parse(source, options)?;
+    StructuralRef::Document(parsed.document())
+        .descendants()
+        .filter_map(|node| {
+            if let StructuralRef::Block(block) = node
+                && let BlockKind::DocumentAttribute(entry) = block.kind()
+            {
+                Some((block, entry))
+            } else {
+                None
+            }
+        })
+        .map(|(block, entry)| {
+            let DocumentAttributeAssignment::Set(value) = entry.assignment() else {
+                return Err(format!("unexpected unset: {}", entry.name()).into());
+            };
+            Ok((
+                entry.name().to_owned(),
+                value.text().unwrap_or_default().to_owned(),
+                span(block.location()),
+            ))
+        })
+        .collect()
+}
+
+// The preprocessor keeps the lines of a wrapped value as written, so the
+// entry's location ends on its last source line.
+#[rstest]
+fn wrapped_entry_locations_end_on_the_last_line(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = "= Title\n\n:soft: one \\\n  two\n\n:hard: one + \\\n  two\n\n:mixed: one \\\ntwo + \\\n three \\\nfour\n\n:open: one \\\n\nPara\n";
+    assert_eq!(
+        entries(source, &options(mode)?)?,
+        [
+            ("soft".to_owned(), "one two".to_owned(), (3, 1, 4, 5)),
+            ("hard".to_owned(), "one + \\\ntwo".to_owned(), (6, 1, 7, 5)),
+            (
+                "mixed".to_owned(),
+                "one two + \\\nthree four".to_owned(),
+                (9, 1, 12, 4)
+            ),
+            ("open".to_owned(), "one ".to_owned(), (14, 1, 14, 12)),
+        ]
+    );
+    Ok(())
+}
+
+#[rstest]
+fn header_span_covers_a_wrapped_last_entry(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    for (source, expected) in [
+        (":a: one \\\ntwo\n\nPara\n", (1, 1, 2, 3)),
+        (
+            "= Title\n:a: one \\\n  two \\\n  three\n\nPara\n",
+            (1, 1, 4, 7),
+        ),
+    ] {
+        let parsed = parse(source, &options(mode)?)?;
+        let header = parsed.document().header_location().ok_or("no header")?;
+        assert_eq!(span(header), expected, "{source:?}");
+        assert_eq!(
+            parsed
+                .document()
+                .attributes()
+                .get("a")
+                .and_then(DocumentAttributeValue::text),
+            Some(if source.contains("three") {
+                "one two three"
+            } else {
+                "one two"
+            }),
+            "{source:?}"
+        );
+    }
+    Ok(())
+}
+
+// The preprocessor leaves table cells alone, so the grammar joins the value.
+// Asciidoctor gives `one two` here too.
+#[rstest]
+fn wrapped_entry_in_an_asciidoc_cell_joins_its_lines(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = "= Title\n\n|===\na|\n:cell: one \\\ntwo\n\nText\n|===\n";
+    assert_eq!(
+        entries(source, &options(mode)?)?,
+        [("cell".to_owned(), "one two".to_owned(), (5, 1, 6, 3))]
+    );
     Ok(())
 }

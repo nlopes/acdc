@@ -46,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applies in the body, such as `icons`, `stem`, and `sectnums`, don't warn, and
   neither do caller-supplied values or entries a caller lock rejects.
   Asciidoctor doesn't warn.
+- Attribute entries whose value wraps with ` \` now have locations in the
+  original source. The entry's location, and the header's when the entry ends
+  it, end on the value's last line, at the right column. Before, they ended on
+  the first line, past its end. In AsciiDoc table cells, a value wrapped with
+  ` \` now joins its lines with a space, matching Asciidoctor, instead of
+  keeping the backslash and the line break.
 
 - Faster processing of included files, especially `lines=` and tag selections,
   while preserving resource limits, source locations, and compatibility modes.

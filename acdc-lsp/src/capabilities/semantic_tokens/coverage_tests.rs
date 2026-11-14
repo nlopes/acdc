@@ -537,17 +537,37 @@ fn trailing_header_comments_outside_the_span_are_highlighted() -> TestResult {
                 "{mode:?}: {tokens:?}"
             );
         }
+    }
+    Ok(())
+}
 
-        // A folded value maps to its entry's first line, so the span ends there.
-        let tokens = decoded_in("= Title\n:a: one \\\ntwo\n\nPara\n", &options(mode)?)?;
-        assert!(
-            has_token(&tokens, 2, "two", "string"),
-            "{mode:?}: {tokens:?}"
-        );
-        assert!(
-            !has_kind_on_line(&tokens, 4, "string"),
-            "{mode:?}: {tokens:?}"
-        );
+#[test]
+fn wrapped_values_are_highlighted_on_every_line() -> TestResult {
+    for mode in MODES {
+        for source in [
+            "= Title\n:a: one \\\n  two\n\nPara\n",
+            "= Title\n\n:a: one \\\n  two\n\nPara\n",
+        ] {
+            let tokens = decoded_in(source, &options(mode)?)?;
+            let line = u32::try_from(
+                source
+                    .lines()
+                    .position(|line| line.starts_with(":a:"))
+                    .unwrap_or_default(),
+            )?;
+            assert!(
+                has_token(&tokens, line, "a", "property"),
+                "{mode:?} {source:?}: {tokens:?}"
+            );
+            assert!(
+                has_kind_on_line(&tokens, line + 1, "string"),
+                "{mode:?} {source:?}: {tokens:?}"
+            );
+            assert!(
+                !has_kind_on_line(&tokens, line + 3, "string"),
+                "{mode:?} {source:?}: {tokens:?}"
+            );
+        }
     }
     Ok(())
 }

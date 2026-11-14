@@ -103,21 +103,13 @@ pub(super) fn header(
             break;
         };
         let text = text.trim_end_matches(['\r', '\n']);
-        // The span can stop short of the header's last source lines: a value
-        // folded from continuation lines maps to its entry's first line, and
-        // the preprocessor drops line comments that directly follow the header.
+        // The preprocessor drops line comments that directly follow the
+        // header, so they sit just outside the span.
         if line > last {
-            if !ends_in_primary || inactive(line) || text.trim().is_empty() {
+            if !ends_in_primary || inactive(line) || !is_line_comment(text) {
                 break;
             }
-            if continuation {
-                line_bytes(line, 0..text.len(), 3, 0, source, tokens);
-                continuation = continues_value(text);
-            } else if is_line_comment(text) {
-                line_bytes(line, 0..text.len(), 5, 0, source, tokens);
-            } else {
-                break;
-            }
+            line_bytes(line, 0..text.len(), 5, 0, source, tokens);
             continue;
         }
         // Comment blocks bypass preprocessor directives, so they are tracked

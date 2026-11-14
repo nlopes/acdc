@@ -10,7 +10,7 @@ use crate::{
     Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
     Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
     UnorderedList, Video, Warning, WarningKind,
-    document_attribute::{AttributeDeclaration, RawAttributeValue},
+    document_attribute::{AttributeDeclaration, RawAttributeValue, join_wrapped_value},
     grammar::{
         ParserState,
         attributes::{
@@ -4134,23 +4134,37 @@ peg::parser! {
         rule comment() = quiet!{ "//" !"/" [^'\n']* (&eol() / ![_]) }
 
         // Separator whitespace belongs to the declaration, not its value.
-        // Soft wraps arrive folded; preserved hard wraps are collected below.
         rule document_attribute_value() -> Cow<'input, str>
         = whitespace()+ value:(
-            lines:backslash_continuation_lines() { Cow::Owned(lines.join("\n")) }
+            lines:wrapped_value_lines() { Cow::Owned(join_wrapped_value(&lines)) }
             / single_line:$([^'\n']+) { Cow::Borrowed(single_line) }
         ) { value }
 
-        // Lines ending with backslash continuation - keeps consuming lines until one doesn't end with backslash
-        rule backslash_continuation_lines() -> Vec<&'input str>
-        = lines:(line:$((!(" \\" eol()) [^'\n'])+ " \\") eol() { line })+
-          last:$([^'\n']+)?
+        // A value line that ends with ` \` continues on the next nonblank
+        // line. The value ends with the first line without that marker, or
+        // before a blank line. Continuation lines are trimmed.
+        rule wrapped_value_lines() -> Vec<&'input str>
+        = first:$((!(" \\" (eol() / ![_])) [^'\n'])+ " \\") &(eol() / ![_])
+          continued:(eol() line:continuing_value_line() { line })*
+          last:(eol() line:final_value_line() { line })?
         {
-            let mut result = lines;
-            if let Some(l) = last {
-                result.push(l);
-            }
-            result
+            let mut lines = Vec::with_capacity(continued.len() + 2);
+            lines.push(first);
+            lines.extend(continued);
+            lines.extend(last);
+            lines
+        }
+
+        rule continuing_value_line() -> &'input str
+        = line:$([^'\n']+) {?
+            let line = line.trim();
+            line.ends_with(" \\").then_some(line).ok_or("value line without continuation")
+        }
+
+        rule final_value_line() -> &'input str
+        = line:$([^'\n']+) {?
+            let line = line.trim();
+            (!line.is_empty()).then_some(line).ok_or("blank line")
         }
 
         // Document attribute parsing
