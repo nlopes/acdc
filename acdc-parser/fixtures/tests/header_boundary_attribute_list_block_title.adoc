@@ -1,0 +1,5 @@
+[.role]
+.Foo
+= Title
+
+Para

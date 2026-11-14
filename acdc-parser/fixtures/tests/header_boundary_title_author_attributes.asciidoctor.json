@@ -1,0 +1,110 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Title",
+        "location": [
+          {
+            "line": 3,
+            "col": 3
+          },
+          {
+            "line": 3,
+            "col": 7
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "Jane",
+        "lastname": "Doe",
+        "initials": "JD",
+        "address": "jane@example.org"
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 5
+      }
+    ]
+  },
+  "attributes": {
+    "a": "1",
+    "author": "Jane Doe",
+    "authorcount": "1",
+    "authorinitials": "JD",
+    "authors": "Jane Doe",
+    "b": "2",
+    "email": "jane@example.org",
+    "firstname": "Jane",
+    "lastname": "Doe"
+  },
+  "blocks": [
+    {
+      "name": "c",
+      "type": "attribute",
+      "value": "3",
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 5
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Body text.",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 10
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 10
+    }
+  ]
+}

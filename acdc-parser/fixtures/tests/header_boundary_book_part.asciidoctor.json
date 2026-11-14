@@ -1,0 +1,147 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Book Title",
+        "location": [
+          {
+            "line": 3,
+            "col": 3
+          },
+          {
+            "line": 3,
+            "col": 12
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "book"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Part One",
+          "location": [
+            {
+              "line": 5,
+              "col": 3
+            },
+            {
+              "line": 5,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 0,
+      "blocks": [
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Chapter",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 4
+                },
+                {
+                  "line": 7,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "level": 1,
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Body text.",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 1
+                    },
+                    {
+                      "line": 9,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 10
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 10
+    }
+  ]
+}

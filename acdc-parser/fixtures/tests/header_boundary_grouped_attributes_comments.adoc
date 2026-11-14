@@ -1,0 +1,18 @@
+= User Guide
+:description: How to install the product.
+// layout
+:doctype: book
+:toc: left
+:sectnums:
+// layout
+:icons: font
+:source-highlighter: rouge
+
+== Install
+
+NOTE: Read the requirements first.
+
+[source,ruby]
+----
+puts "installed"
+----

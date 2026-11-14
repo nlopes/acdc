@@ -1,0 +1,34 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "b",
+      "type": "attribute",
+      "value": "2",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 5
+    }
+  ]
+}

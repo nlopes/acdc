@@ -1,0 +1,9 @@
+:doctype: book
+
+= Book Title
+
+= Part One
+
+== Chapter
+
+Body text.

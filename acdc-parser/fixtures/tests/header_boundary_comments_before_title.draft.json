@@ -1,0 +1,147 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " A line comment between header lines.",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 40
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "////",
+      "blocks": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A comment block\n\nwith an empty line inside.",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "b",
+      "type": "attribute",
+      "value": "2",
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 5
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Title",
+          "location": [
+            {
+              "line": 13,
+              "col": 3
+            },
+            {
+              "line": 13,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 0,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body text.",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 10
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 15,
+      "col": 10
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+:a: 1
+
+[[para]]
+:b: 2
+
+Body text.

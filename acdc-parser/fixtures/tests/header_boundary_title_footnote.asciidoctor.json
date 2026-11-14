@@ -1,0 +1,160 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "metadata": {
+      "anchors": [
+        {
+          "id": "top",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 8
+            }
+          ]
+        }
+      ]
+    },
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Title ",
+        "location": [
+          {
+            "line": 5,
+            "col": 3
+          },
+          {
+            "line": 5,
+            "col": 8
+          }
+        ]
+      },
+      {
+        "name": "footnote",
+        "type": "inline",
+        "id": null,
+        "inlines": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Header note.",
+            "location": [
+              {
+                "line": 5,
+                "col": 19
+              },
+              {
+                "line": 5,
+                "col": 30
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 5,
+            "col": 9
+          },
+          {
+            "line": 5,
+            "col": 31
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 31
+      }
+    ]
+  },
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Body text.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body note.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 21
+                },
+                {
+                  "line": 7,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 11
+            },
+            {
+              "line": 7,
+              "col": 31
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 31
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 31
+    }
+  ]
+}

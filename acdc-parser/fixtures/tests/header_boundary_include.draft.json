@@ -1,0 +1,126 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "b",
+      "type": "attribute",
+      "value": "2",
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "includes/header_boundary_attributes.adoc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 5,
+          "file": [
+            "includes/header_boundary_attributes.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "c",
+      "type": "attribute",
+      "value": "3",
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "includes/header_boundary_attributes.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 5,
+          "file": [
+            "includes/header_boundary_attributes.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Title",
+          "location": [
+            {
+              "line": 5,
+              "col": 3
+            },
+            {
+              "line": 5,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 0,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body text uses 3.",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 19
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 19
+    }
+  ]
+}

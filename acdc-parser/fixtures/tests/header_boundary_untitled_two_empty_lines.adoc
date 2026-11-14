@@ -1,0 +1,6 @@
+:a: 1
+
+
+:c: 3
+
+Body text uses {c}.

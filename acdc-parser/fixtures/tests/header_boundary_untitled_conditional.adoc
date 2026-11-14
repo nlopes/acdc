@@ -1,0 +1,7 @@
+:enabled:
+ifdef::enabled[]
+:a: 1
+endif::[]
+:b: 2
+
+Para

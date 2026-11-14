@@ -1,0 +1,148 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "description": "How to install the product."
+  },
+  "blocks": [
+    {
+      "name": "doctype",
+      "type": "attribute",
+      "value": "book",
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "toc",
+      "type": "attribute",
+      "value": "left",
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 10
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "User Guide",
+          "location": [
+            {
+              "line": 6,
+              "col": 3
+            },
+            {
+              "line": 6,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "level": 0,
+      "blocks": [
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Install",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 4
+                },
+                {
+                  "line": 8,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "level": 1,
+          "blocks": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Body text.",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 1
+                    },
+                    {
+                      "line": 10,
+                      "col": 10
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 10,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 10
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 10
+    }
+  ]
+}

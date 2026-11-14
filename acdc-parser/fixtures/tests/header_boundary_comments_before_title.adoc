@@ -1,0 +1,15 @@
+:a: 1
+
+// A line comment between header lines.
+
+////
+A comment block
+
+with an empty line inside.
+////
+
+:b: 2
+
+= Title
+
+Body text.

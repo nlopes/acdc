@@ -4,6 +4,7 @@ mod author;
 mod callouts;
 mod delimited;
 mod doctype;
+mod header;
 pub(super) mod lists;
 mod manpage;
 mod metadata;

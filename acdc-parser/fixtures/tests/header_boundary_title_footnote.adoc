@@ -1,0 +1,7 @@
+:a: 1
+
+[[top]]
+
+= Title footnote:[Header note.]
+
+Body text.footnote:[Body note.]

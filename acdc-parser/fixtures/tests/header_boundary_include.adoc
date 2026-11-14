@@ -1,0 +1,7 @@
+:a: 1
+
+include::includes/header_boundary_attributes.adoc[]
+
+= Title
+
+Body text uses {c}.

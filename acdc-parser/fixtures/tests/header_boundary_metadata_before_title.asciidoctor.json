@@ -1,0 +1,99 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "metadata": {
+      "roles": [
+        "lead"
+      ],
+      "anchors": [
+        {
+          "id": "top",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 8
+            }
+          ]
+        }
+      ]
+    },
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Title",
+        "location": [
+          {
+            "line": 7,
+            "col": 3
+          },
+          {
+            "line": 7,
+            "col": 7
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 7,
+        "col": 7
+      }
+    ]
+  },
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Body text.",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 10
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 10
+    }
+  ]
+}

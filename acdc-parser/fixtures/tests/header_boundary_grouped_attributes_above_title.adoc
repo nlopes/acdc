@@ -1,0 +1,10 @@
+:description: How to install the product.
+
+:doctype: book
+:toc: left
+
+= User Guide
+
+== Install
+
+Body text.

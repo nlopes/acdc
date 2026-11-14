@@ -1,0 +1,52 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "////",
+      "blocks": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "An unterminated comment block.\n\n:b: 2",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 5
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 6,
+      "col": 5
+    }
+  ]
+}

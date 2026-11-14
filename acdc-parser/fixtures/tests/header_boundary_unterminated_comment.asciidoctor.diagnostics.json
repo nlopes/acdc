@@ -1,0 +1,40 @@
+{
+  "recovery": {
+    "location": {
+      "absolute_end": 10,
+      "absolute_start": 7,
+      "file": "header_boundary_unterminated_comment.adoc",
+      "location": [
+        {
+          "col": 1,
+          "line": 3
+        },
+        {
+          "col": 4,
+          "line": 3
+        }
+      ]
+    },
+    "message": "unterminated comment block (opened by `////`)"
+  },
+  "warnings": [
+    {
+      "location": {
+        "absolute_end": 10,
+        "absolute_start": 7,
+        "file": "header_boundary_unterminated_comment.adoc",
+        "location": [
+          {
+            "col": 1,
+            "line": 3
+          },
+          {
+            "col": 4,
+            "line": 3
+          }
+        ]
+      },
+      "message": "unterminated comment block (opened by `////`)"
+    }
+  ]
+}

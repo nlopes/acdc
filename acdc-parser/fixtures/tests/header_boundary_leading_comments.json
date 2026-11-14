@@ -1,0 +1,127 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Title",
+        "location": [
+          {
+            "line": 9,
+            "col": 3
+          },
+          {
+            "line": 9,
+            "col": 7
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 9,
+        "col": 1
+      },
+      {
+        "line": 10,
+        "col": 5
+      }
+    ]
+  },
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "comment",
+      "type": "block",
+      "content": " before",
+      "location": [
+        {
+          "line": 2,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 10
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "////",
+      "blocks": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nignored",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Para",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 2,
+      "col": 1
+    },
+    {
+      "line": 12,
+      "col": 4
+    }
+  ]
+}

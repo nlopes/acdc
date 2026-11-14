@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The end of the document header now follows the compatibility mode. Asciidoctor
+  mode matches Asciidoctor and ignores empty lines before the document title:
+  attribute entries, comments, block anchors, and attribute lists above the
+  title, in any order, stay in the header, so `:toc:` followed by an empty line
+  and `= Title` keeps its title and table of contents. A document without a
+  title keeps its leading attribute entries in the header however many empty
+  lines separate them. Draft mode follows the language documentation: the first
+  empty line ends the header, with or without a title, so a title after it is a
+  level-0 section and later entries are body assignments. After a title, the
+  first empty line still ends the header in both modes. Unlike Asciidoctor, an
+  entry that follows the first block's anchor, attribute list, or block title in
+  a document without a title is still applied in the body.
 - A footnote in the document title is no longer registered twice when an anchor
   or attribute list precedes the title.
 

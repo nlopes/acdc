@@ -1,0 +1,12 @@
+:doctype: manpage
+:manmanual: Acme Manual
+
+= acme(1)
+
+== NAME
+
+acme - does things
+
+== SYNOPSIS
+
+*acme* [_OPTION_]...

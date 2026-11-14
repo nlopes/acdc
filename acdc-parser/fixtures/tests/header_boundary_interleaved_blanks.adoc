@@ -1,0 +1,12 @@
+:a: 1
+
+[[top]]
+
+:b: 2
+// comment
+
+[.role]
+
+= Title
+
+Para

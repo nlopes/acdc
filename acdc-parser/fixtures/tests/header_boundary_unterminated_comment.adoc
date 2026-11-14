@@ -1,0 +1,6 @@
+:a: 1
+
+////
+An unterminated comment block.
+
+:b: 2

@@ -1258,6 +1258,18 @@ reads, and `text()` or `write_text()` to retain its written representation.
 the header snapshot also expose explicit unsets. Rejected and invalid entries do
 not become semantic AST events.
 
+After a document title, the first empty line ends the header in both
+compatibility modes. Before the title, Asciidoctor mode ignores empty lines
+between attribute entries, comments, block anchors, and block attribute lists, as
+Asciidoctor does. In a document without a title, the leading attribute entries
+stay in the header however many empty lines separate them. Unlike Asciidoctor,
+an entry that follows the first block's anchor, attribute list, or block title
+is applied in the body. Draft mode follows the
+language documentation: the first empty line ends the header, with or without a
+title, and a title after that line is a level-0 section. To group header
+attributes in either mode, separate them with comment lines instead of empty
+lines.
+
 Custom converters can use `acdc-converters-core::TraversalContext` with the shared
 visitor to read attributes at each body position. The context applies events in
 source order and restores parent attributes after nested AsciiDoc table cells.

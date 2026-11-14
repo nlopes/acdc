@@ -21,6 +21,7 @@ use crate::{
             author::{derive_author_attrs, register_author_attrs},
             delimited::{DelimitedKind, DelimitedParams, build_delimited_block},
             doctype::{is_book_doctype, is_manpage_doctype},
+            header::{header_span, merge_header_metadata},
             lists::{
                 DescriptionListScope, ListMarker, OrdinaryListScope, assemble_principal_text,
                 build_description_list_topology, calculate_item_end, find_dlist_marker,
@@ -344,23 +345,29 @@ peg::parser! {
         = "//" !"/" [^'\n']* (eol() / ![_]) { None }
         / line:$([^'\n']+) (eol() / ![_]) { Some(line) }
 
-        // A blank line ends the header. Blank lines inside an atomic comment
+        // After the document title, the first empty line ends the header in
+        // both modes. Before the title, Asciidoctor mode ignores empty lines
+        // between attribute entries, comments and block metadata, so a document
+        // without a title keeps every leading attribute entry in its header.
+        // Draft mode follows the language docs: the first empty line ends the
+        // header, with or without a title. Empty lines inside an atomic comment
         // block do not end the surrounding header.
         pub(in crate::grammar::document) rule header() -> Result<Option<Header<'input>>, Error>
             = start:position!()
-            ((document_attribute() / header_comment()) (eol() / ![_]))*
+            header_leading_lines()
             metadata:header_metadata()
-            title_authors:(title_authors:title_authors() { title_authors })?
-            (eol() (document_attribute() / header_comment()))*
-            end:position!()
+            titled:(
+                title_authors:title_authors()
+                (eol() (document_attribute() / header_comment()))*
+                end:position!()
+                { (title_authors, end) }
+            )?
             (eol()*<,2> / ![_])
         {
-            if let Some((title, subtitle, authors)) = title_authors {
+            if let Some(((title, subtitle, authors), end)) = titled {
                 let mut metadata = metadata?;
                 crate::grammar::reference_text::resolve_metadata(state, &mut metadata)?;
-                let mut location = state.create_location(start, end);
-                location.absolute_end = crate::grammar::utf8_utils::safe_decrement_offset(state.input, location.absolute_end);
-                location.end.column = location.end.column.saturating_sub(1);
+                let location = header_span(state, start, end);
                 let mut header = Header {
                     metadata,
                     title,
@@ -395,47 +402,67 @@ peg::parser! {
 
                 Ok(Some(header))
             } else {
-                tracing::debug!("No title or authors found in the document header.");
+                tracing::debug!("No document title found in the document header.");
                 Ok(None)
             }
+        }
+
+        // Attribute entries and comments at the start of the header. Trailing
+        // empty lines are left for the caller.
+        rule header_leading_lines()
+        = (header_leading_gap() header_leading_line())*
+
+        rule header_leading_gap()
+        = (asciidoctor_mode() eol()*)?
+
+        // Once an attribute entry matches, the rest of the line always matches,
+        // so backtracking cannot apply the entry twice.
+        rule header_leading_line()
+        = (document_attribute() / header_comment()) (eol() / ![_])
+
+        rule asciidoctor_mode()
+        = {?
+            (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor)
+                .then_some(())
+                .ok_or("draft mode")
         }
 
         /// Parse block metadata lines (anchors and attributes) that can appear before a document title.
         /// Only consumes metadata if followed by a document title to avoid stealing attributes
         /// meant for the first block when there's no document title.
+        ///
+        /// Asciidoctor mode also accepts empty lines, attribute entries and comments
+        /// between those lines. A side-effect-free lookahead checks for the title
+        /// first, so attribute entries are applied once, in source order, and only
+        /// as header attributes.
         rule header_metadata() -> Result<BlockMetadata<'input>, Error>
-            = lines:(
-                anchor:anchor(0) { AttributeOrAnchorLine::Anchor(anchor) }
-                / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
-            )+ &document_title_match()
+            = asciidoctor_mode() &(header_metadata_line_match()* document_title_match())
+              lines:(
+                  eol() { None }
+                  / document_attribute() (eol() / ![_]) { None }
+                  / header_comment() (eol() / ![_]) { None }
+                  / line:header_metadata_line() { Some(line) }
+              )*
+              &document_title_match()
             {
-                let mut metadata = BlockMetadata::default();
-
-                for line in lines {
-                    match line {
-                        AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(state, &mut metadata, anchor)?,
-                        AttributeOrAnchorLine::Attributes(attributes) => {
-                            let attr_metadata = attributes.metadata;
-                            // Merge attribute metadata - last one wins for id/style
-                            if attr_metadata.id.is_some() {
-                                metadata.id = attr_metadata.id;
-                            }
-                            if attr_metadata.style.is_some() {
-                                metadata.style = attr_metadata.style;
-                            }
-                            metadata.roles.append(attr_metadata.roles);
-                            metadata.options.append(attr_metadata.options);
-                            for (name, value) in attr_metadata.attributes.iter() {
-                                metadata.attributes.set(name.clone(), value.clone());
-                            }
-                            metadata.positional_attributes = attr_metadata.positional_attributes;
-                            if attr_metadata.reftext_source.is_some() { metadata.reftext_source = attr_metadata.reftext_source; }
-                        }
-                    }
-                }
-                Ok(metadata)
+                merge_header_metadata(state, lines.into_iter().flatten())
+            }
+            / lines:header_metadata_line()+ &document_title_match()
+            {
+                merge_header_metadata(state, lines)
             }
             / { Ok(BlockMetadata::default()) }
+
+        rule header_metadata_line() -> AttributeOrAnchorLine<'input>
+            = anchor:anchor(0) { AttributeOrAnchorLine::Anchor(anchor) }
+            / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
+
+        // Match a line above the document title without applying it.
+        rule header_metadata_line_match()
+            = eol()
+            / document_attribute_match() (eol() / ![_])
+            / metadata_comment_match()
+            / attribute_or_anchor_line_match()
 
         rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
         // Attribute entries and comments keep each metadata slot open. Consume

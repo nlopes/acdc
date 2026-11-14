@@ -1,0 +1,9 @@
+:a: 1
+
+ifdef::a[]
+:b: 2
+endif::[]
+
+= Title
+
+Body text.

@@ -1,0 +1,116 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "a",
+      "type": "attribute",
+      "value": "1",
+      "location": [
+        {
+          "line": 2,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 5
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Title",
+          "location": [
+            {
+              "line": 5,
+              "col": 3
+            },
+            {
+              "line": 5,
+              "col": 7
+            }
+          ]
+        }
+      ],
+      "level": 0,
+      "metadata": {
+        "roles": [
+          "role"
+        ],
+        "anchors": [
+          {
+            "id": "top",
+            "location": [
+              {
+                "line": 1,
+                "col": 1
+              },
+              {
+                "line": 1,
+                "col": 8
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Para",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 4
+    }
+  ]
+}

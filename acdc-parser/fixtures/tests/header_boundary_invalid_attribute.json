@@ -1,0 +1,65 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "foo",
+      "type": "attribute",
+      "value": true,
+      "location": [
+        {
+          "line": 2,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 5
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "bar\n:c: 3",
+          "location": [
+            {
+              "line": 2,
+              "col": 6
+            },
+            {
+              "line": 3,
+              "col": 5
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 2,
+          "col": 6
+        },
+        {
+          "line": 3,
+          "col": 5
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 3,
+      "col": 5
+    }
+  ]
+}
