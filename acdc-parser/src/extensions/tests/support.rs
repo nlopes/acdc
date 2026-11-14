@@ -1,7 +1,7 @@
 #![allow(clippy::expect_used)]
 
 use acdc_parser::{
-    ElementAttributes, Error,
+    CaptionKind, ElementAttributes, Error,
     extensions::{
         BlockBuilder, BlockMacro, BlockMacroOutput, BlockMacroProcessor, DocumentEditor,
         MacroInvocation, Registry, TreeProcessor, TreeProcessorRegistration,
@@ -64,9 +64,43 @@ pub(super) fn registry() -> Registry {
         .register(BlockMacro::new("query", || Defer))
         .expect("valid query fixture macro");
     builder
+        .register(BlockMacro::new("fixture-build", || Defer))
+        .expect("valid construction fixture macro");
+    builder
+        .register_tree_processor(TreeProcessorRegistration::new("construct", || Construct))
+        .expect("valid construction fixture processor");
+    builder
         .register_tree_processor(TreeProcessorRegistration::new("query", || Query))
         .expect("valid query fixture processor");
     builder.build()
+}
+
+struct Construct;
+
+impl TreeProcessor for Construct {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        let requests: Vec<_> = editor
+            .deferred_blocks()
+            .iter()
+            .filter(|request| request.invocation.name == "fixture-build")
+            .map(|request| {
+                (
+                    request.target().clone(),
+                    request.invocation.target.to_string(),
+                )
+            })
+            .collect();
+        for (target, format) in requests {
+            let content = if format == "image" {
+                BlockBuilder::image("generated.svg").with_attributes("'Alt {label}',320,200")
+            } else {
+                BlockBuilder::literal("<&>\n*literal*\n  spaces")
+                    .with_caption_kind(CaptionKind::Figure)
+            };
+            editor.replace_placeholder(&target, content)?;
+        }
+        Ok(())
+    }
 }
 
 struct Query;

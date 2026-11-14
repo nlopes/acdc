@@ -1,0 +1,28 @@
+= Host construction
+:label: Early
+:figure-caption: Picture
+
+.Image *{label}*
+[#image.keep%nowrap,reftext='Diagram *label*']
+fixture-build::image[]
+
+.Text *{label}*
+[#literal,caption='*Custom* ']
+fixture-build::literal[]
+
+:figure-caption!:
+
+.Unnumbered
+[#disabled]
+fixture-build::literal[]
+
+:figure-caption: Later
+:label: Late
+
+.Last
+[#last]
+fixture-build::image[]
+
+See <<image>>, <<literal>>, <<disabled>>, and <<last>>.
+
+query::[]
