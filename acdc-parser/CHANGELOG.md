@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   title keeps its leading attribute entries in the header however many empty
   lines separate them. Draft mode follows the language documentation: the first
   empty line ends the header, with or without a title, so a title after it is a
-  level-0 section and later entries are body assignments. Without empty lines,
+  level-0 section and later entries are body assignments. The specification
+  hasn't decided this yet, so the Draft mode rule may change. Without empty lines,
   Draft mode also accepts those lines above the title in any order, as
   Asciidoctor mode does; the language documentation doesn't address their order.
   After a title, the first empty line still ends the header in both modes.

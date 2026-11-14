@@ -1266,11 +1266,12 @@ stay in the header however many empty lines separate them. Unlike Asciidoctor,
 an entry that follows the first block's anchor, attribute list, or block title
 is applied in the body. Draft mode follows the
 language documentation: the first empty line ends the header, with or without a
-title, and a title after that line is a level-0 section. Without empty lines,
-both modes accept attribute entries, comments, block anchors, and block attribute
-lists above the title in any order. To group header
-attributes in either mode, separate them with comment lines instead of empty
-lines.
+title, and a title after that line is a level-0 section. The specification
+hasn't decided yet whether the header can contain empty lines, so this Draft
+mode rule may change. Without empty lines, both modes accept attribute entries,
+comments, block anchors, and block attribute lists above the title in any order.
+To group header attributes in either mode, separate them with comment lines
+instead of empty lines.
 
 `DocumentRef::header_location()` returns the source span of the header, with or
 without a title. With a title it equals `HeaderRef::location()`;
