@@ -1,0 +1,5 @@
+:mode: included
+
+record::included[]
+
+defer::included-deferred[title="A, B"]

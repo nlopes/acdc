@@ -1659,6 +1659,51 @@ Add new modules to the appropriate suite's `main.rs`. Allocation measurements,
 tracing tests, fixture support tests, and custom harnesses remain separate targets
 to preserve their isolation. The fixture runner's case names are unchanged.
 
+## Registered extensions
+
+Applications can register block macros and ordered tree processors with
+`extensions::Registry`. Each parse creates fresh processor instances. Block-macro
+callbacks run once when their block commits. `MacroExecutionContext::set_attribute`
+and `unset_attribute` request changes before subsequent conditionals and includes,
+under normal document assignment policy. The invocation retains the original
+source location and a read-only attribute snapshot. Both compatibility modes
+support registrations. Factories are shared; handlers may use document-local,
+non-`Send` state. Completed callback effects remain if later parsing fails.
+
+Nested source ordering supports compound bodies and pipe/exclamation-delimited
+AsciiDoc cells. CSV, TSV, DSV, and custom table separators retain buffered
+preprocessing. Unlike Asciidoctor 2.0.26, callbacks in supported nested bodies can
+affect later directives in the same body. Cell attributes follow the normal
+inheritance policy and stay local. Table-cell duplication repeats handlers over
+the selected source and gives each deferred request a distinct identity.
+A table layout that discards a cell after its callback ran returns a located
+extension error, since those effects cannot be rolled back.
+
+Use `query()` to inspect typed block, content, attribute, and caption views.
+Traversal visits parents before children, including list attachments, compound
+blocks, and AsciiDoc cell documents. `containing_section()` returns the nearest
+section in the same document scope; a cell starts a new scope.
+`BlockView::title_source()` exposes raw title input after document preprocessing,
+inline substitution order, original location, and attributes captured before
+title interpretation. It preserves titles that expand to empty content and the
+quote-dependent policy of attribute titles. `caption()` reads the host's resolved
+prefix and ordinal. Ordinary parser entry points retain no extension title snapshots.
+Queries and borrowed title views end before an edit or ID assignment; query again
+afterward to observe the repaired tree. Copied handle selections remain snapshots.
+Document-local `TargetId` handles survive insertions and placeholder replacement;
+removed handles cannot bind to another block. The scoped `DocumentEditor` builds
+literal paragraphs and lists, assigns IDs, replaces requests, and removes sections.
+Edits repair catalogs and scoped footnotes while preserving surviving section and
+caption numbers. Generated text is literal and is not reparsed.
+ID assignment preserves authored IDs, avoids registered targets and unresolved
+reference names, and reuses assigned IDs. Identical conversions produce the same
+IDs regardless of request order; IDs need not remain stable across document edits.
+
+Call `ExtensionParseResult::finish()` to obtain the ordinary `ParseResult` used
+for conversion or serialization. It rejects unresolved deferred requests at their
+source locations. See the `extensions` module documentation for registration and
+processor examples. An empty registry uses the ordinary parser path.
+
 ## Parser fixtures
 
 We use two fixture styles, and they are intentionally different.

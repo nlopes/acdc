@@ -3149,7 +3149,7 @@ impl<'a, W: Write> BlockVisitor<'a> for MarkdownVisitor<'a, '_, W> {
             | BlockKind::Quote(_)
             | BlockKind::Verse(_)
             | BlockKind::Stem(_) => self.visit_compound_block(traversal, block),
-            _ => {
+            BlockKind::Extension(_) | _ => {
                 self.visit_unhandled_block(traversal, block);
                 Ok(())
             }

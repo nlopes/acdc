@@ -14,7 +14,8 @@
 //! AST) without paying for an empty arena.
 
 use std::{
-    cell::RefCell,
+    borrow::Cow,
+    cell::{OnceCell, RefCell},
     collections::HashMap,
     path::{Path, PathBuf},
     rc::Rc,
@@ -70,6 +71,7 @@ impl SourceFiles {
 pub(crate) struct OwnedInput {
     pub(crate) source: Box<str>,
     pub(crate) arena: Bump,
+    processed_source: OnceCell<Box<str>>,
 }
 
 impl OwnedInput {
@@ -80,7 +82,50 @@ impl OwnedInput {
         // first ~10 chunk-grow round-trips through the global allocator
         // on documents larger than a few KB.
         let arena = Bump::with_capacity(source.len());
-        Self { source, arena }
+        Self {
+            source,
+            arena,
+            processed_source: OnceCell::new(),
+        }
+    }
+
+    pub(crate) fn finish_source<'a>(&'a self, source: Cow<'a, str>) -> &'a str {
+        match source {
+            Cow::Borrowed(source) if std::ptr::eq(source, self.source.as_ref()) => &self.source,
+            source @ (Cow::Borrowed(_) | Cow::Owned(_)) => self
+                .processed_source
+                .get_or_init(|| source.into_owned().into_boxed_str()),
+        }
+    }
+
+    pub(crate) fn preprocessed_source(&self) -> &str {
+        self.processed_source
+            .get()
+            .map_or(&self.source, AsRef::as_ref)
+    }
+}
+
+#[cfg(test)]
+mod source_storage_tests {
+    #[test]
+    fn ordered_pass_through_keeps_one_complete_source_buffer() -> Result<(), crate::Error> {
+        for paragraphs in [100, 1000] {
+            let input = "A *formatted* paragraph.\n\n".repeat(paragraphs);
+            let parsed = crate::parse_with_source_handler(
+                &input,
+                &crate::Options::default(),
+                None,
+                Some(&mut ()),
+            )?;
+            let owner = parsed.cell.borrow_owner();
+            assert!(owner.processed_source.get().is_none());
+            assert!(std::ptr::eq(
+                parsed.preprocessed_source(),
+                owner.source.as_ref()
+            ));
+            assert!(owner.arena.allocated_bytes() <= 8 * input.len() + 16_384);
+        }
+        Ok(())
     }
 }
 
@@ -178,6 +223,43 @@ impl ParseResult {
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Document<'a>, E>,
     ) -> Result<Self, E> {
         let cell = ParsedDocumentCell::try_new(owner, builder)?;
+        Ok(Self::from_cell(
+            cell,
+            warnings_handle,
+            source_files,
+            conditionals,
+        ))
+    }
+
+    pub(crate) fn try_new_with_metadata<E>(
+        owner: OwnedInput,
+        warnings_handle: Rc<RefCell<WarningCollection>>,
+        builder: impl for<'a> FnOnce(
+            &'a OwnedInput,
+            &mut SourceFiles,
+            &mut Vec<ConditionalEvaluation>,
+        ) -> Result<Document<'a>, E>,
+    ) -> Result<Self, E> {
+        let mut source_files = SourceFiles::default();
+        let mut conditionals = Vec::new();
+        let cell = ParsedDocumentCell::try_new(owner, |owner| {
+            builder(owner, &mut source_files, &mut conditionals)
+        })?;
+        Ok(Self::from_cell(
+            cell,
+            warnings_handle,
+            source_files,
+            conditionals,
+        ))
+    }
+
+    #[inline]
+    fn from_cell(
+        cell: ParsedDocumentCell,
+        warnings_handle: Rc<RefCell<WarningCollection>>,
+        source_files: SourceFiles,
+        conditionals: Vec<ConditionalEvaluation>,
+    ) -> Self {
         let warnings = recover_warnings(warnings_handle);
         let source_recovery = warnings
             .iter()
@@ -195,13 +277,13 @@ impl ParseResult {
                 )
             })
             .map(|warning| Box::new(Warning::new(warning.kind.clone(), warning.location.clone())));
-        Ok(Self {
+        Self {
             cell,
             warnings,
             source_recovery,
             source_files,
             conditionals,
-        })
+        }
     }
 
     /// Read the document through typed handles and iterators.
@@ -222,9 +304,38 @@ impl ParseResult {
         crate::ast::DocumentRef::from(self.cell.borrow_dependent())
     }
 
-    #[cfg(test)]
     pub(crate) fn document_storage(&self) -> &Document<'_> {
         self.cell.borrow_dependent()
+    }
+
+    pub(crate) fn with_document_mut<R>(
+        &mut self,
+        edit: impl for<'a> FnOnce(&'a OwnedInput, &mut Document<'a>) -> R,
+    ) -> R {
+        self.cell.with_dependent_mut(edit)
+    }
+
+    pub(crate) fn replace_reference_warnings(&mut self, warnings: Vec<Warning>) {
+        self.warnings.retain(|warning| {
+            !matches!(
+                warning.kind,
+                WarningKind::UnresolvedReference { .. } | WarningKind::DuplicateId { .. }
+            )
+        });
+        let mut combined = WarningCollection::default();
+        for warning in std::mem::take(&mut self.warnings) {
+            combined.push(warning);
+        }
+        for mut warning in warnings {
+            if let Some(source) = &mut warning.location {
+                *source = self.source_location(&source.location);
+            }
+            if let WarningKind::DuplicateId { first, .. } = &mut warning.kind {
+                **first = self.source_location(&first.location);
+            }
+            combined.push_unique_from(warning, 0);
+        }
+        self.warnings = combined.into_vec();
     }
 
     /// Borrow the preprocessed source the AST was parsed from.
@@ -234,7 +345,7 @@ impl ParseResult {
     /// caller input.
     #[must_use]
     pub fn preprocessed_source(&self) -> &str {
-        &self.cell.borrow_owner().source
+        self.cell.borrow_owner().preprocessed_source()
     }
 
     /// Resolve a location from this result's AST to its original source file and position.

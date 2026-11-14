@@ -1,0 +1,29 @@
+[#gone]
+== Removed
+
+.First example
+====
+Removed
+====
+
+== Kept
+
+[#survivor]
+.Second example
+====
+Kept
+====
+
+:example-caption: Early
+
+[#custom]
+.Custom example
+[example,caption="Custom "]
+defer::custom[]
+
+[#automatic]
+.New example
+[example]
+defer::automatic[]
+
+:example-caption: Late

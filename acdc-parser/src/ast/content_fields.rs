@@ -139,6 +139,7 @@ impl<'doc> StructuralRef<'doc> {
                     | BlockKind::Audio(_)
                     | BlockKind::Video(_)
                     | BlockKind::Comment(_)
+                    | BlockKind::Extension(_)
                     | BlockKind::Stem(_) => (Body, None),
                 };
                 let metadata = block.attributes().and_then(super::AttributesRef::metadata);

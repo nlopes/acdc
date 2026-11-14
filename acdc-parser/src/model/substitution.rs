@@ -98,6 +98,15 @@ impl SubstitutionPlan {
         Self::from_substitutions(Self::defaults(mode))
     }
 
+    pub(crate) fn for_attribute(mode: CompatibilityMode) -> Self {
+        let plan = Self::default();
+        if mode == CompatibilityMode::Draft {
+            plan.without(&Substitution::Attributes)
+        } else {
+            plan
+        }
+    }
+
     pub(crate) fn for_block_spec(spec: &SubstitutionSpec, mode: CompatibilityMode) -> Self {
         // Parser defaults include callout discovery for verbatim blocks. Resolve once:
         // filling missing stages afterwards would restore removed group members.
@@ -148,6 +157,16 @@ impl SubstitutionPlan {
                 .and_then(|index| self.ranks.get(index))
                 .copied()
         });
+        stages
+    }
+
+    pub(crate) fn stages(self) -> Vec<Substitution> {
+        let mut stages: Vec<_> = DEFAULT_PARSER_SUBSTITUTIONS
+            .iter()
+            .filter(|stage| self.enabled(stage))
+            .cloned()
+            .collect();
+        stages.sort_by_key(|stage| substitution_stage_index(stage).and_then(|i| self.ranks.get(i)));
         stages
     }
 }

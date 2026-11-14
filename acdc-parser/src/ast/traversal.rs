@@ -107,6 +107,7 @@ impl<'doc> StructuralRef<'doc> {
                 | BlockKind::Literal(_)
                 | BlockKind::Passthrough(_)
                 | BlockKind::Verse(_)
+                | BlockKind::Extension(_)
                 | BlockKind::Stem(_) => Children::Empty,
             },
             Self::ListItem(item) => Children::Blocks(item.node.blocks.iter()),

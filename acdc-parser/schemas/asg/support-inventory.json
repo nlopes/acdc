@@ -3972,6 +3972,9 @@
           "DocumentAttribute": [
             "0"
           ],
+          "Extension": [
+            "0"
+          ],
           "Image": [
             "0"
           ],
@@ -4069,6 +4072,12 @@
         "DocumentAttribute.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
+        },
+        "variant:Extension": {
+          "policy": "unsupported"
+        },
+        "Extension.0": {
+          "policy": "unsupported"
         },
         "variant:Image": {
           "policy": "candidate",
@@ -5670,7 +5679,8 @@
       "shape": {
         "kind": "struct",
         "fields": [
-          "0"
+          "content",
+          "source"
         ],
         "variants": {}
       },
@@ -5679,9 +5689,12 @@
         "upstream": "#/$defs/inlines"
       },
       "properties": {
-        "0": {
+        "content": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlines"
+        },
+        "source": {
+          "policy": "source-state"
         }
       },
       "strict_export_group": "core"
@@ -6004,6 +6017,10 @@
         {
           "file": "src/asg/projection.rs",
           "name": "unresolved_macro_and_callout_owners_are_rejected"
+        },
+        {
+          "file": "src/extensions/tests/mod.rs",
+          "name": "extensions_pending_blocks_are_rejected_by_checked_asg_exports"
         },
         {
           "file": "tests/asg/asg_references.rs",

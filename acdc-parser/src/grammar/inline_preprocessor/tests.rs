@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use super::*;
 use crate::{AttributeValue, DocumentAttributes};
 
@@ -28,8 +30,11 @@ fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
         pass_found_count: Cell::new(0),
         passthroughs: RefCell::new(Vec::new()),
         current_offset: Cell::new(0),
-        line_map: Rc::new(LineMap::new(content)),
-        full_input: content,
+        source: SourceView {
+            input: content,
+            line_map: Rc::new(crate::grammar::LineMap::new(content)),
+            origin: None,
+        },
         arena,
         source_map: RefCell::new(SourceMap::default()),
         input: RefCell::new(content),
@@ -743,8 +748,11 @@ fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'
         pass_found_count: Cell::new(0),
         passthroughs: RefCell::new(Vec::new()),
         current_offset: Cell::new(0),
-        line_map: Rc::new(LineMap::new(content)),
-        full_input: content,
+        source: SourceView {
+            input: content,
+            line_map: Rc::new(crate::grammar::LineMap::new(content)),
+            origin: None,
+        },
         arena,
         source_map: RefCell::new(SourceMap::default()),
         input: RefCell::new(content),

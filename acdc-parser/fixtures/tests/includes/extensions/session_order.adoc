@@ -1,0 +1,7 @@
+record::{mode}[]
+
+configure::mode[included]
+
+ifdef::mode[]
+record::{mode}["a,b",second=""]
+endif::[]

@@ -1,4 +1,9 @@
-use super::{document_parser, paragraph::paragraph_text_end};
+use super::{
+    construction::ConstructionMode,
+    coordinator::{BlockCursor, BlockStepKind},
+    document as parse_document, document_parser,
+    paragraph::paragraph_text_end,
+};
 use crate::{
     Anchor, AttributeValue, Block, CommentKind, CompatibilityMode, DelimitedBlock,
     DelimitedBlockType, Document, Error, Image, InlineMacro, InlineNode, Location, Options, Plain,
@@ -7,6 +12,208 @@ use crate::{
     model::{Caption, CaptionKind, SectionKind},
     parse,
 };
+
+#[test]
+fn block_cursor_does_not_apply_later_attributes_before_advancing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let input = "before\n\n:later: value\n\n{later}";
+    let mut state = ParserState::new_for_test(input);
+    let prefix = document_parser::document_prefix(input, &mut state)??;
+    let mut cursor = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
+
+    let first = cursor.advance(input, &mut state)??;
+    assert!(matches!(
+        first.kind,
+        BlockStepKind::Block(Block::Paragraph(_))
+    ));
+    assert_eq!(state.document_attributes.text("later"), None);
+
+    let assignment = cursor.advance(input, &mut state)??;
+    assert!(matches!(
+        assignment.kind,
+        BlockStepKind::Block(Block::DocumentAttribute(_))
+    ));
+    assert_eq!(state.document_attributes.text("later"), Some("value"));
+
+    let last = cursor.advance(input, &mut state)??;
+    let BlockStepKind::Block(Block::Paragraph(paragraph)) = last.kind else {
+        return Err("expected the final paragraph".into());
+    };
+    assert!(
+        matches!(paragraph.content.as_slice(), [InlineNode::PlainText(plain)] if plain.content == "value")
+    );
+    assert!(matches!(
+        cursor.advance(input, &mut state)??.kind,
+        BlockStepKind::End(_)
+    ));
+    Ok(())
+}
+
+#[test]
+fn block_cursor_applies_a_committed_change_to_the_next_block()
+-> Result<(), Box<dyn std::error::Error>> {
+    let input = "before\n\n{extension-value}";
+    let mut state = ParserState::new_for_test(input);
+    let prefix = document_parser::document_prefix(input, &mut state)??;
+    let mut cursor = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
+    let first = cursor.advance(input, &mut state)??;
+    assert!(matches!(first.kind, BlockStepKind::Block(_)));
+
+    std::rc::Rc::make_mut(&mut state.document_attributes)
+        .set_text("extension-value".into(), "after".into());
+    let second = cursor.advance(input, &mut state)??;
+    let BlockStepKind::Block(Block::Paragraph(paragraph)) = second.kind else {
+        return Err("expected a paragraph after the committed change".into());
+    };
+    assert!(
+        matches!(paragraph.content.as_slice(), [InlineNode::PlainText(plain)] if plain.content == "after")
+    );
+    Ok(())
+}
+
+#[test]
+fn block_cursor_commits_section_headers_before_their_children()
+-> Result<(), Box<dyn std::error::Error>> {
+    for heading in ["== Parent", "Parent\n------"] {
+        let input = format!(
+            "{heading}\n\nfirst\n\n=== Child\n\n{{committed}}\n\n:later: value\n\n== Sibling\n\nend"
+        );
+        let mut state = ParserState::new_for_test(&input);
+        let prefix = document_parser::document_prefix(&input, &mut state)??;
+        let mut root = BlockCursor::new(prefix.body_offset, ConstructionMode::Ordered);
+        let first = root.advance(&input, &mut state)??;
+        let BlockStepKind::Block(Block::Section(parent)) = first.kind else {
+            return Err("expected a committed section header".into());
+        };
+        assert_eq!(parent.content, Vec::<Block<'_>>::new());
+        assert_eq!(state.document_attributes.text("later"), None);
+        assert_eq!(state.toc_entries.len(), 1);
+
+        let mut body = root.section(&parent, &state);
+        assert!(matches!(
+            body.advance(&input, &mut state)??.kind,
+            BlockStepKind::Block(Block::Paragraph(_))
+        ));
+        let next = body.advance(&input, &mut state)??;
+        let BlockStepKind::Block(Block::Section(child)) = next.kind else {
+            return Err("expected a committed child heading".into());
+        };
+        assert_eq!(child.content, Vec::<Block<'_>>::new());
+        assert_eq!(state.document_attributes.text("later"), None);
+
+        std::rc::Rc::make_mut(&mut state.document_attributes)
+            .set_text("committed".into(), "visible".into());
+        let mut child_body = body.section(&child, &state);
+        let next = child_body.advance(&input, &mut state)??;
+        let BlockStepKind::Block(Block::Paragraph(paragraph)) = next.kind else {
+            return Err("expected a paragraph after the committed child heading".into());
+        };
+        assert!(matches!(
+            paragraph.content.as_slice(),
+            [InlineNode::PlainText(plain)] if plain.content == "visible"
+        ));
+        assert_eq!(state.document_attributes.text("later"), None);
+        assert!(matches!(
+            child_body.advance(&input, &mut state)??.kind,
+            BlockStepKind::Block(Block::DocumentAttribute(_))
+        ));
+        let end = child_body.advance(&input, &mut state)??;
+        assert!(matches!(end.kind, BlockStepKind::End(_)));
+        assert!(
+            input
+                .get(end.end..)
+                .is_some_and(|tail| tail.contains("== Sibling"))
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn section_driver_executes_accepted_handlers_once_in_source_order()
+-> Result<(), Box<dyn std::error::Error>> {
+    let input = "== Parent\n\n{value}\n\n=== Child\n\n{value}\n\n== Sibling\n\n{value}";
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let arena = bumpalo::Bump::new();
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let mut state = ParserState::new(input, &arena, std::rc::Rc::new(options));
+        let mut accepted = Vec::new();
+        let document = super::coordinator::document_with(
+            input,
+            &mut state,
+            ConstructionMode::Ordered,
+            &mut |block, state| {
+                accepted.push(block.location().absolute_start);
+                if let Block::Section(section) = block {
+                    assert_eq!(section.content, Vec::<Block<'_>>::new());
+                    let value = match section.level {
+                        1 => "outer",
+                        2 => "inner",
+                        _ => {
+                            return Err(Error::Extension(
+                                Box::new(
+                                    state.create_error_source_location(section.location.clone()),
+                                ),
+                                "unexpected section".into(),
+                            ));
+                        }
+                    };
+                    std::rc::Rc::make_mut(&mut state.document_attributes)
+                        .set_text("value".into(), value.into());
+                }
+                Ok(())
+            },
+        )??;
+        assert_eq!(accepted.len(), 6);
+        assert!(accepted.windows(2).all(|pair| pair[0] < pair[1]));
+        let [Block::Section(parent), Block::Section(sibling)] = document.blocks.as_slice() else {
+            return Err("expected parent and sibling sections".into());
+        };
+        let [Block::Paragraph(outer), Block::Section(child)] = parent.content.as_slice() else {
+            return Err("expected paragraph and child section".into());
+        };
+        let [Block::Paragraph(inner)] = child.content.as_slice() else {
+            return Err("expected child paragraph".into());
+        };
+        let [Block::Paragraph(last)] = sibling.content.as_slice() else {
+            return Err("expected sibling paragraph".into());
+        };
+        for (paragraph, expected) in [(outer, "outer"), (inner, "inner"), (last, "outer")] {
+            assert!(matches!(
+                paragraph.content.as_slice(),
+                [InlineNode::PlainText(plain)] if plain.content == expected
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn section_driver_stops_before_later_children_when_a_handler_fails()
+-> Result<(), Box<dyn std::error::Error>> {
+    let input = "== Parent\n\nfirst\n\n=== Later\n\n:later: value";
+    let mut state = ParserState::new_for_test(input);
+    let mut calls = 0;
+    let result = super::coordinator::document_with(
+        input,
+        &mut state,
+        ConstructionMode::Ordered,
+        &mut |block, state| {
+            calls += 1;
+            if matches!(block, Block::Paragraph(_)) {
+                return Err(Error::Extension(
+                    Box::new(state.create_error_source_location(block.location().clone())),
+                    "deliberate accepted-handler failure".into(),
+                ));
+            }
+            Ok(())
+        },
+    )?;
+    assert!(matches!(result, Err(Error::Extension(..))));
+    assert_eq!(calls, 2);
+    assert_eq!(state.toc_entries.len(), 1);
+    assert_eq!(state.document_attributes.text("later"), None);
+    Ok(())
+}
 
 #[test]
 fn paragraph_runs_stop_before_line_boundaries_and_anchor_openers() {
@@ -45,7 +252,7 @@ v2.9, 01-09-2024: Fall incarnation
 :sectanchors:
 :url-repo: https://my-git-repo.com";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert_eq!(
@@ -272,7 +479,7 @@ Roberto Avanzi
 v2.0, 2026-01-15: rel
 :foo: bar";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let header = result.header.expect("document has a header");
     assert_eq!(header.authors.len(), 1);
     assert_eq!(header.authors[0].first_name, "Roberto");
@@ -290,7 +497,7 @@ v2.0, 2026-01-15: rel
 fn test_authorcount_defaults_to_zero_without_author() -> Result<(), Error> {
     let input = "= T\n\nbody";
     let mut state = ParserState::new_for_test(input);
-    document_parser::document(input, &mut state)??;
+    parse_document(input, &mut state)??;
     assert_eq!(state.document_attributes.text("authorcount"), Some("0"));
     Ok(())
 }
@@ -400,7 +607,7 @@ fn test_title_only_document_is_doctitle() -> Result<(), Error> {
     // single-line `= Doc Title\n` source.
     let input = "= Doc Title";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let header = doc.header.expect("title-only doc should have a header");
     assert_eq!(header.title.len(), 1);
     assert_eq!(
@@ -638,7 +845,7 @@ fn test_toc_simple() -> Result<(), Error> {
     let input =
         "= Document Title\n\n== Section 1\n\nSome content.\n\n== Section 2\n\nMore content.";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     assert_eq!(result.toc_entries.len(), 2);
     assert_eq!(result.toc_entries[0].level, 1);
@@ -653,7 +860,7 @@ fn test_toc_simple() -> Result<(), Error> {
 fn test_toc_tree() -> Result<(), Error> {
     let input = "= Document Title\n\n== Section A\n\nContent A.\n\n=== Section A.1\n\nContent A.1\n\n== Section B\n\nContent B.";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     assert_eq!(result.toc_entries.len(), 3);
     assert_eq!(result.toc_entries[0].id, "_section_a");
@@ -669,7 +876,7 @@ fn test_section_kind_classifies_special_sections() -> Result<(), Error> {
     // handles any suppression inherited from a special parent.
     let input = "= Title\n\n[preface]\n== Introduction\n\nintro\n\n=== Features\n\nfeatures\n\n== Real Chapter\n\ntext";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let mut sections = Vec::new();
     fn collect<'a, 'b>(blocks: &'b [Block<'a>], out: &mut Vec<&'b Section<'a>>) {
@@ -700,7 +907,7 @@ fn test_section_kind_appendix() -> Result<(), Error> {
     // `[appendix]` is classified as Appendix; its plain subsection is Normal.
     let input = "= Title\n:doctype: book\n\n[appendix]\n== App\n\napp\n\n=== App Sub\n\nsub";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     assert_eq!(result.toc_entries.len(), 2);
     assert_eq!(result.toc_entries[0].kind, SectionKind::Appendix);
@@ -713,7 +920,7 @@ fn test_section_kind_appendix() -> Result<(), Error> {
 fn test_toc_empty_document() -> Result<(), Error> {
     let input = "= Document Title\n\nJust some content without sections.";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     assert_eq!(result.toc_entries.len(), 0);
     Ok(())
 }
@@ -727,7 +934,7 @@ fn test_setext_document_title() -> Result<(), Error> {
 Some content.
 ";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert!(
@@ -747,7 +954,7 @@ Section One
 Content.
 ";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let section = result.blocks.iter().find_map(|b| {
         if let Block::Section(s) = b {
@@ -788,7 +995,7 @@ Section One
 Content here.
 ";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
     assert!(
@@ -838,7 +1045,7 @@ Section C
 Content C.
 ";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
     assert!(
@@ -894,7 +1101,7 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 1 with -
     let input = "= Doc\n\nLevel One\n---------\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let section = result
         .blocks
         .iter()
@@ -911,7 +1118,7 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 2 with ~
     let input = "= Doc\n\nLevel Two\n~~~~~~~~~\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let section = result
         .blocks
         .iter()
@@ -928,7 +1135,7 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 3 with ^
     let input = "= Doc\n\nLevel Three\n^^^^^^^^^^^\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let section = result
         .blocks
         .iter()
@@ -945,7 +1152,7 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
     // Test level 4 with +
     let input = "= Doc\n\nLevel Four\n++++++++++\n\nContent.\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let section = result
         .blocks
         .iter()
@@ -967,7 +1174,7 @@ fn test_setext_all_underline_characters() -> Result<(), Error> {
 fn test_setext_manpage_style_document() -> Result<(), Error> {
     let input = "gitdatamodel(7)\n===============\n\nNAME\n----\ngitdatamodel - Git's core data model\n\nSYNOPSIS\n--------\ngitdatamodel\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let header = result.header.expect("document has a header");
     assert!(
@@ -1073,7 +1280,7 @@ fn test_index_term_flow() -> Result<(), Error> {
 
     let input = "= Test\n\nThis is about ((Arthur)) the king.\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let paragraph = result
         .blocks
@@ -1111,7 +1318,7 @@ fn test_index_term_concealed() -> Result<(), Error> {
 
     let input = "= Test\n\n(((Sword, Broadsword)))This is a concealed index term.\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let paragraph = result
         .blocks
@@ -1168,7 +1375,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
 
     let input = "image::photo.jpg[Diablo 4 picture of Lilith.]";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
         img.alt
@@ -1186,7 +1393,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     // Test .role as literal text (not a shorthand)
     let input = "image::photo.jpg[.role]";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
         img.alt
@@ -1208,7 +1415,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
     // Test #id as literal text (not a shorthand)
     let input = "image::photo.jpg[Issue #42]";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
         img.alt
@@ -1229,7 +1436,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
 
     let input = "image::photo.jpg[role=thumbnail]";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
     let img = get_image(&result);
     assert_eq!(
         img.metadata.roles.as_slice(),
@@ -1245,7 +1452,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
 fn test_block_macro_uses_last_closing_bracket() -> Result<(), Error> {
     let input = "image::foo.svg[role=inline][100,100]\n\n[.lead]\nHello\n";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::document(input, &mut state)??;
+    let result = parse_document(input, &mut state)??;
 
     let image = result.blocks.iter().find_map(|block| {
         if let Block::Image(image) = block {
@@ -1355,7 +1562,7 @@ fn test_grammar_warning_falls_back_to_entry_file() {
 fn test_first_section_not_level_1_emits_warning() -> Result<(), Error> {
     let input = "= Doc Title\n\n=== Starts at level 2\n\nContent\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     let warning = warnings
         .iter()
@@ -1382,7 +1589,7 @@ fn test_first_section_not_level_1_emits_warning() -> Result<(), Error> {
 fn test_level0_appendix_level2_subsection_no_warning() -> Result<(), Error> {
     let input = "= Book\n:doctype: book\n\n= Part One\n\n== Chapter\n\nbody\n\n[appendix]\n= App Part\n\nintro\n\n=== First Subsection\n\nbody\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -1398,7 +1605,7 @@ fn test_level0_preface_level2_subsection_no_warning() -> Result<(), Error> {
     let input =
         "= Book\n:doctype: book\n\n[preface]\n= Preface\n\nintro\n\n=== Background\n\nbody\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -1416,7 +1623,7 @@ fn test_level0_preface_level2_subsection_no_warning() -> Result<(), Error> {
 fn test_level0_appendix_level3_child_still_warns() -> Result<(), Error> {
     let input = "= Book\n:doctype: book\n\n= Part One\n\n== Chapter\n\nbody\n\n[appendix]\n= App Part\n\nintro\n\n==== Too Deep\n\nbody\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         warnings.iter().any(|w| matches!(
@@ -1438,7 +1645,7 @@ fn test_level0_appendix_level3_child_still_warns() -> Result<(), Error> {
 fn test_titleless_preamble_then_deep_section_emits_warning() -> Result<(), Error> {
     let input = "term:: desc\n\n===== Deep\n\ntext\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         warnings.iter().any(|w| matches!(
@@ -1459,7 +1666,7 @@ fn test_titleless_preamble_then_deep_section_emits_warning() -> Result<(), Error
 fn test_titleless_bare_deep_section_no_warning() -> Result<(), Error> {
     let input = "===== Deep\n\ntext\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -1477,7 +1684,7 @@ fn test_titleless_bare_deep_section_no_warning() -> Result<(), Error> {
 fn test_multiple_top_level_sections_each_warn() -> Result<(), Error> {
     let input = "= Doc Title\n\n===== One\n\ntext\n\n===== Two\n\ntext\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     let count = warnings
         .iter()
@@ -1504,7 +1711,7 @@ fn test_multiple_top_level_sections_each_warn() -> Result<(), Error> {
 fn test_bare_deep_section_siblings_no_warning() -> Result<(), Error> {
     let input = "===== One\n\ntext\n\n===== Two\n\ntext\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -1524,7 +1731,7 @@ fn test_comment_style_block_dropped() -> Result<(), Error> {
     let input =
         "[comment]\n--\nhidden\n\n== Hidden heading\n--\n\n[comment]\nhidden para.\n\nVisible.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     assert_eq!(doc.blocks.len(), 3);
 
     // The open block: a `--`-delimited DelimitedComment (no leftover
@@ -1565,7 +1772,7 @@ fn test_comment_style_block_dropped() -> Result<(), Error> {
 fn test_comment_style_on_listing_renders() -> Result<(), Error> {
     let input = "[comment]\n----\nvisible\n----\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     assert_eq!(doc.blocks.len(), 1);
     assert!(
         matches!(
@@ -1584,7 +1791,7 @@ fn test_comment_style_on_listing_renders() -> Result<(), Error> {
 fn test_unresolved_reference_warns() -> Result<(), Error> {
     let input = "A paragraph.\n\nSee <<missing>>.\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         warnings.iter().any(|w| matches!(
@@ -1602,7 +1809,7 @@ fn test_unresolved_reference_warns() -> Result<(), Error> {
 fn test_inline_anchor_reference_resolves() -> Result<(), Error> {
     let input = "Some text [[here]] in a paragraph.\n\nSee <<here>>.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     assert!(doc.references.contains_key("here"));
     let warnings = state.warnings.borrow();
     assert!(
@@ -1623,7 +1830,7 @@ fn test_formatted_inline_ids_resolve_cross_references() -> Result<(), Error> {
 See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id>>, <<double-id>>, and <<single-id>>.
 "#;
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
 
     for id in [
         "bold-id",
@@ -1665,7 +1872,7 @@ link:https://example.net[,id=bare-id]
 After: <<link-id>>, <<url-id>>, <<mailto-id>>, and <<bare-id>>.
 ";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
 
     for id in ["link-id", "url-id", "mailto-id", "bare-id"] {
         let Some(reference) = doc.references.get(id) else {
@@ -1693,7 +1900,7 @@ link:https://example.org[Second,id=duplicate]
 link:https://example.net[Text,positional-id]
 ";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
 
     assert_eq!(
         doc.references
@@ -1715,7 +1922,7 @@ link:https://example.net[Text,positional-id]
 fn test_callout_item_inline_anchor_resolves() -> Result<(), Error> {
     let input = "----\ncode <1>\n----\n<1> Note with an [[cnote]] anchor.\n\nSee <<cnote>>.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     assert!(doc.references.contains_key("cnote"));
     let warnings = state.warnings.borrow();
     assert!(
@@ -1731,7 +1938,7 @@ fn test_callout_item_inline_anchor_resolves() -> Result<(), Error> {
 fn test_callout_item_explicit_continuation_attaches_block() -> Result<(), Error> {
     let input = "----\nfirst <1>\nsecond <2>\n----\n<1> First explanation.\n+\nAttached paragraph.\n<2> Second explanation.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let list = doc
         .blocks
         .iter()
@@ -1881,7 +2088,7 @@ fn nested_list_principals_keep_plus_prefixed_text(
 fn test_titled_block_collected_in_references() -> Result<(), Error> {
     let input = "[[data-table]]\n.Important Data\n[cols=\"1,1\"]\n|===\n| a | b\n|===\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let entry = doc
         .references
         .get("data-table")
@@ -1902,7 +2109,7 @@ fn test_titled_block_collected_in_references() -> Result<(), Error> {
 fn natural_title_cross_references_resolve_to_section_ids() -> Result<(), Error> {
     let input = "Generated: <<Syntax Highlighting>>.\n\nCustom: <<Syntax Highlighting,section>>.\n\nExplicit: <<explicit-id>>.\n\nExplicit title: <<Explicit Title>>.\n\nMissing: <<Missing Title>>.\n\n== Syntax Highlighting\n\n[#explicit-id]\n== Explicit Title\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let xrefs = doc
         .blocks
         .iter()
@@ -1950,7 +2157,7 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
 -> Result<(), Box<dyn std::error::Error>> {
     let input = include_str!("../../../fixtures/tests/named_section_reftext_cross_references.adoc");
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let reference = doc.references.get("id").ok_or("missing id reference")?;
     assert!(
         matches!(
@@ -2041,7 +2248,7 @@ fn passthrough_xref_warnings_use_restored_targets_and_source_locations() -> Resu
 fn compat_mode_skips_natural_title_cross_reference_resolution() -> Result<(), Error> {
     let input = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\n\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let targets = doc
         .blocks
         .iter()
@@ -2081,7 +2288,7 @@ fn compat_mode_skips_natural_title_cross_reference_resolution() -> Result<(), Er
 fn compat_mode_natural_reference_resolution_follows_source_position() -> Result<(), Error> {
     let input = "Before set: <<First Natural>>.\n\n:compat-mode:\n\nAfter set: <<Second Natural>>.\n\n:compat-mode!:\n\nAfter unset: <<Third Natural>>.\n\n== First Natural\n\n== Second Natural\n\n== Third Natural\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let targets = doc
         .blocks
         .iter()
@@ -2123,7 +2330,7 @@ fn compat_mode_natural_reference_resolution_follows_source_position() -> Result<
 fn interdocument_xref_macro_targets_are_not_naturally_resolved() -> Result<(), Error> {
     let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let targets = doc
         .blocks
         .iter()
@@ -2155,7 +2362,7 @@ fn interdocument_xref_macro_targets_are_not_naturally_resolved() -> Result<(), E
 fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Error> {
     let input = "See <<Setext Title>>.\n\nSetext Title\n------------\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let xrefs = doc
         .blocks
         .iter()
@@ -2180,7 +2387,7 @@ fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Err
 fn captioned_references_keep_source_order_xrefstyle_and_target_caption() -> Result<(), Error> {
     let input = "= Caption references\n:xrefstyle: short\n\nShort: <<figure-target>>.\n\n:table-caption: ReferenceTable\n:xrefstyle: full\n\nFull: <<table-target>>.\n\n:xrefstyle: basic\n\nBasic: <<figure-target>>.\n\n:table-caption:\n:xrefstyle: short\n\nNumber only: <<table-target>>.\n\n:table-caption!:\n\nTarget label: <<table-target>>.\n\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure\nimage::figure.svg[]\n\n[[table-target]]\n.A table\n|===\n|Cell\n|===\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let xrefs = doc
         .blocks
         .iter()
@@ -2250,7 +2457,7 @@ fn captioned_references_keep_source_order_xrefstyle_and_target_caption() -> Resu
 fn test_titled_single_line_admonition_keeps_reference_title() -> Result<(), Error> {
     let input = "[[notice]]\n.Admonition *Title*\nNOTE: note\n\nSee <<notice>>.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let entry = doc
         .references
         .get("notice")
@@ -2289,7 +2496,7 @@ fn test_titled_single_line_admonition_keeps_reference_title() -> Result<(), Erro
 fn test_untitled_block_in_references_without_reftext() -> Result<(), Error> {
     let input = "[[untitled]]\n[cols=\"1,1\"]\n|===\n| a | b\n|===\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let entry = doc
         .references
         .get("untitled")
@@ -2309,7 +2516,7 @@ fn test_untitled_block_in_references_without_reftext() -> Result<(), Error> {
 fn test_duplicate_id_keeps_first_reference_text() -> Result<(), Error> {
     let input = "[[dup]]\n.Titled Block\n====\nbody\n====\n\nA [#dup]*bold* span.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let entry = doc
         .references
         .get("dup")
@@ -2334,7 +2541,7 @@ fn test_duplicate_id_keeps_first_reference_text() -> Result<(), Error> {
 fn test_reference_label_is_parsed_as_inlines() -> Result<(), Error> {
     let input = "Some [[labelled,*Bold* label]]text.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let label = doc
         .references
         .get("labelled")
@@ -2361,7 +2568,7 @@ fn test_reference_label_is_parsed_as_inlines() -> Result<(), Error> {
 fn test_reference_label_restores_passthrough_syntax() -> Result<(), Error> {
     let input = "Some [[labelled,+++<mark>Label</mark>+++]]text.\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     let label = doc
         .references
         .get("labelled")
@@ -2384,7 +2591,7 @@ fn test_reference_label_restores_passthrough_syntax() -> Result<(), Error> {
 fn test_nested_passthrough_retains_substitution_policy() -> Result<(), Error> {
     let input = "*before +++<mark>nested</mark>+++ after*\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
     assert!(
         matches!(
             &doc.blocks[..],
@@ -2415,7 +2622,7 @@ fn test_nested_passthrough_retains_substitution_policy() -> Result<(), Error> {
 fn test_non_standard_author_line_emits_warning() -> Result<(), Error> {
     let input = "= Doc Title\nAuthor: Roberto Avanzi (Lead), Ruud Derwig\n:foo: bar\n\nBody.\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     let warning = warnings
         .iter()
@@ -2440,7 +2647,7 @@ fn test_non_standard_author_line_emits_warning() -> Result<(), Error> {
 fn test_legacy_float_discrete_heading_warns() -> Result<(), Error> {
     let input = "== Parent\n\n[float]\n==== Floating\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         warnings
@@ -2463,7 +2670,7 @@ fn test_no_legacy_float_warning() -> Result<(), Error> {
         "= Doc\n\n[#f,float]\n=== Ordinary Section\n",
     ] {
         let mut state = ParserState::new_for_test(input);
-        let _ = document_parser::document(input, &mut state)??;
+        let _ = parse_document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
             !warnings
@@ -2481,7 +2688,7 @@ fn test_no_legacy_float_warning() -> Result<(), Error> {
 fn test_standard_author_line_no_warning() -> Result<(), Error> {
     let input = "= Doc Title\nRoberto Avanzi\n:foo: bar\n\nBody.\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -2500,7 +2707,7 @@ fn test_incomplete_final_row_emits_dropping_warning() -> Result<(), Error> {
     // The lone `|g` on line 5 cannot complete a 3-column row.
     let input = "[cols=\"3*\"]\n|===\n|a |b |c\n|d |e |f\n|g\n|===\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     let warning = warnings
         .iter()
@@ -2519,7 +2726,7 @@ fn test_incomplete_final_row_emits_dropping_warning() -> Result<(), Error> {
 fn test_first_section_without_doc_title_does_not_warn() -> Result<(), Error> {
     let input = "=== No title above me\n\nContent\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -2535,7 +2742,7 @@ fn test_first_section_without_doc_title_does_not_warn() -> Result<(), Error> {
 fn test_first_section_level_1_no_warning() -> Result<(), Error> {
     let input = "= Doc Title\n\n== Good\n\n=== Nested\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -2553,7 +2760,7 @@ fn test_first_section_level_1_no_warning() -> Result<(), Error> {
 fn test_unterminated_pipe_table_emits_warning() -> Result<(), Error> {
     let input = "|===\n| A | B\n| C | D\n";
     let mut state = ParserState::new_for_test(input);
-    let doc = document_parser::document(input, &mut state)??;
+    let doc = parse_document(input, &mut state)??;
 
     let warnings = state.warnings.borrow();
     let warning = warnings
@@ -2590,7 +2797,7 @@ fn test_unterminated_pipe_table_emits_warning() -> Result<(), Error> {
 fn test_unterminated_excl_table_emits_warning() -> Result<(), Error> {
     let input = "!===\n! A ! B\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         warnings.iter().any(|w| matches!(
@@ -2618,7 +2825,7 @@ fn test_warning_in_ascii_cell_points_at_inner_token() -> Result<(), Error> {
     //   6: `|===`
     let input = "[cols=\"1a\"]\n|===\na|\n!===\n! Inner A ! Inner B\n|===\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     let warning = warnings
         .iter()
@@ -2645,7 +2852,7 @@ fn test_warning_in_ascii_cell_points_at_inner_token() -> Result<(), Error> {
 fn test_terminated_table_does_not_warn() -> Result<(), Error> {
     let input = "|===\n| A | B\n|===\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings
@@ -2664,7 +2871,7 @@ fn test_terminated_table_does_not_warn() -> Result<(), Error> {
 fn test_unterminated_pipe_table_with_no_content_emits_warning() -> Result<(), Error> {
     let input = "|===\n";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         warnings.iter().any(|w| matches!(
@@ -2720,7 +2927,7 @@ fn test_unterminated_delimited_blocks_emit_warning() -> Result<(), Error> {
     for (block, want_kind, want_delim) in cases {
         let input = &format!("para\n\n{block}");
         let mut state = ParserState::new_for_test(input);
-        let doc = document_parser::document(input, &mut state)??;
+        let doc = parse_document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
             warnings.iter().any(|w| matches!(
@@ -2749,7 +2956,7 @@ fn test_unterminated_delimited_blocks_emit_warning() -> Result<(), Error> {
 fn test_terminated_delimited_block_no_warning() -> Result<(), Error> {
     let input = "====\ntext\n====";
     let mut state = ParserState::new_for_test(input);
-    let _ = document_parser::document(input, &mut state)??;
+    let _ = parse_document(input, &mut state)??;
     let warnings = state.warnings.borrow();
     assert!(
         !warnings

@@ -1,0 +1,249 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "mode": "before"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{\"attributes\":{\"first\":\"\",\"second\":\"quoted, value\",\"third\":\"three\"},\"call\":1,\"mode\":\"before\",\"positional\":[\"one\",null,\"three\"],\"target\":\"before\"}",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 58
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 58
+        }
+      ]
+    },
+    {
+      "name": "mode",
+      "type": "attribute",
+      "value": "after",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{\"attributes\":{\"first\":\"fallback\"},\"call\":2,\"mode\":\"after\",\"positional\":[],\"target\":\"after\"}",
+          "location": [
+            {
+              "line": 1,
+              "col": 1,
+              "file": [
+                "../includes/extensions/session_order.adoc"
+              ]
+            },
+            {
+              "line": 1,
+              "col": 16,
+              "file": [
+                "../includes/extensions/session_order.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "../includes/extensions/session_order.adoc"
+          ]
+        },
+        {
+          "line": 1,
+          "col": 16,
+          "file": [
+            "../includes/extensions/session_order.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mode",
+      "type": "attribute",
+      "value": "included",
+      "location": [
+        {
+          "line": 3,
+          "col": 1,
+          "file": [
+            "../includes/extensions/session_order.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 25,
+          "file": [
+            "../includes/extensions/session_order.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{\"attributes\":{\"first\":\"a,b\",\"second\":\"\"},\"call\":3,\"mode\":\"included\",\"positional\":[\"a,b\"],\"target\":\"included\"}",
+          "location": [
+            {
+              "line": 6,
+              "col": 1,
+              "file": [
+                "../includes/extensions/session_order.adoc"
+              ]
+            },
+            {
+              "line": 6,
+              "col": 31,
+              "file": [
+                "../includes/extensions/session_order.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1,
+          "file": [
+            "../includes/extensions/session_order.adoc"
+          ]
+        },
+        {
+          "line": 6,
+          "col": 31,
+          "file": [
+            "../includes/extensions/session_order.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mode",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{\"attributes\":{\"first\":\"\",\"third\":\"last\"},\"call\":4,\"mode\":null,\"positional\":[\"\",null,\"last\"],\"target\":\"unset\"}",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "unknown::ordinary[]",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 19
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 17,
+      "col": 19
+    }
+  ]
+}

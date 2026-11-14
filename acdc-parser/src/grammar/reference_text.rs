@@ -7,6 +7,7 @@ use super::{
     attributes::{AttributeQuote, ResolvedContentAttribute, expand_attribute_list},
     inline_preprocessor::SourceMap,
     inline_processing::process_attribute_inlines_with_substitutions,
+    source::SourceView,
     state::InlineRules,
 };
 use crate::{
@@ -16,7 +17,7 @@ use crate::{
 
 #[derive(Debug)]
 pub(super) struct ReferenceTextContext<'a> {
-    pub(super) input: &'a str,
+    pub(super) source: SourceView<'a>,
     pub(super) passthroughs: Rc<[crate::Passthrough<'a>]>,
 }
 
@@ -116,14 +117,13 @@ pub(super) fn capture_document_attribute<'a>(
 ) -> usize {
     let text = state.intern_str(state.document_attributes.text("reftext").unwrap_or(""));
     let Some(last) = state
-        .input
-        .get(location.absolute_end..)
+        .source_tail(location.absolute_end)
         .and_then(|tail| tail.chars().next())
     else {
         return capture_unknown(state, text);
     };
     let end = location.absolute_end + last.len_utf8();
-    let Some(declaration) = state.input.get(location.absolute_start..end) else {
+    let Some(declaration) = state.source_slice(location.absolute_start..end) else {
         return capture_unknown(state, text);
     };
     let Some((_, value)) = declaration
@@ -289,7 +289,7 @@ fn restore_passthroughs<'a>(
             passthrough.text.unwrap_or_default()
         } else {
             context
-                .input
+                .source
                 .get(passthrough.location.absolute_start..passthrough.location.absolute_end)
                 .or(passthrough.text)
                 .unwrap_or_default()
@@ -389,7 +389,7 @@ pub(super) fn resolve_metadata<'a>(
 pub(super) fn refresh_block_anchor(state: &ParserState<'_>, id: usize) -> Result<usize, Error> {
     let source = source(state, id)?;
     let range = source.value.source_range;
-    let authored = state.input.get(range.clone()).ok_or_else(|| {
+    let authored = state.source_slice(range.clone()).ok_or_else(|| {
         Error::Parse(
             Box::new(
                 state.create_error_source_location(state.create_location(range.start, range.end)),

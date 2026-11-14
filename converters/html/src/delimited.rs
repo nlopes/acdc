@@ -473,7 +473,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             | BlockKind::Comment(_) => {
                 return Err(unsupported_delimited_block(block));
             }
-            _ => return Err(unsupported_delimited_block(block)),
+            BlockKind::Extension(_) | _ => return Err(unsupported_delimited_block(block)),
         }
         Ok(())
     }

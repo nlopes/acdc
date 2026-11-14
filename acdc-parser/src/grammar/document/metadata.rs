@@ -27,7 +27,7 @@ use crate::{
         substitution::{SubstitutionPlan, parse_subs_attribute},
     },
 };
-use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, rc::Rc, sync::Arc};
 
 use super::delimited::{DelimitedKind, DelimitedParams, build_delimited_block};
 
@@ -172,6 +172,7 @@ pub(super) fn resolve_title<'a>(
     source: TitleSource<'a>,
     offset: usize,
 ) -> Result<Title<'a>, Error> {
+    let retained = retain_metadata_title(state, &source, offset);
     let inlines = match source {
         TitleSource::Dot { source, start, end } => {
             process_inlines(
@@ -192,7 +193,61 @@ pub(super) fn resolve_title<'a>(
         }
         TitleSource::Attribute(source) => process_attribute_inlines(state, &source)?,
     };
-    Ok(Title::new(inlines))
+    Ok(Title::new(inlines).with_source(retained))
+}
+
+fn retain_metadata_title<'a>(
+    state: &ParserState<'a>,
+    source: &TitleSource<'a>,
+    offset: usize,
+) -> Option<Arc<crate::extensions::TitleSource<'a>>> {
+    state.options.extensions.as_ref()?;
+    let (raw, location, substitutions, attributes) = match source {
+        TitleSource::Dot { source, start, end } => (
+            *source,
+            state.create_block_location(*start, *end, offset),
+            SubstitutionPlan::for_mode(state.options.compatibility_mode),
+            state.document_attributes.as_ref(),
+        ),
+        TitleSource::Attribute(source) => {
+            let substitutions = if state.options.compatibility_mode == CompatibilityMode::Draft
+                && source.quote != AttributeQuote::Single
+            {
+                SubstitutionPlan::only(&Substitution::SpecialChars)
+            } else {
+                SubstitutionPlan::for_attribute(state.options.compatibility_mode)
+            };
+            (
+                state
+                    .source_slice(source.source_range.clone())
+                    .unwrap_or(source.text),
+                state.create_block_location(source.source_range.start, source.source_range.end, 0),
+                substitutions,
+                source.attributes.as_ref(),
+            )
+        }
+    };
+    Some(Arc::new(crate::extensions::TitleSource {
+        source: raw,
+        substitutions: substitutions.stages(),
+        attributes: attributes.clone(),
+        location: state.create_error_source_location(location),
+    }))
+}
+
+pub(super) fn retain_heading_title<'a>(
+    state: &ParserState<'a>,
+    source: &'a str,
+    location: impl FnOnce() -> Location,
+    substitutions: SubstitutionPlan,
+) -> Option<Arc<crate::extensions::TitleSource<'a>>> {
+    state.options.extensions.as_ref()?;
+    Some(Arc::new(crate::extensions::TitleSource {
+        source,
+        substitutions: substitutions.stages(),
+        attributes: state.document_attributes.as_ref().clone(),
+        location: state.create_error_source_location(location()),
+    }))
 }
 
 fn literal_attribute_inlines<'a>(
@@ -402,7 +457,7 @@ pub(super) fn media_attributes_ahead<'input>(
     line_start: usize,
     offset: usize,
 ) -> Option<RawAttributeList<'input>> {
-    let line = state.input.get(line_start + offset..)?.lines().next()?;
+    let line = state.source_tail(line_start + offset)?.lines().next()?;
     let start = line.find('[')? + 1;
     let end = line.rfind(']')?;
     let source = line.get(start..end)?;

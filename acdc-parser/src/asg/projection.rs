@@ -440,6 +440,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
     fn block(&mut self, value: &'a Block<'doc>, at: &str) -> Result<Option<Value>, Error> {
         let projected = match value {
+            Block::Extension(_) => return Err(super::unsupported(at, "pending extension block")),
             Block::Paragraph(paragraph) => self.paragraph(paragraph, at, false)?,
             Block::Section(section) => self.section(section, at)?,
             Block::UnorderedList(list) => {

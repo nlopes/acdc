@@ -106,9 +106,9 @@ pub(super) struct ResolvedContentAttribute<'a> {
 /// One slot of a confined attribute list, with byte offsets into its source.
 /// Also used by cross-references and links when their text holds attributes.
 #[derive(Debug)]
-pub(super) struct ScannedAttribute {
-    pub(super) name: Option<String>,
-    pub(super) value: String,
+pub(crate) struct ScannedAttribute {
+    pub(crate) name: Option<String>,
+    pub(crate) value: String,
     pub(super) quote: AttributeQuote,
     pub(super) value_start: usize,
     pub(super) value_end: usize,
@@ -116,6 +116,14 @@ pub(super) struct ScannedAttribute {
 }
 
 impl ScannedAttribute {
+    pub(crate) fn is_empty_slot(&self) -> bool {
+        self.quote == AttributeQuote::Unquoted && self.value.is_empty()
+    }
+
+    pub(crate) fn is_unset(&self) -> bool {
+        self.quote == AttributeQuote::Unquoted && self.value == "None"
+    }
+
     pub(super) fn resolve_content<'a>(
         &self,
         text: &'a str,
@@ -480,4 +488,20 @@ pub(super) fn block_positional_style(
 
 pub(super) fn decode_anchor_shorthand_reftext(value: &str) -> String {
     decode_attribute_escapes(value, ']', CompatibilityMode::Draft, true).0
+}
+
+pub(crate) fn extension_attributes(
+    state: &crate::grammar::ParserState<'_>,
+    arguments: &str,
+) -> Vec<ScannedAttribute> {
+    let expanded = expand_attribute_list(
+        arguments,
+        &state.document_attributes,
+        state.options.compatibility_mode,
+    );
+    scan_block_attribute_list(
+        &expanded.text,
+        state.options.compatibility_mode,
+        BlockAttributeMode::Macro,
+    )
 }

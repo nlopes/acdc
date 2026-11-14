@@ -143,6 +143,9 @@
 //! equivalent table dimension cap.
 //!
 
+#[cfg(test)]
+extern crate self as acdc_parser;
+
 use std::{
     cell::RefCell,
     path::{Path, PathBuf},
@@ -161,6 +164,7 @@ mod caption_repair;
 mod constants;
 mod document_attribute;
 mod error;
+pub mod extensions;
 mod grammar;
 pub use grammar::footnotes::FootnoteRebuildError;
 mod model;
@@ -424,10 +428,39 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// Recoverable problems appear in the result's warnings.
 #[instrument(skip_all, fields(input_len = input.len(), safe_mode = ?options.safe_mode))]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
+    parse_with_session(input, options, None)
+}
+
+fn parse_with_session(
+    input: &str,
+    options: &Options<'_>,
+    session: Option<&mut extensions::Session>,
+) -> Result<ParseResult, Error> {
+    parse_with_source_handler(input, options, session, None)
+}
+
+#[inline]
+fn parse_with_source_handler(
+    input: &str,
+    options: &Options<'_>,
+    session: Option<&mut extensions::Session>,
+    handler: Option<&mut dyn grammar::SourceHandler>,
+) -> Result<ParseResult, Error> {
     let options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String);
     let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
+    if let Some(handler) = handler {
+        return parse_ordered_source(input, options, None, warnings_handle, handler);
+    }
+    if let Some(session) = session
+        && options
+            .extensions
+            .as_ref()
+            .is_some_and(|registry| registry.may_execute(input))
+    {
+        return parse_ordered_source(input, options, None, warnings_handle, session);
+    }
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
@@ -465,20 +498,31 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
+    parse_file_with_session(file_path.as_ref(), options, None)
+}
+
+fn parse_file_with_session(
+    file_path: &Path,
+    options: &Options<'_>,
+    session: Option<&mut extensions::Session>,
+) -> Result<ParseResult, Error> {
     let options = options
         .clone()
-        .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
-    let path = file_path.as_ref().to_path_buf();
-    let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
+        .prepare_for_parse(document_attribute::InputKind::File(file_path));
+    let path = file_path.to_path_buf();
+    let raw = preprocessor::read_and_decode_file(file_path, None)?;
     let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
+    if let Some(session) = session
+        && options
+            .extensions
+            .as_ref()
+            .is_some_and(|registry| registry.may_execute(&raw))
+    {
+        return parse_ordered_source(&raw, options, Some(path), warnings_handle, session);
+    }
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor::process_with_file(
-            &raw,
-            file_path.as_ref(),
-            &options,
-            Rc::clone(&warnings_handle),
-        )?
+        Preprocessor::process_with_file(&raw, file_path, &options, Rc::clone(&warnings_handle))?
     };
     parse_input(result, options, Some(path), warnings_handle)
 }
@@ -489,22 +533,24 @@ fn peg_error_to_source_location(
     error: &peg::error::ParseError<peg::str::LineCol>,
     state: &grammar::ParserState,
 ) -> SourceLocation {
-    let offset = error.location.offset;
+    let offset = state.input_offset(error.location.offset);
+    let position = if state.input_offset(0) == 0 {
+        Position::from_line_col(error.location.line, error.location.column)
+    } else {
+        state.source_position(offset)
+    };
     if let Some(range) = model::SourceRange::find_containing(&state.source_ranges, offset) {
         SourceLocation {
             file: range.file.clone(),
             location: crate::Location::point(Position::new(
-                state.line_map.source_line(range, offset),
-                u32::try_from(error.location.column).unwrap_or(u32::MAX),
+                state.source_line(range, offset),
+                position.column,
             )),
         }
     } else {
         SourceLocation {
             file: state.current_file.as_deref().cloned(),
-            location: crate::Location::point(Position::from_line_col(
-                error.location.line,
-                error.location.column,
-            )),
+            location: crate::Location::point(position),
         }
     }
 }
@@ -562,20 +608,8 @@ fn parse_input(
             if state.document_attributes.contains_key("toc2") {
                 state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
             }
-            let result = match grammar::document_parser::document(&owner.source, &mut state) {
-                Ok(Ok(mut doc)) => {
-                    grammar::reference_text::finish_document(&mut state, &mut doc)?;
-                    // Rewrite every node's location from preprocessed coordinates to the
-                    // original source (file + line + byte offset). No-op when the
-                    // preprocessor recorded no ranges (no includes/edits).
-                    grammar::remap_document_to_source(
-                        &mut doc,
-                        &state.source_ranges,
-                        &owner.source,
-                        &state.line_map,
-                    );
-                    Ok(doc)
-                }
+            let result = match grammar::parse_document(&owner.source, &mut state) {
+                Ok(Ok(doc)) => finish_parsed_document(doc, &mut state, &owner.source),
                 Ok(Err(e)) => Err(e),
                 Err(error) => {
                     tracing::error!("error parsing document content");
@@ -583,6 +617,67 @@ fn parse_input(
                     Err(Error::Parse(Box::new(source_location), error.to_string()))
                 }
             };
+            state.emit_warnings();
+            result
+        },
+    )
+}
+
+#[inline]
+fn finish_parsed_document<'a>(
+    mut doc: Document<'a>,
+    state: &mut grammar::ParserState<'a>,
+    source: &'a str,
+) -> Result<Document<'a>, Error> {
+    grammar::reference_text::finish_document(state, &mut doc)?;
+    grammar::remap_document_to_source(&mut doc, &state.source_ranges, source, &state.line_map);
+    Ok(doc)
+}
+
+fn parse_ordered_source(
+    input: &str,
+    options: Options<'_>,
+    file_path: Option<PathBuf>,
+    warnings_handle: Rc<RefCell<WarningCollection>>,
+    handler: &mut dyn grammar::SourceHandler,
+) -> Result<ParseResult, Error> {
+    let owner =
+        parsed::OwnedInput::new(Preprocessor::normalize(input).into_owned().into_boxed_str());
+    let warnings_for_state = Rc::clone(&warnings_handle);
+    let options = options.into_static();
+    ParseResult::try_new_with_metadata(
+        owner,
+        warnings_handle,
+        move |owner, source_files, conditionals| {
+            let reader = preprocessor::SourceReader::from_normalized(
+                &owner.source,
+                file_path.as_deref(),
+                options,
+                Rc::clone(&warnings_for_state),
+                &owner.arena,
+            )?;
+            let mut state = grammar::ParserState::new(
+                reader.pass_through_input().unwrap_or(""),
+                &owner.arena,
+                Rc::clone(&reader.options),
+            );
+            state.current_file = file_path.clone().map(std::sync::Arc::new);
+            state.warnings = warnings_for_state;
+            state.warn_unsupported_compat_mode(None);
+            if state.document_attributes.contains_key("toc2") {
+                state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
+            }
+            let result = grammar::document_from_source(
+                reader,
+                &mut state,
+                handler,
+                conditionals,
+                |source| owner.finish_source(source),
+            )
+            .and_then(|document| {
+                *source_files = parsed::SourceFiles::new(file_path, &state.source_ranges);
+                finish_parsed_document(document, &mut state, owner.preprocessed_source())
+            });
             state.emit_warnings();
             result
         },
@@ -672,6 +767,9 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
 
 #[cfg(test)]
 mod proptests;
+
+#[cfg(test)]
+mod source_tests;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
