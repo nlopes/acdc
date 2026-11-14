@@ -340,7 +340,7 @@ mod tests {
     }
 
     fn cmd(id: &str, deps: Option<&str>, body: &str) -> String {
-        let deps = deps.map(|d| format!(", deps=\"{d}\"")).unwrap_or_default();
+        let deps = deps.map_or_else(String::new, |d| format!(", deps=\"{d}\""));
         format!("[.command, id={id}{deps}]\n----\n{body}\n----\n")
     }
 

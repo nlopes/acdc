@@ -225,8 +225,7 @@ pub(super) fn render_block(
 ) -> String {
     let title = block
         .title()
-        .map(|t| inline_text(t, format))
-        .unwrap_or_default();
+        .map_or_else(String::new, |t| inline_text(t, format));
     let mut body = match block.kind() {
         BlockKind::Section(s) => return render_section(s, &title, format, include_subsections),
         BlockKind::Paragraph(p) => inline_text(p.content(), format),

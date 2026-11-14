@@ -516,8 +516,7 @@ fn emit_content(
     if let BlockKind::Section(section) = block.kind() {
         let title = section
             .title()
-            .map(|title| render::inline_text(title, format))
-            .unwrap_or_default();
+            .map_or_else(String::new, |title| render::inline_text(title, format));
         let heading = if format == Format::Asciidoc {
             let anchor = section
                 .id()
