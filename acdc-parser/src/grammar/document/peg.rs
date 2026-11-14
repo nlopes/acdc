@@ -433,14 +433,15 @@ peg::parser! {
         /// Only consumes metadata if followed by a document title to avoid stealing attributes
         /// meant for the first block when there's no document title.
         ///
-        /// Asciidoctor mode also accepts empty lines, attribute entries and comments
-        /// between those lines. A side-effect-free lookahead checks for the title
-        /// first, so attribute entries are applied once, in source order, and only
-        /// as header attributes.
+        /// Attribute entries and comments can sit between those lines in either
+        /// order. Asciidoctor mode also accepts empty lines between them; in Draft
+        /// mode an empty line ends the header. A side-effect-free lookahead checks
+        /// for the title first, so attribute entries are applied once, in source
+        /// order, and only as header attributes.
         rule header_metadata() -> Result<BlockMetadata<'input>, Error>
-            = asciidoctor_mode() &(header_metadata_line_match()* document_title_match())
+            = &(header_metadata_line_match()* document_title_match())
               lines:(
-                  eol() { None }
+                  header_empty_line() { None }
                   / document_attribute() (eol() / ![_]) { None }
                   / header_comment() (eol() / ![_]) { None }
                   / line:header_metadata_line() { Some(line) }
@@ -449,21 +450,21 @@ peg::parser! {
             {
                 merge_header_metadata(state, lines.into_iter().flatten())
             }
-            / lines:header_metadata_line()+ &document_title_match()
-            {
-                merge_header_metadata(state, lines)
-            }
             / { Ok(BlockMetadata::default()) }
 
         rule header_metadata_line() -> AttributeOrAnchorLine<'input>
             = anchor:anchor(0) { AttributeOrAnchorLine::Anchor(anchor) }
             / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
 
+        rule header_empty_line()
+            = asciidoctor_mode() eol()
+
         // Match a line above the document title without applying it.
         rule header_metadata_line_match()
-            = eol()
+            = header_empty_line()
             / document_attribute_match() (eol() / ![_])
-            / metadata_comment_match()
+            / comment() (eol() / ![_])
+            / comment_block_match() (eol() / ![_])
             / attribute_or_anchor_line_match()
 
         rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
@@ -1361,7 +1362,11 @@ peg::parser! {
 
         rule metadata_comment_match()
         = comment_line()
-        / delimiter:comment_delimiter() (eol() / ![_])
+        / comment_block_match()
+
+        // A delimited comment block, through its closing delimiter when present.
+        rule comment_block_match()
+        = delimiter:comment_delimiter() (eol() / ![_])
           until_block_close(delimiter) (eol() &block_close_delim(delimiter))? block_close_delim(delimiter)?
 
         // Reuse block-start rules before selected attributes can register inline content.

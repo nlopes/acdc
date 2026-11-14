@@ -7,7 +7,7 @@
 //! the first empty line ends the header in both modes.
 
 use acdc_parser::{
-    CompatibilityMode, Options,
+    CompatibilityMode, DocumentAttributeValue, Options,
     ast::{BlockKind, BlockRef, ContentRef, ElementIdRef, HeaderRef, InlineKind},
     parse,
 };
@@ -263,12 +263,38 @@ fn block_metadata_and_empty_lines_before_title() -> Result<(), Error> {
 
 #[test]
 fn attribute_entry_between_anchor_and_title() -> Result<(), Error> {
+    // Without empty lines, both modes accept the lines above the title in any
+    // order. The language docs don't separate the modes here.
+    let both = expected(Some("Title"), &["a"], &[], Some("paragraph"));
+    assert_boundary("[[top]]\n:a: 1\n= Title\n\nBody\n", &["a"], &both, &both)?;
+    // An empty line still ends the Draft header before the title.
     assert_boundary(
-        "[[top]]\n:a: 1\n= Title\n\nBody\n",
+        "[[top]]\n:a: 1\n\n= Title\n\nBody\n",
         &["a"],
-        &expected(Some("Title"), &["a"], &[], Some("paragraph")),
+        &both,
         &expected(None, &[], &["a"], Some("section 0: Title")),
     )
+}
+
+#[rstest::rstest]
+fn metadata_interleaved_with_entries_keeps_document_title(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    let source = "[[top]]\n:a: 1\n// comment\n[.role]\n= Title\n\nPara\n";
+    let parsed = parse(source, &options(mode)?)?;
+    let doc = parsed.document();
+    assert!(doc.header().ok_or("header")?.roles().contains("role"));
+    assert_eq!(
+        doc.header().ok_or("header")?.id().ok_or("id")?.as_str(),
+        "top"
+    );
+    assert_eq!(
+        doc.attributes()
+            .get("a")
+            .and_then(DocumentAttributeValue::text),
+        Some("1")
+    );
+    Ok(())
 }
 
 #[test]
