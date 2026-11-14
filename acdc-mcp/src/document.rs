@@ -154,8 +154,9 @@ impl Document {
         self.parsed
             .document()
             .title()
-            .map(|title| render::inline_text(title, Format::Plain))
-            .unwrap_or_default()
+            .map_or_else(String::new, |title| {
+                render::inline_text(title, Format::Plain)
+            })
     }
 
     pub(super) fn source<'a>(&self, location: impl Into<LocationRef<'a>>) -> Value {
@@ -219,10 +220,9 @@ impl<'a> Entry<'a> {
     }
 
     pub(super) fn title(&self) -> String {
-        self.block
-            .title()
-            .map(|title| render::inline_text(title, Format::Plain))
-            .unwrap_or_default()
+        self.block.title().map_or_else(String::new, |title| {
+            render::inline_text(title, Format::Plain)
+        })
     }
 
     pub(super) fn has_id(&self, id: &str) -> bool {
@@ -254,12 +254,9 @@ fn walk<'a>(
     }
     let mut trail = trail.to_vec();
     let kind = if let BlockKind::Section(section) = block.kind() {
-        trail.push(
-            section
-                .title()
-                .map(|title| render::inline_text(title, Format::Plain))
-                .unwrap_or_default(),
-        );
+        trail.push(section.title().map_or_else(String::new, |title| {
+            render::inline_text(title, Format::Plain)
+        }));
         "section"
     } else {
         "block"

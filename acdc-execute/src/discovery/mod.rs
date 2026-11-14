@@ -325,8 +325,8 @@ mod tests {
 
     /// Render a single command block. `deps` and `lang` are optional; `body` is the script.
     fn cmd(id: &str, deps: Option<&str>, lang: Option<&str>, body: &str) -> String {
-        let deps = deps.map(|d| format!(", deps=\"{d}\"")).unwrap_or_default();
-        let lang = lang.map(|l| format!("[source, {l}]\n")).unwrap_or_default();
+        let deps = deps.map_or_else(String::new, |d| format!(", deps=\"{d}\""));
+        let lang = lang.map_or_else(String::new, |l| format!("[source, {l}]\n"));
         format!("[.command, id={id}{deps}]\n{lang}----\n{body}\n----\n")
     }
 

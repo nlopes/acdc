@@ -228,8 +228,7 @@ impl Workspace {
         let mut affected = self
             .documents
             .get(&uri)
-            .map(|state| state.diagnostic_uris(&uri))
-            .unwrap_or_default();
+            .map_or_else(Vec::new, |state| state.diagnostic_uris(&uri));
         // Remove from symbol_index — live AST takes over
         self.symbol_index.remove(&uri);
 

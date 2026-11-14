@@ -227,8 +227,7 @@ impl AnalysisConfiguration {
         self.roots
             .iter()
             .find(|root| root.uri == *uri)
-            .map(|root| root.settings)
-            .unwrap_or_default()
+            .map_or_else(Default::default, |root| root.settings)
     }
 
     pub(crate) fn settings_for(&self, uri: &Uri) -> ServerOptions {
@@ -237,8 +236,7 @@ impl AnalysisConfiguration {
             .iter()
             .filter_map(|root| root_match_len(&root.uri, uri).map(|len| (len, root.settings)))
             .max_by_key(|(len, _)| *len)
-            .map(|(_, settings)| settings)
-            .unwrap_or_default();
+            .map_or_else(Default::default, |(_, settings)| settings);
         settings.resolve(self.unscoped.resolve(self.fallback))
     }
 

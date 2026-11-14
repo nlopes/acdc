@@ -301,10 +301,9 @@ impl<'doc, W: Write> BlockVisitor<'doc> for TreeVisitor<W> {
                 self.print_tree_line("TableOfContents", None, location)
             }
             BlockKind::DiscreteHeading(header) => {
-                let title = header
-                    .title()
-                    .map(|title| InlineTextTransform::default().content_to_string(title))
-                    .unwrap_or_default();
+                let title = header.title().map_or_else(String::new, |title| {
+                    InlineTextTransform::default().content_to_string(title)
+                });
                 let detail = format!("Level {} - {}", header.level(), truncate(&title, 40));
                 self.print_tree_line("DiscreteHeader", Some(&detail), location)
             }
