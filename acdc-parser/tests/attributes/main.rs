@@ -25,6 +25,7 @@ mod document_control_quotes;
 mod formatted_attribute_order;
 mod header_boundary;
 mod header_metadata;
+mod header_only_attributes;
 mod inline_attribute_order;
 mod inline_unicode_attributes;
 mod intrinsic_document_attributes;

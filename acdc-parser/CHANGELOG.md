@@ -37,6 +37,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute references treated `foo` as unset. The text is still ignored, and
   the entry now adds a located `WarningKind::UnsetAttributeValue` warning;
   Asciidoctor ignores the text without a warning.
+- A body attribute entry for an attribute that only takes effect in the header,
+  such as `doctype`, `toc`, `source-highlighter`, `stylesheet`, `description`,
+  or `mansource`, now adds a located `WarningKind::HeaderOnlyAttribute` warning.
+  This catches header attributes grouped with empty lines, since the first empty
+  line after the title ends the header. Unsets warn too. Attributes that acdc
+  applies in the body, such as `icons`, `stem`, and `sectnums`, don't warn, and
+  neither do caller-supplied values or entries a caller lock rejects.
+  Asciidoctor doesn't warn.
 
 - Faster processing of included files, especially `lines=` and tag selections,
   while preserving resource limits, source locations, and compatibility modes.

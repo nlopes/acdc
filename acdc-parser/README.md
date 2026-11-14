@@ -1305,6 +1305,16 @@ An unset entry with text after it, such as `:!foo: ignored` or
 located `WarningKind::UnsetAttributeValue` warning, including when the caller
 locked the attribute. Asciidoctor ignores the text without a warning.
 
+A body entry for an attribute that only takes effect in the header adds a
+located `WarningKind::HeaderOnlyAttribute` warning. The entry still applies for
+later attribute references, but the feature is unchanged. This covers document
+setup (`doctype`, `toc`, `toclevels`, `toc-title`, `toc-class`),
+`source-highlighter`, `eqnums`, HTML page settings, `untitled-label`, manpage
+metadata, and document metadata such as `description`, `author`, and
+`revnumber`. Attributes that acdc applies in the body, such as `icons`, `stem`,
+`sectnums`, and `nofooter`, don't warn. Caller-supplied values and entries a
+caller lock rejects don't warn either. Asciidoctor doesn't warn.
+
 A section directly nested in a `[bibliography]` section remains in the AST and
 adds a located warning to `ParseResult::warnings()`. Parsing and conversion
 continue. Asciidoctor keeps the same content but reports the condition at error

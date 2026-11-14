@@ -325,6 +325,57 @@ const READ_ONLY_PREFIXES: &[&str] = &[
     "filetype-",
     "safe-mode-",
 ];
+/// Header-only attributes that acdc's consumers read only from the
+/// end-of-header snapshot, so a body entry doesn't change what they control.
+/// Body entries still apply in source order for attribute references.
+/// Header-only attributes that acdc honors in the body, such as `icons` and
+/// `stem`, and ones it doesn't implement are not listed. Keep it sorted.
+const HEADER_ONLY_EXACT: &[&str] = &[
+    "author",
+    "authorinitials",
+    "authors",
+    "copycss",
+    "description",
+    "docinfo",
+    "docinfodir",
+    "docinfosubs",
+    "doctype",
+    "email",
+    "eqnums",
+    "firstname",
+    "keywords",
+    "lang",
+    "lastname",
+    "linkcss",
+    "man-linkstyle",
+    "manmanual",
+    "mansource",
+    "mantitle",
+    "manvolnum",
+    "max-width",
+    "middlename",
+    "noheader",
+    "nolang",
+    "reproducible",
+    "revdate",
+    "revnumber",
+    "revremark",
+    "source-highlighter",
+    "stylesdir",
+    "stylesheet",
+    "toc",
+    "toc-class",
+    "toc-title",
+    "toclevels",
+    "untitled-label",
+    "version-label",
+    "webfonts",
+];
+
+/// Whether a body entry for `name` leaves the feature it controls unchanged.
+pub(crate) fn is_header_only(name: &str) -> bool {
+    HEADER_ONLY_EXACT.binary_search(&name).is_ok()
+}
 
 /// Look up a static specification without allocating.
 fn attribute_spec(name: &str) -> AttributeSpec {
@@ -1012,6 +1063,35 @@ mod tests {
         assert_ne!(AssignmentState::PROCESSOR, AssignmentState::document());
         assert_ne!(AssignmentState::PROCESSOR, AssignmentState::CALLER_LOCKED);
         assert!(format!("{:?}", AssignmentState::document()).contains("Document"));
+    }
+
+    #[test]
+    fn header_only_list_is_sorted_and_excludes_body_attributes() {
+        assert!(
+            HEADER_ONLY_EXACT
+                .windows(2)
+                .all(|pair| matches!(pair, [first, second] if first < second)),
+            "HEADER_ONLY_EXACT must stay sorted and unique for binary search"
+        );
+        for name in [
+            "doctype",
+            "toc",
+            "source-highlighter",
+            "author",
+            "mansource",
+        ] {
+            assert!(is_header_only(name), "{name}");
+        }
+        for name in [
+            "icons",
+            "stem",
+            "sectnums",
+            "nofooter",
+            "imagesdir",
+            "custom",
+        ] {
+            assert!(!is_header_only(name), "{name}");
+        }
     }
 
     #[test]

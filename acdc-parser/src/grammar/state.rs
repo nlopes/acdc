@@ -16,7 +16,7 @@ use crate::{
     CalloutMarker, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
     FootnoteDefinition, Location, Options, Passthrough, SourceLocation, TocEntry, Warning,
     WarningKind, XrefCaptionLabel, XrefSignifier,
-    document_attribute::{AttributeDeclaration, RawAttributeValue},
+    document_attribute::{AttributeDeclaration, RawAttributeValue, is_header_only},
     grammar::{
         LineMap,
         document::lists::{DescriptionListScope, OrdinaryListScope},
@@ -540,6 +540,36 @@ impl<'a> ParserState<'a> {
         })
     }
 
+    /// Warn about the text after an unset entry's separator, which it ignores.
+    fn warn_ignored_unset_value(
+        &self,
+        declaration: &AttributeDeclaration<'a>,
+        location: &Location,
+    ) {
+        if let Some(ignored) = &declaration.ignored_value {
+            self.add_warning(Warning::new(
+                WarningKind::UnsetAttributeValue {
+                    name: declaration.name.to_owned(),
+                    value: ignored.to_string(),
+                },
+                Some(self.create_error_source_location(location.clone())),
+            ));
+        }
+    }
+
+    /// Warn when an accepted body entry sets an attribute that only takes
+    /// effect in the document header.
+    fn warn_header_only_in_body(&self, name: &str, location: &Location) {
+        if is_header_only(name) {
+            self.add_warning(Warning::new(
+                WarningKind::HeaderOnlyAttribute {
+                    name: name.to_owned(),
+                },
+                Some(self.create_error_source_location(location.clone())),
+            ));
+        }
+    }
+
     /// Apply an attribute entry declared by document content: expand `{attr}`
     /// references at definition time (matching `asciidoctor`), retain the result
     /// for the parse, and store it unless the built-in policy, parser options, or
@@ -552,21 +582,9 @@ impl<'a> ParserState<'a> {
         in_header: bool,
         location: Location,
     ) -> Option<DocumentAttribute<'a>> {
-        let AttributeDeclaration {
-            name,
-            value,
-            ignored_value,
-        } = declaration;
+        let AttributeDeclaration { name, value, .. } = declaration;
         // The text is ignored whether or not policy accepts the unset.
-        if let Some(ignored) = ignored_value {
-            self.add_warning(Warning::new(
-                WarningKind::UnsetAttributeValue {
-                    name: (*name).to_owned(),
-                    value: ignored.to_string(),
-                },
-                Some(self.create_error_source_location(location.clone())),
-            ));
-        }
+        self.warn_ignored_unset_value(declaration, &location);
         if *name == "leveloffset"
             && let Some(scope) = self
                 .leveloffset_scopes
@@ -621,6 +639,11 @@ impl<'a> ParserState<'a> {
                 return None;
             }
         };
+        // Only an accepted body entry warns: a rejected one wouldn't work in
+        // the header either.
+        if !in_header {
+            self.warn_header_only_in_body(&key, &location);
+        }
         if let Some(attributes) = previous_attributes {
             let source =
                 super::reference_text::capture_document_attribute(self, &location, attributes);

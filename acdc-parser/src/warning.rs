@@ -50,6 +50,7 @@ impl Warning {
             WarningKind::UnsupportedCompatMode => "unsupported-compat-mode",
             WarningKind::UnsupportedCounter { .. } => "unsupported-counter",
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
+            WarningKind::HeaderOnlyAttribute { .. } => "header-only-attribute",
             WarningKind::UnsetAttributeValue { .. } => "unset-attribute-value",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
@@ -134,6 +135,9 @@ impl Warning {
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
+            WarningKind::HeaderOnlyAttribute { .. } => Some(
+                "Move the entry into the document header. An empty line ends the header, so separate groups of header attributes with a comment line such as `// layout` instead.",
+            ),
             WarningKind::UnsetAttributeValue { .. } => Some(
                 "An unset entry such as `:!name:` or `:name!:` takes no value. Remove the text after it, or use `:name: value` to set the attribute.",
             ),
@@ -338,6 +342,16 @@ pub enum WarningKind {
         value: String,
         /// Short description of the registered value domain.
         expected: &'static str,
+    },
+
+    /// A body attribute entry sets or unsets an attribute that only takes
+    /// effect in the document header. The entry still applies for later
+    /// attribute references, but the feature the attribute controls is
+    /// unchanged. Asciidoctor doesn't warn.
+    #[error("attribute `{name}` only takes effect in the document header")]
+    HeaderOnlyAttribute {
+        /// Document attribute name.
+        name: String,
     },
 
     /// An unset attribute entry (`:!name:` or `:name!:`) has text after the
