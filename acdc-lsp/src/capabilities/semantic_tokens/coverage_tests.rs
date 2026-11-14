@@ -243,3 +243,49 @@ fn block_titles_keep_their_faces_separate_from_body_syntax() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn leading_attribute_groups_before_title_are_all_highlighted() -> TestResult {
+    let source = ":description: How to install the product.\n\n:doctype: book\n:toc: left\n\n\n:icons: font\n\n= User Guide\n\n== Install\n";
+    let tokens = decoded(source)?;
+    for (line, name, value) in [
+        (0, "description", "How to install the product."),
+        (2, "doctype", "book"),
+        (3, "toc", "left"),
+        (6, "icons", "font"),
+    ] {
+        assert!(
+            tokens
+                .iter()
+                .any(|token| token.0 == line && token.2 == name && token.3 == "property"),
+            "{name}: {tokens:?}"
+        );
+        assert!(
+            tokens
+                .iter()
+                .any(|token| token.0 == line && token.2 == value && token.3 == "string"),
+            "{value}: {tokens:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn leading_attribute_scan_stops_at_body_content() -> TestResult {
+    let tokens = decoded(":a: 1\n\nPara text\n:b: 2\n")?;
+    assert!(
+        !tokens
+            .iter()
+            .any(|token| token.0 >= 2 && matches!(token.3.as_str(), "property" | "string")),
+        "{tokens:?}"
+    );
+
+    let tokens = decoded(":a: one \\\n\nPara text\n")?;
+    assert!(
+        !tokens
+            .iter()
+            .any(|token| token.0 == 2 && token.3 == "string"),
+        "{tokens:?}"
+    );
+    Ok(())
+}

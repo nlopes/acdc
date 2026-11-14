@@ -72,11 +72,13 @@ pub(super) fn collect(
 
 // The parser consumes leading header attributes even without a title, but then
 // exposes neither a HeaderRef nor DocumentAttribute blocks for that region.
-// Stop at the header boundary so verbatim body text cannot become attributes.
+// Keep scanning across empty lines, as asciidoctor does before the document
+// title; an entry gets the same tokens whether it lands in the header or the
+// body. Stop at the first line that is neither an attribute entry nor a comment
+// so body text cannot become attributes.
 fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
     let mut comment_delimiter = None;
     let mut continuation = false;
-    let mut seen_attribute = false;
     for line in 0.. {
         let Some(text) = source.line(line) else {
             break;
@@ -89,9 +91,7 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
             continue;
         }
         if text.trim().is_empty() {
-            if seen_attribute {
-                break;
-            }
+            continuation = false;
             continue;
         }
         if continuation {
@@ -110,7 +110,6 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
             break;
         };
         attribute_line(name.trim_matches('!'), line, source, tokens);
-        seen_attribute = true;
         continuation = text.trim_end().ends_with(" \\");
     }
 }
