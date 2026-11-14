@@ -59,7 +59,11 @@ fn parsed_and_constructed_documents_share_conversion_entrypoints()
 struct ListRequest;
 
 impl BlockMacroProcessor for ListRequest {
-    fn process(&mut self, _: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
+    fn process(
+        &mut self,
+        _: &MacroInvocation<'_>,
+        _: &mut acdc_parser::extensions::MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String> {
         Ok(BlockMacroOutput::Deferred)
     }
 }

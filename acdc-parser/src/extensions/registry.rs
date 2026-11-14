@@ -138,10 +138,11 @@ impl Registry {
 
     /// Parse with fresh processors and retain this document's deferred requests.
     ///
-    /// Macro processors run after the complete document is accepted. The host
-    /// repairs captions and catalogs, then tree processors run once in
-    /// registration order, with catalog repair after each edit. Callbacks cannot
-    /// change source processing.
+    /// Macro processors run once at committed block boundaries, before the
+    /// reader advances to later conditionals and includes. Attribute changes
+    /// follow normal document assignment policy. Tree processors then run once
+    /// in registration order, with catalog repair after each edit. Effects from
+    /// completed callbacks are not rolled back if a later block fails.
     /// An empty registry uses the ordinary parser path.
     ///
     /// # Errors
@@ -197,6 +198,18 @@ impl Registry {
             .macros
             .get(index)
             .map(|descriptor| (index, descriptor))
+    }
+
+    /// A conservative dispatch filter, not a syntax recognizer. Includes can
+    /// introduce registered names that are absent from the entry source.
+    pub(crate) fn may_execute(&self, source: &str) -> bool {
+        source.match_indices("::").any(|(end, _)| {
+            let name = source[..end]
+                .rsplit(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '-')
+                .next()
+                .unwrap_or_default();
+            name == "include" || self.0.names.contains_key(name)
+        })
     }
 
     pub(crate) fn session(&self) -> Session {

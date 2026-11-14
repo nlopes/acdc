@@ -1,9 +1,6 @@
 use std::{cell::OnceCell, fmt};
 
-use crate::{
-    Block, DelimitedBlockType, Document, Error, InlineNode, Paragraph, ParseResult, Plain,
-    grammar::ParserState,
-};
+use crate::{Block, Error, InlineNode, Paragraph, ParseResult, Plain, grammar::ParserState};
 
 use super::{
     BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery, PlaceholderId, TargetId,
@@ -106,157 +103,75 @@ impl Session {
         self.identity.get_or_init(DocumentIdentity::default)
     }
 
-    pub(crate) fn process<'a>(
+    fn block<'a>(
         &mut self,
-        document: &mut Document<'a>,
+        block: &mut Block<'a>,
         state: &ParserState<'a>,
+        context: &mut super::MacroExecutionContext,
     ) -> Result<bool, Error> {
-        self.blocks(&mut document.blocks, state)?;
-        Ok(self.processed_blocks)
-    }
-
-    fn blocks<'a>(
-        &mut self,
-        blocks: &mut Vec<Block<'a>>,
-        state: &ParserState<'a>,
-    ) -> Result<(), Error> {
-        let mut result = Ok(());
-        blocks.retain_mut(|block| {
-            if result.is_err() {
-                return true;
-            }
-            match self.block(block, state) {
-                Ok(keep) => keep,
-                Err(error) => {
-                    result = Err(error);
-                    true
-                }
-            }
-        });
-        result
-    }
-
-    fn block<'a>(&mut self, block: &mut Block<'a>, state: &ParserState<'a>) -> Result<bool, Error> {
-        match block {
-            Block::Extension(extension) => {
-                self.processed_blocks = true;
-                let output = self
-                    .processors
-                    .get_mut(extension.processor)
-                    .ok_or_else(|| {
-                        Error::Extension(
-                            Box::new(extension.invocation.location.clone()),
-                            "processor is absent from the document session".into(),
-                        )
-                    })?
-                    .process(&extension.invocation)
-                    .map_err(|message| {
-                        Error::Extension(Box::new(extension.invocation.location.clone()), message)
-                    })?;
-                match output {
-                    BlockMacroOutput::Paragraph(text) => {
-                        let mut paragraph = Paragraph::new(
-                            vec![InlineNode::PlainText(Plain {
-                                content: state.intern_str(&text),
-                                location: extension.location.clone(),
-                                escaped: true,
-                            })],
-                            extension.location.clone(),
-                        );
-                        paragraph.metadata = std::mem::take(&mut extension.metadata);
-                        paragraph.title = std::mem::take(&mut extension.title);
-                        if let Some(kind) = crate::CaptionKind::for_style(paragraph.metadata.style)
-                        {
-                            paragraph.metadata.caption = Some(crate::Caption::resolve(
-                                &paragraph.metadata,
-                                &extension.invocation.document_attributes,
-                                kind,
-                            ));
-                        }
-                        *block = Block::Paragraph(paragraph);
+        if let Block::Extension(extension) = block {
+            self.processed_blocks = true;
+            let output = self
+                .processors
+                .get_mut(extension.processor)
+                .ok_or_else(|| {
+                    Error::Extension(
+                        Box::new(extension.invocation.location.clone()),
+                        "processor is absent from the document session".into(),
+                    )
+                })?
+                .process(&extension.invocation, context)
+                .map_err(|message| {
+                    Error::Extension(Box::new(extension.invocation.location.clone()), message)
+                })?;
+            match output {
+                BlockMacroOutput::Paragraph(text) => {
+                    let mut paragraph = Paragraph::new(
+                        vec![InlineNode::PlainText(Plain {
+                            content: state.intern_str(&text),
+                            location: extension.location.clone(),
+                            escaped: true,
+                        })],
+                        extension.location.clone(),
+                    );
+                    paragraph.metadata = std::mem::take(&mut extension.metadata);
+                    paragraph.title = std::mem::take(&mut extension.title);
+                    if let Some(kind) = crate::CaptionKind::for_style(paragraph.metadata.style) {
+                        paragraph.metadata.caption = Some(crate::Caption::resolve(
+                            &paragraph.metadata,
+                            &extension.invocation.document_attributes,
+                            kind,
+                        ));
                     }
-                    BlockMacroOutput::None => return Ok(false),
-                    BlockMacroOutput::Deferred => {
-                        let placeholder = PlaceholderId(self.deferred.len());
-                        extension.placeholder = Some(placeholder);
-                        self.deferred.push(DeferredBlock {
-                            placeholder,
-                            invocation: extension.invocation.to_owned_invocation(),
-                            target: TargetId {
-                                document: self.identity().clone(),
-                                slot: placeholder.0,
-                            },
-                        });
-                    }
+                    *block = Block::Paragraph(paragraph);
+                }
+                BlockMacroOutput::None => return Ok(false),
+                BlockMacroOutput::Deferred => {
+                    let placeholder = PlaceholderId(self.deferred.len());
+                    extension.placeholder = Some(placeholder);
+                    self.deferred.push(DeferredBlock {
+                        placeholder,
+                        invocation: extension.invocation.to_owned_invocation(),
+                        target: TargetId {
+                            document: self.identity().clone(),
+                            slot: placeholder.0,
+                        },
+                    });
                 }
             }
-            Block::Section(section) => self.blocks(&mut section.content, state)?,
-            Block::Admonition(admonition) => self.blocks(&mut admonition.blocks, state)?,
-            Block::UnorderedList(list) => {
-                for item in &mut list.items {
-                    self.blocks(&mut item.blocks, state)?;
-                }
-            }
-            Block::OrderedList(list) => {
-                for item in &mut list.items {
-                    self.blocks(&mut item.blocks, state)?;
-                }
-            }
-            Block::CalloutList(list) => {
-                for item in &mut list.items {
-                    self.blocks(&mut item.blocks, state)?;
-                }
-            }
-            Block::DescriptionList(list) => {
-                for item in &mut list.items {
-                    if let Some(definition) = &mut item.definition {
-                        self.blocks(&mut definition.blocks, state)?;
-                    }
-                }
-            }
-            Block::DelimitedBlock(delimited) => self.delimited(&mut delimited.inner, state)?,
-            Block::TableOfContents(_)
-            | Block::DiscreteHeading(_)
-            | Block::DocumentAttribute(_)
-            | Block::ThematicBreak(_)
-            | Block::PageBreak(_)
-            | Block::Paragraph(_)
-            | Block::Image(_)
-            | Block::Audio(_)
-            | Block::Video(_)
-            | Block::Comment(_) => {}
         }
         Ok(true)
     }
-    fn delimited<'a>(
+}
+
+impl crate::grammar::SourceHandler for Session {
+    fn construct<'a>(
         &mut self,
-        inner: &mut DelimitedBlockType<'a>,
-        state: &ParserState<'a>,
-    ) -> Result<(), Error> {
-        match inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks)
-            | DelimitedBlockType::DelimitedQuote(blocks) => self.blocks(blocks, state)?,
-            DelimitedBlockType::DelimitedTable(table) => {
-                for row in table
-                    .header
-                    .iter_mut()
-                    .chain(&mut table.rows)
-                    .chain(&mut table.footer)
-                {
-                    for column in &mut row.columns {
-                        self.blocks(&mut column.content, state)?;
-                    }
-                }
-            }
-            DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedListing(_)
-            | DelimitedBlockType::DelimitedLiteral(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedStem(_) => {}
-        }
-        Ok(())
+        block: &mut Block<'a>,
+        state: &mut ParserState<'a>,
+    ) -> Result<(bool, crate::grammar::SourceAssignments<'a>), Error> {
+        let mut context = super::MacroExecutionContext::default();
+        let keep = self.block(block, state, &mut context)?;
+        Ok((keep, context.assignments))
     }
 }

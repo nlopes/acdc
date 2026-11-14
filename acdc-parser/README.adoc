@@ -2011,10 +2011,22 @@ to preserve their isolation. The fixture runner's case names are unchanged.
 == Registered extensions
 
 Applications can register block macros and ordered tree processors with
-`extensions::Registry`. Each parse creates fresh processor instances. Callbacks
-run once after the document is accepted and cannot change later includes,
-conditionals, or parsing. This differs from source-changing Asciidoctor extensions.
-Both compatibility modes support registrations.
+`extensions::Registry`. Each parse creates fresh processor instances. Block-macro
+callbacks run once when their block commits. `MacroExecutionContext::set_attribute`
+and `unset_attribute` request changes before subsequent conditionals and includes,
+under normal document assignment policy. The invocation retains the original
+source location and a read-only attribute snapshot. Both compatibility modes
+support registrations. Factories are shared; handlers may use document-local,
+non-`Send` state. Completed callback effects remain if later parsing fails.
+
+Nested source ordering supports compound bodies and pipe/exclamation-delimited
+AsciiDoc cells. CSV, TSV, DSV, and custom table separators retain buffered
+preprocessing. Unlike Asciidoctor 2.0.26, callbacks in supported nested bodies can
+affect later directives in the same body. Cell attributes follow the normal
+inheritance policy and stay local. Table-cell duplication repeats handlers over
+the selected source and gives each deferred request a distinct identity.
+A table layout that discards a cell after its callback ran returns a located
+extension error, since those effects cannot be rolled back.
 
 Use `query()` to inspect typed block, content, attribute, and caption views.
 Document-local `TargetId` handles survive insertions and placeholder replacement;

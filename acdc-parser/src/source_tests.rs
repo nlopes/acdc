@@ -213,15 +213,9 @@ fn source_driver_preserves_selected_include_origins_and_nested_base_directory() 
             &prepared,
             std::rc::Rc::clone(&warnings),
         )?;
-        let expected = crate::parse_input(preprocessed, prepared.clone(), None, warnings, None)?;
-        let actual = crate::parse_ordered_source(
-            input,
-            prepared,
-            None,
-            std::rc::Rc::default(),
-            None,
-            &mut (),
-        )?;
+        let expected = crate::parse_input(preprocessed, prepared.clone(), None, warnings)?;
+        let actual =
+            crate::parse_ordered_source(input, prepared, None, std::rc::Rc::default(), &mut ())?;
         assert_eq!(actual.preprocessed_source(), expected.preprocessed_source());
         assert_eq!(actual.document_storage(), expected.document_storage());
         assert_eq!(actual.warnings(), expected.warnings());
@@ -280,15 +274,9 @@ pub(crate) fn assert_equivalent(input: &str, mode: CompatibilityMode) -> TestRes
             &prepared,
             std::rc::Rc::clone(&warnings),
         )?;
-        let expected = crate::parse_input(preprocessed, prepared.clone(), None, warnings, None)?;
-        let actual = crate::parse_ordered_source(
-            &input,
-            prepared,
-            None,
-            std::rc::Rc::default(),
-            None,
-            &mut (),
-        )?;
+        let expected = crate::parse_input(preprocessed, prepared.clone(), None, warnings)?;
+        let actual =
+            crate::parse_ordered_source(&input, prepared, None, std::rc::Rc::default(), &mut ())?;
         assert_eq!(
             actual.preprocessed_source(),
             expected.preprocessed_source(),
@@ -599,8 +587,12 @@ fn source_driver_handler_failure_prevents_later_include_reads(
 struct Never;
 
 impl BlockMacroProcessor for Never {
-    fn process(&mut self, _: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
-        Err("public callbacks must retain their post-acceptance boundary".into())
+    fn process(
+        &mut self,
+        _: &MacroInvocation<'_>,
+        _: &mut acdc_parser::extensions::MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String> {
+        Err("registry processors must not run through the private observer seam".into())
     }
 }
 

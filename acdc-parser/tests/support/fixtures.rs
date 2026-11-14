@@ -8,6 +8,9 @@ use std::{
 use acdc_parser::{CompatibilityMode, Options, SafeMode, Warning, parse_file};
 use serde_json::{Value, json};
 
+#[path = "../../src/extensions/tests/support.rs"]
+mod extensions;
+
 pub(crate) type Error = Box<dyn StdError + Send + Sync>;
 
 /// Selects an expectation filename, not a production parser policy.
@@ -205,7 +208,18 @@ impl Case {
             .with_compatibility_mode(mode)
             .with_safe_mode(SafeMode::Unsafe)
             .build()?;
-        match parse_file(&self.source, &options) {
+        let parsed = if self
+            .source
+            .parent()
+            .is_some_and(|parent| parent.ends_with("extensions"))
+        {
+            extensions::registry()
+                .parse_file(&self.source, &options)
+                .and_then(acdc_parser::extensions::ExtensionParseResult::finish)
+        } else {
+            parse_file(&self.source, &options)
+        };
+        match parsed {
             Ok(parsed) => Ok(Observation {
                 kind: OutcomeKind::Json,
                 output: serde_json::to_string_pretty(&parsed.document())?,

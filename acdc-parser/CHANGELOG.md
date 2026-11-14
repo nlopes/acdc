@@ -146,9 +146,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Edits repair references, TOC and scoped footnotes while
   preserving surviving section and caption numbers.
   Call `ExtensionParseResult::finish()` before conversion or checked ASG export;
-  unresolved requests return a located error. Callbacks run after parsing and
-  cannot change later includes or conditionals, unlike source-changing
-  Asciidoctor extensions.
+  unresolved requests return a located error. Block-macro callbacks now run
+  once as their blocks commit. `MacroExecutionContext::set_attribute` and
+  `unset_attribute` affect later conditionals, includes, and substitutions under
+  normal document assignment policy. Callback effects already performed remain
+  if a later block fails. Quoted empty positional arguments override defaults;
+  omitted slots retain their positions. Nested source ordering supports compound
+  bodies and pipe/exclamation AsciiDoc cells, including cell-local attributes;
+  Asciidoctor 2.0.26 buffers those bodies before invoking their macros. Other
+  table formats retain buffered preprocessing. Discarding a table cell after
+  its callback executed is a located error rather than silent recovery.
 
 - Faster parsing of paragraphs, deeply nested blocks, mixed ASCII and Unicode
   text, formatting, inline passthroughs, and duplicated ordinary table cells

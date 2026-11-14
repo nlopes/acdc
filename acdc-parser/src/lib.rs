@@ -385,7 +385,7 @@ pub fn parse_from_reader<R: std::io::Read>(
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
-    parse_input(result, options, None, warnings_handle, None)
+    parse_input(result, options, None, warnings_handle)
 }
 
 /// Parse `AsciiDoc` content from a string.
@@ -451,13 +451,21 @@ fn parse_with_source_handler(
         .prepare_for_parse(document_attribute::InputKind::String);
     let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
     if let Some(handler) = handler {
-        return parse_ordered_source(input, options, None, warnings_handle, session, handler);
+        return parse_ordered_source(input, options, None, warnings_handle, handler);
+    }
+    if let Some(session) = session
+        && options
+            .extensions
+            .as_ref()
+            .is_some_and(|registry| registry.may_execute(input))
+    {
+        return parse_ordered_source(input, options, None, warnings_handle, session);
     }
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
-    parse_input(result, options, None, warnings_handle, session)
+    parse_input(result, options, None, warnings_handle)
 }
 
 /// Parse `AsciiDoc` content from a file.
@@ -504,11 +512,19 @@ fn parse_file_with_session(
     let path = file_path.to_path_buf();
     let raw = preprocessor::read_and_decode_file(file_path, None)?;
     let warnings_handle: Rc<RefCell<WarningCollection>> = Rc::default();
+    if let Some(session) = session
+        && options
+            .extensions
+            .as_ref()
+            .is_some_and(|registry| registry.may_execute(&raw))
+    {
+        return parse_ordered_source(&raw, options, Some(path), warnings_handle, session);
+    }
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_with_file(&raw, file_path, &options, Rc::clone(&warnings_handle))?
     };
-    parse_input(result, options, Some(path), warnings_handle, session)
+    parse_input(result, options, Some(path), warnings_handle)
 }
 
 /// Helper to convert a PEG parse error to our `SourceLocation` type,
@@ -545,7 +561,6 @@ fn parse_input(
     mut options: Options<'_>,
     file_path: Option<PathBuf>,
     warnings_handle: Rc<RefCell<WarningCollection>>,
-    session: Option<&mut extensions::Session>,
 ) -> Result<ParseResult, Error> {
     if let Some(front_matter) = result.front_matter {
         options
@@ -594,7 +609,7 @@ fn parse_input(
                 state.add_warning(Warning::new(WarningKind::DeprecatedToc2Attribute, None));
             }
             let result = match grammar::parse_document(&owner.source, &mut state) {
-                Ok(Ok(doc)) => finish_parsed_document(doc, &mut state, session, &owner.source),
+                Ok(Ok(doc)) => finish_parsed_document(doc, &mut state, &owner.source),
                 Ok(Err(e)) => Err(e),
                 Err(error) => {
                     tracing::error!("error parsing document content");
@@ -612,16 +627,9 @@ fn parse_input(
 fn finish_parsed_document<'a>(
     mut doc: Document<'a>,
     state: &mut grammar::ParserState<'a>,
-    session: Option<&mut extensions::Session>,
     source: &'a str,
 ) -> Result<Document<'a>, Error> {
     grammar::reference_text::finish_document(state, &mut doc)?;
-    if let Some(session) = session
-        && session.process(&mut doc, state)?
-    {
-        doc.renumber_captions();
-        extensions::finalization::repair_macros(&mut doc)?;
-    }
     grammar::remap_document_to_source(&mut doc, &state.source_ranges, source, &state.line_map);
     Ok(doc)
 }
@@ -631,7 +639,6 @@ fn parse_ordered_source(
     options: Options<'_>,
     file_path: Option<PathBuf>,
     warnings_handle: Rc<RefCell<WarningCollection>>,
-    session: Option<&mut extensions::Session>,
     handler: &mut dyn grammar::SourceHandler,
 ) -> Result<ParseResult, Error> {
     let owner =
@@ -669,7 +676,7 @@ fn parse_ordered_source(
             )
             .and_then(|document| {
                 *source_files = parsed::SourceFiles::new(file_path, &state.source_ranges);
-                finish_parsed_document(document, &mut state, session, owner.preprocessed_source())
+                finish_parsed_document(document, &mut state, owner.preprocessed_source())
             });
             state.emit_warnings();
             result

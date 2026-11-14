@@ -1,6 +1,9 @@
 use std::{borrow::Cow, fmt, sync::Arc};
 
-use crate::{DocumentAttributes, ElementAttributes, SourceLocation};
+use crate::{
+    DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, ElementAttributes,
+    SourceLocation,
+};
 
 /// The parser scope in which a block macro can be recognized.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,7 +116,50 @@ pub trait BlockMacroProcessor {
     ///
     /// # Errors
     /// Return a message describing why this invocation cannot be processed.
-    fn process(&mut self, invocation: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String>;
+    fn process(
+        &mut self,
+        invocation: &MacroInvocation<'_>,
+        context: &mut MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String>;
+}
+
+impl<F> BlockMacroProcessor for F
+where
+    F: FnMut(&MacroInvocation<'_>, &mut MacroExecutionContext) -> Result<BlockMacroOutput, String>,
+{
+    fn process(
+        &mut self,
+        invocation: &MacroInvocation<'_>,
+        context: &mut MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String> {
+        self(invocation, context)
+    }
+}
+
+/// Attribute changes requested by one committed callback.
+///
+/// The host applies these changes in order after a successful callback, using
+/// normal document assignment policy, before advancing to subsequent source.
+/// Values are already resolved; literal attribute references are not expanded again.
+#[derive(Debug, Default)]
+pub struct MacroExecutionContext {
+    pub(crate) assignments: Vec<(Cow<'static, str>, DocumentAttributeAssignment<'static>)>,
+}
+
+impl MacroExecutionContext {
+    pub fn set_attribute(
+        &mut self,
+        name: impl Into<Cow<'static, str>>,
+        value: impl Into<DocumentAttributeValue<'static>>,
+    ) {
+        self.assignments
+            .push((name.into(), DocumentAttributeAssignment::Set(value.into())));
+    }
+
+    pub fn unset_attribute(&mut self, name: impl Into<Cow<'static, str>>) {
+        self.assignments
+            .push((name.into(), DocumentAttributeAssignment::Unset));
+    }
 }
 
 /// Content produced by a registered block macro.

@@ -116,6 +116,10 @@ pub(crate) struct ScannedAttribute {
 }
 
 impl ScannedAttribute {
+    pub(crate) fn is_empty_slot(&self) -> bool {
+        self.quote == AttributeQuote::Unquoted && self.value.is_empty()
+    }
+
     pub(crate) fn is_unset(&self) -> bool {
         self.quote == AttributeQuote::Unquoted && self.value == "None"
     }

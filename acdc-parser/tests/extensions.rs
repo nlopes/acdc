@@ -11,7 +11,11 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 
 struct Defer;
 impl BlockMacroProcessor for Defer {
-    fn process(&mut self, _: &MacroInvocation<'_>) -> Result<BlockMacroOutput, String> {
+    fn process(
+        &mut self,
+        _: &MacroInvocation<'_>,
+        _: &mut acdc_parser::extensions::MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String> {
         Ok(BlockMacroOutput::Deferred)
     }
 }
@@ -216,6 +220,71 @@ fn extensions_removal_preserves_cell_footnote_owners_and_prepared_numbers() -> T
                 .next()
                 .map(FootnoteDefinitionRef::number)
         );
+    }
+    Ok(())
+}
+
+#[test]
+fn extensions_preserve_main_recovery_and_header_semantics() -> TestResult {
+    let marker = ".".repeat(256);
+    let sources = [
+        ":toc:\n\n= Title\n\nBody.".to_owned(),
+        "Before.\n\n|===\n|Cell\n|====\n\nLater cell.\n|===\n\nAfter.".to_owned(),
+        "Before.\n\n|===\n|Cell\n|====\n\nLater cell.".to_owned(),
+        "Before.\n\n[cols=4294967296a]\n|===\n|Cell\n|===\n\nAfter.".to_owned(),
+        format!("Before.\n\n.Kept title\n[id=overflow]\n{marker} Literal item.\n\nAfter."),
+        "Before.\n\nifeval::[1 = 1]\nHidden.\nendif::[]\n\nAfter.".to_owned(),
+    ];
+    let mut builder = Registry::builder();
+    builder.register(BlockMacro::new("unused", || Defer))?;
+    let registry = builder.build();
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for source in &sources {
+            // Force the registered-name reader path without executing a callback.
+            let source = format!("{source}\n\n\\unused::[]");
+            let native = acdc_parser::parse(&source, &options)?;
+            let extended = registry.parse(&source, &options)?.finish()?;
+            assert_eq!(
+                serde_json::to_value(extended.document())?,
+                serde_json::to_value(native.document())?,
+                "{mode:?}: {source}"
+            );
+            assert_eq!(extended.warnings(), native.warnings(), "{mode:?}: {source}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn extensions_preserve_scoped_include_assignments_and_origins() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    std::fs::write(
+        directory.path().join("outer.adoc"),
+        "== Outer\n\ninclude::inner.adoc[leveloffset=+1]\n\nOuter after.",
+    )?;
+    std::fs::write(
+        directory.path().join("inner.adoc"),
+        "== Inner\n\nInner body.",
+    )?;
+    let source = "= Title\n:leveloffset: +1\n\ninclude::outer.adoc[leveloffset=+1]\n\n== After\n\nFinal body.";
+    let mut builder = Registry::builder();
+    builder.register(BlockMacro::new("unused", || Defer))?;
+    let registry = builder.build();
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder()
+            .with_base_dir(directory.path())
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .with_compatibility_mode(mode)
+            .build()?;
+        let native = acdc_parser::parse(source, &options)?;
+        let extended = registry.parse(source, &options)?.finish()?;
+        assert_eq!(
+            serde_json::to_value(extended.document())?,
+            serde_json::to_value(native.document())?,
+            "{mode:?}"
+        );
+        assert_eq!(extended.warnings(), native.warnings(), "{mode:?}");
     }
     Ok(())
 }

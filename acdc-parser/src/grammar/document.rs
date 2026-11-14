@@ -25,7 +25,7 @@ mod verbatim;
 
 pub(crate) use coordinator::document;
 pub(crate) use peg::document_parser;
-pub(crate) use source::{SourceHandler, document_from_source};
+pub(crate) use source::{Assignments as SourceAssignments, SourceHandler, document_from_source};
 
 type RecognitionError = ::peg::error::ParseError<::peg::str::LineCol>;
 
