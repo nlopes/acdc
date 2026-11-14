@@ -57,7 +57,7 @@
 //! preprocessed == source), the pass is skipped entirely and node locations — whose
 //! positions carry no file, matching the primary input — are final.
 
-use std::{collections::HashMap, sync::Arc};
+use std::{cell::Cell, collections::HashMap, sync::Arc};
 
 use crate::{
     grammar::{
@@ -120,6 +120,8 @@ struct Remapper<'a> {
     /// where no range covers it. Length is `boundaries.len().saturating_sub(1)`.
     /// "Innermost" = last-recorded = highest index, matching the old `iter().rev()`.
     segment_cover: Vec<Option<usize>>,
+    /// Nearby node endpoints usually remain within the same compressed segment.
+    last_segment: Cell<usize>,
 }
 
 impl<'a> Remapper<'a> {
@@ -158,7 +160,7 @@ impl<'a> Remapper<'a> {
 
         let preproc_start_lines = ranges
             .iter()
-            .map(|range| line_map.offset_to_position(range.start_offset, input).line)
+            .map(|range| line_map.offset_to_line(range.start_offset))
             .collect();
 
         Self {
@@ -169,6 +171,7 @@ impl<'a> Remapper<'a> {
             chains,
             boundaries,
             segment_cover,
+            last_segment: Cell::new(0),
         }
     }
 
@@ -202,13 +205,17 @@ impl<'a> Remapper<'a> {
     /// precomputed segment cover (O(log R)). The source line goes through the shared
     /// [`LineMap::source_line`] so it can't drift from the diagnostic paths.
     fn map_offset(&self, abs: usize) -> Option<(usize, u32, &'a SourceRange)> {
-        let range_index = covering_range_index(&self.boundaries, &self.segment_cover, abs)?;
+        let range_index = covering_range_index(
+            &self.boundaries,
+            &self.segment_cover,
+            abs,
+            &self.last_segment,
+        )?;
         let range = self.ranges.get(range_index)?;
         let preproc_start_line = *self.preproc_start_lines.get(range_index)?;
         let source_line = self.line_map.source_line_from(
             u32::try_from(range.start_line).unwrap_or(u32::MAX),
             preproc_start_line,
-            self.input,
             abs,
         );
         Some((range.source_offset(abs), source_line, range))
@@ -223,13 +230,18 @@ impl<'a> Remapper<'a> {
     fn source_start(&self, loc: &mut Location) -> Option<usize> {
         // A document can begin with generated include scope controls. Anchor
         // its start to the first authored range within the enclosing span.
-        let start = self
-            .ranges
+        let first = self
+            .boundaries
+            .partition_point(|&offset| offset < loc.absolute_start);
+        let next = self
+            .segment_cover
+            .get(first..)?
             .iter()
-            .filter(|range| range.start_offset < range.end_offset)
-            .map(|range| range.start_offset)
-            .filter(|&start| start >= loc.absolute_start && start <= loc.absolute_end)
-            .min()?;
+            .position(Option::is_some)?;
+        let start = *self
+            .boundaries
+            .get(first + next)
+            .filter(|&&start| start <= loc.absolute_end)?;
         loc.absolute_start = start;
         loc.start = self.line_map.offset_to_position(start, self.input);
         Some(start)
@@ -238,13 +250,16 @@ impl<'a> Remapper<'a> {
     fn source_end(&self, loc: &mut Location, probe: usize) -> usize {
         // Generated scope controls have no source. Keep enclosing spans anchored
         // to the last authored character before those controls.
+        let before = self
+            .boundaries
+            .partition_point(|&offset| offset <= probe)
+            .saturating_sub(1);
         let end = self
-            .ranges
-            .iter()
-            .filter(|range| range.end_offset <= probe)
-            .map(|range| range.end_offset)
-            .max()
-            .and_then(|end| self.input.get(..end))
+            .segment_cover
+            .get(..before)
+            .and_then(|cover| cover.iter().rposition(Option::is_some))
+            .and_then(|index| self.boundaries.get(index + 1))
+            .and_then(|&end| self.input.get(..end))
             .map(str::trim_end)
             .and_then(|prefix| prefix.char_indices().next_back())
             .map_or(probe, |(offset, _)| offset.max(loc.absolute_start));
@@ -329,13 +344,23 @@ fn covering_range_index(
     boundaries: &[usize],
     segment_cover: &[Option<usize>],
     abs: usize,
+    last_segment: &Cell<usize>,
 ) -> Option<usize> {
+    let cached = last_segment.get();
+    if let Some(&start) = boundaries.get(cached)
+        && let Some(&end) = boundaries.get(cached + 1)
+        && abs >= start
+        && abs < end
+    {
+        return *segment_cover.get(cached)?;
+    }
     let &first = boundaries.first()?;
     let &last = boundaries.last()?;
     if abs < first || abs >= last {
         return None;
     }
     let segment = boundaries.partition_point(|&c| c <= abs).checked_sub(1)?;
+    last_segment.set(segment);
     *segment_cover.get(segment)?
 }
 
@@ -413,9 +438,17 @@ mod tests {
         boundaries.sort_unstable();
         boundaries.dedup();
         let segment_cover = Remapper::build_segment_cover(&raw, &boundaries);
+        let input = "x".repeat(220);
+        let line_map = LineMap::new(&input);
+        let remapper = Remapper::new(&raw, &input, &line_map);
 
-        for abs in 0..220 {
-            let got = covering_range_index(&boundaries, &segment_cover, abs);
+        let last_segment = Cell::new(0);
+        for abs in (0..220)
+            .chain((0..220).rev())
+            .chain((0..220).map(|offset| offset * 73 % 220))
+            .flat_map(|offset| [offset, offset])
+        {
+            let got = covering_range_index(&boundaries, &segment_cover, abs, &last_segment);
             let expected = raw
                 .iter()
                 .enumerate()
@@ -423,6 +456,78 @@ mod tests {
                 .find(|(_, r)| r.contains(abs))
                 .map(|(index, _)| index);
             assert_eq!(got, expected, "offset {abs}");
+            if got.is_none() {
+                let mut location = Location {
+                    absolute_start: abs,
+                    absolute_end: input.len() - 1,
+                    start: line_map.offset_to_position(abs, &input),
+                    end: line_map.offset_to_position(input.len() - 1, &input),
+                };
+                let next = raw
+                    .iter()
+                    .filter(|range| {
+                        range.start_offset < range.end_offset && range.start_offset >= abs
+                    })
+                    .map(|range| range.start_offset)
+                    .min();
+                assert_eq!(
+                    remapper.source_start(&mut location),
+                    next,
+                    "next source at {abs}"
+                );
+                location.absolute_start = 0;
+                let previous = raw
+                    .iter()
+                    .filter(|range| range.end_offset <= abs)
+                    .map(|range| range.end_offset)
+                    .max()
+                    .map_or(abs, |end| end - 1);
+                assert_eq!(
+                    remapper.source_end(&mut location, abs),
+                    previous,
+                    "previous source at {abs}"
+                );
+            }
         }
+    }
+
+    #[test]
+    fn generated_edges_keep_authored_unicode_endpoints() -> Result<(), Box<dyn std::error::Error>> {
+        let input = "generated\nλ one.\ncontrol\nlast.\ntrailer";
+        let start = input.find("λ one.").ok_or("missing first source")?;
+        let last = input.find("last.").ok_or("missing last source")?;
+        let mut first = range(start, start + "λ one.".len());
+        first.start_line = 30;
+        first.source_start_offset = 100;
+        let mut final_range = range(last, last + "last.".len());
+        final_range.start_line = 50;
+        final_range.source_start_offset = 200;
+        let ranges = [first, final_range];
+        let line_map = LineMap::new(input);
+        let remapper = Remapper::new(&ranges, input, &line_map);
+        let mut location = Location {
+            absolute_start: 0,
+            absolute_end: input.len() - 1,
+            start: line_map.offset_to_position(0, input),
+            end: line_map.offset_to_position(input.len() - 1, input),
+        };
+        remapper.remap_one(&mut location);
+        assert_eq!(
+            (
+                location.absolute_start,
+                location.start.line,
+                location.start.column
+            ),
+            (100, 30, 1)
+        );
+        assert_eq!(
+            (
+                location.absolute_end,
+                location.end.line,
+                location.end.column
+            ),
+            (204, 50, 5)
+        );
+        Ok(())
     }
 }

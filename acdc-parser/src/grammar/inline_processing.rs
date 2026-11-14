@@ -178,9 +178,7 @@ fn adjust_peg_error_position(
             (
                 range.file.clone(),
                 Position::new(
-                    state
-                        .line_map
-                        .source_line(range, state.input, absolute_offset),
+                    state.line_map.source_line(range, absolute_offset),
                     doc_position.column,
                 ),
             )

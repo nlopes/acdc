@@ -389,30 +389,18 @@ impl<'a> Selection<'a> {
     }
 
     fn feed(&mut self, text: &str) -> Result<ControlFlow<()>, Error> {
-        for ch in text.chars() {
+        for part in text.split_inclusive('\n') {
+            let (fragment, newline) = part
+                .strip_suffix('\n')
+                .map_or((part, false), |fragment| (fragment, true));
             if self.line.is_none() {
                 if let Some(line) = self.pending.take() {
                     self.accept(&line)?;
                 }
                 self.line = Some(Line::new(self.requirement(), self.tags.is_some()));
             }
-            if ch == '\n' {
-                if let Some(mut line) = self.line.take() {
-                    line.remove_cr();
-                    self.rebuild |= line.needs_rebuild();
-                    if matches!(self.selector, ContentSelection::Lines(_)) {
-                        // The newline completes this line, even if it is blank.
-                        // We do not need to read again to check for the end of the source.
-                        self.accept(&line)?;
-                        if self.stop_after == Some(self.number) {
-                            return Ok(ControlFlow::Break(()));
-                        }
-                    } else {
-                        self.pending = Some(line);
-                    }
-                }
-            } else if let Some(line) = &mut self.line {
-                line.push(ch);
+            if let Some(line) = &mut self.line {
+                line.extend(fragment);
                 // Fail before the newline only if this line must be selected.
                 // A finite range can still end beyond the source. A tagged line can
                 // still be a marker, which is excluded from the output.
@@ -421,6 +409,20 @@ impl<'a> Selection<'a> {
                     && self.tags.is_none()
                 {
                     return Err(Error::IncludeSourceTooLarge(self.name.to_string()));
+                }
+            }
+            if newline && let Some(mut line) = self.line.take() {
+                line.remove_cr();
+                self.rebuild |= line.needs_rebuild();
+                if matches!(self.selector, ContentSelection::Lines(_)) {
+                    // The newline completes this line, even if it is blank.
+                    // We do not need to read again to check for the end of the source.
+                    self.accept(&line)?;
+                    if self.stop_after == Some(self.number) {
+                        return Ok(ControlFlow::Break(()));
+                    }
+                } else {
+                    self.pending = Some(line);
                 }
             }
         }
@@ -561,19 +563,31 @@ impl Line {
         }
     }
 
-    fn push(&mut self, ch: char) {
-        self.len = self.len.saturating_add(ch.len_utf8());
-        if !ch.is_whitespace() {
-            self.trimmed_len = self.len;
+    fn extend(&mut self, text: &str) {
+        let start = self.len;
+        self.len = self.len.saturating_add(text.len());
+        let trimmed = text.trim_end();
+        if !trimmed.is_empty() {
+            self.trimmed_len = start.saturating_add(trimmed.len());
         }
-        if self.required_end.is_some() && self.len <= MAX_SELECTED_BYTES {
-            self.prefix.push(ch);
+        if self.required_end.is_some() {
+            let mut end = text.len().min(MAX_SELECTED_BYTES.saturating_sub(start));
+            while !text.is_char_boundary(end) {
+                end -= 1;
+            }
+            self.prefix.push_str(text.get(..end).unwrap_or_default());
         }
-        self.previous = self.last.replace(ch);
-        self.carriage_returns += usize::from(ch == '\r');
+        let mut tail = text.chars().rev();
+        if let Some(last) = tail.next() {
+            self.previous = tail.next().or(self.last);
+            self.last = Some(last);
+        }
+        self.carriage_returns += text.bytes().filter(|&byte| byte == b'\r').count();
         if let Some(probes) = &mut self.probes {
-            for probe in probes {
-                probe.push(ch);
+            for ch in text.chars() {
+                for probe in &mut *probes {
+                    probe.push(ch);
+                }
             }
         }
     }
@@ -661,6 +675,9 @@ impl Probe {
     }
 
     fn push(&mut self, ch: char) {
+        if matches!(self.state, ProbeState::Done(_)) {
+            return;
+        }
         let previous = self.previous.replace(ch);
         match self.state {
             ProbeState::Done(_) => (),
@@ -686,7 +703,10 @@ impl Probe {
                     }
                 } else {
                     self.matched = usize::from(self.keyword.starts_with(ch));
-                    self.word_before = previous.is_some_and(|c| c.is_alphanumeric() || c == '_');
+                    if self.matched != 0 {
+                        self.word_before =
+                            previous.is_some_and(|c| c.is_alphanumeric() || c == '_');
+                    }
                 }
             }
             ProbeState::Bracket => {

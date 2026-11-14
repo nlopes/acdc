@@ -494,7 +494,7 @@ fn peg_error_to_source_location(
         SourceLocation {
             file: range.file.clone(),
             location: crate::Location::point(Position::new(
-                state.line_map.source_line(range, state.input, offset),
+                state.line_map.source_line(range, offset),
                 u32::try_from(error.location.column).unwrap_or(u32::MAX),
             )),
         }

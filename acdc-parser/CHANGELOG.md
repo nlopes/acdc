@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Faster processing of included files, especially `lines=` and tag selections,
+  while preserving resource limits, source locations, and compatibility modes.
+
 - Heading-like lines such as `== Title` and `## Title` inside paragraphs and
   list items now remain text in both compatibility modes, matching Asciidoctor.
   They no longer create extra sections or table of contents entries.
