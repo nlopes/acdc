@@ -271,7 +271,7 @@ fn inline_svg(bytes: &[u8], attributes: AttributesRef<'_>) -> Result<String, Str
             | Event::DocType(_)
             | Event::GeneralRef(_) => continue,
         };
-        if tag.name().as_ref() != b"svg" {
+        if tag.name().as_ref() != "svg" {
             return Err("image root element is not svg".into());
         }
         let width = attributes.get("width").and_then(AttributeValueRef::as_str);
@@ -287,7 +287,7 @@ fn inline_svg(bytes: &[u8], attributes: AttributesRef<'_>) -> Result<String, Str
         let mut replacement = BytesStart::new("svg");
         for attribute in tag.attributes() {
             let attribute = attribute.map_err(|error| error.to_string())?;
-            if !matches!(attribute.key.as_ref(), b"width" | b"height" | b"style") {
+            if !matches!(attribute.key.as_ref(), "width" | "height" | "style") {
                 replacement.push_attribute(attribute);
             }
         }
