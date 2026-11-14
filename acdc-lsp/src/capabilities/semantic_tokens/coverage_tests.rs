@@ -317,3 +317,25 @@ fn lone_backslash_value_does_not_continue_into_body() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn slash_prefixed_paragraph_ends_leading_attribute_scan() -> TestResult {
+    for source in ["///\n:foo: bar\n", "////x\n:foo: bar\n"] {
+        let tokens = decoded(source)?;
+        assert!(
+            !tokens
+                .iter()
+                .any(|token| token.0 == 1 && matches!(token.3.as_str(), "property" | "string")),
+            "{source:?}: {tokens:?}"
+        );
+    }
+
+    let tokens = decoded("// note\n:foo: bar\n")?;
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.0 == 1 && token.2 == "foo" && token.3 == "property"),
+        "{tokens:?}"
+    );
+    Ok(())
+}

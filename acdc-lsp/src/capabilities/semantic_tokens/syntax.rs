@@ -103,7 +103,9 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
             comment_delimiter = Some(text);
             continue;
         }
-        if text.starts_with("//") {
+        // Like the parser, a line comment is `//` not followed by another `/`;
+        // other slash-prefixed text starts a paragraph and ends the scan.
+        if text.starts_with("//") && !text.starts_with("///") {
             continue;
         }
         let Some((name, value)) = text.strip_prefix(':').and_then(|rest| rest.split_once(':'))
