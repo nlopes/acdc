@@ -2911,3 +2911,48 @@ fn include_leveloffset_limits_apply_in_both_modes() -> Result<(), Box<dyn Error>
     }
     Ok(())
 }
+
+#[cfg(feature = "html")]
+#[test]
+fn include_leveloffset_entries_render_public_text_in_literal_contexts() -> Result<(), Box<dyn Error>>
+{
+    let directory = tempdir()?;
+    let main = directory.path().join("main.adoc");
+    fs::write(directory.path().join("child.adoc"), "Child {leveloffset}.")?;
+    for mode in ["asciidoctor", "draft"] {
+        for (before, after, child) in [
+            ("----\n", "\n----", "Child {leveloffset}."),
+            ("....\n", "\n....", "Child {leveloffset}."),
+            ("++++\n", "\n++++", "Child {leveloffset}."),
+            ("Start\n", "\nEnd", "Child 1."),
+        ] {
+            fs::write(
+                &main,
+                format!(
+                    ":leveloffset: 1\n\n{before}include::child.adoc[leveloffset=+1]{after}\n\n== After {{leveloffset}}"
+                ),
+            )?;
+            let output = run_acdc(
+                &[
+                    "convert",
+                    "--embedded",
+                    "--safe-mode",
+                    "unsafe",
+                    "--compatibility-mode",
+                    mode,
+                    "-o",
+                    "-",
+                    &main.to_string_lossy(),
+                ],
+                None,
+            )?;
+            assert!(output.status.success(), "{}", output_text(&output.stderr));
+            let html = output_text(&output.stdout);
+            assert!(html.contains(":leveloffset: +1"), "{html}");
+            assert!(html.contains(child), "{html}");
+            assert!(!html.contains("__acdc_parser_internal"), "{html}");
+            assert!(html.contains("<h3 id=\"_after_1\">After 1</h3>"), "{html}");
+        }
+    }
+    Ok(())
+}

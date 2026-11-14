@@ -43,7 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   include overrides. Leading zeros are retained, so `leveloffset=01` with a
   one-byte cap applies offset `0`, matching Asciidoctor. Verbatim examples do
   not affect subsequent headings, and document locations retain authored include
-  boundaries.
+  boundaries. Include offset entries that remain literal inside listings or
+  paragraphs retain the public `:leveloffset:` spelling, matching Asciidoctor.
+  Literal entries do not change the active offset, including when listing
+  boundaries cross included files.
 - `max-attribute-value-size` truncates document-defined text at a complete UTF-8
   character, including resolved relative `leveloffset` values. Secure mode defaults
   to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset

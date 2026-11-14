@@ -524,6 +524,8 @@ fn parse_input(
     let input = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = input.len()).entered();
     let source_ranges = result.source_ranges;
+    let mut leveloffset_scopes = result.leveloffset_scopes;
+    leveloffset_scopes.sort_unstable_by_key(|scope| scope.range.start);
     tracing::trace!(input_len = input.len(), "post preprocessor");
     // Pin the preprocessed source text and a fresh `bumpalo::Bump` arena
     // together. The grammar borrows `&owner.source` and allocates every owned
@@ -552,6 +554,7 @@ fn parse_input(
                 grammar::ParserState::new(&owner.source, &owner.arena, Rc::new(options_owned));
             state.current_file = file_path.map(std::sync::Arc::new);
             state.leveloffset_ranges = result.leveloffset_ranges;
+            state.leveloffset_scopes = leveloffset_scopes;
             state.source_ranges = source_ranges;
             state.included_files = result.included_files;
             state.warnings = warnings_for_state;
