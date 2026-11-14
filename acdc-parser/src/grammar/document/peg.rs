@@ -407,7 +407,7 @@ peg::parser! {
             = lines:(
                 anchor:anchor(0) { AttributeOrAnchorLine::Anchor(anchor) }
                 / attr:attributes_line() { AttributeOrAnchorLine::Attributes(Box::new(attr)) }
-            )+ &document_title()
+            )+ &document_title_match()
             {
                 let mut metadata = BlockMetadata::default();
 
@@ -454,6 +454,16 @@ peg::parser! {
         pub(in crate::grammar::document) rule document_title() -> (Title<'input>, Option<Subtitle<'input>>)
         = document_title_atx()
         / document_title_setext()
+
+        // Match a document title without processing its inlines. Lookaheads use
+        // this because inline processing registers footnotes and other state.
+        rule document_title_match()
+        = &atx_heading_prefix() document_title_token() whitespace()
+        / title:setext_title_text() eol() underline:$("="+) &(eol() / ![_]) {?
+            setext::is_document_title(state.options.compatibility_mode, title, underline)
+                .then_some(())
+                .ok_or("not a setext document title")
+        }
 
         /// ATX-style document title: `= Title` or `# Title`
         rule document_title_atx() -> (Title<'input>, Option<Subtitle<'input>>)
@@ -516,20 +526,8 @@ peg::parser! {
         = title:setext_title_text() end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
-            if !setext::is_enabled(state.options.compatibility_mode) {
-                return Err("setext mode not enabled");
-            }
-
-            let title_text = title.trim();
-            let title_width = title_text.chars().count();
-            let underline_width = underline.chars().count();
-
-            if !setext::width_ok(title_width, underline_width) {
-                return Err("underline width out of tolerance");
-            }
-
-            if !underline.starts_with('=') {
-                return Err("document title must use = underline");
+            if !setext::is_document_title(state.options.compatibility_mode, title, underline) {
+                return Err("not a setext document title");
             }
 
             tracing::debug!("Processing setext document title");

@@ -22,6 +22,7 @@ mod document_attribute_source_order;
 mod document_attribute_text_pass;
 mod document_control_quotes;
 mod formatted_attribute_order;
+mod header_boundary;
 mod header_metadata;
 mod inline_attribute_order;
 mod inline_unicode_attributes;

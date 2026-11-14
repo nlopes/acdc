@@ -21,6 +21,11 @@ pub(crate) fn is_enabled(mode: CompatibilityMode) -> bool {
     mode == CompatibilityMode::Asciidoctor
 }
 
+/// Whether a title line and its `=` underline form a document title.
+pub(crate) fn is_document_title(mode: CompatibilityMode, title: &str, underline: &str) -> bool {
+    is_enabled(mode) && width_ok(title.trim().chars().count(), underline.chars().count())
+}
+
 pub(crate) fn is_title(title: &str) -> bool {
     !title.starts_with('.') && title.chars().any(char::is_alphanumeric)
 }
