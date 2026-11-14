@@ -22,7 +22,7 @@ acdc-parser.workspace = true
 base64.workspace = true
 chrono.workspace = true
 percent-encoding.workspace = true
-quick-xml = "0.41"
+quick-xml = "0.42"
 giallo = { workspace = true, optional = true }
 thiserror.workspace = true
 tracing.workspace = true
