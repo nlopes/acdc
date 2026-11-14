@@ -127,6 +127,8 @@ pub(crate) struct ParserState<'a> {
     /// processing includes with `leveloffset=` attributes. Used by the parser to adjust
     /// section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+    /// Accepted generated scope entries, sorted by their nonoverlapping ranges.
+    pub(crate) leveloffset_scopes: Vec<crate::preprocessor::LeveloffsetScope>,
     /// Byte ranges mapping preprocessed output back to source files. Set by the
     /// preprocessor when processing `include::` directives. Used to produce accurate
     /// file/line info in warnings.
@@ -551,12 +553,16 @@ impl<'a> ParserState<'a> {
         location: Location,
     ) -> Option<DocumentAttribute<'a>> {
         let AttributeDeclaration { name, value } = declaration;
-        if *name == crate::document_attribute::INTERNAL_LEVELOFFSET_ATTR {
-            let assignment =
-                crate::document_attribute::validate_assignment_value("leveloffset", value.clone())
-                    .ok()?;
+        if *name == "leveloffset"
+            && let Some(scope) = self
+                .leveloffset_scopes
+                .partition_point(|scope| scope.range.start <= location.absolute_start)
+                .checked_sub(1)
+                .and_then(|index| self.leveloffset_scopes.get(index))
+            && scope.range.contains(&location.absolute_start)
+        {
             Rc::make_mut(&mut self.document_attributes)
-                .normalize_assignment("leveloffset".into(), assignment);
+                .normalize_assignment("leveloffset".into(), scope.assignment.clone());
             return None;
         }
         let key = Cow::Borrowed(*name);
@@ -694,6 +700,7 @@ impl<'a> ParserState<'a> {
             pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::default(),
@@ -750,6 +757,7 @@ impl<'a> ParserState<'a> {
             pending_callouts: Vec::new(),
             current_file: None,
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::default(),
@@ -808,6 +816,7 @@ impl<'a> ParserState<'a> {
             // origin file by `create_location` (cheap `Arc` clone).
             current_file: parent.current_file.clone(),
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             // Each inline owner maps only the diagnostics appended in its scope.

@@ -94,8 +94,22 @@ pub(super) struct BlockContext {
     block_comment: Option<(u8, usize)>,
     compound: Vec<(u8, usize)>,
     paragraph: ParagraphContext,
+    /// Whether a generated entry would continue ordinary paragraph text.
+    paragraph_continuation: bool,
     pending_style: Option<String>,
     title_width: Option<usize>,
+}
+
+impl BlockContext {
+    fn allows_attribute_entries(&self) -> bool {
+        self.verbatim.is_none()
+            && self.table.is_none()
+            && self.paragraph != ParagraphContext::Active
+    }
+
+    pub(super) fn allows_scope_entry(&self) -> bool {
+        self.allows_attribute_entries() && !self.paragraph_continuation
+    }
 }
 
 /// Running block and line context for the comment rules in the module docs.
@@ -113,9 +127,7 @@ impl CommentScanner {
     /// Attribute declarations are inactive in raw blocks and styled verbatim
     /// paragraphs. Include and conditional directives still apply there.
     pub(super) fn allows_attribute_entries(&self) -> bool {
-        self.blocks.verbatim.is_none()
-            && self.blocks.table.is_none()
-            && self.blocks.paragraph != ParagraphContext::Active
+        self.blocks.allows_attribute_entries()
     }
 
     /// Start as if at a blank boundary so a leading comment is preserved.
@@ -262,6 +274,8 @@ impl CommentScanner {
 
     /// Record an emitted `line` so the next decision sees the correct context.
     pub(super) fn record(&mut self, line: &str, attributes: &DocumentAttributes<'_>) {
+        let continued_paragraph = self.blocks.paragraph_continuation;
+        self.blocks.paragraph_continuation = !line.is_empty() && line != "+";
         let heading = self.at_setext_heading(line);
         let first_content = self.blocks.paragraph == ParagraphContext::Pending
             || self.blocks.paragraph == ParagraphContext::None && !self.prev_attaches;
@@ -277,6 +291,7 @@ impl CommentScanner {
             || self.blocks.block_comment.is_some()
         {
             self.blocks.paragraph = ParagraphContext::None;
+            self.blocks.paragraph_continuation = false;
             self.blocks.pending_style = None;
             return;
         }
@@ -285,6 +300,7 @@ impl CommentScanner {
             self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
             self.blocks.title_width = None;
+            self.blocks.paragraph_continuation = false;
             return;
         }
         let compound = delimiter_key(line).filter(|&(byte, length)| {
@@ -295,6 +311,7 @@ impl CommentScanner {
             self.blocks.compound.pop();
             self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
+            self.blocks.paragraph_continuation = false;
         } else if self.blocks.paragraph == ParagraphContext::Active {
             // Only a real paragraph or enclosing-block boundary ends code;
             // apparent metadata and delimiters within it remain literal.
@@ -305,11 +322,15 @@ impl CommentScanner {
             self.blocks.compound.push(compound);
             self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
+            self.blocks.paragraph_continuation = false;
         } else if Preprocessor::is_verbatim_delimiter(line).is_some() || is_title_line(line, false)
         {
             self.blocks.pending_style = None;
             self.blocks.paragraph = ParagraphContext::None;
+            self.blocks.paragraph_continuation =
+                continued_paragraph && Preprocessor::is_verbatim_delimiter(line).is_none();
         } else if let Some(list) = block_attribute_line(line, attributes, self.compatibility_mode) {
+            self.blocks.paragraph_continuation = continued_paragraph;
             if let Some(style) = block_attribute_style(list, attributes, self.compatibility_mode) {
                 self.blocks.paragraph =
                     if style_overrides_block_form(self.compatibility_mode, Some(&style)) {
@@ -330,6 +351,16 @@ impl CommentScanner {
                 self.blocks.paragraph = ParagraphContext::Active;
             }
             self.blocks.pending_style = None;
+            if !continued_paragraph
+                && line.ends_with(']')
+                && line
+                    .split_once("::")
+                    .is_some_and(|(name, _)| matches!(name, "image" | "audio" | "video" | "toc"))
+            {
+                self.blocks.paragraph_continuation = false;
+            }
+        } else {
+            self.blocks.paragraph_continuation &= continued_paragraph;
         }
     }
 

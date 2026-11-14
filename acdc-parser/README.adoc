@@ -1646,6 +1646,10 @@ offset in both compatibility modes. Both modes honor caller-locked offsets and
 retain their text until the limit applies: `leveloffset=01` with a one-byte cap
 sets offset `0`.
 
+When an include expands inside a listing or an existing paragraph, its
+`:leveloffset:` entries can remain visible as literal text, as in Asciidoctor.
+Those literal entries do not change the active offset.
+
 For document entries, Asciidoctor mode interprets literal signed offsets before
 expanding attribute references. Starting at offset `1`, `:leveloffset: {delta}`
 with `delta=+1` sets offset `1`, and `:leveloffset: +{number}` with `number=1`

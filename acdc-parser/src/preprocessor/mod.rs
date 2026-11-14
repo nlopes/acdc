@@ -45,6 +45,14 @@ impl IncludeSourceProvider for DeniedIncludeSourceProvider {
     }
 }
 
+/// Accepted value for a generated include scope entry. Its public text can
+/// remain literal when the grammar does not recognize an attribute entry.
+#[derive(Debug)]
+pub(crate) struct LeveloffsetScope {
+    pub(crate) range: Range<usize>,
+    pub(crate) assignment: crate::DocumentAttributeAssignment<'static>,
+}
+
 /// Result from preprocessing that includes both the processed text and metadata needed
 /// for accurate parsing (like leveloffset ranges).
 ///
@@ -58,6 +66,7 @@ pub(crate) struct PreprocessorResult<'input> {
     /// Byte ranges where specific leveloffset values apply.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+    pub(crate) leveloffset_scopes: Vec<LeveloffsetScope>,
     /// Byte ranges mapping preprocessed output back to source files.
     /// Used by the parser to produce accurate file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
@@ -78,6 +87,7 @@ impl PreprocessorResult<'_> {
         PreprocessorResult {
             text: Cow::Owned(self.text.into_owned()),
             leveloffset_ranges: self.leveloffset_ranges,
+            leveloffset_scopes: self.leveloffset_scopes,
             source_ranges: self.source_ranges,
             included_files: self.included_files,
             conditionals: self.conditionals,
@@ -207,15 +217,6 @@ fn is_escaped_directive(line: &str) -> bool {
                 .any(|prefix| rest.starts_with(prefix))
         }
     })
-}
-
-fn is_internal_leveloffset(line: &str) -> bool {
-    line.strip_prefix(':')
-        .and_then(|entry| entry.strip_prefix('!').unwrap_or(entry).split_once(':'))
-        .is_some_and(|(name, _)| {
-            name.strip_suffix('!').unwrap_or(name)
-                == crate::document_attribute::INTERNAL_LEVELOFFSET_ATTR
-        })
 }
 
 /// Caller permissions, include limits, and block state for one parse.
@@ -415,6 +416,7 @@ struct PreprocessorState<'input> {
     borrowed_run: Option<Range<usize>>,
     byte_offset: usize,
     leveloffset_ranges: Vec<LeveloffsetRange>,
+    leveloffset_scopes: Vec<LeveloffsetScope>,
     current_leveloffset: isize,
     leveloffset_index: Option<usize>,
     source_ranges: Vec<SourceRange>,
@@ -468,6 +470,7 @@ impl<'input> PreprocessorState<'input> {
             borrowed_run: None,
             byte_offset: 0,
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             current_leveloffset: 0,
             leveloffset_index: None,
             source_ranges: Vec::new(),
@@ -517,6 +520,7 @@ impl<'input> PreprocessorState<'input> {
         PreprocessorResult {
             text: Cow::Owned(self.output.join("\n")),
             leveloffset_ranges: self.leveloffset_ranges,
+            leveloffset_scopes: self.leveloffset_scopes,
             source_ranges: self.source_ranges,
             included_files: self.included_files,
             conditionals: self.conditionals,
@@ -878,9 +882,6 @@ impl Preprocessor {
             {
                 return None;
             }
-            if is_internal_leveloffset(line) {
-                return None;
-            }
             // `process_inner` unescapes escaped directives.
             if is_escaped_directive(line) {
                 return None;
@@ -1188,11 +1189,11 @@ impl Preprocessor {
         // Shift their byte offsets to be relative to the current output position.
         // This enables proper accumulation through nested includes (A→B→C).
         for nested_range in include_result.leveloffset_ranges {
-            let adjusted_range = LeveloffsetRange::new(
-                nested_range.start_offset + start_offset,
-                nested_range.end_offset + start_offset,
-                nested_range.value,
-            );
+            let adjusted_range = LeveloffsetRange {
+                start_offset: nested_range.start_offset + start_offset,
+                end_offset: nested_range.end_offset + start_offset,
+                ..nested_range
+            };
             tracing::trace!(
                 original_start = nested_range.start_offset,
                 original_end = nested_range.end_offset,
@@ -1202,6 +1203,12 @@ impl Preprocessor {
                 "Merging nested leveloffset range"
             );
             state.leveloffset_ranges.push(adjusted_range);
+        }
+
+        for mut scope in include_result.leveloffset_scopes {
+            scope.range.start += start_offset;
+            scope.range.end += start_offset;
+            state.leveloffset_scopes.push(scope);
         }
 
         // Every selected target line already has a complete source range. Shift
@@ -1453,6 +1460,7 @@ impl Preprocessor {
         {
             return Ok(PreprocessorResult {
                 leveloffset_ranges: Self::initial_leveloffset_ranges(normalized.len(), options),
+                leveloffset_scopes: Vec::new(),
                 text: normalized,
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),
@@ -1478,10 +1486,9 @@ impl Preprocessor {
         &self,
         mut input: String,
         source_origin: &SourceOrigin,
-        options: &Options<'_>,
+        mut options: Options<'_>,
         line_origins: Vec<SourceLineOrigin>,
     ) -> Result<NestedPreprocessorResult, Error> {
-        let mut options = options.clone();
         let normalized = Preprocessor::normalize(&input);
         let setext = crate::grammar::setext::is_enabled(options.compatibility_mode);
         let front_matter = options
@@ -1515,6 +1522,7 @@ impl Preprocessor {
                     Cow::Owned(text) => text,
                 }),
                 leveloffset_ranges,
+                leveloffset_scopes: Vec::new(),
                 source_ranges,
                 included_files: HashSet::new(),
                 conditionals: Vec::new(),
@@ -1622,11 +1630,6 @@ impl Preprocessor {
                 continue;
             }
 
-            // Only generated include wrappers may set the internal scope control.
-            if is_internal_leveloffset(line) {
-                line_number += 1;
-                continue;
-            }
             if scanner.allows_attribute_entries() && has_attribute_continuation(line) {
                 // The attribute spans `[continuation_start_line, line_number]`;
                 // emit it as its own range anchored at its first line.
@@ -1831,8 +1834,12 @@ mod tests {
             ("a \n", "a"),
             ("é\r\nb\r\n", "é\nb"),
         ] {
-            let result =
-                preprocessor.process_mapped(input.to_owned(), &origin, &options, Vec::new())?;
+            let result = preprocessor.process_mapped(
+                input.to_owned(),
+                &origin,
+                options.clone(),
+                Vec::new(),
+            )?;
             assert_eq!(result.result.text, expected, "{input:?}");
         }
         Ok(())
@@ -1857,6 +1864,7 @@ mod tests {
                 synthetic: false,
                 effective_leveloffset: Some(1),
                 leveloffset_ranges: Vec::new(),
+                leveloffset_scopes: Vec::new(),
                 target: "included.adoc".into(),
                 source_ranges: Vec::new(),
                 included_files: HashSet::new(),

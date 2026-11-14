@@ -375,6 +375,40 @@ fn authored_scope_control_cannot_override_a_caller_offset(
 }
 
 #[rstest::rstest]
+fn include_scope_entries_retain_public_text_in_literal_contexts(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values("----", "....", "++++")] delimiter: &str,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write("child.adoc", "Child text.")?;
+    let main = directory.write(
+        "main.adoc",
+        &format!(":leveloffset: 1\n\n{delimiter}\ninclude::child.adoc[leveloffset=+1]\n{delimiter}\n\n== After"),
+    )?;
+    let result = parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
+    assert!(
+        result
+            .preprocessed_source()
+            .contains(":leveloffset: +1\n\nChild text.\n\n:leveloffset: 1")
+    );
+    assert!(
+        !result
+            .preprocessed_source()
+            .contains("__acdc_parser_internal")
+    );
+    let mut sections = Vec::new();
+    collect_sections(result.document().blocks(), &mut sections)?;
+    assert_eq!(sections, [("After".to_owned(), 2)]);
+    Ok(())
+}
+
+#[rstest::rstest]
 fn literal_leveloffset_declarations_do_not_change_following_sections(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
     #[values("----", "....", "++++")] delimiter: &str,
@@ -395,6 +429,76 @@ fn literal_leveloffset_declarations_do_not_change_following_sections(
     assert_eq!(sections, [("Real section".into(), 1)]);
     assert_eq!(result.preprocessed_source(), expected);
     assert_eq!(result.warnings(), []);
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case("Start\n", "== Included", "\nEnd", 2, 2)]
+#[case("Text ::[]\n", "== Included", "\nEnd", 2, 2)]
+#[case("image::missing.svg[]\n", "== Included", "", 3, 2)]
+#[case("----\n", "Child.\n----\n\n== Included", "", 2, 2)]
+#[case("", "== Included\n\n----\nChild.", "\n----", 3, 3)]
+fn include_scope_entries_follow_boundaries_across_sources(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[case] before: &str,
+    #[case] child: &str,
+    #[case] after: &str,
+    #[case] included_level: u8,
+    #[case] following_level: u8,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write("child.adoc", child)?;
+    let main = directory.write(
+        "main.adoc",
+        &format!(
+            ":leveloffset: 1\n\n{before}include::child.adoc[leveloffset=+1]{after}\n\n== After"
+        ),
+    )?;
+    let result = parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
+    let mut sections = Vec::new();
+    collect_sections(result.document().blocks(), &mut sections)?;
+    assert_eq!(
+        sections,
+        [
+            ("Included".to_owned(), included_level),
+            ("After".to_owned(), following_level)
+        ]
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn nested_include_scope_entries_stay_inactive_inside_listings(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> TestResult {
+    let directory = TempDirectory::new()?;
+    directory.write("child.adoc", "Child.")?;
+    directory.write("outer.adoc", "include::child.adoc[leveloffset=+1]")?;
+    let main = directory.write(
+        "main.adoc",
+        ":leveloffset: 1\n\n----\ninclude::outer.adoc[leveloffset=+1]\n----\n\n== After",
+    )?;
+    let result = parse_file(
+        &main,
+        &Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .with_compatibility_mode(mode)
+            .build()?,
+    )?;
+    assert_eq!(
+        result
+            .preprocessed_source()
+            .matches(":leveloffset: 1")
+            .count(),
+        3
+    );
+    assert!(!result.preprocessed_source().contains(":leveloffset: 2"));
     Ok(())
 }
 

@@ -85,8 +85,9 @@ use std::{
 use url::Url;
 
 use crate::{
-    CompatibilityMode, DocumentAttributeAssignment, DocumentAttributes, IncludeSourceErrorKind,
-    IncludeSourceProvider, IncludeSourceTarget, Location, Options, Preprocessor, SafeMode, Warning,
+    CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
+    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options,
+    Preprocessor, SafeMode, Warning,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
@@ -94,7 +95,8 @@ use crate::{
 };
 
 use super::{
-    IncludeContext, SourceLineOrigin, SourceOrigin, absolute_normalized,
+    IncludeContext, LeveloffsetScope, SourceLineOrigin, SourceOrigin, absolute_normalized,
+    comment::CommentScanner,
     tag::{Filter as TagFilter, Issue as TagIssue},
 };
 
@@ -365,6 +367,7 @@ pub(super) struct IncludeResult {
     pub(super) effective_leveloffset: Option<isize>,
     /// Leveloffset ranges produced while preprocessing the selected target lines.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
+    pub(crate) leveloffset_scopes: Vec<LeveloffsetScope>,
     /// The include target exactly as written in the directive (after attribute
     /// substitution), e.g. `markup.adoc` or `chapters/intro.adoc`. Used as the
     /// outermost element of the ASG `file` include chain. Empty when no target
@@ -416,6 +419,7 @@ impl IncludeResult {
             synthetic: false,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
@@ -437,6 +441,7 @@ impl IncludeResult {
             synthetic: true,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
@@ -452,6 +457,7 @@ impl IncludeResult {
             synthetic: true,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
@@ -858,6 +864,7 @@ impl<'a> Include<'a> {
                     .map_or(0, crate::document_attribute::ruby_to_isize)
             }),
             leveloffset_ranges: Vec::new(),
+            leveloffset_scopes: Vec::new(),
             target: self.target_as_written().to_string(),
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
@@ -870,7 +877,7 @@ impl<'a> Include<'a> {
                 &mut included,
                 source_origin,
                 line_origins,
-                scoped_options.as_deref(),
+                scoped_options,
             )?;
         } else {
             included.source_ranges =
@@ -885,6 +892,9 @@ impl<'a> Include<'a> {
             return Ok(None);
         };
         let mut options = Box::new(self.options.clone());
+        if !self.context.block_context.allows_scope_entry() {
+            return Ok(Some(options));
+        }
         let declaration = AttributeDeclaration {
             name: "leveloffset",
             // Include scope values follow attribute-entry whitespace rules.
@@ -903,9 +913,27 @@ impl<'a> Include<'a> {
         included: &mut IncludeResult,
         source_origin: &SourceOrigin,
         line_origins: Vec<SourceLineOrigin>,
-        scoped_options: Option<&Options<'a>>,
+        scoped_options: Option<Box<Options<'a>>>,
     ) -> Result<(), Error> {
         let mut context = self.context.clone();
+        let scope = scoped_options.as_ref().map(|options| {
+            let prefix = self.leveloffset_prefix();
+            let mut scanner = CommentScanner::new(
+                crate::grammar::setext::is_enabled(self.options.compatibility_mode),
+                take(&mut context.block_context),
+                self.options.compatibility_mode,
+            );
+            scanner.record_expansion(&prefix, &options.document_attributes);
+            context.block_context = scanner.block_context();
+            (
+                Self::leveloffset_assignment(&options.document_attributes),
+                prefix,
+                format!(
+                    "\n\n{}",
+                    Self::leveloffset_control(&self.options.document_attributes)
+                ),
+            )
+        });
         if let Some(depth) = self.depth {
             let limit = context.depth.saturating_add(1).saturating_add(depth);
             if limit < context.max_depth {
@@ -917,22 +945,35 @@ impl<'a> Include<'a> {
             .process_mapped(
                 take(&mut included.content),
                 source_origin,
-                scoped_options.unwrap_or(&self.options),
+                scoped_options.map_or_else(|| self.options.clone(), |options| *options),
                 line_origins,
             )
             .inspect_err(|_| {
                 tracing::error!("failed to process included content");
             })?;
-        if let Some(options) = scoped_options {
-            self.restore_leveloffset(&mut preprocessed.document_attributes)?;
+        if let Some((current, prefix, suffix)) = scope {
+            let mut scanner = CommentScanner::new(
+                crate::grammar::setext::is_enabled(self.options.compatibility_mode),
+                preprocessed.result.comment_context,
+                self.options.compatibility_mode,
+            );
+            scanner.record_expansion("\n\n", &preprocessed.document_attributes);
+            if scanner.block_context().allows_scope_entry() {
+                self.restore_leveloffset(&mut preprocessed.document_attributes)?;
+            }
+            scanner.record(&suffix[2..], &preprocessed.document_attributes);
+            preprocessed.result.comment_context = scanner.block_context();
             Self::wrap_leveloffset(
                 &mut preprocessed.result,
-                &options.document_attributes,
+                current,
                 &preprocessed.document_attributes,
+                &prefix,
+                &suffix,
             );
         }
         included.content = preprocessed.result.text.into_owned();
         included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
+        included.leveloffset_scopes = preprocessed.result.leveloffset_scopes;
         included.source_ranges = preprocessed.result.source_ranges;
         included.included_files = preprocessed.result.included_files;
         included.conditionals = preprocessed.result.conditionals;
@@ -956,15 +997,7 @@ impl<'a> Include<'a> {
         &self,
         attributes: &mut DocumentAttributes<'static>,
     ) -> Result<(), Error> {
-        let previous = self
-            .options
-            .document_attributes
-            .assignment("leveloffset")
-            .cloned()
-            .map_or(
-                DocumentAttributeAssignment::Unset,
-                DocumentAttributeAssignment::into_static,
-            );
+        let previous = Self::leveloffset_assignment(&self.options.document_attributes);
         if self.options.compatibility_mode == CompatibilityMode::Draft {
             // Restore the already accepted snapshot without interpreting its text again.
             attributes.normalize_assignment("leveloffset".into(), previous);
@@ -992,8 +1025,17 @@ impl<'a> Include<'a> {
         )
     }
 
+    fn leveloffset_assignment(
+        attributes: &DocumentAttributes<'_>,
+    ) -> DocumentAttributeAssignment<'static> {
+        attributes.assignment("leveloffset").cloned().map_or(
+            DocumentAttributeAssignment::Unset,
+            DocumentAttributeAssignment::into_static,
+        )
+    }
+
     fn leveloffset_control(attributes: &DocumentAttributes<'_>) -> String {
-        let attribute = crate::document_attribute::INTERNAL_LEVELOFFSET_ATTR;
+        let attribute = "leveloffset";
         match attributes.get("leveloffset") {
             Some(value) if value.is_presence() => format!(":{attribute}:"),
             Some(value) => format!(":{attribute}: {}", value.text().unwrap_or_default()),
@@ -1001,20 +1043,53 @@ impl<'a> Include<'a> {
         }
     }
 
+    fn leveloffset_prefix(&self) -> String {
+        format!(
+            ":leveloffset: {}\n\n",
+            self.level_offset.as_deref().unwrap_or_default()
+        )
+    }
+
     fn wrap_leveloffset(
         result: &mut super::PreprocessorResult<'_>,
-        current: &DocumentAttributes<'_>,
+        current: DocumentAttributeAssignment<'static>,
         restored: &DocumentAttributes<'_>,
+        prefix: &str,
+        suffix: &str,
     ) {
-        let prefix = format!("{}\n\n", Self::leveloffset_control(current));
-        let suffix = format!("\n\n{}", Self::leveloffset_control(restored));
         for range in &mut result.leveloffset_ranges {
             range.start_offset = range.start_offset.saturating_add(prefix.len());
             range.end_offset = range.end_offset.saturating_add(prefix.len());
         }
+        for scope in &mut result.leveloffset_scopes {
+            scope.range.start += prefix.len();
+            scope.range.end += prefix.len();
+        }
         for range in &mut result.source_ranges {
             range.start_offset = range.start_offset.saturating_add(prefix.len());
             range.end_offset = range.end_offset.saturating_add(prefix.len());
+        }
+        for (start, end, assignment) in [
+            (0, prefix.len(), current),
+            (
+                prefix.len() + result.text.len(),
+                prefix.len() + result.text.len() + suffix.len(),
+                Self::leveloffset_assignment(restored),
+            ),
+        ] {
+            let range = LeveloffsetRange::new(
+                start,
+                end,
+                assignment
+                    .value()
+                    .and_then(DocumentAttributeValue::text)
+                    .map_or(0, crate::document_attribute::ruby_to_isize),
+            );
+            result.leveloffset_ranges.push(range);
+            result.leveloffset_scopes.push(LeveloffsetScope {
+                range: start..end,
+                assignment,
+            });
         }
         result.text = format!("{prefix}{}{suffix}", result.text).into();
     }
