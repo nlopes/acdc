@@ -284,6 +284,9 @@ where
         if let Some(header) = &mut doc.header {
             self.header(header)?;
         }
+        if let Some(location) = &mut doc.untitled_header_location {
+            (self.visit_location)(location)?;
+        }
         self.blocks(&mut doc.blocks)?;
 
         // `footnotes`, `toc_entries`, and `references` are independent owned copies (not

@@ -514,6 +514,7 @@ impl<'doc> From<DocumentRef<'doc>> for Document<'doc> {
                     .collect(),
                 location: header.location.clone(),
             }),
+            untitled_header_location: document.untitled_header_location.clone(),
             attributes: document.attributes.clone(),
             blocks: document.blocks.clone(),
             footnotes: document.footnotes.clone(),

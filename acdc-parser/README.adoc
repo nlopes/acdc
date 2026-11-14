@@ -1602,6 +1602,10 @@ title, and a title after that line is a level-0 section. To group header
 attributes in either mode, separate them with comment lines instead of empty
 lines.
 
+`DocumentRef::header_location()` returns the source span of the header, with or
+without a title. With a title it equals `HeaderRef::location()`;
+`DocumentRef::header()` remains `None` without one.
+
 Custom converters can use `acdc-converters-core::TraversalContext` with the shared
 visitor to read attributes at each body position. The context applies events in
 source order and restores parent attributes after nested AsciiDoc table cells.

@@ -1,8 +1,19 @@
 //! Document header boundary and source span.
 
-use crate::{BlockMetadata, Error, Location, grammar::ParserState};
+use crate::{BlockMetadata, Error, Header, Location, grammar::ParserState};
 
 use super::metadata::{AttributeOrAnchorLine, push_metadata_anchor};
+
+/// The result of parsing the lines at the start of a document.
+///
+/// `header` is present only when the document has a title. A document
+/// without a title can still start with attribute entries and comments;
+/// `untitled_location` records their span.
+#[derive(Debug)]
+pub(in crate::grammar::document) struct ParsedHeader<'input> {
+    pub(in crate::grammar::document) header: Option<Header<'input>>,
+    pub(in crate::grammar::document) untitled_location: Option<Location>,
+}
 
 /// The inclusive span of the header lines from `start` up to the exclusive
 /// `end` offset, which ends the last header line.

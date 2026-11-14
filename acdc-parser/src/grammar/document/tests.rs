@@ -358,7 +358,9 @@ fn test_header_with_title_and_authors() -> Result<(), Error> {
     let input = "= Document Title
 Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.com>";
     let mut state = ParserState::new_for_test(input);
-    let result = document_parser::header(input, &mut state)??.expect("header should be present");
+    let result = document_parser::header(input, &mut state)??
+        .header
+        .expect("header should be present");
     assert_eq!(result.title.len(), 1);
     assert_eq!(
         result.title.as_inlines()[0],

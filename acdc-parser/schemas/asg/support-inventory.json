@@ -4428,6 +4428,7 @@
         "kind": "struct",
         "fields": [
           "header",
+          "untitled_header_location",
           "attributes",
           "blocks",
           "footnotes",
@@ -4445,6 +4446,9 @@
         "header": {
           "policy": "direct-property",
           "upstream": "#/properties/header"
+        },
+        "untitled_header_location": {
+          "policy": "source-state"
         },
         "attributes": {
           "policy": "direct-property",

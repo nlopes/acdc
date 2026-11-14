@@ -80,6 +80,10 @@ pub use token_assignment::TokenAssignment;
 #[non_exhaustive]
 pub struct Document<'a> {
     pub(crate) header: Option<Header<'a>>,
+    /// Span of the leading attribute entries and comments of a document
+    /// without a title. A titled header records its span in [`Header`].
+    /// Not serialized.
+    pub(crate) untitled_header_location: Option<Location>,
     /// Effective end-of-header values. Later accepted changes are ordered
     /// [`Block::DocumentAttribute`] nodes and do not update this snapshot.
     pub(crate) attributes: DocumentAttributes<'a>,

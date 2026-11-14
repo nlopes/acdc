@@ -21,7 +21,7 @@ use crate::{
             author::{derive_author_attrs, register_author_attrs},
             delimited::{DelimitedKind, DelimitedParams, build_delimited_block},
             doctype::{is_book_doctype, is_manpage_doctype},
-            header::{header_span, merge_header_metadata},
+            header::{ParsedHeader, header_span, merge_header_metadata},
             lists::{
                 DescriptionListScope, ListMarker, OrdinaryListScope, assemble_principal_text,
                 build_description_list_topology, calculate_item_end, find_dlist_marker,
@@ -84,7 +84,7 @@ peg::parser! {
         // The document location excludes leading and trailing empty lines.
         pub(crate) rule document() -> Result<Document<'input>, Error>
         = eol()* start:position() comments_before_header:(comment:leading_comment() eol()* { comment })* header_result:header() prepare_manpage_front_matter() header_attributes:header_attribute_snapshot() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
-            let header = header_result?;
+            let ParsedHeader { header, untitled_location: untitled_header_location } = header_result?;
             let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
@@ -207,6 +207,7 @@ peg::parser! {
 
             let mut document = Document {
                 header,
+                untitled_header_location,
                 // Source remapping assigns each boundary its own file after parsing.
                 // A document can start in the entry file and end in an included file.
                 location: Location {
@@ -352,9 +353,9 @@ peg::parser! {
         // Draft mode follows the language docs: the first empty line ends the
         // header, with or without a title. Empty lines inside an atomic comment
         // block do not end the surrounding header.
-        pub(in crate::grammar::document) rule header() -> Result<Option<Header<'input>>, Error>
+        pub(in crate::grammar::document) rule header() -> Result<ParsedHeader<'input>, Error>
             = start:position!()
-            header_leading_lines()
+            leading_end:header_leading_lines()
             metadata:header_metadata()
             titled:(
                 title_authors:title_authors()
@@ -400,25 +401,26 @@ peg::parser! {
                     }
                 }
 
-                Ok(Some(header))
+                Ok(ParsedHeader { header: Some(header), untitled_location: None })
             } else {
                 tracing::debug!("No document title found in the document header.");
-                Ok(None)
+                let untitled_location = leading_end.map(|end| header_span(state, start, end));
+                Ok(ParsedHeader { header: None, untitled_location })
             }
         }
 
-        // Attribute entries and comments at the start of the header. Trailing
-        // empty lines are left for the caller.
-        rule header_leading_lines()
-        = (header_leading_gap() header_leading_line())*
+        // Attribute entries and comments at the start of the header. Returns the
+        // end of the last line. Trailing empty lines are left for the caller.
+        rule header_leading_lines() -> Option<usize>
+        = ends:(header_leading_gap() end:header_leading_line() { end })* { ends.last().copied() }
 
         rule header_leading_gap()
         = (asciidoctor_mode() eol()*)?
 
         // Once an attribute entry matches, the rest of the line always matches,
         // so backtracking cannot apply the entry twice.
-        rule header_leading_line()
-        = (document_attribute() / header_comment()) (eol() / ![_])
+        rule header_leading_line() -> usize
+        = (document_attribute() / header_comment()) end:position!() (eol() / ![_]) { end }
 
         rule asciidoctor_mode()
         = {?

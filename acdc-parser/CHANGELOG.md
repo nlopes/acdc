@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   first empty line still ends the header in both modes. Unlike Asciidoctor, an
   entry that follows the first block's anchor, attribute list, or block title in
   a document without a title is still applied in the body.
+- `DocumentRef::header_location()` returns the source span of the document
+  header, with or without a title.
 - A footnote in the document title is no longer registered twice when an anchor
   or attribute list precedes the title.
 

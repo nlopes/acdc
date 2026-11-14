@@ -12,6 +12,7 @@ mod read_ast_caption_resolution;
 mod read_ast_common_hyperlinks;
 mod read_ast_content_occurrences;
 mod read_ast_document;
+mod read_ast_header_location;
 mod read_ast_hyperlinks;
 mod read_ast_icons;
 mod read_ast_index_terms;

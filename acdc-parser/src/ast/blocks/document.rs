@@ -4,7 +4,8 @@ use crate::{
 };
 
 use super::{
-    AttributesRef, ContentRef, DocumentAttributeRef, DocumentRef, ElementIdRef, TokensRef,
+    AttributesRef, ContentRef, DocumentAttributeRef, DocumentRef, ElementIdRef, LocationRef,
+    TokensRef,
 };
 
 node_ref!(HeaderRef<'doc>, crate::Header<'doc>, "A document header.");
@@ -36,6 +37,35 @@ impl<'doc> DocumentRef<'doc> {
     #[must_use]
     pub fn header(self) -> Option<HeaderRef<'doc>> {
         self.node.header.as_ref().map(HeaderRef::from)
+    }
+
+    /// The source span of the document header, with or without a title.
+    ///
+    /// With a title, this is the header's own [`HeaderRef::location`]. Without
+    /// one, it covers the attribute entries and comments that form the header.
+    /// `None` means the document has no header. Comment lines above the header
+    /// are not part of it. Like other locations, the span uses original source
+    /// coordinates, so it also covers preprocessor directive lines between its
+    /// first and last lines.
+    ///
+    /// ```
+    /// use acdc_parser::{Options, parse};
+    ///
+    /// let parsed = parse(":toc:\n:icons: font\n\nBody text.", &Options::default())?;
+    /// let document = parsed.document();
+    /// assert!(document.header().is_none());
+    /// let span = document.header_location().expect("untitled header");
+    /// assert_eq!((span.start().line(), span.end().line()), (1, 2));
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn header_location(self) -> Option<LocationRef<'doc>> {
+        self.node
+            .header
+            .as_ref()
+            .map(|header| &header.location)
+            .or(self.node.untitled_header_location.as_ref())
+            .map(LocationRef::new)
     }
 
     /// The end-of-header attribute snapshot. Later assignments remain in `blocks()`.
