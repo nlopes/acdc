@@ -5679,7 +5679,8 @@
       "shape": {
         "kind": "struct",
         "fields": [
-          "0"
+          "content",
+          "source"
         ],
         "variants": {}
       },
@@ -5688,9 +5689,12 @@
         "upstream": "#/$defs/inlines"
       },
       "properties": {
-        "0": {
+        "content": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlines"
+        },
+        "source": {
+          "policy": "source-state"
         }
       },
       "strict_export_group": "core"

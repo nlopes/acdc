@@ -42,8 +42,8 @@ use crate::{
                 finish_block_parsing_metadata, media_attributes_ahead, merge_macro_metadata,
                 metadata_comment, metadata_marks_discrete_heading, order_block_prefix_events,
                 parse_block_attribute_list, push_metadata_anchor, resolve_block_content_attributes,
-                resolve_title, route_block_positions, route_media_attributes, select_heading_style,
-                thematic_break_anchors,
+                resolve_title, retain_heading_title, route_block_positions, route_media_attributes,
+                select_heading_style, thematic_break_anchors,
             },
             paragraph::{ParagraphParams, build_paragraph, paragraph_text_end},
             quotes::{QuoteAttribution, QuoteParams, QuoteSource, build_quote},
@@ -1201,10 +1201,11 @@ peg::parser! {
         title_start:position!() title:setext_title_text() title_end:position!() eol()
         setext_level:setext_section_level(title.trim().chars().count(), parent_section_level)
         section_header:({
+            let location = state.create_block_location(title_start, title_end, offset);
+            let retained = retain_heading_title(state, title, || location.clone(), block_metadata.substitutions);
             let (processed_title, natural_title) =
                 process_inlines(state, &block_metadata, title_start, title_end, offset, title)?;
-            let title = Title::new(processed_title);
-            let location = state.create_block_location(title_start, title_end, offset);
+            let title = Title::new(processed_title).with_source(retained);
             Ok::<ParsedSectionHeader<'input>, Error>(register_section_header(
                 state,
                 &block_metadata,
@@ -1445,6 +1446,12 @@ peg::parser! {
         = title:$([^'\n']*)
         {
             tracing::debug!(title_start = span_start, title_end = span_end, "Found section title");
+            let retained = retain_heading_title(
+                state,
+                title,
+                || state.create_block_location(span_start, span_end, offset),
+                block_metadata.substitutions,
+            );
             let (content, natural_title) = process_inlines(
                 state,
                 block_metadata,
@@ -1453,7 +1460,7 @@ peg::parser! {
                 offset,
                 title,
             )?;
-            Ok((Title::new(content), natural_title))
+            Ok((Title::new(content).with_source(retained), natural_title))
         }
 
         rule section_content(mode: ConstructionMode, offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>

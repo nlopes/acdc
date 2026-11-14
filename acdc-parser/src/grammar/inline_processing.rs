@@ -30,10 +30,7 @@ pub(super) fn process_attribute_inlines<'a>(
     state: &mut ParserState<'a>,
     source: &ResolvedContentAttribute<'a>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let mut substitutions = SubstitutionPlan::default();
-    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
-        substitutions = substitutions.without(&Substitution::Attributes);
-    }
+    let substitutions = SubstitutionPlan::for_attribute(state.options.compatibility_mode);
     process_attribute_inlines_with_substitutions(
         state,
         source,

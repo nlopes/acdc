@@ -1680,11 +1680,24 @@ A table layout that discards a cell after its callback ran returns a located
 extension error, since those effects cannot be rolled back.
 
 Use `query()` to inspect typed block, content, attribute, and caption views.
+Traversal visits parents before children, including list attachments, compound
+blocks, and AsciiDoc cell documents. `containing_section()` returns the nearest
+section in the same document scope; a cell starts a new scope.
+`BlockView::title_source()` exposes raw title input after document preprocessing,
+inline substitution order, original location, and attributes captured before
+title interpretation. It preserves titles that expand to empty content and the
+quote-dependent policy of attribute titles. `caption()` reads the host's resolved
+prefix and ordinal. Ordinary parser entry points retain no extension title snapshots.
+Queries and borrowed title views end before an edit or ID assignment; query again
+afterward to observe the repaired tree. Copied handle selections remain snapshots.
 Document-local `TargetId` handles survive insertions and placeholder replacement;
 removed handles cannot bind to another block. The scoped `DocumentEditor` builds
 literal paragraphs and lists, assigns IDs, replaces requests, and removes sections.
 Edits repair catalogs and scoped footnotes while preserving surviving section and
 caption numbers. Generated text is literal and is not reparsed.
+ID assignment preserves authored IDs, avoids registered targets and unresolved
+reference names, and reuses assigned IDs. Identical conversions produce the same
+IDs regardless of request order; IDs need not remain stable across document edits.
 
 Call `ExtensionParseResult::finish()` to obtain the ordinary `ParseResult` used
 for conversion or serialization. It rejects unresolved deferred requests at their

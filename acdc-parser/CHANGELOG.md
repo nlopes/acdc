@@ -145,6 +145,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Empty registries and unused registrations preserve ordinary diagnostic order.
   Edits repair references, TOC and scoped footnotes while
   preserving surviving section and caption numbers.
+  Extension queries also expose raw title source, inline substitutions, original
+  locations, and source-position document attributes through
+  `BlockView::title_source()`, including attribute titles and titles that expand
+  to empty content. Query again after edits or ID assignment; surviving target
+  handles retain their identities, and removed handles remain invalid even when
+  another block reuses their output ID.
   Call `ExtensionParseResult::finish()` before conversion or checked ASG export;
   unresolved requests return a located error. Block-macro callbacks now run
   once as their blocks commit. `MacroExecutionContext::set_attribute` and

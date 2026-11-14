@@ -1,4 +1,5 @@
 use serde::{Serialize, Serializer};
+use std::sync::Arc;
 
 use super::{ContentAttribute, InlineNode};
 
@@ -9,6 +10,7 @@ use super::{ContentAttribute, InlineNode};
 /// and [`Self::is_empty`] to inspect its text. Read its nodes through [`Self::content`].
 ///
 /// Serialization emits the inline array. A containing block omits an absent title.
+/// Retained extension source context does not participate in equality or serialization.
 ///
 /// ```compile_fail,E0308
 /// use acdc_parser::{InlineNode, Title};
@@ -27,9 +29,18 @@ use super::{ContentAttribute, InlineNode};
 /// let title = Title::default();
 /// for _ in &title {}
 /// ```
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default)]
 #[non_exhaustive]
-pub struct Title<'a>(Option<ContentAttribute<'a>>);
+pub struct Title<'a> {
+    content: Option<ContentAttribute<'a>>,
+    source: Option<Arc<crate::extensions::TitleSource<'a>>>,
+}
+
+impl PartialEq for Title<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.content == other.content
+    }
+}
 
 /// A secondary document title.
 pub type Subtitle<'a> = Title<'a>;
@@ -38,13 +49,28 @@ impl<'a> Title<'a> {
     /// Construct a present title, including an explicitly empty title.
     #[must_use]
     pub fn new(inlines: Vec<InlineNode<'a>>) -> Self {
-        Self(Some(ContentAttribute::new(inlines)))
+        Self {
+            content: Some(ContentAttribute::new(inlines)),
+            source: None,
+        }
+    }
+
+    pub(crate) fn with_source(
+        mut self,
+        source: Option<Arc<crate::extensions::TitleSource<'a>>>,
+    ) -> Self {
+        self.source = source;
+        self
+    }
+
+    pub(crate) fn source(&self) -> Option<&crate::extensions::TitleSource<'a>> {
+        self.source.as_deref()
     }
 
     /// Whether a title was supplied, independently of its text length.
     #[must_use]
     pub fn is_present(&self) -> bool {
-        self.0.is_some()
+        self.content.is_some()
     }
 
     /// Whether the title contains no inline nodes, including an absent title.
@@ -62,15 +88,18 @@ impl<'a> Title<'a> {
     /// Consume the title, returning its inline nodes or an empty vector if absent.
     #[must_use]
     pub fn into_inlines(self) -> Vec<InlineNode<'a>> {
-        self.0.map_or_else(Vec::new, ContentAttribute::into_inlines)
+        self.content
+            .map_or_else(Vec::new, ContentAttribute::into_inlines)
     }
 
     pub(crate) fn as_inlines(&self) -> &[InlineNode<'a>] {
-        self.0.as_ref().map_or(&[], ContentAttribute::as_inlines)
+        self.content
+            .as_ref()
+            .map_or(&[], ContentAttribute::as_inlines)
     }
 
     pub(crate) fn inlines_mut(&mut self) -> &mut [InlineNode<'a>] {
-        self.0
+        self.content
             .as_mut()
             .map_or(&mut [], |content| content.inlines_mut().as_mut_slice())
     }
