@@ -13,15 +13,13 @@ struct Uses<'a> {
 impl<'a> Uses<'a> {
     fn register(&mut self, id: &'a str, location: &crate::Location) {
         if let Some(first) = self.seen.get(id) {
-            if first != location {
-                self.warnings.push(Warning::new(
-                    WarningKind::DuplicateId {
-                        id: id.into(),
-                        first: Box::new(crate::SourceLocation::at_location(None, first.clone())),
-                    },
-                    Some(crate::SourceLocation::at_location(None, location.clone())),
-                ));
-            }
+            self.warnings.push(Warning::new(
+                WarningKind::DuplicateId {
+                    id: id.into(),
+                    first: Box::new(crate::SourceLocation::at_location(None, first.clone())),
+                },
+                Some(crate::SourceLocation::at_location(None, location.clone())),
+            ));
         } else {
             self.seen.insert(id, location.clone());
         }
@@ -61,45 +59,7 @@ impl<'a> ReferenceVisitor<'a> for Uses<'a> {
 impl ExtensionParseResult {
     pub(super) fn repair_after_edit(&mut self) -> Result<(), Error> {
         let warnings = self.parsed.with_document_mut(|_, document| {
-            document
-                .rebuild_footnotes()
-                .map_err(|error| failure(document, error))?;
-            document
-                .rebuild_extension_references()
-                .map_err(|error| failure(document, error))?;
-            if let Some(index) = self.targets.get() {
-                index.repair_section_references(document);
-            }
-            let mut uses = Uses::default();
-            if let Some(header) = &document.header {
-                reference_walk::header(&mut uses, header).unwrap_or_else(|never| match never {});
-            }
-            reference_walk::blocks(&mut uses, &mut document.blocks, true)
-                .unwrap_or_else(|never| match never {});
-            crate::grammar::walk_document_inline_nodes_mut(document, &mut |inline| {
-                if let crate::InlineNode::Macro(crate::InlineMacro::CrossReference(reference)) =
-                    inline
-                    && (reference.target_is_local
-                        || reference.source_syntax.target_is_local(reference.target))
-                {
-                    uses.xrefs
-                        .push((reference.target, reference.location.clone()));
-                }
-            });
-            uses.warnings.extend(
-                uses.xrefs
-                    .into_iter()
-                    .filter(|(target, _)| !document.references.contains_key(target))
-                    .map(|(target, location)| {
-                        Warning::new(
-                            WarningKind::UnresolvedReference {
-                                target: target.into(),
-                            },
-                            Some(crate::SourceLocation::at_location(None, location)),
-                        )
-                    }),
-            );
-            Ok::<_, Error>(uses.warnings)
+            repair_document(document, self.targets.get().map(Box::as_ref))
         })?;
         self.parsed.replace_reference_warnings(warnings);
         if let Some(index) = self.targets.get_mut() {
@@ -107,6 +67,50 @@ impl ExtensionParseResult {
         }
         Ok(())
     }
+}
+
+pub(super) fn repair_document(
+    document: &mut crate::Document<'_>,
+    index: Option<&super::query::TargetIndex>,
+) -> Result<Vec<Warning>, Error> {
+    document
+        .rebuild_footnotes()
+        .map_err(|error| failure(document, error))?;
+    document
+        .rebuild_extension_references()
+        .map_err(|error| failure(document, error))?;
+    if let Some(index) = index {
+        index.repair_section_references(document);
+    }
+    let mut uses = Uses::default();
+    if let Some(header) = &document.header {
+        reference_walk::header(&mut uses, header).unwrap_or_else(|never| match never {});
+    }
+    reference_walk::blocks(&mut uses, &mut document.blocks, true)
+        .unwrap_or_else(|never| match never {});
+    crate::grammar::walk_document_inline_nodes_mut(document, &mut |inline| {
+        if let crate::InlineNode::Macro(crate::InlineMacro::CrossReference(reference)) = inline
+            && (reference.target_is_local
+                || reference.source_syntax.target_is_local(reference.target))
+        {
+            uses.xrefs
+                .push((reference.target, reference.location.clone()));
+        }
+    });
+    uses.warnings.extend(
+        uses.xrefs
+            .into_iter()
+            .filter(|(target, _)| !document.references.contains_key(target))
+            .map(|(target, location)| {
+                Warning::new(
+                    WarningKind::UnresolvedReference {
+                        target: target.into(),
+                    },
+                    Some(crate::SourceLocation::at_location(None, location)),
+                )
+            }),
+    );
+    Ok::<_, Error>(uses.warnings)
 }
 
 fn failure(document: &crate::Document<'_>, error: impl std::fmt::Display) -> Error {

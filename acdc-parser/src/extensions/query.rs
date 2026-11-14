@@ -106,14 +106,14 @@ impl BlockContext {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct Entry {
     pub(super) target: TargetId,
     pub(super) path: BlockPath,
     section: Option<TargetId>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(super) struct TargetIndex {
     document: DocumentIdentity,
     entries: Vec<Entry>,
@@ -124,6 +124,15 @@ pub(super) struct TargetIndex {
 }
 
 impl TargetIndex {
+    pub(super) fn replace(&mut self, at: &TargetId) {
+        let Some(entry) = self.entry(at) else {
+            return;
+        };
+        let path = entry.path.clone();
+        self.entries
+            .retain(|entry| entry.target == *at || !entry.path.is_within(&path));
+        self.reindex();
+    }
     pub(super) fn prepare_edit(&mut self, document: &mut Document<'_>) {
         if self.caption_high_water.is_some() {
             return;
@@ -179,14 +188,18 @@ impl TargetIndex {
         });
     }
 
-    pub(super) fn next_caption(&mut self, kind: CaptionKind) -> Option<NonZeroU32> {
+    pub(super) fn next_caption(
+        &mut self,
+        kind: CaptionKind,
+        source_counter: u32,
+    ) -> Option<NonZeroU32> {
         let counter = self.caption_high_water.as_mut()?.get_mut(match kind {
             CaptionKind::Example => 0,
             CaptionKind::Figure => 1,
             CaptionKind::Listing => 2,
             CaptionKind::Table => 3,
         })?;
-        *counter = counter.saturating_add(1);
+        *counter = (*counter).max(source_counter).checked_add(1)?;
         NonZeroU32::new(*counter)
     }
 

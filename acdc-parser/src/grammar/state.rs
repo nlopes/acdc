@@ -285,6 +285,9 @@ pub(super) struct FootnoteTracker<'a> {
     // Ordinary documents need no shared counter allocation.
     shared_next_number: Option<Rc<Cell<u32>>>,
     named_footnotes: HashMap<&'a str, NamedFootnote<'a>>,
+    // Catalog names available to a host-owned inline edit. Authored definitions
+    // in that edit still parse normally and can replace a removed definition.
+    retained_names: Option<Rc<HashMap<&'a str, u32>>>,
     /// Footnote numbers whose stored entry has already had its location/content
     /// finalized to document-absolute coordinates (see [`Self::finalize`]). The first
     /// occurrence of a number wins, so a later bare reference of a named footnote does
@@ -299,6 +302,7 @@ impl<'a> FootnoteTracker<'a> {
             next_number: 1,
             shared_next_number: None,
             named_footnotes: HashMap::new(),
+            retained_names: None,
             location_finalized: HashSet::new(),
         }
     }
@@ -330,7 +334,18 @@ impl<'a> FootnoteTracker<'a> {
     pub(super) fn discard_definitions(&mut self) {
         self.footnotes.clear();
         self.named_footnotes.clear();
+        self.retained_names = None;
         self.location_finalized.clear();
+    }
+
+    /// Start a host-owned inline edit with retained definitions from its owner.
+    pub(super) fn seed(&mut self, definitions: &[FootnoteDefinition<'a>], next_number: u32) {
+        self.next_number = next_number;
+        let names: HashMap<_, _> = definitions
+            .iter()
+            .filter_map(|note| Some((note.id?, note.number)))
+            .collect();
+        self.retained_names = (!names.is_empty()).then(|| Rc::new(names));
     }
 
     /// Update the first definition after its locations become document-absolute.
@@ -378,6 +393,14 @@ impl<'a> FootnoteTracker<'a> {
             return false;
         };
         if content.is_empty() {
+            if let Some(number) = footnote
+                .id
+                .and_then(|id| self.retained_names.as_ref()?.get(id))
+            {
+                footnote.number = *number;
+                footnote.content = None;
+                return true;
+            }
             return false;
         }
         footnote.number = self.next_number();

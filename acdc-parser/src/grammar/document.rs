@@ -8,6 +8,7 @@ mod coordinator;
 mod delimited;
 mod doctype;
 mod finish;
+mod generated;
 mod header;
 mod input;
 pub(super) mod lists;
@@ -24,6 +25,10 @@ mod table;
 mod verbatim;
 
 pub(crate) use coordinator::document;
+pub(crate) use generated::{
+    Context as GeneratedContext, prepare as prepare_generated,
+    replace_source as replace_generated_source,
+};
 pub(crate) use peg::document_parser;
 pub(crate) use source::{Assignments as SourceAssignments, SourceHandler, document_from_source};
 

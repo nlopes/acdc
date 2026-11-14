@@ -136,6 +136,10 @@ impl Registry {
         self.0.macros.is_empty() && self.0.trees.is_empty()
     }
 
+    pub(crate) fn has_tree_processors(&self) -> bool {
+        !self.0.trees.is_empty()
+    }
+
     /// Parse with fresh processors and retain this document's deferred requests.
     ///
     /// Macro processors run once at committed block boundaries, before the
@@ -181,7 +185,7 @@ impl Registry {
             &options,
             (!self.0.macros.is_empty()).then_some(&mut session),
         )?;
-        let mut result = ExtensionParseResult::new(parsed, session);
+        let mut result = ExtensionParseResult::new(parsed, session, options.compatibility_mode);
         if result.session.processed_blocks {
             result.repair_after_edit()?;
         }

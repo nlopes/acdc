@@ -200,6 +200,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Empty registries and unused registrations preserve ordinary diagnostic order.
   Edits repair references, TOC and scoped footnotes while
   preserving surviving section and caption numbers.
+  `BlockBuilder` also builds images, listings, and literal figures with normal
+  attribute lists, weak defaults, and explicit unsets. `replace_block()` keeps
+  the target handle and inherited metadata; `replace_source()` interprets retained
+  paragraph or verbatim source using its local attributes and substitutions.
+  New captions honor local numeric counter seeds and advance beyond existing and
+  removed ordinals; textual diagrams can opt into figure captions with
+  `with_caption_kind()`. Failed edits preserve
+  the visible document, handles, numbering, and diagnostics. `normalize()` repairs
+  catalogs idempotently without rerunning processors.
   Extension queries also expose raw title source, inline substitutions, original
   locations, and source-position document attributes through
   `BlockView::title_source()`, including attribute titles and titles that expand

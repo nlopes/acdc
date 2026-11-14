@@ -1,4 +1,7 @@
-use crate::{Block, ColumnStyle, DelimitedBlockType, ListItem, Table, TableCell};
+use crate::{
+    Block, ColumnStyle, DelimitedBlockType, Document, FootnoteDefinition, ListItem, Table,
+    TableCell,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Children {
@@ -25,6 +28,28 @@ pub(super) struct BlockPath {
 }
 
 impl BlockPath {
+    pub(super) fn footnotes<'doc, 'a>(
+        &self,
+        document: &'doc Document<'a>,
+    ) -> &'doc [FootnoteDefinition<'a>] {
+        let mut definitions = document.footnotes.as_slice();
+        let Some(mut block) = document.blocks.get(self.root) else {
+            return definitions;
+        };
+        for &(children, index) in &self.nested {
+            if let Some(cell) = children.cell(block)
+                && cell.style == Some(ColumnStyle::AsciiDoc)
+            {
+                definitions = cell.footnotes.as_deref().unwrap_or_default();
+            }
+            let Some(child) = children.get(block).and_then(|blocks| blocks.get(index)) else {
+                break;
+            };
+            block = child;
+        }
+        definitions
+    }
+
     pub(super) fn container_mut<'doc, 'a>(
         &self,
         blocks: &'doc mut Vec<Block<'a>>,
@@ -102,6 +127,24 @@ impl BlockPath {
 }
 
 impl Children {
+    fn cell<'doc, 'a>(self, block: &'doc Block<'a>) -> Option<&'doc TableCell<'a>> {
+        let Self::Cell { part, row, column } = self else {
+            return None;
+        };
+        let Block::DelimitedBlock(block) = block else {
+            return None;
+        };
+        let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
+            return None;
+        };
+        let rows = match part {
+            TablePart::Head => table.header.as_slice(),
+            TablePart::Body => &table.rows,
+            TablePart::Foot => table.footer.as_slice(),
+        };
+        rows.get(row)?.columns.get(column)
+    }
+
     fn get<'doc, 'a>(self, block: &'doc Block<'a>) -> Option<&'doc [Block<'a>]> {
         match (self, block) {
             (Self::Body, Block::Section(block)) => Some(&block.content),
@@ -165,6 +208,34 @@ impl Children {
             _ => None,
         }
     }
+}
+
+pub(super) fn highest_footnote(document: &Document<'_>) -> u32 {
+    fn blocks_high_water(blocks: &[Block<'_>], number: &mut u32) {
+        for block in blocks {
+            visit_children(block, |children, blocks| {
+                if let Some(cell) = children.cell(block) {
+                    *number = (*number).max(
+                        cell.footnotes
+                            .iter()
+                            .flatten()
+                            .map(|note| note.number)
+                            .max()
+                            .unwrap_or(0),
+                    );
+                }
+                blocks_high_water(blocks, number);
+            });
+        }
+    }
+    let mut number = document
+        .footnotes
+        .iter()
+        .map(|note| note.number)
+        .max()
+        .unwrap_or(0);
+    blocks_high_water(&document.blocks, &mut number);
+    number
 }
 
 pub(crate) fn table_cell_mut<'doc, 'a>(

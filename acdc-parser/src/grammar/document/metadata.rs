@@ -118,6 +118,38 @@ impl<'a> QuoteSources<'a> {
 }
 
 impl<'a> ParsedAttributeList<'a> {
+    pub(super) fn overlay_prepared(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+        mode: CompatibilityMode,
+    ) {
+        if metadata.caption.is_some() {
+            self.caption_source = None;
+        }
+        if metadata.attribution.is_some() {
+            self.quote_sources.attribution = None;
+        }
+        if metadata.citetitle.is_some() {
+            self.quote_sources.citetitle = None;
+        }
+        let roles = (!metadata.roles.is_absent()).then(|| metadata.roles.clone());
+        let options = (!metadata.options.is_absent()).then(|| metadata.options.clone());
+        let context = metadata.source_context.clone();
+        let reftext = metadata.reftext.clone();
+        self.merge(Self::from_metadata(metadata), mode);
+        if let Some(roles) = roles {
+            self.metadata.roles = roles;
+        }
+        if let Some(options) = options {
+            self.metadata.options = options;
+        }
+        if reftext.is_some() {
+            self.metadata.reftext = reftext;
+            self.metadata.reftext_source = None;
+        }
+        self.metadata.source_context = context;
+    }
+
     pub(super) fn merge(&mut self, other: Self, mode: CompatibilityMode) {
         merge_attribute_metadata(&mut self.metadata, other.metadata, mode);
         if other.title.is_some() {
@@ -487,6 +519,7 @@ pub(super) fn finish_block_parsing_metadata<'input>(
         mut caption_source,
         ..
     } = attributes;
+    metadata.source_context = crate::extensions::SourceContext::capture(state);
     crate::grammar::reference_text::resolve_metadata(state, &mut metadata)?;
     let discrete = matches!(metadata.style, Some("discrete" | "float"));
     let substitutions = metadata.substitutions.as_ref().map_or_else(
@@ -656,6 +689,15 @@ pub(super) fn route_media_attributes<'a>(
     video: bool,
 ) {
     merge_macro_metadata(metadata, attributes, mode);
+    route_media_positions(metadata, attributes, mode, video);
+}
+
+pub(super) fn route_media_positions<'a>(
+    metadata: &mut BlockMetadata<'a>,
+    attributes: &BlockMetadata<'a>,
+    mode: CompatibilityMode,
+    video: bool,
+) {
     let selected = if mode == CompatibilityMode::Draft {
         &*metadata
     } else {

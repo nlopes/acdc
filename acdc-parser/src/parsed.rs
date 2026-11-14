@@ -338,6 +338,17 @@ impl ParseResult {
         self.warnings = combined.into_vec();
     }
 
+    pub(crate) fn append_extension_warnings(&mut self, warnings: Vec<Warning>) {
+        let mut combined = WarningCollection::default();
+        for warning in std::mem::take(&mut self.warnings)
+            .into_iter()
+            .chain(warnings)
+        {
+            combined.push_unique_from(warning, 0);
+        }
+        self.warnings = combined.into_vec();
+    }
+
     /// Borrow the preprocessed source the AST was parsed from.
     ///
     /// Note: this is the text as seen by the grammar, after include

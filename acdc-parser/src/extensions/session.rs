@@ -27,6 +27,7 @@ impl fmt::Debug for Session {
 #[derive(Debug)]
 #[must_use]
 pub struct ExtensionParseResult {
+    pub(super) mode: crate::CompatibilityMode,
     pub(super) parsed: ParseResult,
     pub(super) session: Session,
     // Keep unqueried extension results small.
@@ -34,8 +35,13 @@ pub struct ExtensionParseResult {
 }
 
 impl ExtensionParseResult {
-    pub(super) fn new(parsed: ParseResult, session: Session) -> Self {
+    pub(super) fn new(
+        parsed: ParseResult,
+        session: Session,
+        mode: crate::CompatibilityMode,
+    ) -> Self {
         Self {
+            mode,
             parsed,
             session,
             targets: OnceCell::new(),
@@ -60,6 +66,21 @@ impl ExtensionParseResult {
             ));
         }
         Ok(self.parsed)
+    }
+
+    /// Repair structural catalogs and diagnostics without invoking processors.
+    /// Successful edits already normalize before returning. Repeating this
+    /// operation preserves their observable result and assigned numbers.
+    ///
+    /// # Errors
+    /// Returns a located error if retained semantic content cannot be repaired.
+    pub fn normalize(&mut self) -> Result<(), Error> {
+        self.target_index();
+        if let Some(index) = self.targets.get_mut() {
+            self.parsed
+                .with_document_mut(|_, document| index.prepare_edit(document));
+        }
+        self.repair_after_edit()
     }
 
     #[must_use]

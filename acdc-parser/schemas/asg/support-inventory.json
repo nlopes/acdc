@@ -3635,6 +3635,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "source_context",
           "attribute_positions",
           "prefix_events",
           "caption",
@@ -3662,6 +3663,9 @@
         "upstream": "#/$defs/blockMetadata"
       },
       "properties": {
+        "source_context": {
+          "policy": "source-state"
+        },
         "attribute_positions": {
           "policy": "source-state"
         },

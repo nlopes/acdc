@@ -54,6 +54,19 @@ pub enum CaptionKind {
 }
 
 impl CaptionKind {
+    pub(crate) fn source_counter(self, attributes: &DocumentAttributes<'_>) -> u32 {
+        let name = match self {
+            Self::Example => "example-number",
+            Self::Figure => "figure-number",
+            Self::Listing => "listing-number",
+            Self::Table => "table-number",
+        };
+        attributes
+            .text(name)
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(0)
+    }
+
     const fn attribute_name(self) -> &'static str {
         match self {
             Self::Example => "example-caption",
@@ -146,7 +159,7 @@ impl CaptionKind {
 
     /// The context of a verbatim block, where only `literal`, `listing` and `source` override
     /// the delimiter's own `default`.
-    fn for_verbatim(style: Option<&str>, default: Option<Self>) -> Option<Self> {
+    pub(crate) fn for_verbatim(style: Option<&str>, default: Option<Self>) -> Option<Self> {
         match style {
             Some("listing" | "source") => Some(Self::Listing),
             Some("literal") => None,

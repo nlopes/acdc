@@ -2084,19 +2084,58 @@ quote-dependent policy of attribute titles. `caption()` reads the host's resolve
 prefix and ordinal. Ordinary parser entry points retain no extension title snapshots.
 Queries and borrowed title views end before an edit or ID assignment; query again
 afterward to observe the repaired tree. Copied handle selections remain snapshots.
-Document-local `TargetId` handles survive insertions and placeholder replacement;
-removed handles cannot bind to another block. The scoped `DocumentEditor` builds
-literal paragraphs and lists, assigns IDs, replaces requests, and removes sections.
-Edits repair catalogs and scoped footnotes while preserving surviving section and
-caption numbers. Generated text is literal and is not reparsed.
+Document-local `TargetId` handles survive insertions and ordinary-block replacement;
+removed handles cannot bind to another block. `DocumentEditor::replace_block()`
+retains the target's handle, location, title, ID, roles, options, and reftext unless
+overridden. Descendant handles and pending requests are removed. Sections have a
+separate `remove_section()` operation. Tree processors run once in registration
+order and observe earlier edits; copied selections and generated summaries remain
+snapshots and are not rerun.
+
+`BlockBuilder` builds paragraphs, unordered lists, images, listings, and literal
+blocks. Body strings remain literal and converters apply ordinary output escaping.
+`with_attributes()` interprets one attribute-list line, without square brackets,
+using the parser's rules and the target's source-position document attributes.
+`with_default_attributes()` supplies weak defaults; inherited metadata then explicit
+lists take precedence. Positional/named attributes, quote-dependent substitutions,
+empty values, titles, roles, options, and content-bearing attributes use ordinary
+normalization. `without_attribute()` removes selected inherited/default metadata;
+`with_id()` supplies the final explicit ID. Image replacements retain existing alt
+content unless explicitly overridden. No constructor runs block grammar or callbacks.
+`replace_source()` explicitly interprets a paragraph or listing/literal body with
+its captured attributes and `subs=` settings. Raw source, parsed inline content,
+and rendered output are separate views; extensions need no arena allocation or
+whole-document reparse.
+
+Successful edits repair references, TOC, scoped footnotes, and unresolved/duplicate
+ID warnings before returning. Other parse and construction warnings retain their
+order; repair refreshes only reference-related warnings. Validation or repair
+errors leave the visible tree, handles, assigned numbers, and diagnostics unchanged. Explicit duplicate IDs are
+rejected; duplicate IDs inside interpreted inline content produce warnings.
+Surviving section/caption numbers and custom, formatted, or disabled captions stay
+unchanged. New numbered captions advance beyond the highest original or generated
+ordinal, including removed figures, using the target's source-position caption label.
+Numeric `<kind>-number` seeds at that position provide a lower bound; a later reset
+cannot reuse an assigned ordinal. Counter expressions in literal builder bodies
+remain literal. Use `with_caption_kind(CaptionKind::Figure)` for textual diagrams. A title that
+expands to empty content still receives a number. Direct HTML comparisons with
+Asciidoctor 2.0.26 confirm surviving numbers after section removal. Its tree-processor
+image helper can reuse lower numbers after body counter state is restored; acdc's
+monotonic allocation is an intentional policy that avoids those collisions.
+
 ID assignment preserves authored IDs, avoids registered targets and unresolved
 reference names, and reuses assigned IDs. Identical conversions produce the same
 IDs regardless of request order; IDs need not remain stable across document edits.
 
-Call `ExtensionParseResult::finish()` to obtain the ordinary `ParseResult` used
-for conversion or serialization. It rejects unresolved deferred requests at their
-source locations. See the `extensions` module documentation for registration and
-processor examples. An empty registry uses the ordinary parser path.
+The working `ExtensionParseResult` retains processors, handles, and pending
+requests. `normalize()` repeats catalog repair idempotently without callbacks or
+renumbering. `finish()` consumes the working session and returns the ordinary
+`ParseResult` used for conversion or serialization; unresolved requests return a
+located error. Checked ASG export also rejects pending blocks in either profile.
+Earlier successful edits and external callback effects remain if a later processor
+fails; a processor sequence is not a transaction. See the `extensions` module
+documentation for registration and processor examples. An empty registry uses the
+ordinary parser path.
 
 [#parser-fixtures]
 == Parser fixtures

@@ -80,12 +80,14 @@
 //! [`BlockView::title_source`] retains raw title input, its inline substitution
 //! order, original location, and document attributes before title interpretation.
 //! This includes titles that expand to empty content, attribute titles, sections,
-//! and discrete headings. Constructed titles have no authored source snapshot.
+//! and discrete headings. Titles supplied through builder attribute lists retain
+//! that input with the target's location and source-position attributes.
 //! Ordinary parser entry points do not retain these extension snapshots.
 //!
 //! Tree processors run after block macros and can replace pending requests with
-//! ordinary content. Builders accept literal text; markup and substitutions are
-//! not run again.
+//! ordinary content. Builder bodies are literal; attribute lists use the parser's
+//! metadata rules. Use [`DocumentEditor::replace_source`] explicitly to interpret
+//! retained paragraph or listing/literal source with its original substitutions.
 //!
 //! ```
 //! use acdc_parser::{Error, Options, extensions::{
@@ -123,6 +125,26 @@
 //! removed handles never resolve to another block. Section removal repairs TOC and
 //! reference catalogs, preserves surviving section/caption numbers, and compacts
 //! footnotes. Replacing a placeholder preserves its handle, metadata, and source.
+//! [`DocumentEditor::replace_block`] offers the same construction path for ordinary
+//! blocks, invalidating descendant handles and requests. Images and verbatim blocks
+//! render through the usual converters. Attribute defaults are weaker than inherited
+//! metadata and explicit lists; unsets apply afterward. Textual figures opt into
+//! [`crate::CaptionKind::Figure`] through [`BlockBuilder::with_caption_kind`]. New
+//! numbers advance beyond original and generated ordinals, including removed blocks.
+//! Source-position caption labels and surviving numbers remain unchanged. Asciidoctor
+//! 2.0.26 also retains surviving numbers on removal; its tree-processor image helper
+//! may reuse lower ordinals, while acdc deliberately allocates monotonically.
+//!
+//! Each edit validates before mutation and repairs catalogs and reference warnings
+//! before returning. An edit error leaves the visible tree, handles, numbering, and
+//! diagnostics unchanged. Earlier successful edits and external effects remain if
+//! a later processor fails; the processor sequence is not transactional. Generated
+//! summaries and copied selections are snapshots. [`ExtensionParseResult::normalize`]
+//! repeats structural repair idempotently without rerunning callbacks or numbering.
+//! The working result retains session state and pending requests; consuming it with
+//! [`ExtensionParseResult::finish`] yields an ordinary finalized [`crate::ParseResult`]
+//! or a located error for an unresolved request. Checked ASG export rejects pending
+//! blocks in both profiles and compatibility modes.
 
 mod block_macro;
 mod builder;
@@ -144,6 +166,7 @@ pub use block_macro::{
     MacroInvocation, MacroTarget,
 };
 pub use builder::BlockBuilder;
+pub(crate) use builder::SourceContext;
 pub use deferred::{DeferredBlock, ExtensionBlock, PlaceholderId};
 pub use editor::DocumentEditor;
 pub use query::{BlockContext, BlockView, DocumentQuery};
