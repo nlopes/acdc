@@ -77,6 +77,11 @@
 //! Titles and captions carry their parsed source-position values. Assigning an ID
 //! preserves existing IDs and updates the reference catalog; it does not change
 //! block order or rerun processors. Deferred requests expose the same target handles.
+//! [`BlockView::title_source`] retains raw title input, its inline substitution
+//! order, original location, and document attributes before title interpretation.
+//! This includes titles that expand to empty content, attribute titles, sections,
+//! and discrete headings. Constructed titles have no authored source snapshot.
+//! Ordinary parser entry points do not retain these extension snapshots.
 //!
 //! Tree processors run after block macros and can replace pending requests with
 //! ordinary content. Builders accept literal text; markup and substitutions are
@@ -129,6 +134,7 @@ mod recognition;
 mod registry;
 mod session;
 mod target;
+mod title;
 mod traversal;
 pub(crate) use traversal::{TablePart, compound_body_mut, ordinary_list_items_mut, table_cell_mut};
 mod tree_processor;
@@ -144,6 +150,7 @@ pub use query::{BlockContext, BlockView, DocumentQuery};
 pub use registry::{RegistrationError, Registry, RegistryBuilder};
 pub use session::ExtensionParseResult;
 pub use target::{TargetError, TargetId};
+pub use title::TitleSource;
 pub use tree_processor::{TreeProcessor, TreeProcessorRegistration};
 
 pub(crate) use recognition::recognize;

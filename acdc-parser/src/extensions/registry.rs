@@ -173,13 +173,14 @@ impl Registry {
         parse: impl FnOnce(&Options<'_>, Option<&mut Session>) -> Result<ParseResult, Error>,
     ) -> Result<ExtensionParseResult, Error> {
         let mut session = self.session();
-        let parsed = if self.0.macros.is_empty() {
-            parse(options, None)?
-        } else {
-            let mut options = options.clone();
-            options.extensions = Some(self.clone());
-            parse(&options, Some(&mut session))?
-        };
+        let mut options = options.clone();
+        // Retain query input even when there are no registered macros. The
+        // ordinary recognizers and inactive source-reader path remain shared.
+        options.extensions = Some(self.clone());
+        let parsed = parse(
+            &options,
+            (!self.0.macros.is_empty()).then_some(&mut session),
+        )?;
         let mut result = ExtensionParseResult::new(parsed, session);
         if result.session.processed_blocks {
             result.repair_after_edit()?;

@@ -24,6 +24,8 @@ mod support;
 #[path = "queries.rs"]
 mod queries;
 
+mod title_sources;
+
 #[path = "tree_processors.rs"]
 mod tree_processors;
 

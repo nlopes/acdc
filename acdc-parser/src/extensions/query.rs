@@ -340,6 +340,22 @@ impl TargetIndex {
 /// Traversal includes list attachments, compound blocks, and `AsciiDoc` table-cell documents.
 /// List items and table cells are containers, rather than separate block targets.
 /// The document header is outside this block query.
+///
+/// Queries and their borrowed views end before any mutable operation. Query again
+/// after an edit or ID assignment to observe repaired semantics; only target
+/// handles carry identity across that boundary. A copied selection of handles is
+/// a snapshot and is never selected again automatically.
+///
+/// ```compile_fail,E0502
+/// use acdc_parser::{Error, extensions::{BlockBuilder, DocumentEditor, TargetId}};
+/// fn edit(editor: &mut DocumentEditor<'_>, target: &TargetId) -> Result<(), Error> {
+///     let query = editor.query();
+///     let old = query.get(target).unwrap();
+///     editor.insert_before(target, BlockBuilder::paragraph("New"))?;
+///     println!("{:?}", old.context());
+///     Ok(())
+/// }
+/// ```
 pub struct DocumentQuery<'doc> {
     pub(super) parsed: &'doc ParseResult,
     pub(super) index: &'doc TargetIndex,
@@ -412,6 +428,13 @@ impl<'doc> BlockView<'doc> {
     #[must_use]
     pub fn title(&self) -> Option<crate::ast::ContentRef<'doc>> {
         self.block().title()
+    }
+
+    /// Raw title input, substitutions, source location, and document attributes.
+    /// Constructed titles without authored input return `None`.
+    #[must_use]
+    pub fn title_source(&self) -> Option<&'doc super::TitleSource<'doc>> {
+        self.block.title()?.source()
     }
 
     #[must_use]
