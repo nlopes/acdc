@@ -2762,7 +2762,7 @@ more";
         let line_map = LineMap::new(&text);
         Some((
             file,
-            line_map.source_line(range, &text, offset) as usize,
+            line_map.source_line(range, offset) as usize,
             range.source_offset(offset),
         ))
     }

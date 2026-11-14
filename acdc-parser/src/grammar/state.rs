@@ -926,16 +926,13 @@ impl<'a> ParserState<'a> {
         let start = (
             start_range.source_offset(location.absolute_start),
             self.line_map
-                .source_line(start_range, self.input, location.absolute_start),
+                .source_line(start_range, location.absolute_start),
             start_range,
         );
         let end = (
             end_range.source_offset(location.absolute_end),
-            self.line_map.source_line(
-                end_range,
-                self.input,
-                location.absolute_end.min(self.input.len()),
-            ),
+            self.line_map
+                .source_line(end_range, location.absolute_end.min(self.input.len())),
             end_range,
         );
         super::source_remap::remap_endpoints(&mut location, start, end);

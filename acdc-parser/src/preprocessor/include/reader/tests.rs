@@ -102,6 +102,31 @@ proptest! {
 }
 
 #[test]
+fn line_fragments_preserve_unicode_whitespace_crlf_and_tag_boundaries() -> TestResult {
+    for input in [
+        "λ\u{2003}\r\nnext\t\r\nlast\r",
+        "\r\r\n\u{2003}\nλ\t\n\n",
+        "ttag::x[]\nλtag::x[]\ntag::x[]\nλ\u{2003}\r\nend::x[]\n",
+        "end::missing[] tag::x[]\nkept\t\nend::x[]\n",
+    ] {
+        for chunk in [1, 2, 3, 7, 8192] {
+            compare_buffered(input, &ContentSelection::All, chunk)?;
+            compare_buffered(
+                input,
+                &ContentSelection::Lines(vec![LinesRange::Range(1, 3)]),
+                chunk,
+            )?;
+            compare_buffered(
+                input,
+                &ContentSelection::Tags(vec![tag::Filter::parse("x").ok_or("missing tag filter")?]),
+                chunk,
+            )?;
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn selected_content_accepts_exact_limit_and_rejects_one_more_byte() -> TestResult {
     let accepted = read(
         IncludeSource::from_reader(io::repeat(b'a').take(u64::try_from(MAX_SELECTED_BYTES)?)),

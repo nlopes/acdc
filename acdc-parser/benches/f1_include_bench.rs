@@ -21,9 +21,15 @@
 //! The synthetic include corpus is generated deterministically into a temp dir, so
 //! the inputs are byte-identical between the "before" and "after" runs.
 
-use std::{fs, hint::black_box, path::Path, path::PathBuf, time::Duration};
+use std::{
+    fmt::Write as _,
+    fs,
+    hint::black_box,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
-use acdc_parser::{Options, parse, parse_file};
+use acdc_parser::{Options, Parser, parse, parse_file};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 fn include_options() -> Options<'static> {
@@ -57,6 +63,7 @@ struct IncludeCorpus {
     dir: PathBuf,
     whole_file: PathBuf,
     many_includes: PathBuf,
+    scoped_includes: PathBuf,
     partial_lines: PathBuf,
     partial_tags: PathBuf,
 }
@@ -71,12 +78,10 @@ impl IncludeCorpus {
         // includes don't collide on section ids). ~1800 lines.
         let mut part = String::new();
         for i in 0..600 {
-            part.push_str(&format!(
-                "Paragraph {i} opening line with _emphasis_, *strong*, `mono`, and a https://example.com[link].\n"
-            ));
-            part.push_str(&format!(
-                "Paragraph {i} second line continuing the thought.\n\n"
-            ));
+            writeln!(part, "Paragraph {i} opening line with _emphasis_, *strong*, `mono`, and a https://example.com[link].")
+                .expect("format paragraph opening");
+            writeln!(part, "Paragraph {i} second line continuing the thought.\n")
+                .expect("format paragraph continuation");
         }
         fs::write(dir.join("part_big.adoc"), &part).expect("write part_big");
 
@@ -90,16 +95,25 @@ impl IncludeCorpus {
         for k in 0..80 {
             let mut ch = format!("== Chapter {k}\n\n");
             for p in 0..10 {
-                ch.push_str(&format!("Chapter {k} paragraph {p} with some text.\n\n"));
+                writeln!(ch, "Chapter {k} paragraph {p} with some text.\n")
+                    .expect("format chapter paragraph");
             }
             fs::write(dir.join(format!("chapter_{k}.adoc")), ch).expect("write chapter");
         }
         let mut many = String::from("= Book\n\n");
         for k in 0..80 {
-            many.push_str(&format!("include::chapter_{k}.adoc[]\n\n"));
+            writeln!(many, "include::chapter_{k}.adoc[]\n").expect("format include");
         }
         let many_includes = dir.join("main_many_includes.adoc");
         fs::write(&many_includes, many).expect("write main_many_includes");
+
+        let mut scoped = String::from("= Scoped Book\n\n");
+        for k in 0..80 {
+            writeln!(scoped, "include::chapter_{k}.adoc[leveloffset=+1]\n")
+                .expect("format scoped include");
+        }
+        let scoped_includes = dir.join("main_scoped_includes.adoc");
+        fs::write(&scoped_includes, scoped).expect("write main_scoped_includes");
 
         // Many partial line-range includes, each a NON-contiguous selection
         // (`lines=a..b;c..d`) → two runs per include → the path F1 splits.
@@ -109,9 +123,8 @@ impl IncludeCorpus {
             let b = a + 2;
             let c = b + 3;
             let d = c + 2;
-            partial.push_str(&format!(
-                "include::part_big.adoc[lines={a}..{b};{c}..{d}]\n\n"
-            ));
+            writeln!(partial, "include::part_big.adoc[lines={a}..{b};{c}..{d}]\n")
+                .expect("format partial include");
         }
         let partial_lines = dir.join("main_partial_lines.adoc");
         fs::write(&partial_lines, partial).expect("write main_partial_lines");
@@ -119,15 +132,13 @@ impl IncludeCorpus {
         // A tagged file with 50 regions, included one tag at a time.
         let mut tagged = String::new();
         for k in 0..50 {
-            tagged.push_str(&format!("// tag::t{k}[]\n"));
-            tagged.push_str(&format!("Tagged region {k} first line.\n"));
-            tagged.push_str(&format!("Tagged region {k} second line.\n"));
-            tagged.push_str(&format!("// end::t{k}[]\n"));
+            writeln!(tagged, "// tag::t{k}[]\nTagged region {k} first line.\nTagged region {k} second line.\n// end::t{k}[]")
+                .expect("format tagged region");
         }
         fs::write(dir.join("tagged.adoc"), tagged).expect("write tagged");
         let mut tags_main = String::from("= Partial Tags\n\n");
         for k in 0..50 {
-            tags_main.push_str(&format!("include::tagged.adoc[tag=t{k}]\n\n"));
+            writeln!(tags_main, "include::tagged.adoc[tag=t{k}]\n").expect("format tagged include");
         }
         let partial_tags = dir.join("main_partial_tags.adoc");
         fs::write(&partial_tags, tags_main).expect("write main_partial_tags");
@@ -136,6 +147,7 @@ impl IncludeCorpus {
             dir,
             whole_file,
             many_includes,
+            scoped_includes,
             partial_lines,
             partial_tags,
         }
@@ -202,6 +214,13 @@ fn sizes_benchmark(c: &mut Criterion) {
 }
 
 fn includes_benchmark(c: &mut Criterion) {
+    c.bench_function("parse_inline/control", |b| {
+        b.iter(|| {
+            black_box(
+                Parser::new(black_box("Plain words with *strong* and _emphasis_.")).parse_inline(),
+            )
+        });
+    });
     let corpus = IncludeCorpus::generate();
     let mut group = c.benchmark_group("includes");
     group.measurement_time(Duration::from_secs(8));
@@ -209,6 +228,7 @@ fn includes_benchmark(c: &mut Criterion) {
     for (name, path) in [
         ("whole_file", &corpus.whole_file),
         ("many_includes", &corpus.many_includes),
+        ("scoped_includes", &corpus.scoped_includes),
         ("partial_lines", &corpus.partial_lines),
         ("partial_tags", &corpus.partial_tags),
     ] {

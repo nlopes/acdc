@@ -82,7 +82,7 @@ impl LineMap {
         }
     }
 
-    /// Resolve `offset` to a 1-based line number.
+    /// Resolve `offset` to a zero-based line index and its starting byte.
     ///
     /// Fast path: consecutive lookups on the same line hit the cache and skip
     /// the binary search. When the cache misses, falls back to
@@ -118,6 +118,12 @@ impl LineMap {
         }));
 
         (line_idx, range_start)
+    }
+
+    /// Resolve a line number without calculating a character column.
+    pub(super) fn offset_to_line(&self, offset: usize) -> u32 {
+        let (line_idx, _) = self.line_for_offset(offset);
+        u32::try_from(line_idx + 1).unwrap_or(u32::MAX)
     }
 
     /// Convert byte offset to `Position` using binary search — `O(log n)`
@@ -196,10 +202,9 @@ impl LineMap {
         &self,
         start_line: u32,
         preproc_start_line: u32,
-        input: &str,
         offset: usize,
     ) -> u32 {
-        let offset_line = self.offset_to_position(offset, input).line;
+        let offset_line = self.offset_to_line(offset);
         start_line + offset_line.saturating_sub(preproc_start_line)
     }
 
@@ -207,12 +212,11 @@ impl LineMap {
     /// range's preprocessed start line on the fly. Convenience over
     /// [`source_line_from`](Self::source_line_from) for callers without a cached start
     /// line (the rare diagnostic paths).
-    pub(crate) fn source_line(&self, range: &SourceRange, input: &str, offset: usize) -> u32 {
-        let preproc_start_line = self.offset_to_position(range.start_offset, input).line;
+    pub(crate) fn source_line(&self, range: &SourceRange, offset: usize) -> u32 {
+        let preproc_start_line = self.offset_to_line(range.start_offset);
         self.source_line_from(
             u32::try_from(range.start_line).unwrap_or(u32::MAX),
             preproc_start_line,
-            input,
             offset,
         )
     }

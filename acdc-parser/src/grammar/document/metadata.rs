@@ -243,19 +243,26 @@ pub(super) fn assign_block_caption<'input>(state: &ParserState<'input>, block: &
     }
 }
 
-pub(super) fn order_block_prefix_events(blocks: Vec<Block<'_>>) -> Vec<Block<'_>> {
+pub(super) fn order_block_prefix_events(mut blocks: Vec<Block<'_>>) -> Vec<Block<'_>> {
+    let mut has_rejected = false;
     let needs_ordering = blocks.iter().any(|block| {
         if let Block::Comment(comment) = block {
             return comment.prefix_events.is_some();
         }
         if let Block::DocumentAttribute(attribute) = block {
-            return !attribute.is_accepted();
+            has_rejected |= !attribute.is_accepted();
+            return false;
         }
         block
             .metadata()
             .is_some_and(BlockMetadata::has_prefix_events)
     });
     if !needs_ordering {
+        if has_rejected {
+            blocks.retain(|block| {
+                !matches!(block, Block::DocumentAttribute(attribute) if !attribute.is_accepted())
+            });
+        }
         return blocks;
     }
 
