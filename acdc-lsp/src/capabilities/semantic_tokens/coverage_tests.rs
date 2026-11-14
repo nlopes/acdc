@@ -339,3 +339,26 @@ fn slash_prefixed_paragraph_ends_leading_attribute_scan() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn comment_delimiters_with_trailing_whitespace_hide_their_content() -> TestResult {
+    for source in [
+        ":a: 1\n//// \n:x: y\n////\n:b: 2\n\nPara\n",
+        ":a: 1\n////\n:x: y\n//// \n:b: 2\n\nPara\n",
+    ] {
+        let tokens = decoded(source)?;
+        assert!(
+            !tokens
+                .iter()
+                .any(|token| token.0 == 2 && token.3 == "property"),
+            "{source:?}: {tokens:?}"
+        );
+        assert!(
+            tokens
+                .iter()
+                .any(|token| token.0 == 4 && token.2 == "b" && token.3 == "property"),
+            "{source:?}: {tokens:?}"
+        );
+    }
+    Ok(())
+}

@@ -84,8 +84,9 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
             break;
         };
         let text = text.trim_end_matches(['\r', '\n']);
+        // Like the parser, accept comment delimiters with trailing whitespace.
         if let Some(delimiter) = comment_delimiter {
-            if text == delimiter {
+            if text.trim_end() == delimiter {
                 comment_delimiter = None;
             }
             continue;
@@ -99,8 +100,9 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
             continuation = continues_value(text);
             continue;
         }
-        if text.len() >= 4 && text.bytes().all(|byte| byte == b'/') {
-            comment_delimiter = Some(text);
+        let delimiter = text.trim_end();
+        if delimiter.len() >= 4 && delimiter.bytes().all(|byte| byte == b'/') {
+            comment_delimiter = Some(delimiter);
             continue;
         }
         // Like the parser, a line comment is `//` not followed by another `/`;
