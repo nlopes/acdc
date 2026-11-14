@@ -30,7 +30,7 @@ impl BlockCursor {
         metadata: &BlockParsingMetadata<'a>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<Block<'a>, Error>, RecognitionError> {
         let source = match input.prepare(
@@ -77,7 +77,7 @@ impl BlockCursor {
         initial: (DescriptionItemHead<'a>, Option<DescriptionListScope<'a>>),
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<Vec<crate::DescriptionListItem<'a>>, Error>, RecognitionError> {
         let (mut head, parent_scope) = initial;
@@ -97,8 +97,8 @@ impl BlockCursor {
                     end.max(source.term.delimiter_end) + head_base,
                     0,
                 );
-                let shell = build_description_list(metadata, location, Vec::new());
-                if let Err(error) = accepted.run(&shell, state) {
+                let mut shell = build_description_list(metadata, location, Vec::new());
+                if let Err(error) = accepted.run(&mut shell, state, &mut Vec::new()) {
                     return Ok(Err(error));
                 }
                 first = false;
@@ -152,7 +152,7 @@ impl BlockCursor {
         delimiter: &'a str,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<DescriptionChildren<'a>, Error>, RecognitionError> {
         let mut children = DescriptionChildren::default();

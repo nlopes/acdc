@@ -90,11 +90,10 @@ impl<'a> SourceIndex<'a> {
     fn remember_window(&self, start: usize, text: &'a str) {
         let mut windows = self.windows.borrow_mut();
         if let Some(last) = windows.last() {
-            debug_assert!(
-                start >= last.start,
-                "source windows advance in source order"
-            );
-            if start + text.len() <= last.start + last.text.len() {
+            // Completed containers can retain their whole body after their
+            // children have advanced the cursor. Keep only forward windows in
+            // the lookup cache; the container owns this retained borrow.
+            if start < last.start || start + text.len() <= last.start + last.text.len() {
                 return;
             }
         }

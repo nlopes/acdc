@@ -14,23 +14,46 @@ use crate::{
 
 use super::{
     construction::ConstructionMode,
-    coordinator::{BlockCursor, Execution, document_with},
+    coordinator::{BlockCursor, Execution, document_with_execution},
+    delimited::DelimitedKind,
     document_parser,
     input::{BlockInput, ReadRequest},
     lists::{ListKind, ListPhase, OrdinaryListKind},
 };
 
-type Assignments<'a> = Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>;
-type PendingAssignments = Rc<RefCell<Assignments<'static>>>;
+pub(crate) type Assignments<'a> = Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>;
+#[derive(Default)]
+struct SourceUpdates<'a> {
+    assignments: RefCell<Assignments<'static>>,
+    nested_parent: RefCell<Option<Rc<DocumentAttributes<'a>>>>,
+}
 
-/// A1's private execution seam. Public Registry callbacks retain their
-/// existing post-acceptance timing until the A2 context contract is introduced.
+type PendingAssignments<'a> = Rc<SourceUpdates<'a>>;
+
+/// Document-local execution after recognition has committed a block.
 pub(crate) trait SourceHandler {
     fn accepted<'a>(
         &mut self,
-        block: &Block<'a>,
-        attributes: &DocumentAttributes<'a>,
-    ) -> Result<Assignments<'a>, String>;
+        _block: &Block<'a>,
+        _attributes: &DocumentAttributes<'a>,
+    ) -> Result<Assignments<'a>, String> {
+        Ok(Vec::new())
+    }
+
+    fn construct<'a>(
+        &mut self,
+        block: &mut Block<'a>,
+        state: &mut ParserState<'a>,
+    ) -> Result<(bool, Assignments<'a>), Error> {
+        self.accepted(block, &state.document_attributes)
+            .map(|assignments| (true, assignments))
+            .map_err(|message| {
+                Error::Extension(
+                    Box::new(state.create_error_source_location(block.location().clone())),
+                    message,
+                )
+            })
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -42,6 +65,7 @@ pub(super) enum SourceLine<'a> {
     Heading,
     Delimited {
         delimiter: &'a str,
+        kind: Option<DelimitedKind>,
         table: bool,
         comment: bool,
     },
@@ -76,20 +100,32 @@ struct SourceStart<'a> {
     line: &'a str,
     form: SourceLine<'a>,
     verbatim: bool,
+    compound: bool,
+}
+
+struct CellRead<'a> {
+    separator: char,
+    delimiter: &'a str,
+    start: usize,
+    end: Option<usize>,
 }
 
 pub(super) struct SourceInput<'a> {
     reader: Option<SourceReader<'a>>,
     pub(super) index: Rc<SourceIndex<'a>>,
     pub(super) result: Option<PreprocessorResult<'a>>,
-    updates: PendingAssignments,
+    updates: PendingAssignments<'a>,
     failed: bool,
+    stream_open: bool,
+    boundaries: Vec<&'a str>,
+    cells: Vec<CellRead<'a>>,
+    stream_table: bool,
 }
 
 impl<'a> SourceInput<'a> {
     fn new(
         reader: SourceReader<'a>,
-        updates: PendingAssignments,
+        updates: PendingAssignments<'a>,
         index: Rc<SourceIndex<'a>>,
     ) -> Self {
         Self {
@@ -98,10 +134,64 @@ impl<'a> SourceInput<'a> {
             result: None,
             updates,
             failed: false,
+            stream_open: false,
+            boundaries: Vec::new(),
+            cells: Vec::new(),
+            stream_table: false,
         }
     }
 
-    fn line(
+    fn available_end(&self) -> usize {
+        self.cells
+            .last()
+            .and_then(|cell| cell.end)
+            .map_or(self.index.len(), |end| end.min(self.index.len()))
+    }
+
+    pub(super) fn line(
+        &mut self,
+        offset: usize,
+        state: &mut ParserState<'a>,
+    ) -> Result<Option<&'a str>, Error> {
+        if self
+            .cells
+            .last()
+            .and_then(|cell| cell.end)
+            .is_some_and(|end| offset >= end)
+        {
+            return Ok(None);
+        }
+        let Some(line) = self.raw_line(offset, state)? else {
+            return Ok(None);
+        };
+        if let Some(cell) = self.cells.last_mut() {
+            let boundary = if document_parser::source_block_close(line, state, cell.delimiter, true)
+                .is_ok()
+            {
+                Some(0)
+            } else {
+                crate::blocks::table::next_cell_boundary(line, cell.separator, offset != cell.start)
+                    .map(|(end, _, _)| end)
+            };
+            if let Some(end) = boundary {
+                cell.end = Some(offset + end);
+                return Ok((end > 0).then(|| &line[..end]));
+            }
+        }
+        Ok(Some(line))
+    }
+
+    pub(super) fn raw_line(
+        &mut self,
+        offset: usize,
+        state: &mut ParserState<'a>,
+    ) -> Result<Option<&'a str>, Error> {
+        let result = self.read_line(offset, state);
+        self.failed |= result.is_err();
+        result
+    }
+
+    fn read_line(
         &mut self,
         offset: usize,
         state: &mut ParserState<'a>,
@@ -119,7 +209,7 @@ impl<'a> SourceInput<'a> {
             let Some(reader) = self.reader.as_mut() else {
                 return Ok(None);
             };
-            for (name, assignment) in self.updates.borrow_mut().drain(..) {
+            for (name, assignment) in self.updates.assignments.borrow_mut().drain(..) {
                 let value = match assignment {
                     DocumentAttributeAssignment::Set(value) => RawAttributeValue::Resolved(value),
                     DocumentAttributeAssignment::Unset => RawAttributeValue::Unset,
@@ -174,10 +264,38 @@ impl<'a> SourceInput<'a> {
         request: ReadRequest<'a>,
         state: &mut ParserState<'a>,
     ) -> Result<usize, Error> {
+        self.stream_open = false;
+        self.stream_table = false;
         let Some(unit) = self.block_start(start, request, state)? else {
-            return Ok(self.index.len());
+            return Ok(self.available_end());
         };
         let offset = unit.offset + unit.line.len();
+        if self.boundaries.last().is_some_and(|delimiter| {
+            document_parser::source_block_close(unit.line, state, delimiter, false).is_ok()
+        }) {
+            return Ok(offset);
+        }
+        if let SourceLine::Delimited {
+            delimiter, table, ..
+        } = unit.form
+            && self.index.tail(offset).is_some_and(|tail| {
+                tail.split_inclusive('\n').any(|line| {
+                    document_parser::source_block_close(line, state, delimiter, table).is_ok()
+                })
+            })
+        {
+            return self.delimited_end(offset, delimiter, table, state);
+        }
+        if state.options.extensions.is_some()
+            && matches!(unit.form, SourceLine::Delimited { table: true, delimiter, .. } if delimiter.starts_with(['|', '!']))
+        {
+            self.stream_table = true;
+            return Ok(offset);
+        }
+        if state.options.extensions.is_some() && unit.compound {
+            self.stream_open = true;
+            return Ok(offset);
+        }
         if let SourceLine::Delimited {
             delimiter, table, ..
         } = unit.form
@@ -251,6 +369,7 @@ impl<'a> SourceInput<'a> {
                     delimiter,
                     table,
                     comment: true,
+                    kind: _,
                 } = form
             {
                 offset = self.delimited_end(offset + line.len(), delimiter, table, state)?;
@@ -287,6 +406,7 @@ impl<'a> SourceInput<'a> {
                     line,
                     form,
                     verbatim,
+                    compound: matches!(form, SourceLine::Delimited {kind: Some(kind), ..} if kind.has_compound_body(style.as_deref())),
                 }));
             }
         }
@@ -320,6 +440,7 @@ impl<'a> SourceInput<'a> {
                     delimiter,
                     table,
                     comment: true,
+                    kind: _,
                 } => {
                     offset = self.delimited_end(offset, delimiter, table, state)?;
                 }
@@ -485,7 +606,15 @@ impl<'a> SourceInput<'a> {
     }
 
     pub(super) fn prepare_header(&mut self, state: &mut ParserState<'a>) -> Result<&'a str, Error> {
-        let mut offset = 0;
+        self.prepare_header_from(0, state)
+    }
+
+    pub(super) fn prepare_header_from(
+        &mut self,
+        start: usize,
+        state: &mut ParserState<'a>,
+    ) -> Result<&'a str, Error> {
+        let mut offset = start;
         let mut title = false;
         let mut header_started = false;
         while let Some(line) = self.line(offset, state)? {
@@ -495,6 +624,7 @@ impl<'a> SourceInput<'a> {
                 delimiter,
                 table,
                 comment: true,
+                kind: _,
             } = kind
             {
                 while let Some(next) = self.line(offset, state)? {
@@ -541,9 +671,13 @@ impl<'a> SourceInput<'a> {
         }
         let view = self
             .index
-            .window(0..offset.min(self.index.len()), state.arena)
+            .window(start..offset.min(self.available_end()), state.arena)
             .ok_or_else(|| source_error(state, 0, "missing document prefix window"))?;
-        let source = view.input;
+        let base = view.origin.as_ref().map_or(0, |origin| origin.base);
+        let source = view
+            .input
+            .get(start - base..offset.min(self.available_end()) - base)
+            .ok_or_else(|| source_error(state, start, "missing nested header window"))?;
         state.set_source_view(view);
         Ok(source)
     }
@@ -576,7 +710,11 @@ impl<'a> SourceInput<'a> {
         let start = cursor.base_offset + cursor.offset;
         let end = self.scan(start, request, state)?;
         if let Some(origin) = state.input_origin.as_ref().filter(|origin| {
-            Rc::ptr_eq(&origin.index, &self.index)
+            !self.stream_open
+                && !self.stream_table
+                && self.cells.is_empty()
+                && self.boundaries.is_empty()
+                && Rc::ptr_eq(&origin.index, &self.index)
                 && origin.base <= start
                 && end <= origin.base + state.input.len()
                 && origin.base + state.input.len() <= self.index.len()
@@ -585,11 +723,42 @@ impl<'a> SourceInput<'a> {
             cursor.base_offset = origin.base;
             return Ok(state.input);
         }
-        let view = self
+        let mut view = self
             .index
             .window(start..end, state.arena)
             .ok_or_else(|| source_error(state, start, "missing accepted source window"))?;
         let base = view.origin.as_ref().map_or(0, |origin| origin.base);
+        if self.stream_open
+            || self.stream_table
+            || !self.cells.is_empty()
+            || !self.boundaries.is_empty()
+        {
+            let mut limit = end;
+            if let Some(delimiter) = self.boundaries.last() {
+                let mut offset = start;
+                for line in view
+                    .input
+                    .get(start - base..end - base)
+                    .unwrap_or_default()
+                    .split_inclusive('\n')
+                {
+                    if offset != start
+                        && document_parser::source_block_close(line, state, delimiter, false)
+                            .is_ok()
+                    {
+                        limit = offset.saturating_sub(usize::from(
+                            state.source_byte(offset.saturating_sub(1)) == Some(b'\n'),
+                        ));
+                        break;
+                    }
+                    offset += line.len();
+                }
+            }
+            view.input = view
+                .input
+                .get(..limit - base)
+                .ok_or_else(|| source_error(state, start, "missing compound opening window"))?;
+        }
         cursor.offset = start - base;
         cursor.base_offset = base;
         let source = view.input;
@@ -598,7 +767,60 @@ impl<'a> SourceInput<'a> {
     }
 }
 
+impl<'a> SourceInput<'a> {
+    pub(super) fn streaming_table(&self) -> bool {
+        self.stream_table
+    }
+
+    pub(super) fn cell_end(&self) -> Option<usize> {
+        self.cells.last().and_then(|cell| cell.end)
+    }
+    pub(super) fn table_header_lookahead(&self) -> Vec<&'a str> {
+        self.reader
+            .as_ref()
+            .map_or_else(Vec::new, SourceReader::table_header_lookahead)
+    }
+    pub(super) fn begin_cell(&mut self, separator: char, delimiter: &'a str, start: usize) {
+        self.cells.push(CellRead {
+            separator,
+            delimiter,
+            start,
+            end: None,
+        });
+    }
+    pub(super) fn end_cell(&mut self) {
+        self.cells.pop();
+    }
+    pub(super) fn reader_attributes(
+        &mut self,
+        attributes: &DocumentAttributes<'a>,
+        nested_parent: Option<&Rc<DocumentAttributes<'a>>>,
+    ) {
+        self.updates.nested_parent.replace(nested_parent.cloned());
+        self.updates.assignments.borrow_mut().clear();
+        if let Some(reader) = self.reader.as_mut() {
+            reader.options_mut().document_attributes = attributes.clone().into_static();
+        }
+    }
+
+    pub(super) fn streaming_compound(&self) -> bool {
+        self.stream_open
+    }
+    pub(super) fn boundary(&self) -> Option<&'a str> {
+        self.boundaries.last().copied()
+    }
+    pub(super) fn push_boundary(&mut self, delimiter: &'a str) {
+        self.boundaries.push(delimiter);
+    }
+    pub(super) fn pop_boundary(&mut self) {
+        self.boundaries.pop();
+    }
+}
+
 impl<'a> BlockInput<'a> for SourceInput<'a> {
+    fn source_input(&mut self) -> Option<&mut SourceInput<'a>> {
+        Some(self)
+    }
     #[inline]
     fn prepare(
         &mut self,
@@ -606,7 +828,9 @@ impl<'a> BlockInput<'a> for SourceInput<'a> {
         state: &mut ParserState<'a>,
         request: ReadRequest<'a>,
     ) -> Result<&'a str, Error> {
-        if matches!(request, ReadRequest::Block)
+        if self.boundaries.is_empty()
+            && self.cells.is_empty()
+            && matches!(request, ReadRequest::Block)
             && let Some(source) = self.buffered_prose(cursor, state)
         {
             return Ok(source);
@@ -675,18 +899,21 @@ pub(crate) fn document_from_source<'a>(
                 origin: None,
             });
         }
-        let mut callback = |block: &Block<'a>, state: &mut ParserState<'a>| {
-            execute_source_handler(handler, block, state, None)
-        };
-        let document = document_with(source, state, ConstructionMode::Ordered, &mut callback)
-            .map_err(|error| recognition_error(error, state))??;
+        let mut callback =
+            |block: &mut Block<'a>, state: &mut ParserState<'a>, output: &mut Vec<Block<'a>>| {
+                execute_source_handler(handler, block, state, None, output)
+            };
+        let document =
+            document_with_execution(source, state, ConstructionMode::Ordered, &mut callback)
+                .map_err(|error| recognition_error(error, state))??;
         *conditionals = result.conditionals;
         return Ok(document);
     }
     let updates = PendingAssignments::default();
-    let mut callback = |block: &Block<'a>, state: &mut ParserState<'a>| {
-        execute_source_handler(handler, block, state, Some(&updates))
-    };
+    let mut callback =
+        |block: &mut Block<'a>, state: &mut ParserState<'a>, output: &mut Vec<Block<'a>>| {
+            execute_source_handler(handler, block, state, Some(&updates), output)
+        };
     let index = state
         .input_origin
         .as_ref()
@@ -739,29 +966,24 @@ pub(crate) fn document_from_source<'a>(
 #[inline]
 fn execute_source_handler<'a>(
     handler: &mut dyn SourceHandler,
-    block: &Block<'a>,
+    block: &mut Block<'a>,
     state: &mut ParserState<'a>,
-    updates: Option<&PendingAssignments>,
-) -> Result<(), Error> {
-    let assignments = handler
-        .accepted(block, &state.document_attributes)
-        .map_err(|message| {
-            Error::Extension(
-                Box::new(state.create_error_source_location(block.location().clone())),
-                message,
-            )
-        })?;
+    updates: Option<&PendingAssignments<'a>>,
+    output: &mut Vec<Block<'a>>,
+) -> Result<bool, Error> {
+    let (keep, assignments) = handler.construct(block, state)?;
     if !assignments.is_empty() {
-        apply_assignments(assignments, block, state, updates);
+        apply_assignments(assignments, block, state, updates, output);
     }
-    Ok(())
+    Ok(keep)
 }
 
 fn apply_assignments<'a>(
     assignments: Assignments<'a>,
     block: &Block<'a>,
     state: &mut ParserState<'a>,
-    updates: Option<&PendingAssignments>,
+    updates: Option<&PendingAssignments<'a>>,
+    output: &mut Vec<Block<'a>>,
 ) {
     for (name, assignment) in assignments {
         let name = state.intern_cow(name);
@@ -777,13 +999,25 @@ fn apply_assignments<'a>(
             },
             false,
             block.location().clone(),
-        ) && state.nested_parent_attributes.is_none()
-            && let Some(updates) = updates
-        {
-            updates.borrow_mut().push((
-                name.to_owned().into(),
-                event.assignment().clone().into_static(),
-            ));
+        ) {
+            if let Some(updates) = updates
+                && state
+                    .nested_parent_attributes
+                    .as_ref()
+                    .is_none_or(|parent| {
+                        updates
+                            .nested_parent
+                            .borrow()
+                            .as_ref()
+                            .is_some_and(|selected| Rc::ptr_eq(parent, selected))
+                    })
+            {
+                updates.assignments.borrow_mut().push((
+                    name.to_owned().into(),
+                    event.assignment().clone().into_static(),
+                ));
+            }
+            output.push(Block::DocumentAttribute(event));
         }
     }
 }

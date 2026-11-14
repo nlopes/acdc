@@ -35,6 +35,11 @@ pub(super) struct ContentRequest<'a> {
 }
 
 pub(super) trait ContentParser<'a> {
+    /// Buffered cells have already passed through the table decoder.
+    fn raw_cell_separator(&self) -> Option<char> {
+        None
+    }
+
     fn parse(
         &mut self,
         state: &mut ParserState<'a>,
@@ -121,7 +126,7 @@ pub(super) fn check_delimiters(
 /// Validate a closing delimiter and return its location.
 /// If the block has no closing delimiter, warn at the opening delimiter and
 /// return `None`. The caller keeps the block through end of input.
-fn resolve_delimited_close<'input>(
+pub(super) fn resolve_delimited_close<'input>(
     state: &mut ParserState<'input>,
     p: &DelimitedParams<'input>,
 ) -> Result<Option<Location>, Error> {
@@ -170,6 +175,13 @@ pub(super) enum DelimitedKind {
 }
 
 impl DelimitedKind {
+    pub(super) fn has_compound_body(self, style: Option<&str>) -> bool {
+        matches!(
+            self.with_style(style),
+            Self::Example | Self::Open | Self::Sidebar | Self::Quote
+        ) && !matches!(style, Some("comment" | "verse"))
+    }
+
     pub(super) fn with_style(self, style: Option<&str>) -> Self {
         match (self, style) {
             (Self::Open | Self::Literal, Some("source" | "listing")) => Self::Listing,

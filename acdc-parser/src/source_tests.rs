@@ -415,9 +415,9 @@ fn source_driver_preserves_buffered_body_and_cell_attribute_scope(
                 .conditionals()
                 .map(crate::ConditionalEvaluation::is_active)
                 .collect::<Vec<_>>(),
-            [false, propagates]
+            [true, propagates]
         );
-        assert!(!parsed.preprocessed_source().contains("Early."));
+        assert!(parsed.preprocessed_source().contains("Early."));
         assert_eq!(parsed.preprocessed_source().contains("Later."), propagates);
     }
     Ok(())

@@ -142,6 +142,9 @@ pub(crate) struct ParserState<'a> {
     /// Inline owners share this buffer, map their newly collected diagnostics,
     /// then reinsert them in their parent's coordinates.
     pub(crate) warnings: Rc<RefCell<WarningCollection>>,
+    /// Raw cooperative cells retain table escapes until syntax interpretation.
+    pub(crate) raw_cell_separator: Option<char>,
+    deferred_section_warnings: Vec<(usize, Warning)>,
     // Earlier warnings may use a different substring's coordinates.
     pub(super) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
@@ -382,6 +385,21 @@ impl<'a> FootnoteTracker<'a> {
 }
 
 impl<'a> ParserState<'a> {
+    pub(super) fn defer_section_warning(&mut self, start: usize, warning: Warning) {
+        self.deferred_section_warnings.push((start, warning));
+    }
+
+    pub(super) fn finish_section_warnings(&mut self, start: usize) {
+        while let Some(index) = self
+            .deferred_section_warnings
+            .iter()
+            .position(|(heading, _)| *heading == start)
+        {
+            let (_, warning) = self.deferred_section_warnings.swap_remove(index);
+            self.add_warning(warning);
+        }
+    }
+
     /// Finalize a footnote only after its locations are document-absolute.
     pub(crate) fn finalize_footnote(&self, footnote: &mut Footnote<'a>) {
         if self.scope == ParserScope::Document
@@ -766,6 +784,8 @@ impl<'a> ParserState<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::default(),
+            raw_cell_separator: None,
+            deferred_section_warnings: Vec::new(),
             warnings_start: 0,
             quotes_only: false,
             attribute_passthroughs: Rc::default(),
@@ -825,6 +845,8 @@ impl<'a> ParserState<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::default(),
+            raw_cell_separator: None,
+            deferred_section_warnings: Vec::new(),
             warnings_start: 0,
             quotes_only: true,
             attribute_passthroughs: Rc::default(),
@@ -887,6 +909,8 @@ impl<'a> ParserState<'a> {
             included_files: HashSet::new(),
             // Each inline owner maps only the diagnostics appended in its scope.
             warnings: Rc::clone(&parent.warnings),
+            raw_cell_separator: None,
+            deferred_section_warnings: Vec::new(),
             warnings_start: parent.warnings.borrow().len(),
             quotes_only: parent.quotes_only,
             attribute_passthroughs: Rc::clone(&parent.attribute_passthroughs),

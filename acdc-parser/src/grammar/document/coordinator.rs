@@ -17,7 +17,10 @@ use super::{
     lists::ListEntry,
     metadata::{assign_block_caption, order_block_prefix_events},
     sections::expected_child_level,
-    table::{InitialAttributes, construction::TableConstruction},
+    table::{
+        InitialAttributes,
+        construction::{TableConstruction, TableContent},
+    },
 };
 
 /// A handler failure always escapes native content recovery. Effects that
@@ -25,6 +28,7 @@ use super::{
 pub(super) struct Execution<'handler, F> {
     callback: &'handler mut F,
     failed: bool,
+    macro_callbacks: usize,
 }
 
 impl<'handler, F> Execution<'handler, F> {
@@ -32,20 +36,27 @@ impl<'handler, F> Execution<'handler, F> {
         Self {
             callback,
             failed: false,
+            macro_callbacks: 0,
         }
     }
     #[inline]
     pub(super) fn run<'a>(
         &mut self,
-        block: &Block<'a>,
+        block: &mut Block<'a>,
         state: &mut ParserState<'a>,
-    ) -> Result<(), Error>
+        output: &mut Vec<Block<'a>>,
+    ) -> Result<bool, Error>
     where
-        F: FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+        F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
     {
-        let result = (self.callback)(block, state);
+        self.macro_callbacks += usize::from(matches!(block, Block::Extension(_)));
+        let result = (self.callback)(block, state, output);
         self.failed |= result.is_err();
         result
+    }
+
+    pub(super) const fn macro_callbacks(&self) -> usize {
+        self.macro_callbacks
     }
 
     pub(super) fn failed(&self) -> bool {
@@ -183,7 +194,7 @@ impl BlockCursor {
         blocks: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<usize, Error>, RecognitionError> {
         loop {
@@ -191,6 +202,10 @@ impl BlockCursor {
                 Ok(source) => source,
                 Err(error) => return Ok(Err(error)),
             };
+            if input.at_boundary(source, self, state) {
+                *blocks = order_block_prefix_events(std::mem::take(blocks));
+                return Ok(Ok(self.base_offset + self.offset));
+            }
             let mut step = BlockStep::end(Vec::new(), self.offset);
             if let Err(error) = self.advance_into(source, state, &mut step)? {
                 return Ok(Err(error));
@@ -201,11 +216,12 @@ impl BlockCursor {
                     *blocks = order_block_prefix_events(std::mem::take(blocks));
                     return Ok(Ok(self.base_offset + step.end));
                 }
-                BlockStepKind::Block(block) if !matches!(block, Block::Section(_)) => {
-                    if let Err(error) = accepted.run(&block, state) {
-                        return Ok(Err(error));
+                BlockStepKind::Block(mut block) if !matches!(block, Block::Section(_)) => {
+                    match accepted.run(&mut block, state, blocks) {
+                        Ok(true) => blocks.push(block),
+                        Ok(false) => {}
+                        Err(error) => return Ok(Err(error)),
                     }
-                    blocks.push(block);
                     continue;
                 }
                 kind @ (BlockStepKind::Block(_)
@@ -228,52 +244,62 @@ impl BlockCursor {
         output: &mut Vec<Block<'a>>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<(), Error>, RecognitionError> {
+        let kind = if let Some(source) = input.source_input() {
+            match kind {
+                BlockStepKind::Table(construction) if source.streaming_table() => {
+                    return Ok(self.construct_streamed_table(
+                        source,
+                        state,
+                        construction,
+                        output,
+                        accepted,
+                    ));
+                }
+                BlockStepKind::Delimited(construction) if source.streaming_compound() => {
+                    return self.construct_streamed_compound(
+                        source,
+                        state,
+                        construction,
+                        output,
+                        accepted,
+                    );
+                }
+                kind @ (BlockStepKind::Block(_)
+                | BlockStepKind::Delimited(_)
+                | BlockStepKind::Table(_)
+                | BlockStepKind::Quote(_)
+                | BlockStepKind::List(_)
+                | BlockStepKind::End(_)) => kind,
+            }
+        } else {
+            kind
+        };
         let needs_caption = matches!(
             &kind,
             BlockStepKind::Delimited(_) | BlockStepKind::Table(_) | BlockStepKind::Quote(_)
         );
-        let mut table_content = None;
-        let (mut block, request) = match kind {
-            BlockStepKind::List(entry) => {
-                return self.construct_list_into(
-                    input,
-                    state,
-                    &entry,
-                    &crate::grammar::helpers::BlockParsingMetadata::new(
-                        state.options.compatibility_mode,
-                    ),
-                    output,
-                    accepted,
-                );
-            }
-            BlockStepKind::Block(block) => (block, None),
-            BlockStepKind::Delimited(construction) => match construction.start(state) {
-                Ok(started) => started,
-                Err(error) => return Ok(Err(error)),
-            },
-            BlockStepKind::Quote(construction) => match construction.start(state) {
-                Ok(started) => started,
-                Err(error) => return Ok(Err(error)),
-            },
-            BlockStepKind::Table(construction) => match construction.start(state) {
-                Ok((block, content)) => {
-                    table_content = Some(content);
-                    (block, None)
-                }
-                Err(error) => return Ok(Err(error)),
-            },
-            BlockStepKind::End(_) => {
-                return Ok(Err(Error::Parse(
-                    Box::new(state.create_error_source_location(state.create_location(
-                        self.base_offset + self.offset,
-                        self.base_offset + self.offset,
-                    ))),
-                    "block construction received an end boundary".into(),
-                )));
-            }
+        if let BlockStepKind::List(entry) = kind {
+            return self.construct_list_into(
+                input,
+                state,
+                &entry,
+                &crate::grammar::helpers::BlockParsingMetadata::new(
+                    state.options.compatibility_mode,
+                ),
+                output,
+                accepted,
+            );
+        }
+        let StartedBlock {
+            mut block,
+            request,
+            table_content,
+        } = match start_block(kind, state) {
+            Ok(started) => started,
+            Err(error) => return Ok(Err(error)),
         };
         let child = if let Block::Section(section) = &block
             && self.mode == ConstructionMode::Ordered
@@ -282,8 +308,10 @@ impl BlockCursor {
         } else {
             None
         };
-        if let Err(error) = accepted.run(&block, state) {
-            return Ok(Err(error));
+        match accepted.run(&mut block, state, output) {
+            Ok(true) => {}
+            Ok(false) => return Ok(Ok(())),
+            Err(error) => return Ok(Err(error)),
         }
         if let (Block::Section(section), Some(mut child)) = (&mut block, child) {
             let end = match child.collect(input, state, &mut section.content, accepted)? {
@@ -293,20 +321,12 @@ impl BlockCursor {
             self.offset = child.offset;
             self.base_offset = child.base_offset;
             section.location = state.create_block_location(section.location.absolute_start, end, 0);
+            state.finish_section_warnings(section.heading_location.absolute_start);
         }
-        if let Some(request) = request {
-            let mut parser = CursorContent { accepted };
-            let content = match parse_content(state, request, &mut parser) {
-                Ok(content) => content,
-                Err(error) => return Ok(Err(error)),
-            };
-            let Some(body) = crate::extensions::compound_body_mut(&mut block) else {
-                return Ok(Err(Error::Parse(
-                    Box::new(state.create_error_source_location(block.location().clone())),
-                    "compound builder returned no child content slot".into(),
-                )));
-            };
-            *body = content;
+        if let Some(request) = request
+            && let Err(error) = construct_requested_content(&mut block, state, request, accepted)
+        {
+            return Ok(Err(error));
         }
         if needs_caption {
             if let Some(content) = table_content
@@ -322,13 +342,67 @@ impl BlockCursor {
     }
 }
 
-struct CursorContent<'h, 'callback, F> {
-    accepted: &'h mut Execution<'callback, F>,
+struct StartedBlock<'a> {
+    block: Block<'a>,
+    request: Option<ContentRequest<'a>>,
+    table_content: Option<TableContent<'a>>,
+}
+
+fn start_block<'a>(
+    kind: BlockStepKind<'a>,
+    state: &mut ParserState<'a>,
+) -> Result<StartedBlock<'a>, Error> {
+    let mut table_content = None;
+    let (block, request) = match kind {
+        BlockStepKind::Block(block) => (block, None),
+        BlockStepKind::Delimited(construction) => construction.start(state)?,
+        BlockStepKind::Quote(construction) => construction.start(state)?,
+        BlockStepKind::Table(construction) => {
+            let (block, content) = construction.start(state)?;
+            table_content = Some(content);
+            (block, None)
+        }
+        BlockStepKind::List(_) | BlockStepKind::End(_) => {
+            return Err(Error::Parse(
+                Box::new(state.create_error_source_location(state.create_location(0, 0))),
+                "block construction received an unfinished boundary".into(),
+            ));
+        }
+    };
+    Ok(StartedBlock {
+        block,
+        request,
+        table_content,
+    })
+}
+
+fn construct_requested_content<'a, F>(
+    block: &mut Block<'a>,
+    state: &mut ParserState<'a>,
+    request: ContentRequest<'a>,
+    accepted: &mut Execution<'_, F>,
+) -> Result<(), Error>
+where
+    F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
+{
+    let content = parse_content(state, request, &mut CursorContent { accepted })?;
+    let Some(body) = crate::extensions::compound_body_mut(block) else {
+        return Err(Error::Parse(
+            Box::new(state.create_error_source_location(block.location().clone())),
+            "compound builder returned no child content slot".into(),
+        ));
+    };
+    *body = content;
+    Ok(())
+}
+
+pub(super) struct CursorContent<'h, 'callback, F> {
+    pub(super) accepted: &'h mut Execution<'callback, F>,
 }
 
 impl<'a, F> ContentParser<'a> for CursorContent<'_, '_, F>
 where
-    F: FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+    F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
 {
     fn parse(
         &mut self,
@@ -414,8 +488,7 @@ pub(crate) fn document<'a>(
     input: &'a str,
     state: &mut ParserState<'a>,
 ) -> Result<Result<Document<'a>, Error>, RecognitionError> {
-    // Registry callbacks still run after parsing. A registry alone must not
-    // change construction or diagnostic order before source handlers are wired.
+    // Ordinary parsing retains the recursive construction fast path.
     let prefix = match document_parser::document_prefix(input, state)? {
         Ok(prefix) => prefix,
         Err(error) => return Ok(Err(error)),
@@ -444,11 +517,15 @@ pub(crate) fn document<'a>(
 
 /// Internal accepted-block execution boundary for documents and containers.
 /// Complete input uses the same ordered builders as the resumable source path.
-pub(super) fn document_with<'a>(
+pub(super) fn document_with_execution<'a>(
     input: &'a str,
     state: &mut ParserState<'a>,
     mode: ConstructionMode,
-    accepted: &mut impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+    accepted: &mut impl FnMut(
+        &mut Block<'a>,
+        &mut ParserState<'a>,
+        &mut Vec<Block<'a>>,
+    ) -> Result<bool, Error>,
 ) -> Result<Result<Document<'a>, Error>, RecognitionError> {
     let prefix = match document_parser::document_prefix(input, state)? {
         Ok(prefix) => prefix,
@@ -469,4 +546,16 @@ pub(super) fn document_with<'a>(
         prefix.attributes,
         blocks,
     ))
+}
+
+#[cfg(test)]
+pub(super) fn document_with<'a>(
+    input: &'a str,
+    state: &mut ParserState<'a>,
+    mode: ConstructionMode,
+    accepted: &mut impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+) -> Result<Result<Document<'a>, Error>, RecognitionError> {
+    document_with_execution(input, state, mode, &mut |block, state, _| {
+        accepted(block, state).map(|()| true)
+    })
 }

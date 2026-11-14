@@ -138,8 +138,8 @@ peg::parser! {
         / document_attribute_match() (eol() / ![_]) { SourceLine::Attribute }
         / comment_line_prefix() source_line_tail() { SourceLine::Comment }
         / &atx_heading_match() source_line_tail() { SourceLine::Heading }
-        / open:block_open() (eol() / ![_]) { SourceLine::Delimited { delimiter: open.1, table: false, comment: matches!(open.0, DelimitedKind::Comment) } }
-        / delimiter:table_delimiter() (eol() / ![_]) { SourceLine::Delimited { delimiter, table: true, comment: false } }
+        / open:block_open() (eol() / ![_]) { SourceLine::Delimited { delimiter: open.1, kind: Some(open.0), table: false, comment: matches!(open.0, DelimitedKind::Comment) } }
+        / delimiter:table_delimiter() (eol() / ![_]) { SourceLine::Delimited { delimiter, kind: None, table: true, comment: false } }
         / (attribute_or_anchor_line_match() / title_line_match()) { SourceLine::Metadata }
         / extension_macro_source() (eol() / ![_]) { SourceLine::Macro }
         / (media_block_ahead_true() / toc_block_ahead()) source_line_tail() { SourceLine::Macro }
@@ -1096,13 +1096,19 @@ peg::parser! {
                     let location = state.create_error_source_location(
                         state.create_block_location(section_level_start, section_level_end, offset),
                     );
-                    state.add_warning(Warning::new(
+                    let start = location.location.absolute_start;
+                    let warning = Warning::new(
                         WarningKind::SectionLevelOutOfSequence {
                             expected: parent_level,
                             got: section_level.1,
                         },
                         Some(location),
-                    ));
+                    );
+                    if mode == ConstructionMode::Ordered {
+                        state.defer_section_warning(start, warning);
+                    } else {
+                        state.add_warning(warning);
+                    }
                 }
             }
 

@@ -23,7 +23,7 @@ impl BlockCursor {
         metadata: &BlockParsingMetadata<'a>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<Block<'a>, Error>, RecognitionError> {
         let source = match input.prepare(self, state, ReadRequest::ListHead(ListKind::Callout)) {
@@ -66,7 +66,7 @@ impl BlockCursor {
         head: CalloutItemHead<'a>,
         accepted: &mut Execution<
             '_,
-            impl FnMut(&Block<'a>, &mut ParserState<'a>) -> Result<(), Error>,
+            impl FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
         >,
     ) -> Result<Result<Vec<CalloutItem<'a>>, Error>, RecognitionError> {
         let mut item = match head.finish(state, Ok(Vec::new()), self.offset, self.base_offset) {
@@ -74,14 +74,14 @@ impl BlockCursor {
             Err(error) => return Ok(Err(error)),
         };
         item.2 += self.base_offset;
-        let shell = build_callout_list(
+        let mut shell = build_callout_list(
             state,
             metadata,
             state.create_location(start, item.2),
             Vec::new(),
             &[],
         );
-        if let Err(error) = accepted.run(&shell, state) {
+        if let Err(error) = accepted.run(&mut shell, state, &mut Vec::new()) {
             return Ok(Err(error));
         }
         let mut items = Vec::new();
