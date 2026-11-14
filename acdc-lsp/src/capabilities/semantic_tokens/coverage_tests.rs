@@ -362,3 +362,25 @@ fn comment_delimiters_with_trailing_whitespace_hide_their_content() -> TestResul
     }
     Ok(())
 }
+
+#[test]
+fn attribute_entries_need_a_name_and_separator() -> TestResult {
+    for source in [":foo:bar\n:baz: qux\n", ":: x\n:baz: qux\n"] {
+        let tokens = decoded(source)?;
+        assert!(
+            !tokens
+                .iter()
+                .any(|token| token.0 == 1 && matches!(token.3.as_str(), "property" | "string")),
+            "{source:?}: {tokens:?}"
+        );
+    }
+
+    let tokens = decoded(":foo:\n:b: 2\n")?;
+    assert!(
+        tokens
+            .iter()
+            .any(|token| token.0 == 1 && token.2 == "b" && token.3 == "property"),
+        "{tokens:?}"
+    );
+    Ok(())
+}

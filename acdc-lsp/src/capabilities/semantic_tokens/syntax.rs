@@ -114,7 +114,13 @@ fn collect_titleless_header(source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) 
         else {
             break;
         };
-        attribute_line(name.trim_matches('!'), line, source, tokens);
+        // Like the parser and asciidoctor, an entry needs a name, then
+        // whitespace or the end of the line after `:name:`.
+        let name = name.trim_matches('!');
+        if name.is_empty() || !(value.is_empty() || value.starts_with([' ', '\t'])) {
+            break;
+        }
+        attribute_line(name, line, source, tokens);
         continuation = continues_value(value.trim_start_matches([' ', '\t']));
     }
 }
