@@ -33,7 +33,9 @@ pub struct DocumentAttributesRef<'doc> {
 }
 
 impl<'doc> DocumentRef<'doc> {
-    /// The header, when present.
+    /// The header of a document with a title; `None` without one.
+    ///
+    /// Use [`Self::header_location`] for the header span with or without a title.
     #[must_use]
     pub fn header(self) -> Option<HeaderRef<'doc>> {
         self.node.header.as_ref().map(HeaderRef::from)

@@ -17,6 +17,10 @@ type Error = Box<dyn std::error::Error>;
 const ASCIIDOCTOR: CompatibilityMode = CompatibilityMode::Asciidoctor;
 const DRAFT: CompatibilityMode = CompatibilityMode::Draft;
 
+fn options(mode: CompatibilityMode) -> Result<Options<'static>, Error> {
+    Ok(Options::builder().with_compatibility_mode(mode).build()?)
+}
+
 /// The observable header boundary: the document title, the attribute entries
 /// in the end-of-header snapshot, the body attribute entries in source order,
 /// and the first content block.
@@ -378,6 +382,166 @@ fn title_footnote_is_registered_once() -> Result<(), Error> {
                 &Options::builder().with_compatibility_mode(mode).build()?,
             )?;
             assert_eq!(parsed.document().footnotes().count(), 1, "{mode}: {source}");
+        }
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn empty_lines_before_title_follow_mode(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(1, 2, 5)] blanks: usize,
+    #[values(":a: 1", "[[top]]", "[#top.role]", ":a: 1\n// comment")] prefix: &str,
+) -> Result<(), Error> {
+    let source = format!("{prefix}\n{}= Title\n\nPara\n", "\n".repeat(blanks));
+    let parsed = parse(&source, &options(mode)?)?;
+    let doc = parsed.document();
+    let compatible = mode == CompatibilityMode::Asciidoctor;
+    assert_eq!(doc.header().is_some(), compatible, "{source}");
+    if compatible {
+        assert!(matches!(
+            doc.blocks().next().ok_or("body")?.kind(),
+            BlockKind::Paragraph(_)
+        ));
+        if prefix.contains("top") {
+            assert_eq!(
+                doc.header().ok_or("header")?.id().ok_or("id")?.as_str(),
+                "top"
+            );
+        }
+        assert_eq!(doc.header_location(), doc.header().map(HeaderRef::location));
+    } else {
+        assert!(
+            doc.blocks()
+                .any(|block| matches!(block.kind(), BlockKind::Section(_)))
+        );
+        assert_eq!(doc.header_location().is_some(), prefix.starts_with(':'));
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn untitled_attributes_stop_at_mode_boundary(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(0, 1, 2, 5)] blanks: usize,
+) -> Result<(), Error> {
+    let source = format!(
+        ":a: 1\n{}:c: 3\n\nPara\n\n:later: body\n",
+        "\n".repeat(blanks)
+    );
+    let parsed = parse(&source, &options(mode)?)?;
+    let doc = parsed.document();
+    let c_in_header = blanks == 0 || mode == CompatibilityMode::Asciidoctor;
+    assert!(doc.header().is_none());
+    assert_eq!(doc.attributes().contains("c"), c_in_header);
+    assert!(!doc.attributes().contains("later"));
+    assert_eq!(
+        doc.blocks()
+            .filter(|block| matches!(block.kind(), BlockKind::DocumentAttribute(_)))
+            .count(),
+        if c_in_header { 1 } else { 2 }
+    );
+    let location = doc.header_location().ok_or("header span")?;
+    assert_eq!(location.absolute_start(), 0);
+    assert_eq!(
+        location.absolute_end(),
+        if c_in_header {
+            source.find("3\n").ok_or("c")?
+        } else {
+            4
+        }
+    );
+    assert!(
+        doc.blocks()
+            .any(|block| matches!(block.kind(), BlockKind::Paragraph(_)))
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn titled_header_stops_at_first_empty_line(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(1, 2, 5)] blanks: usize,
+) -> Result<(), Error> {
+    let source = format!("= Title\n:a: 1\n{}:c: 3\n\nPara\n", "\n".repeat(blanks));
+    let parsed = parse(&source, &options(mode)?)?;
+    let doc = parsed.document();
+    assert!(doc.header().is_some());
+    assert!(doc.attributes().contains("a"));
+    assert!(!doc.attributes().contains("c"));
+    assert_eq!(doc.header_location().ok_or("span")?.absolute_end(), 12);
+    assert!(matches!(
+        doc.blocks().next().ok_or("body")?.kind(),
+        BlockKind::DocumentAttribute(_)
+    ));
+    Ok(())
+}
+
+#[rstest::rstest]
+fn atomic_comments_and_continuations_keep_header_open(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values("", "= Title\n")] title: &str,
+) -> Result<(), Error> {
+    let source =
+        format!("{title}:a: first \\\ncontinued\n//// \n:fake: hidden\n\n//// \n:b: two\n\nPara\n");
+    let parsed = parse(&source, &options(mode)?)?;
+    let doc = parsed.document();
+    assert!(doc.attributes().contains("a"));
+    assert!(doc.attributes().contains("b"));
+    assert!(!doc.attributes().contains("fake"));
+    assert_eq!(
+        doc.header_location().ok_or("span")?.end().line(),
+        if title.is_empty() { 7 } else { 8 }
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn whitespace_only_lines_end_only_draft_pretitle_headers(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(" ", "\t", " \t ")] gap: &str,
+) -> Result<(), Error> {
+    let source = format!(":a: 1\n{gap}\n= Title\n\nPara\n");
+    let parsed = parse(&source, &options(mode)?)?;
+    assert_eq!(
+        parsed.document().header().is_some(),
+        mode == CompatibilityMode::Asciidoctor
+    );
+    Ok(())
+}
+
+#[rstest::rstest]
+fn header_termination_preserves_author_and_revision_slots(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> Result<(), Error> {
+    for prefix in [":a: 1\n", ":a: 1\n\n"] {
+        let source = format!(
+            "{prefix}= Title\n:before-author: yes\n// author follows\nAda Lovelace\n:before-revision: yes\nv1.2, 2026-11-14: Stable\n:after-revision: yes\n\n:body: yes\n\nPara\n"
+        );
+        let parsed = parse(&source, &options(mode)?)?;
+        let doc = parsed.document();
+        if mode == CompatibilityMode::Asciidoctor || !prefix.ends_with("\n\n") {
+            assert_eq!(
+                doc.header()
+                    .ok_or("header")?
+                    .authors()
+                    .next()
+                    .ok_or("author")?
+                    .first_name(),
+                "Ada"
+            );
+            for name in [
+                "before-author",
+                "before-revision",
+                "after-revision",
+                "revnumber",
+            ] {
+                assert!(doc.attributes().contains(name), "{name}");
+            }
+            assert!(!doc.attributes().contains("body"));
+        } else {
+            assert!(doc.header().is_none());
+            assert!(!doc.attributes().contains("revnumber"));
         }
     }
     Ok(())

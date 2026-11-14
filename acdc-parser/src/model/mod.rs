@@ -244,7 +244,10 @@ impl<'a> Document<'a> {
     }
 }
 
-/// A `Header` represents the header of a document.
+/// A `Header` represents the header of a document with a title.
+///
+/// A document without a title can still have header attribute entries; read
+/// their span with [`crate::ast::DocumentRef::header_location`].
 ///
 /// The header contains the title, subtitle, authors, and optional metadata
 /// (such as ID and roles) that can be applied to the document title.

@@ -21,7 +21,8 @@ const DEFAULT_MAX_TOTAL_INCLUDE_BYTES: usize = 64 * 1024 * 1024;
 ///
 /// Both modes use the same AST. Reviewed differences cover named block titles,
 /// attribute lists and shorthand, anchor escapes, repeated roles and options,
-/// ordinary inline attribute ordering, and legacy underlined headings.
+/// ordinary inline attribute ordering, legacy underlined headings, and empty
+/// lines before the document title.
 /// Neither mode promises complete conformance. The choice does not change safe
 /// mode or output format.
 /// Explicit block `subs=` controls are shared; Draft supports them as an acdc extension.

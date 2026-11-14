@@ -179,3 +179,83 @@ fn copied_documents_keep_the_untitled_header_span() -> Result<(), Error> {
     );
     Ok(())
 }
+
+#[rstest::rstest]
+fn leading_empty_lines_and_comments_do_not_start_header(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values("\n\n// before\n\n", "//// \n\ncomment\n//// \n\n")] prefix: &str,
+) -> Result<(), Error> {
+    for header in ["= Title", ":a: 1"] {
+        let source = format!("{prefix}{header}\n\nPara\n");
+        let parsed = parse(&source, &options(mode)?)?;
+        let span = parsed.document().header_location().ok_or("span")?;
+        assert_eq!(
+            span.start().line(),
+            u32::try_from(prefix.lines().count())? + 1
+        );
+        assert_eq!(span.start().column(), 1);
+    }
+    Ok(())
+}
+
+#[rstest::rstest]
+fn header_span_handles_eof_unicode_and_crlf(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(":a: é", "= 😀", ":a: é\n:b: 😀")] header: &str,
+    #[values("", "\n", "\n\n", "\r\n\r\n")] suffix: &str,
+) -> Result<(), Error> {
+    let source = format!("{}{suffix}", header.replace('\n', "\r\n"));
+    let parsed = parse(&source, &options(mode)?)?;
+    let doc = parsed.document();
+    let location = doc.header_location().ok_or("span")?;
+    assert_eq!(location.start().line(), 1);
+    assert_eq!(location.start().column(), 1);
+    assert_eq!(
+        location.end().line(),
+        u32::try_from(header.lines().count())?
+    );
+    assert_eq!(
+        location.end().column(),
+        u32::try_from(header.lines().last().ok_or("last")?.chars().count())?
+    );
+    let copied = Document::from(doc);
+    assert_eq!(DocumentRef::from(&copied).header_location(), Some(location));
+    Ok(())
+}
+
+#[rstest::rstest]
+fn no_header_span_for_body_only_or_comment_only_documents(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(
+        "",
+        "\n\n",
+        "// comment\n\n",
+        "//// \nignored\n//// \n",
+        "Para\n\n:a: body\n",
+        "///\n:a: body\n",
+        ":foo:bar\n:a: body\n",
+        "[.role]\nPara\n"
+    )]
+    source: &str,
+) -> Result<(), Error> {
+    let parsed = parse(source, &options(mode)?)?;
+    assert!(parsed.document().header().is_none());
+    assert!(parsed.document().header_location().is_none(), "{source}");
+    assert!(!parsed.document().attributes().contains("a"), "{source}");
+    Ok(())
+}
+
+#[rstest::rstest]
+fn header_span_uses_original_conditional_coordinates(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values("", "= Title\n")] title: &str,
+) -> Result<(), Error> {
+    let source = format!("{title}:enabled:\nifdef::enabled[]\n:a: 1\nendif::[]\n:b: 2\n\nPara\n");
+    let parsed = parse(&source, &options(mode)?)?;
+    let span = parsed.document().header_location().ok_or("span")?;
+    assert_eq!(span.absolute_start(), 0);
+    assert_eq!(span.absolute_end(), source.find("2\n").ok_or("last entry")?);
+    assert_eq!(span.end().line(), if title.is_empty() { 5 } else { 6 });
+    assert!(parsed.document().attributes().contains("a"));
+    Ok(())
+}
