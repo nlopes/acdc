@@ -12,6 +12,56 @@ pub(in crate::grammar) struct OrdinaryListScope<'a> {
     pub(crate) offset: usize,
     pub(crate) unordered: Option<&'a str>,
     pub(crate) ordered: Option<&'a str>,
+    /// The markers of every ordinary list open at this offset.
+    pub(crate) open: OpenListMarkers,
+}
+
+/// A set of ordinary list markers. As in Asciidoctor, a list item continues
+/// the open list whose marker it matches, and any other marker starts a
+/// nested list.
+#[derive(Clone, Copy, Debug, Default)]
+pub(in crate::grammar) struct OpenListMarkers {
+    /// Bit `n` is set for an open `*` marker of length `n`.
+    asterisks: u64,
+    hyphen: bool,
+    /// Bit `n` is set for an open dotted ordered marker with `n` dots.
+    dots: u64,
+    numbered: bool,
+}
+
+impl OpenListMarkers {
+    pub(super) fn insert(&mut self, marker: ListMarker<'_>) {
+        match marker {
+            ListMarker::Unordered("-") => self.hyphen = true,
+            ListMarker::Unordered(marker) => self.asterisks |= length_bit(marker.len()),
+            ListMarker::Ordered(marker) if marker.starts_with('.') => {
+                self.dots |= length_bit(marker.len());
+            }
+            ListMarker::Ordered(_) => self.numbered = true,
+            ListMarker::Description(_) => {}
+        }
+    }
+
+    pub(super) fn contains(self, marker: ListMarker<'_>) -> bool {
+        match marker {
+            ListMarker::Unordered("-") => self.hyphen,
+            ListMarker::Unordered(marker) => self.asterisks & length_bit(marker.len()) != 0,
+            ListMarker::Ordered(marker) if marker.starts_with('.') => {
+                self.dots & length_bit(marker.len()) != 0
+            }
+            ListMarker::Ordered(_) => self.numbered,
+            ListMarker::Description(_) => false,
+        }
+    }
+}
+
+/// The bit for a marker of `length` characters. Markers too long for the set
+/// get no bit, so they never match an open list.
+fn length_bit(length: usize) -> u64 {
+    u32::try_from(length)
+        .ok()
+        .and_then(|length| 1_u64.checked_shl(length))
+        .unwrap_or(0)
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -52,54 +102,25 @@ pub(super) enum ListMarker<'a> {
 }
 
 impl ListMarker<'_> {
+    /// Whether a description list item with this marker is a sibling or an
+    /// ancestor of an item marked `next`.
     pub(super) fn is_sibling_or_ancestor(self, next: Self) -> bool {
         match (self, next) {
-            (Self::Unordered(parent), Self::Unordered(candidate))
-            | (Self::Description(parent), Self::Description(candidate)) => {
+            (Self::Description(parent), Self::Description(candidate)) => {
                 parent.starts_with(candidate)
-            }
-            (Self::Ordered(parent), Self::Ordered(candidate)) => {
-                same_ordered_family(parent, candidate) && dots(candidate) <= dots(parent)
             }
             _ => false,
         }
     }
-}
 
-/// Whether ordered marker `candidate` starts a list nested in an item marked
-/// `base`. As in asciidoctor, numbered markers such as `1.` and `10.` are
-/// siblings, and dotted markers such as `..` nest by their dot count.
-///
-/// Markers of different kinds compare by length. asciidoctor nests a marker of
-/// the other kind unless it continues an enclosing list, but the grammar tracks
-/// only the innermost ordered list, so it can't tell when a numbered marker
-/// returns to a numbered ancestor after a dotted list.
-pub(super) fn ordered_marker_is_deeper(candidate: &str, base: &str) -> bool {
-    if same_ordered_family(candidate, base) {
-        dots(candidate) > dots(base)
-    } else {
-        candidate.len() > base.len()
+    /// Whether two ordinary list items belong to the same list. Each `*` length,
+    /// `-`, and dot count is its own marker; every numbered marker, such as
+    /// `1.` or `10.`, matches every other numbered marker.
+    pub(super) fn same_ordinary_list(self, other: Self) -> bool {
+        let mut open = OpenListMarkers::default();
+        open.insert(self);
+        open.contains(other) && !matches!(self, Self::Description(_))
     }
-}
-
-/// Whether ordered marker `candidate` belongs to a list that encloses the list
-/// of an item marked `base`. Markers of different kinds compare by length, as
-/// in [`ordered_marker_is_deeper`].
-pub(super) fn ordered_marker_is_shallower(candidate: &str, base: &str) -> bool {
-    if same_ordered_family(candidate, base) {
-        dots(candidate) < dots(base)
-    } else {
-        candidate.len() < base.len()
-    }
-}
-
-/// Dotted markers (`.`, `..`) and numbered markers (`1.`) are separate kinds.
-fn same_ordered_family(first: &str, second: &str) -> bool {
-    first.starts_with('.') == second.starts_with('.')
-}
-
-fn dots(marker: &str) -> usize {
-    marker.bytes().filter(|byte| *byte == b'.').count()
 }
 
 /// Join a list item's first line and continuation lines with newlines.

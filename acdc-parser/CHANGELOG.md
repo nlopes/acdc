@@ -188,8 +188,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists were previously parsed as siblings or as separate top-level lists. A
   callout list nested this way ends at the next item of the enclosing list.
 
-- Numbered ordered list markers such as `10.` are now siblings of `9.`, as in
-  Asciidoctor, instead of starting a nested list.
+- List items now belong to lists by their marker in both modes, matching
+  Asciidoctor: an item continues the open list whose marker it matches, and
+  any other marker starts a list nested in the previous item. acdc compared
+  marker depth before. Now `10.` is a sibling of `9.`, a numbered item after a
+  nested dotted list returns to the numbered list, `*` after a list that starts
+  with `**` nests in its last item, and `-` and `*` are different markers, so
+  `- a` followed by `* b` nests `b`.
 
 - A list attached to a list item with `+` now ends at the next item of an
   enclosing list in both modes, matching Asciidoctor. Previously, `* Next` after

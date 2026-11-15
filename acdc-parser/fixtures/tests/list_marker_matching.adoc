@@ -1,0 +1,66 @@
+1. Numbered item
+.. Dotted list nested in a numbered item
+2. Numbered sibling after the dotted list
+
+//-
+
+1. Numbered item
+. Dotted list nested in a numbered item
+. Another dotted item
+2. Numbered sibling after the dotted list
+
+//-
+
+. Dotted item
+1. Numbered list nested in a dotted item
+
+//-
+
+9. Nine
+10. Ten is a sibling of nine
+
+//-
+
+1. Numbered item
+.. Two dots
+... Three dots
+2. Numbered sibling
+
+//-
+
+Paragraph before a list that starts deep.
+
+** Starts with two asterisks
+* One asterisk nests in the item above
+
+//-
+
+.. Starts with two dots
+. One dot nests in the item above
+
+//-
+
+- Hyphen item
+* Asterisk list nested in the hyphen item
+
+//-
+
+* Asterisk item
+- Hyphen list nested in the asterisk item
+* Asterisk sibling after the hyphen list
+
+//-
+
+* One asterisk
+*** Three asterisks
+** Two asterisks nest in the three-asterisk item
+* One asterisk sibling
+
+//-
+
+* Item with attached lists
++
+. Ordered list attached to the item
++
+- Hyphen list attached to the ordered item
+* Sibling of the first item
