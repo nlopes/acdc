@@ -46,6 +46,7 @@ use acdc_parser::{
 mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
+pub mod display;
 mod doctype;
 mod document_attributes;
 pub mod icon;

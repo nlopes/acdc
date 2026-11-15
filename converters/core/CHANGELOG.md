@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added `display::prepare()` for custom converters to resolve extension-generated
+  caption and captured-title labels into ordinary explicit cross-references for
+  each conversion, preserving the shared document and overriding generic `reftext`.
+
 - **Breaking:** removed `TraversalContext::substitute_attributes()`. To expand
   references at a traversal position, call
   `DocumentAttributesRef::substitute_attributes()` from `acdc-parser` on the

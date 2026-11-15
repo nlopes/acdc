@@ -58,6 +58,7 @@ pub(super) fn finish<'a>(
     );
 
     let mut document = Document {
+        generated_displays: crate::extensions::DisplayState::default(),
         header,
         untitled_header_location,
         location: document_location(state, start, end),

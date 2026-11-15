@@ -176,7 +176,7 @@ pub(super) fn try_walk_owned_inline_nodes_mut<'a, E>(
     walker.inline(node)
 }
 
-pub(super) fn try_walk_document_inline_nodes_mut<'a, E>(
+pub(crate) fn try_walk_document_inline_nodes_mut<'a, E>(
     document: &mut Document<'a>,
     visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
 ) -> Result<(), E> {

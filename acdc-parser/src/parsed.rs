@@ -338,6 +338,10 @@ impl ParseResult {
         self.warnings = combined.into_vec();
     }
 
+    pub(crate) fn extension_warnings_mut(&mut self) -> &mut [Warning] {
+        &mut self.warnings
+    }
+
     pub(crate) fn append_extension_warnings(&mut self, warnings: Vec<Warning>) {
         let mut combined = WarningCollection::default();
         for warning in std::mem::take(&mut self.warnings)

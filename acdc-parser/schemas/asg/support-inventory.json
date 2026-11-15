@@ -1312,6 +1312,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "generated_display",
           "target",
           "target_is_local",
           "text",
@@ -1384,6 +1385,9 @@
         },
         "document_reftext": {
           "policy": "named-document-label-context"
+        },
+        "generated_display": {
+          "policy": "reject-symbolic-display-until-conversion-context-lowers-to-ordinary-link"
         }
       },
       "strict_export_group": "references"
@@ -4444,6 +4448,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "generated_displays",
           "header",
           "untitled_header_location",
           "attributes",
@@ -4487,6 +4492,9 @@
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
+        },
+        "generated_displays": {
+          "policy": "source-state"
         }
       },
       "strict_export_group": "core"
@@ -5914,6 +5922,10 @@
     "named-document-label-context": {
       "handling": "context-dependent",
       "reason": "The named profile retains the document label selected at an automatic reference, including empty content for title fallback and known declaration locations. Strict upstream export rejects this context. Authored inline text remains separate."
+    },
+    "reject-symbolic-display-until-conversion-context-lowers-to-ordinary-link": {
+      "handling": "reject",
+      "reason": "Generated display intent and frozen titles must be lowered into ordinary explicit cross-reference labels by a conversion context before either checked ASG profile is exported."
     }
   },
   "strict_export_groups": {

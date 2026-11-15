@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use super::InlineBuilder;
 use bumpalo::Bump;
 
 use crate::{
@@ -45,7 +46,8 @@ pub struct BlockBuilder {
 #[derive(Clone, Debug)]
 pub(crate) enum Content {
     Paragraph(String),
-    UnorderedList(Vec<String>),
+    UnorderedList(Vec<InlineBuilder>),
+    ParagraphInlines(Vec<InlineBuilder>),
     Image(String),
     Literal(String),
     Listing(String),
@@ -66,7 +68,7 @@ impl BlockBuilder {
             return self.caption;
         }
         match &self.content {
-            Content::Paragraph(_) => CaptionKind::for_style(style),
+            Content::Paragraph(_) | Content::ParagraphInlines(_) => CaptionKind::for_style(style),
             Content::Image(_) => Some(CaptionKind::Figure),
             Content::Listing(_) => CaptionKind::for_verbatim(style, Some(CaptionKind::Listing)),
             Content::Literal(_) => CaptionKind::for_verbatim(style, None),
@@ -92,12 +94,47 @@ impl BlockBuilder {
         Self::new(Content::Paragraph(text.into()))
     }
 
-    /// Build an unordered list whose items contain literal text.
+    /// Build an unordered list with literal text or structured inline content.
+    ///
+    /// Strings remain literal. Arrays and vectors of [`InlineBuilder`] group
+    /// fragments into one item; an individual builder can also be an item.
+    ///
+    /// ```
+    /// use acdc_parser::extensions::{BlockBuilder, InlineBuilder};
+    ///
+    /// let literal = BlockBuilder::unordered_list(["One", "Two"]);
+    /// let owned = BlockBuilder::unordered_list(vec![String::from("Owned")]);
+    /// let structured = BlockBuilder::unordered_list([
+    ///     InlineBuilder::text("Literal *markup*"),
+    ///     InlineBuilder::from([
+    ///         InlineBuilder::text("Several "),
+    ///         InlineBuilder::text("fragments"),
+    ///     ]),
+    /// ]);
+    /// ```
     #[must_use]
-    pub fn unordered_list(items: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn unordered_list(items: impl IntoIterator<Item = impl Into<InlineBuilder>>) -> Self {
         Self::new(Content::UnorderedList(
             items.into_iter().map(Into::into).collect(),
         ))
+    }
+
+    /// Build a paragraph from literal text and captured display requests.
+    #[must_use]
+    pub fn paragraph_inlines(content: impl IntoIterator<Item = InlineBuilder>) -> Self {
+        Self::new(Content::ParagraphInlines(content.into_iter().collect()))
+    }
+
+    pub(super) fn has_displays(&self) -> bool {
+        match &self.content {
+            Content::ParagraphInlines(content) | Content::UnorderedList(content) => {
+                content.iter().any(InlineBuilder::has_displays)
+            }
+            Content::Paragraph(_)
+            | Content::Image(_)
+            | Content::Literal(_)
+            | Content::Listing(_) => false,
+        }
     }
 
     /// Build an ordinary image without interpreting its target as markup.
@@ -161,6 +198,7 @@ impl BlockBuilder {
         location: Location,
         mut metadata: BlockMetadata<'a>,
         title: Title<'a>,
+        mut inline: impl FnMut(InlineBuilder) -> Result<Vec<InlineNode<'a>>, crate::Error>,
     ) -> Result<Block<'a>, crate::Error> {
         if let Some(id) = self.id {
             metadata.id = Some(Anchor::new(arena.alloc_str(&id), location.clone()));
@@ -179,23 +217,30 @@ impl BlockBuilder {
                 block.title = title;
                 Block::Paragraph(block)
             }
-            Content::UnorderedList(items) => Block::UnorderedList(UnorderedList {
-                title,
-                metadata,
-                items: items
+            Content::UnorderedList(items) => build_list(
+                items
                     .into_iter()
-                    .map(|text| ListItem {
-                        level: 1,
-                        marker: "*",
-                        checked: None,
-                        principal: plain(&text),
-                        blocks: Vec::new(),
-                        location: location.clone(),
-                    })
-                    .collect(),
-                marker: "*",
+                    .map(&mut inline)
+                    .collect::<Result<Vec<_>, _>>()?,
                 location,
-            }),
+                metadata,
+                title,
+            ),
+            Content::ParagraphInlines(content) => {
+                let mut block = Paragraph::new(
+                    content
+                        .into_iter()
+                        .map(&mut inline)
+                        .collect::<Result<Vec<_>, _>>()?
+                        .into_iter()
+                        .flatten()
+                        .collect(),
+                    location,
+                );
+                block.metadata = metadata;
+                block.title = title;
+                Block::Paragraph(block)
+            }
             Content::Image(target) => Block::Image(Image {
                 source: Source::from_str_borrowed(arena.alloc_str(&target))?,
                 alt: None,
@@ -209,6 +254,31 @@ impl BlockBuilder {
             Content::Listing(text) => build_verbatim(arena, &text, true, location, metadata, title),
         })
     }
+}
+
+fn build_list<'a>(
+    items: Vec<Vec<InlineNode<'a>>>,
+    location: Location,
+    metadata: BlockMetadata<'a>,
+    title: Title<'a>,
+) -> Block<'a> {
+    Block::UnorderedList(UnorderedList {
+        title,
+        metadata,
+        marker: "*",
+        items: items
+            .into_iter()
+            .map(|principal| ListItem {
+                level: 1,
+                marker: "*",
+                checked: None,
+                principal,
+                blocks: Vec::new(),
+                location: location.clone(),
+            })
+            .collect(),
+        location,
+    })
 }
 
 fn build_verbatim<'a>(

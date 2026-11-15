@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Tree processors can capture titles with `DocumentEditor::capture()` and build
+  caption, title, or caption-and-title links through `DisplayIntent` and the inline
+  block builders. `BlockBuilder::unordered_list()` accepts both literal strings
+  and structured inline items. Titles keep their original substitutions and
+  attributes;
+  captions and renamed IDs follow surviving targets at finalization. Removed
+  targets produce located unresolved-reference warnings and cannot bind to reused
+  IDs. Custom converters prepare these requests through converter core before
+  traversal or checked ASG export. Unlike string-based Asciidoctor extensions,
+  later attribute edits do not refresh captured titles.
+
 - The end of the document header now follows the compatibility mode. Asciidoctor
   mode matches Asciidoctor and ignores empty lines before the document title:
   attribute entries, comments, block anchors, and attribute lists above the

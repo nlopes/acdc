@@ -10,7 +10,7 @@ use transaction::Edit;
 /// next observation. Validation and repair failures preserve the tree, handles,
 /// assigned numbers, and diagnostics. Surviving targets retain their identity.
 pub struct DocumentEditor<'doc> {
-    result: &'doc mut ExtensionParseResult,
+    pub(super) result: &'doc mut ExtensionParseResult,
 }
 
 impl<'doc> DocumentEditor<'doc> {
@@ -139,7 +139,7 @@ impl<'doc> DocumentEditor<'doc> {
             Err(self.error(target, "target is not a pending placeholder"))
         }
     }
-    fn path(&self, target: &TargetId) -> Result<BlockPath, Error> {
+    pub(super) fn path(&self, target: &TargetId) -> Result<BlockPath, Error> {
         self.result
             .target_index()
             .entry(target)
@@ -151,7 +151,7 @@ impl<'doc> DocumentEditor<'doc> {
                 )
             })
     }
-    fn location(&self, target: &TargetId) -> SourceLocation {
+    pub(super) fn location(&self, target: &TargetId) -> SourceLocation {
         self.query().get(target).map_or_else(
             || {
                 self.result

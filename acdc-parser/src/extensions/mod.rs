@@ -84,6 +84,14 @@
 //! that input with the target's location and source-position attributes.
 //! Ordinary parser entry points do not retain these extension snapshots.
 //!
+//! [`DocumentEditor::capture`] freezes a title and its source context. Use
+//! [`CapturedTarget::display`] with [`BlockBuilder::paragraph_inlines`] or
+//! [`BlockBuilder::unordered_list`] for explicit caption/title links.
+//! Finalization follows surviving handles and their latest caption data, without
+//! refreshing captured titles. Converter core prepares a fresh ordinary document
+//! through [`PreparedDocument`] before traversal; the shared parse stays unchanged.
+//! Checked ASG export rejects symbolic displays until they have been prepared.
+//!
 //! Tree processors run after block macros and can replace pending requests with
 //! ordinary content. Builder bodies are literal; attribute lists use the parser's
 //! metadata rules. Use [`DocumentEditor::replace_source`] explicitly to interpret
@@ -149,6 +157,7 @@
 mod block_macro;
 mod builder;
 mod deferred;
+mod display;
 mod editor;
 pub(crate) mod finalization;
 mod query;
@@ -168,6 +177,11 @@ pub use block_macro::{
 pub use builder::BlockBuilder;
 pub(crate) use builder::SourceContext;
 pub use deferred::{DeferredBlock, ExtensionBlock, PlaceholderId};
+pub use display::{
+    CapturedTarget, DisplayIntent, DisplayLabel, GeneratedDisplayRef, InlineBuilder,
+    PreparedDocument,
+};
+pub(crate) use display::{DisplayState, GeneratedDisplay};
 pub use editor::DocumentEditor;
 pub use query::{BlockContext, BlockView, DocumentQuery};
 pub use registry::{RegistrationError, Registry, RegistryBuilder};

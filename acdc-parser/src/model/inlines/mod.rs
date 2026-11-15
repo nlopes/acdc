@@ -528,6 +528,12 @@ where
     }
     map.serialize_entry("target", &x.target)?;
     map.serialize_entry("target_is_local", &x.target_is_local)?;
+    if let Some(display) = &x.generated_display {
+        map.serialize_entry(
+            "generated_display",
+            &crate::extensions::GeneratedDisplayRef::new(display),
+        )?;
+    }
     if let Some(style) = x.xrefstyle.attribute_value() {
         map.serialize_entry("xrefstyle", style)?;
     }

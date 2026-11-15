@@ -477,7 +477,7 @@ impl<'doc> BlockView<'doc> {
     }
 }
 
-pub(super) fn output_id<'doc>(block: &'doc Block<'_>) -> Option<&'doc str> {
+pub(super) fn output_id<'a>(block: &Block<'a>) -> Option<&'a str> {
     let id = if let Block::Section(section) = block {
         crate::Section::explicit_id(&section.metadata).or(section.id)
     } else {

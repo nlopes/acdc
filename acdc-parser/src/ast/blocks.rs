@@ -222,6 +222,11 @@ impl<'doc> BlockRef<'doc> {
 }
 
 impl<'doc> DocumentRef<'doc> {
+    /// Whether conversion must lower symbolic display requests first.
+    #[must_use]
+    pub fn has_deferred_displays(self) -> bool {
+        self.node.generated_displays.is_active()
+    }
     /// The highest stored caption ordinal for this category, or zero if none is assigned.
     ///
     /// Scans the block tree, including nested lists and table cells, without
@@ -523,6 +528,7 @@ impl<'doc> From<DocumentRef<'doc>> for Document<'doc> {
                 location: header.location.clone(),
             }),
             untitled_header_location: document.untitled_header_location.clone(),
+            generated_displays: document.generated_displays.clone(),
             attributes: document.attributes.clone(),
             blocks: document.blocks.clone(),
             footnotes: document.footnotes.clone(),

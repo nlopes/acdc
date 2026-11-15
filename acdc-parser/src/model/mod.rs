@@ -79,6 +79,7 @@ pub use token_assignment::TokenAssignment;
 #[derive(Default, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Document<'a> {
+    pub(crate) generated_displays: crate::extensions::DisplayState<'a>,
     pub(crate) header: Option<Header<'a>>,
     /// Span of the leading attribute entries and comments of a document
     /// without a title. A titled header records its span in [`Header`].

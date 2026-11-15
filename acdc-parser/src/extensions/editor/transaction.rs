@@ -21,6 +21,7 @@ impl DocumentEditor<'_> {
         let path = self.path(target)?;
         let origin = self.location(target);
         let mode = self.result.mode;
+        let identity = self.result.session.identity().clone();
         let index = self
             .result
             .targets
@@ -28,7 +29,7 @@ impl DocumentEditor<'_> {
             .ok_or_else(|| failure(&origin, "query index is absent"))?;
         let (new_target, reference_warnings, construction_warnings) =
             self.result.parsed.with_document_mut(|owner, document| {
-                let prepared = prepare(owner, document, &path, edit, mode, &origin)?;
+                let prepared = prepare(owner, document, &path, edit, mode, &origin, &identity)?;
                 let mut candidate = snapshot(document);
                 let mut candidate_index = index.clone();
                 candidate_index.prepare_edit(&mut candidate);
@@ -68,6 +69,7 @@ impl DocumentEditor<'_> {
 
 fn snapshot<'a>(document: &Document<'a>) -> Document<'a> {
     Document {
+        generated_displays: document.generated_displays.clone(),
         header: document.header.clone(),
         untitled_header_location: document.untitled_header_location.clone(),
         attributes: document.attributes.clone(),
@@ -84,6 +86,7 @@ struct Prepared<'a> {
     kind: Option<crate::CaptionKind>,
     warnings: Vec<Warning>,
     recaption: bool,
+    displays: bool,
 }
 
 fn prepare<'a>(
@@ -93,6 +96,7 @@ fn prepare<'a>(
     edit: &Edit,
     mode: crate::CompatibilityMode,
     origin: &SourceLocation,
+    identity: &super::super::target::DocumentIdentity,
 ) -> Result<Option<Prepared<'a>>, Error> {
     let (builder, replacing) = match edit {
         Edit::Insert(builder) => (builder, false),
@@ -168,6 +172,7 @@ fn prepare<'a>(
             origin.location.clone(),
             attributes.metadata,
             attributes.title,
+            |inline| inline.build(&owner.arena, document, identity, origin),
         )
         .map_err(|error| failure(origin, &error.to_string()))?;
     if let Block::Image(image) = &mut block {
@@ -191,6 +196,7 @@ fn prepare<'a>(
         kind,
         warnings: attributes.warnings,
         recaption: true,
+        displays: builder.has_displays(),
     }))
 }
 
@@ -228,7 +234,8 @@ fn prepare_source<'a>(
         | super::super::builder::Content::Literal(source)
         | super::super::builder::Content::Listing(source) => owner.arena.alloc_str(source),
         super::super::builder::Content::Image(_)
-        | super::super::builder::Content::UnorderedList(_) => {
+        | super::super::builder::Content::UnorderedList(_)
+        | super::super::builder::Content::ParagraphInlines(_) => {
             return Err(failure(origin, "source body is unsupported"));
         }
     };
@@ -244,6 +251,7 @@ fn prepare_source<'a>(
         kind: None,
         warnings,
         recaption: false,
+        displays: false,
     })
 }
 
@@ -258,6 +266,9 @@ fn transact<'a>(
     mut prepared: Option<Prepared<'a>>,
     origin: &SourceLocation,
 ) -> Result<Outcome, Error> {
+    if prepared.as_ref().is_some_and(|prepared| prepared.displays) {
+        document.generated_displays.activate();
+    }
     if let Some(prepared) = &mut prepared
         && prepared.recaption
     {

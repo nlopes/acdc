@@ -17,6 +17,7 @@ pub(crate) mod inlines;
 mod line_map;
 mod location_mapping;
 mod location_walk;
+pub(crate) use location_walk::try_walk_document_inline_nodes_mut;
 mod marked_text;
 mod passthrough_processing;
 pub(crate) mod reference_text;

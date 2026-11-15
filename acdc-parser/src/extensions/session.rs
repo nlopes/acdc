@@ -58,13 +58,14 @@ impl ExtensionParseResult {
     ///
     /// # Errors
     /// Returns a located error if a deferred request remains unresolved.
-    pub fn finish(self) -> Result<ParseResult, Error> {
+    pub fn finish(mut self) -> Result<ParseResult, Error> {
         if let Some(request) = self.session.deferred.first() {
             return Err(Error::Extension(
                 Box::new(request.invocation.location.clone()),
                 "unresolved deferred block".into(),
             ));
         }
+        self.bind_displays()?;
         Ok(self.parsed)
     }
 
