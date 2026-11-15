@@ -64,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renderers read only the first number, so the previous `3.`, `2.`, `1.` output
   displayed as 3, 4, 5.
 
+- Blocks attached to a list item with `+` now stay inside the item as separate
+  blocks. Every line is indented to the item, so attached code, block quotes,
+  admonitions, and example blocks no longer end the list, and an attached
+  paragraph or a nested markerless list no longer joins the item's text. This
+  applies to ordered, bulleted, description, Q&A, horizontal, bibliography, and
+  callout lists.
+
 ### Changed
 
 - Curved quotes and apostrophes retain their punctuation in body text, image

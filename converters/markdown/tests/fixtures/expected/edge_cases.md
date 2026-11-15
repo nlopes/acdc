@@ -36,8 +36,10 @@ Email: [user@example.com](mailto:user@example.com)
 ## Mixed Nesting
 
 - List item 1
+
     Continuation paragraph
+
     ```
-Code block in list
-```
+    Code block in list
+    ```
 - List item 2

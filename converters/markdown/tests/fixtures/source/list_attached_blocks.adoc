@@ -1,0 +1,97 @@
+= List attachments
+
+. Paragraph item
++
+First attached line
+second attached line.
++
+Second attached paragraph.
+. Listing item
++
+----
+fn main() {
+    println!("hi");
+}
+----
+. Admonition item
++
+NOTE: An attached note.
+. Example item
++
+====
+Example paragraph one.
+
+Example paragraph two.
+====
+. Parent of a markerless list
+[unnumbered]
+.. No marker
+.. Two
+. Last item
+
+Paragraph between lists.
+
+* Bullet
++
+Attached paragraph.
++
+[start=5]
+. Five after a paragraph
+. Six
+
+Paragraph between lists.
+
+Term one:: Definition one.
++
+Continuation for term one.
+Term two::
++
+----
+code for term two
+----
+
+Paragraph between lists.
+
+[qanda]
+What?:: An answer.
++
+Continuation for the answer.
+Unanswered?::
++
+Only an attached block.
+
+Paragraph between lists.
+
+[horizontal]
+CPU:: Central processor
++
+Continuation for CPU.
+RAM:: Memory
+
+Paragraph between lists.
+
+[bibliography]
+* [[[ref]]] A reference.
++
+Continuation for the reference.
+* [[[other]]] Another.
+
+Paragraph between lists.
+
+[unnumbered]
+. No marker
++
+Attached to a markerless item.
+. Still none
+
+Paragraph between lists.
+
+[source,ruby]
+----
+puts "hi" # <1>
+----
+<1> Prints hi
++
+----
+more code
+----

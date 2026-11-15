@@ -773,6 +773,52 @@ fn ordered_list_with_non_numeric_style_warns_and_renders_numerically() -> Result
     Ok(())
 }
 
+/// Count, while reading `markdown` as `CommonMark`: lists, list items, and the
+/// paragraphs and code blocks that sit inside a list item.
+fn list_item_contents(markdown: &str) -> (usize, usize, usize, usize) {
+    let (mut lists, mut items, mut paragraphs, mut code_blocks) = (0, 0, 0, 0);
+    let mut item_depth = 0_usize;
+    for event in MarkdownParser::new_ext(markdown, MarkdownParserOptions::empty()) {
+        if let Event::Start(Tag::List(_)) = event {
+            lists += 1;
+        } else if let Event::Start(Tag::Item) = event {
+            items += 1;
+            item_depth += 1;
+        } else if let Event::End(TagEnd::Item) = event {
+            item_depth -= 1;
+        } else if let Event::Start(Tag::Paragraph) = event
+            && item_depth > 0
+        {
+            paragraphs += 1;
+        } else if let Event::Start(Tag::CodeBlock(_)) = event
+            && item_depth > 0
+        {
+            code_blocks += 1;
+        }
+    }
+    (lists, items, paragraphs, code_blocks)
+}
+
+#[test]
+fn list_item_attachments_stay_separate_blocks_inside_the_item() -> Result<(), Error> {
+    let input = ". First\n+\nAttached paragraph\nover two lines.\n+\n----\nfn main() {\n    run();\n}\n----\n. Second\n";
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (output, _) = convert_str_with_variant(input, variant)?;
+        // One list of two items. The first item holds its text, the attached
+        // paragraph, and the code block; the second holds its text.
+        assert_eq!(
+            list_item_contents(&output),
+            (1, 2, 3, 1),
+            "{variant}: {output}"
+        );
+        assert!(
+            output.contains("        run();"),
+            "code keeps its indent inside the item: {output}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
 fn reversed_ordered_list_warns_and_counts_up_from_start() -> Result<(), Error> {
     for (input, expected_start) in [

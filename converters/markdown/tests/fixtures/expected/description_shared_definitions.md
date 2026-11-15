@@ -18,6 +18,7 @@ Shared term groups.
 <!-- Warning: description lists not natively supported in Markdown, using regular list -->
 - **<a id="first-term"></a>First, <a id="second-term"></a>Second**
   Shared [^shared] and Shared index.
+
     Attached body refers to [^shared].
 - **Empty**
   
