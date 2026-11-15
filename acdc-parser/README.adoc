@@ -899,6 +899,11 @@ acdc deliberately honors the quoted operand in every output format.
 Backslashes inside these values remain literal; they do not escape a closing quote.
 Unquoted number, boolean, and arithmetic comparisons retain their existing behavior.
 
+Unquoted integers compare exactly, as in Asciidoctor, so `ifeval::[9007199254740992 == 9007199254740993]` is false.
+An integer also compares exactly with a decimal number: `2 == 2.0` is true, and `9007199254740993 > 9007199254740992.0` is true.
+Integer values are exact within the signed 128-bit range, and integer arithmetic within the signed 64-bit range.
+Asciidoctor has no such limit.
+
 == Formatting escapes
 
 Formatting escapes belong to quote substitution. With quotes disabled, code and

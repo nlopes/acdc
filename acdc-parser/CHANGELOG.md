@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the first line, past its end. In AsciiDoc table cells, a value wrapped with
   ` \` now joins its lines with a space, matching Asciidoctor, instead of
   keeping the backslash and the line break.
+- `ifeval` now compares integers exactly. Before, large integers that differ
+  could compare as equal, so `ifeval::[9007199254740992 == 9007199254740993]`
+  was true. Comparisons between an integer and a decimal number, such as
+  `9007199254740993 > 9007199254740992.0`, are exact too, matching Asciidoctor.
+  Integer values are exact within the signed 128-bit range, and integer
+  arithmetic within the signed 64-bit range; Asciidoctor has no such limit.
 
 - Faster processing of included files, especially `lines=` and tag selections,
   while preserving resource limits, source locations, and compatibility modes.

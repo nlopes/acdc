@@ -2,7 +2,7 @@ mod peg;
 
 use peg::conditional_parser;
 
-use std::path::Path;
+use std::{cmp::Ordering, path::Path};
 
 use crate::{
     DocumentAttributes, Location,
@@ -46,8 +46,16 @@ struct EvalCondition {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 enum EvalValue {
     String(String),
-    Number(f64),
+    Number(Number),
     Boolean(bool),
+}
+
+/// Integers stay exact instead of rounding to `f64`, so values beyond 2^53
+/// still compare correctly, as with Asciidoctor's arbitrary-precision integers.
+#[derive(Debug, Clone, Copy)]
+enum Number {
+    Integer(i128),
+    Float(f64),
 }
 
 #[derive(Debug, PartialEq)]
@@ -227,18 +235,11 @@ impl EvalValue {
                     return EvalValue::String(value.to_string());
                 }
 
-                // Try to parse as bool, f64, or evaluate as expression, otherwise return as string
-                s.parse::<bool>()
-                    .map(EvalValue::Boolean)
-                    .or_else(|_| s.parse::<f64>().map(EvalValue::Number))
-                    .or_else(|_| evalexpr::eval_float(&s).map(EvalValue::Number))
-                    .or_else(|_| {
-                        #[allow(clippy::cast_precision_loss)]
-                        evalexpr::eval_int(&s)
-                            .map(|v| v as f64)
-                            .map(EvalValue::Number)
-                    })
-                    .unwrap_or_else(|_| EvalValue::String(s.into_owned()))
+                if let Ok(value) = s.parse::<bool>() {
+                    return EvalValue::Boolean(value);
+                }
+                Number::parse(&s)
+                    .map_or_else(|| EvalValue::String(s.into_owned()), EvalValue::Number)
             }
             value @ (EvalValue::Number(_) | EvalValue::Boolean(_)) => value.clone(),
         }
@@ -249,6 +250,69 @@ impl EvalValue {
         s.strip_prefix('\'')
             .and_then(|value| value.strip_suffix('\''))
             .or_else(|| s.strip_prefix('"')?.strip_suffix('"'))
+    }
+}
+
+impl Number {
+    /// 2^127 is exactly representable and is the first value above `i128::MAX`.
+    const I128_BOUND: f64 = 170_141_183_460_469_231_731_687_303_715_884_105_728.0;
+
+    /// Integer text stays an exact integer; other numbers and arithmetic
+    /// follow evalexpr, which keeps integer results as integers.
+    fn parse(text: &str) -> Option<Self> {
+        if let Ok(value) = text.parse() {
+            return Some(Self::Integer(value));
+        }
+        if let Ok(value) = text.parse() {
+            return Some(Self::Float(value));
+        }
+        match evalexpr::eval(text) {
+            Ok(evalexpr::Value::Int(value)) => Some(Self::Integer(value.into())),
+            Ok(evalexpr::Value::Float(value)) => Some(Self::Float(value)),
+            _ => None,
+        }
+    }
+
+    /// Compares exactly instead of rounding the integer to the nearest `f64`.
+    fn compare_integer_to_float(integer: i128, float: f64) -> Option<Ordering> {
+        if float.is_nan() {
+            None
+        } else if float >= Self::I128_BOUND {
+            Some(Ordering::Less)
+        } else if float < -Self::I128_BOUND {
+            Some(Ordering::Greater)
+        } else {
+            // The truncated value is an integer within range, so the cast is exact.
+            #[allow(clippy::cast_possible_truncation)]
+            let whole = float.trunc() as i128;
+            let ordering = integer.cmp(&whole);
+            if ordering.is_eq() {
+                0.0_f64.partial_cmp(&float.fract())
+            } else {
+                Some(ordering)
+            }
+        }
+    }
+}
+
+impl PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        self.partial_cmp(other) == Some(Ordering::Equal)
+    }
+}
+
+impl PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (*self, *other) {
+            (Self::Integer(left), Self::Integer(right)) => Some(left.cmp(&right)),
+            (Self::Float(left), Self::Float(right)) => left.partial_cmp(&right),
+            (Self::Integer(left), Self::Float(right)) => {
+                Self::compare_integer_to_float(left, right)
+            }
+            (Self::Float(left), Self::Integer(right)) => {
+                Self::compare_integer_to_float(right, left).map(Ordering::reverse)
+            }
+        }
     }
 }
 
@@ -476,6 +540,89 @@ mod tests {
             ));
         }
         Ok(())
+    }
+
+    fn evaluate_ifeval(expression: &str, attributes: &DocumentAttributes) -> Result<bool, Error> {
+        parse_line(&format!("ifeval::[{expression}]"), 1, 0, None)?.is_true(
+            attributes,
+            &mut String::new(),
+            1,
+            0,
+            None,
+        )
+    }
+
+    #[rstest::rstest]
+    #[case::equal_beyond_f64_precision("9007199254740992 == 9007199254740993", false)]
+    #[case::not_equal_beyond_f64_precision("9007199254740992 != 9007199254740993", true)]
+    #[case::less_beyond_f64_precision("9007199254740992 < 9007199254740993", true)]
+    #[case::negative_beyond_f64_precision("-9007199254740993 < -9007199254740992", true)]
+    #[case::near_i64_max("9223372036854775807 == 9223372036854775806", false)]
+    #[case::beyond_i64("18446744073709551616 == 18446744073709551617", false)]
+    #[case::arithmetic_stays_exact("9007199254740992 + 1 == 9007199254740993", true)]
+    #[case::arithmetic_not_rounded("9007199254740992 + 1 == 9007199254740992", false)]
+    #[case::integer_float_not_rounded("9007199254740993 == 9007199254740992.0", false)]
+    #[case::integer_above_float("9007199254740993 > 9007199254740992.0", true)]
+    #[case::float_below_integer("9007199254740992.0 < 9007199254740993", true)]
+    #[case::integer_equals_float("2 == 2.0", true)]
+    #[case::negative_zero("-0.0 == 0", true)]
+    #[case::integer_below_fraction("2 < 2.5", true)]
+    #[case::negative_integer_above_fraction("-2 > -2.5", true)]
+    #[case::fraction_below_integer("1.5 < 2", true)]
+    #[case::float_arithmetic("1 + 1.5 == 2.5", true)]
+    fn ifeval_compares_numbers_exactly(
+        #[case] expression: &str,
+        #[case] expected: bool,
+    ) -> Result<(), Error> {
+        assert_eq!(
+            evaluate_ifeval(expression, &DocumentAttributes::default())?,
+            expected,
+            "{expression}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn ifeval_compares_attribute_integers_exactly() -> Result<(), Error> {
+        let mut attributes = DocumentAttributes::default();
+        assert!(
+            attributes
+                .set("big".into(), "9007199254740993".into())
+                .is_ok()
+        );
+        assert!(!evaluate_ifeval("{big} == 9007199254740992", &attributes)?);
+        assert!(evaluate_ifeval("{big} > 9007199254740992", &attributes)?);
+        Ok(())
+    }
+
+    #[test]
+    fn integer_float_comparison_handles_i128_limits() {
+        let bound = Number::I128_BOUND;
+        assert_eq!(
+            Number::compare_integer_to_float(i128::MIN, -bound),
+            Some(Ordering::Equal)
+        );
+        assert_eq!(
+            Number::compare_integer_to_float(i128::MAX, bound),
+            Some(Ordering::Less)
+        );
+        assert_eq!(
+            Number::compare_integer_to_float(i128::MAX, bound.next_down()),
+            Some(Ordering::Greater)
+        );
+        assert_eq!(
+            Number::compare_integer_to_float(i128::MIN, (-bound).next_down()),
+            Some(Ordering::Greater)
+        );
+        assert_eq!(
+            Number::compare_integer_to_float(i128::MAX, f64::INFINITY),
+            Some(Ordering::Less)
+        );
+        assert_eq!(
+            Number::compare_integer_to_float(i128::MIN, f64::NEG_INFINITY),
+            Some(Ordering::Greater)
+        );
+        assert_eq!(Number::compare_integer_to_float(0, f64::NAN), None);
     }
 
     #[test]
