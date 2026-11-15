@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Image navigation retains literal quote characters in `imagesdir`, matching generated output.
 
+- Callout list markers such as `<1>` are highlighted again when an include, an
+  excluded conditional, or a comment line inside a paragraph comes earlier in
+  the document. Before, their highlight was misplaced or missing.
+
 ### Added
 
 - Semantic highlighting covers document and block titles, table separators and

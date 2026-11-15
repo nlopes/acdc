@@ -704,3 +704,30 @@ fn header_highlighting_stops_at_included_text() -> TestResult {
     }
     Ok(())
 }
+
+// A comment line inside a paragraph is removed before parsing; the callout
+// list marker after it must still be highlighted on its own line.
+#[test]
+fn callout_list_markers_stay_on_their_line_after_removed_lines() -> TestResult {
+    let source = "Text\n// A comment line.\n\n----\nputs 1 # <1>\n----\n<1> First callout\n";
+    for mode in MODES {
+        let tokens = decoded_in(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        assert!(
+            tokens.iter().any(|token| (token.0, token.1) == (6, 0)
+                && token.2.starts_with("<1>")
+                && token.3 == "operator"),
+            "{mode:?}: {tokens:?}"
+        );
+        assert!(
+            tokens
+                .iter()
+                .filter(|token| token.0 == 5)
+                .all(|token| token.2 == "----"),
+            "{mode:?}: {tokens:?}"
+        );
+    }
+    Ok(())
+}

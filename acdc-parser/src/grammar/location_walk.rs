@@ -403,6 +403,7 @@ where
                 self.inlines(l.title.inlines_mut())?;
                 for item in &mut l.items {
                     (self.visit_location)(&mut item.location)?;
+                    (self.visit_location)(&mut item.callout.location)?;
                     self.inlines(&mut item.principal)?;
                     self.blocks(&mut item.blocks)?;
                 }

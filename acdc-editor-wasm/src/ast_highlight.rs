@@ -1678,4 +1678,16 @@ mod tests {
             "Heading should start before footnote"
         );
     }
+
+    // A comment line inside a paragraph is removed before parsing; the callout
+    // list marker after it must still be highlighted on its own line.
+    #[test]
+    fn test_callout_list_marker_after_removed_comment_line() {
+        let input = "Text\n// A comment line.\n\n----\nputs 1 # <1>\n----\n<1> First callout\n";
+        let result = highlight(input);
+        assert!(
+            result.contains("\n<span class=\"adoc-callout\">&lt;1&gt; First callout</span>"),
+            "result: {result}"
+        );
+    }
 }
