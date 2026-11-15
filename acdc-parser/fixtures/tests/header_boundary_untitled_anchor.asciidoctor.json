@@ -1,0 +1,67 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "a": "1"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Para",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "anchors": [
+          {
+            "id": "top",
+            "location": [
+              {
+                "line": 1,
+                "col": 1
+              },
+              {
+                "line": 1,
+                "col": 8
+              }
+            ]
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 4
+    }
+  ]
+}

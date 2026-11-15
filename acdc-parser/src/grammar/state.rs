@@ -16,7 +16,9 @@ use crate::{
     CalloutMarker, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
     FootnoteDefinition, Location, Options, Passthrough, SourceLocation, TocEntry, Warning,
     WarningKind, XrefCaptionLabel, XrefSignifier,
-    document_attribute::{AttributeDeclaration, RawAttributeValue, is_header_only},
+    document_attribute::{
+        AttributeDeclaration, RawAttributeValue, is_header_only, normalize_toc_attributes,
+    },
     grammar::{
         LineMap,
         document::lists::{DescriptionListScope, OrdinaryListScope},
@@ -45,6 +47,20 @@ struct XrefCaptionLabelSnapshots<'a> {
     last: Option<(Weak<DocumentAttributes<'a>>, NonZeroUsize)>,
 }
 
+/// In Asciidoctor mode, a document without a title reads the attribute entries
+/// among the first block's anchors, attribute lists and block titles into its
+/// header. The metadata still belongs to the first block, which applies these
+/// entries in source order.
+#[derive(Debug)]
+pub(super) struct UntitledHeaderEntries<'a> {
+    /// From the first entry's start to the last entry's end.
+    pub(super) range: Range<usize>,
+    /// Where the last entry starts. The header ends once it is applied.
+    pub(super) last_start: usize,
+    /// The header attributes, saved the first time the last entry is applied.
+    pub(super) attributes: Option<Rc<DocumentAttributes<'a>>>,
+}
+
 #[derive(Debug)]
 pub(crate) struct ParserState<'a> {
     pub(super) attribute_sources: Rc<RefCell<Vec<super::attributes::ResolvedContentAttribute<'a>>>>,
@@ -57,6 +73,7 @@ pub(crate) struct ParserState<'a> {
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
     pub(super) header_reftext_source: Option<usize>,
     pub(super) body_reftext_source: Option<usize>,
+    pub(super) untitled_header_entries: Option<UntitledHeaderEntries<'a>>,
     /// Attributes inherited by the current nested document. Asciidoctor-style
     /// table cells may read these values, but attribute entries in the cell
     /// cannot replace or unset them.
@@ -570,6 +587,47 @@ impl<'a> ParserState<'a> {
         }
     }
 
+    /// Whether the attribute entry starting at `offset` belongs to the header
+    /// of a document without a title. See [`UntitledHeaderEntries`].
+    pub(super) fn is_untitled_header_entry(&self, offset: usize) -> bool {
+        self.untitled_header_entries
+            .as_ref()
+            .is_some_and(|entries| entries.range.contains(&offset))
+    }
+
+    /// Apply an entry among the first block's metadata as a header attribute,
+    /// and save the header attributes after the last one.
+    pub(super) fn apply_untitled_header_entry(
+        &mut self,
+        declaration: &AttributeDeclaration<'a>,
+        location: Location,
+    ) {
+        let start = location.absolute_start;
+        self.apply_document_attribute(declaration, true, location);
+        if let Some(entries) = self.untitled_header_entries.as_mut()
+            && entries.last_start == start
+            && entries.attributes.is_none()
+        {
+            normalize_toc_attributes(Rc::make_mut(&mut self.document_attributes));
+            entries.attributes = Some(Rc::clone(&self.document_attributes));
+        }
+    }
+
+    /// The header attributes of a document whose header reads entries among
+    /// the first block's metadata. If the body never applied the last entry,
+    /// this falls back to the current attributes.
+    pub(super) fn take_untitled_header_attributes(&mut self) -> DocumentAttributes<'a> {
+        if let Some(attributes) = self
+            .untitled_header_entries
+            .as_mut()
+            .and_then(|entries| entries.attributes.take())
+        {
+            return Rc::unwrap_or_clone(attributes);
+        }
+        normalize_toc_attributes(Rc::make_mut(&mut self.document_attributes));
+        DocumentAttributes::clone(&self.document_attributes)
+    }
+
     /// Apply an attribute entry declared by document content: expand `{attr}`
     /// references at definition time (matching `asciidoctor`), retain the result
     /// for the parse, and store it unless the built-in policy, parser options, or
@@ -716,6 +774,7 @@ impl<'a> ParserState<'a> {
             reference_text_context: None,
             header_reftext_source: None,
             body_reftext_source: None,
+            untitled_header_entries: None,
             document_attributes: Rc::new(options.document_attributes.clone()),
             options,
             nested_parent_attributes: None,
@@ -774,6 +833,7 @@ impl<'a> ParserState<'a> {
             reference_text_context: None,
             header_reftext_source: None,
             body_reftext_source: None,
+            untitled_header_entries: None,
             document_attributes: Rc::new(DocumentAttributes::empty()),
             nested_parent_attributes: None,
             hardbreaks: false,
@@ -827,6 +887,7 @@ impl<'a> ParserState<'a> {
             reference_text_context: parent.reference_text_context.clone(),
             header_reftext_source: parent.header_reftext_source,
             body_reftext_source: parent.body_reftext_source,
+            untitled_header_entries: None,
             document_attributes: Rc::clone(&parent.document_attributes),
             nested_parent_attributes: parent.nested_parent_attributes.clone(),
             hardbreaks: parent.hardbreaks,

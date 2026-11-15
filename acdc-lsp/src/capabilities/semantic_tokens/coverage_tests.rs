@@ -541,6 +541,30 @@ fn trailing_header_comments_outside_the_span_are_highlighted() -> TestResult {
     Ok(())
 }
 
+/// In Asciidoctor mode, the header of a document without a title reads the
+/// entries among the first block's metadata, so its span covers that metadata.
+/// Draft mode leaves those entries in the body. Either way, each entry is
+/// highlighted once.
+#[test]
+fn entries_among_first_block_metadata_are_highlighted_once() -> TestResult {
+    let source =
+        ":a: 1\n\n[[x]]\n// note\n:b: 2 \\\ncontinued\n////\n:x: y\n////\n:c: 3\n[.role]\nPara\n";
+    for mode in MODES {
+        let tokens = decoded_in(source, &options(mode)?)?;
+        let message = format!("{mode:?}: {tokens:?}");
+        assert!(has_token(&tokens, 0, "a", "property"), "{message}");
+        assert!(has_token(&tokens, 2, "[[x]]", "decorator"), "{message}");
+        assert!(has_token(&tokens, 4, ":b: ", "property"), "{message}");
+        assert!(has_token(&tokens, 5, "continued", "string"), "{message}");
+        assert!(has_token(&tokens, 6, "////", "operator"), "{message}");
+        assert!(has_token(&tokens, 8, "////", "operator"), "{message}");
+        assert!(has_token(&tokens, 9, ":c: ", "property"), "{message}");
+        assert!(has_token(&tokens, 10, "[.role]", "property"), "{message}");
+        assert!(!has_kind_on_line(&tokens, 11, "property"), "{message}");
+    }
+    Ok(())
+}
+
 #[test]
 fn wrapped_values_are_highlighted_on_every_line() -> TestResult {
     for mode in MODES {

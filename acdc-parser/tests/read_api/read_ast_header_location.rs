@@ -83,6 +83,31 @@ fn untitled_header_span_with_empty_lines_follows_the_mode() -> Result<(), Error>
     Ok(())
 }
 
+/// In Asciidoctor mode, the span of a header without a title ends at the last
+/// attribute entry among the first block's metadata. It covers that metadata,
+/// which still belongs to the first block.
+#[rstest::rstest]
+#[case::anchor_then_entry("[[x]]\n:a: 1\n\nPara\n", Some((1, 1, 2, 5)), None)]
+#[case::after_leading_entries(
+    ":a: 1\n\n[[x]]\n// note\n:b: 2\n[.role]\n\nPara\n",
+    Some((1, 1, 5, 5)),
+    Some((1, 1, 1, 5))
+)]
+#[case::metadata_without_a_block(":a: 1\n[.role]\n:b: 2", Some((1, 1, 3, 5)), Some((1, 1, 1, 5)))]
+#[case::metadata_without_entries("[[x]]\n\nPara\n", None, None)]
+fn untitled_header_span_covers_entries_among_first_block_metadata(
+    #[case] source: &str,
+    #[case] asciidoctor: Option<(u32, u32, u32, u32)>,
+    #[case] draft: Option<(u32, u32, u32, u32)>,
+) -> Result<(), Error> {
+    assert_eq!(
+        header_lines(source, CompatibilityMode::Asciidoctor)?,
+        asciidoctor
+    );
+    assert_eq!(header_lines(source, CompatibilityMode::Draft)?, draft);
+    Ok(())
+}
+
 #[test]
 fn draft_header_before_an_empty_line_and_title_has_no_title() -> Result<(), Error> {
     let source = ":a: 1\n\n= Title\n\nBody.\n";

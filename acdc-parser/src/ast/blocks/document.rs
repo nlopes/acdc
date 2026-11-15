@@ -45,6 +45,9 @@ impl<'doc> DocumentRef<'doc> {
     ///
     /// With a title, this is the header's own [`HeaderRef::location`]. Without
     /// one, it covers the attribute entries and comments that form the header.
+    /// In Asciidoctor mode, those include the entries among the first block's
+    /// anchors, attribute lists, and block titles, so the span can also cover
+    /// that metadata, which still belongs to the first block.
     /// `None` means the document has no header. Comment lines above the header
     /// are not part of it. Like other locations, the span uses original source
     /// coordinates, so it also covers preprocessor directive lines between its

@@ -3,24 +3,9 @@
   "type": "block",
   "attributes": {
     "outer": "{word}",
-    "word": "Before"
+    "word": "After"
   },
   "blocks": [
-    {
-      "name": "word",
-      "type": "attribute",
-      "value": "After",
-      "location": [
-        {
-          "line": 5,
-          "col": 1
-        },
-        {
-          "line": 5,
-          "col": 12
-        }
-      ]
-    },
     {
       "name": "paragraph",
       "type": "block",

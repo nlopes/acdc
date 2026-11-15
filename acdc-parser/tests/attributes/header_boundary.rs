@@ -386,13 +386,163 @@ fn conditional_entries_before_title() -> Result<(), Error> {
     )
 }
 
-/// Asciidoctor keeps an attribute entry that follows block metadata in the
-/// header of a document without a title. acdc applies it in the body in both
-/// modes. This records the current behavior.
+/// A block's ID, roles and title.
+type Metadata = (Option<String>, Vec<String>, Option<String>);
+
+/// The first paragraph or section's metadata.
+fn first_metadata(source: &str, mode: CompatibilityMode) -> Result<Metadata, Error> {
+    let parsed = parse(source, &options(mode)?)?;
+    let (id, roles, title) = parsed
+        .document()
+        .blocks()
+        .find_map(|block| {
+            if let BlockKind::Paragraph(paragraph) = block.kind() {
+                Some((paragraph.id(), paragraph.roles(), paragraph.title()))
+            } else if let BlockKind::Section(section) = block.kind() {
+                Some((section.id(), section.roles(), section.title()))
+            } else {
+                None
+            }
+        })
+        .ok_or("no paragraph or section")?;
+    Ok((
+        id.map(|id| id.as_str().to_owned()),
+        roles.iter().map(str::to_owned).collect(),
+        title.map(text).transpose()?,
+    ))
+}
+
+/// In a document without a title, Asciidoctor reads the attribute entries
+/// among the first block's anchors, attribute lists and block titles into the
+/// header. The metadata stays with the first block. Draft mode keeps these
+/// entries in the body, because the language docs don't list block metadata
+/// as header lines.
+#[rstest::rstest]
+#[case::anchor_then_entry("[[x]]\n:a: 1\n\nPara\n", "paragraph")]
+#[case::after_leading_entries(":z: 0\n\n[[x]]\n:a: 1\n\nPara\n", "paragraph")]
+#[case::comment_between("[[x]]\n// note\n:a: 1\nPara\n", "paragraph")]
+// The comment block comes first, as a delimited block.
+#[case::comment_block_between("[[x]]\n////\nnote\n////\n:a: 1\nPara\n", "other")]
+#[case::empty_lines_between("[[x]]\n\n:a: 1\n\nPara\n", "paragraph")]
+#[case::wrapped_value("[[x]]\n:a: one \\\ntwo\nPara\n", "paragraph")]
+#[case::section("[[x]]\n:a: 1\n\n== Sec\n\nBody\n", "section 1: Sec")]
+fn untitled_header_reads_entries_among_first_block_metadata(
+    #[case] source: &str,
+    #[case] first: &str,
+) -> Result<(), Error> {
+    let leading: &[&str] = if source.starts_with(":z:") {
+        &["z"]
+    } else {
+        &[]
+    };
+    let header = [leading, &["a"]].concat();
+    assert_boundary(
+        source,
+        &["z", "a"],
+        &expected(None, &header, &[], Some(first)),
+        &expected(None, leading, &["a"], Some(first)),
+    )?;
+    for mode in [ASCIIDOCTOR, DRAFT] {
+        assert_eq!(
+            first_metadata(source, mode)?.0.as_deref(),
+            Some("x"),
+            "{mode}"
+        );
+    }
+    Ok(())
+}
+
 #[test]
-fn untitled_attribute_entry_after_block_metadata_stays_in_body() -> Result<(), Error> {
-    let both = expected(None, &["a"], &["b"], Some("paragraph"));
-    assert_boundary(":a: 1\n\n[[x]]\n:b: 2\n\nPara\n", &["a", "b"], &both, &both)
+fn untitled_header_reads_entries_after_a_block_title() -> Result<(), Error> {
+    let source = ":a: 1\n\n.Title\n:b: 2\n\nPara\n";
+    assert_boundary(
+        source,
+        &["a", "b"],
+        &expected(None, &["a", "b"], &[], Some("paragraph")),
+        &expected(None, &["a"], &["b"], Some("paragraph")),
+    )?;
+    for mode in [ASCIIDOCTOR, DRAFT] {
+        assert_eq!(
+            first_metadata(source, mode)?.2.as_deref(),
+            Some("Title"),
+            "{mode}"
+        );
+    }
+    // A block title above `= Title` keeps it from being the document title.
+    assert_boundary(
+        ":a: 1\n\n.Foo\n:b: 2\n= Title\n\nPara\n",
+        &["a", "b"],
+        &expected(None, &["a", "b"], &[], Some("section 0: Title")),
+        &expected(None, &["a"], &["b"], Some("section 0: Title")),
+    )
+}
+
+#[test]
+fn untitled_header_reads_entries_among_metadata_without_a_block() -> Result<(), Error> {
+    for source in [":a: 1\n[.role]\n:b: 2\n", ":a: 1\n[.role]\n:b: 2"] {
+        assert_boundary(
+            source,
+            &["a", "b"],
+            &expected(None, &["a", "b"], &[], None),
+            &expected(None, &["a"], &["b"], None),
+        )?;
+    }
+    Ok(())
+}
+
+#[test]
+fn entries_after_the_first_block_stay_in_the_body() -> Result<(), Error> {
+    let both = expected(None, &[], &["a"], Some("paragraph"));
+    assert_boundary("[[x]]\nPara\n\n:a: 1\n", &["a"], &both, &both)
+}
+
+/// The body applies the entries in source order, so an attribute list before
+/// an entry still sees the earlier value, as in Asciidoctor. The
+/// `compatibility_title_snapshots` fixture covers a `title` attribute.
+#[test]
+fn untitled_header_entries_apply_in_source_order() -> Result<(), Error> {
+    let source = ":word: Before\n\n[role=\"{word}\"]\n:word: After\n:both: {word}\nPara\n";
+    for (mode, header_word, header_both) in [
+        (ASCIIDOCTOR, "After", Some("After")),
+        (DRAFT, "Before", None),
+    ] {
+        let parsed = parse(source, &options(mode)?)?;
+        let attributes = parsed.document().attributes();
+        assert_eq!(
+            attributes
+                .get("word")
+                .and_then(DocumentAttributeValue::text),
+            Some(header_word),
+            "{mode}"
+        );
+        assert_eq!(
+            attributes
+                .get("both")
+                .and_then(DocumentAttributeValue::text),
+            header_both,
+            "{mode}"
+        );
+        assert_eq!(first_metadata(source, mode)?.1, ["Before"], "{mode}");
+    }
+    Ok(())
+}
+
+/// The header attributes are taken after the last entry, so header settings
+/// such as the table of contents position take effect.
+#[test]
+fn untitled_header_entries_set_header_attributes() -> Result<(), Error> {
+    let source = "[[x]]\n:toc: right\n\nPara\n";
+    let parsed = parse(source, &options(ASCIIDOCTOR)?)?;
+    let attributes = parsed.document().attributes();
+    assert_eq!(
+        attributes
+            .get("toc-position")
+            .and_then(DocumentAttributeValue::text),
+        Some("right")
+    );
+    let parsed = parse(source, &options(DRAFT)?)?;
+    assert!(!parsed.document().attributes().contains("toc"));
+    Ok(())
 }
 
 #[test]

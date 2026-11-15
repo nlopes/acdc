@@ -20,9 +20,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Draft mode also accepts those lines above the title in any order, as
   Asciidoctor mode does; the language documentation doesn't address their order.
   After a title, the first empty line still ends the header in both modes.
-  Unlike Asciidoctor, an
-  entry that follows the first block's anchor, attribute list, or block title in
-  a document without a title is still applied in the body.
+- In Asciidoctor mode, a document without a title now also keeps the attribute
+  entries among the first block's anchors, attribute lists, and block titles in
+  its header, as Asciidoctor does. A setting that only works in the header, such
+  as `:toc:` after `[[intro]]`, now takes effect without a warning. The metadata
+  still applies to the first block, and an attribute list before an entry still
+  sees the earlier value. Draft mode keeps these entries in the body, because
+  the language documentation doesn't list block metadata as header lines.
 - `DocumentRef::header_location()` returns the source span of the document
   header, with or without a title.
 - A footnote in the document title is no longer registered twice when an anchor

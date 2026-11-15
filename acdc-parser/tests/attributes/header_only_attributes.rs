@@ -150,6 +150,18 @@ fn untitled_header_boundary_follows_the_mode() -> Result<(), Error> {
     Ok(())
 }
 
+/// In Asciidoctor mode, a document without a title reads the entries among
+/// the first block's metadata into its header.
+#[test]
+fn untitled_entry_among_first_block_metadata_follows_the_mode() -> Result<(), Error> {
+    let source = "[[intro]]\n:toc:\n\nText.\n";
+    let parsed = parse(source, &options(CompatibilityMode::Asciidoctor)?)?;
+    assert_eq!(header_only_warnings(&parsed), []);
+    let parsed = parse(source, &options(CompatibilityMode::Draft)?)?;
+    assert_eq!(header_only_warnings(&parsed), warned(&[("toc", 2)]));
+    Ok(())
+}
+
 #[rstest::rstest]
 fn block_metadata_entry_warns_and_still_applies_for_references(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,

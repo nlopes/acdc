@@ -60,7 +60,7 @@ use crate::{
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{adjust_and_log_parse_error, process_inlines},
         setext,
-        state::BlockContext,
+        state::{BlockContext, UntitledHeaderEntries},
     },
     model::{
         ListLevel, SectionKind, SectionLevel, Substitution, caption, section, substitution::HEADER,
@@ -69,6 +69,7 @@ use crate::{
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet},
+    ops::Range,
     rc::Rc,
 };
 
@@ -85,6 +86,7 @@ peg::parser! {
         pub(crate) rule document() -> Result<Document<'input>, Error>
         = eol()* start:position() comments_before_header:(comment:leading_comment() eol()* { comment })* header_result:header() prepare_manpage_front_matter() header_attributes:header_attribute_snapshot() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
             let ParsedHeader { header, untitled_location: untitled_header_location } = header_result?;
+            let header_attributes = header_attributes.unwrap_or_else(|| state.take_untitled_header_attributes());
             let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
@@ -264,10 +266,17 @@ peg::parser! {
             Ok(document)
         }
 
-        rule header_attribute_snapshot() -> DocumentAttributes<'input>
+        // When the header reads entries among the first block's metadata, the
+        // body applies them, so the snapshot waits for the last one. See
+        // `untitled_header_entries`.
+        rule header_attribute_snapshot() -> Option<DocumentAttributes<'input>>
         = {
-            crate::document_attribute::normalize_toc_attributes(Rc::make_mut(&mut state.document_attributes));
-            DocumentAttributes::clone(&state.document_attributes)
+            if state.untitled_header_entries.is_some() {
+                None
+            } else {
+                crate::document_attribute::normalize_toc_attributes(Rc::make_mut(&mut state.document_attributes));
+                Some(DocumentAttributes::clone(&state.document_attributes))
+            }
         }
 
         rule prepare_manpage_front_matter()
@@ -349,7 +358,8 @@ peg::parser! {
         // After the document title, the first empty line ends the header in
         // both modes. Before the title, Asciidoctor mode ignores empty lines
         // between attribute entries, comments and block metadata, so a document
-        // without a title keeps every leading attribute entry in its header.
+        // without a title keeps every leading attribute entry in its header,
+        // including the entries among the first block's metadata.
         // Draft mode follows the language docs: the first empty line ends the
         // header, with or without a title. Empty lines inside an atomic comment
         // block do not end the surrounding header.
@@ -363,6 +373,7 @@ peg::parser! {
                 end:position!()
                 { (title_authors, end) }
             )?
+            entries:untitled_header_entries(titled.is_none())
             (eol()*<,2> / ![_])
         {
             if let Some(((title, subtitle, authors), end)) = titled {
@@ -404,7 +415,9 @@ peg::parser! {
                 Ok(ParsedHeader { header: Some(header), untitled_location: None })
             } else {
                 tracing::debug!("No document title found in the document header.");
-                let untitled_location = leading_end.map(|end| header_span(state, start, end));
+                let end = entries.as_ref().map(|entries| entries.range.end).or(leading_end);
+                let untitled_location = end.map(|end| header_span(state, start, end));
+                state.untitled_header_entries = entries;
                 Ok(ParsedHeader { header: None, untitled_location })
             }
         }
@@ -427,6 +440,58 @@ peg::parser! {
             (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor)
                 .then_some(())
                 .ok_or("draft mode")
+        }
+
+        // In Asciidoctor mode, a document without a title also reads the
+        // attribute entries among the first block's anchors, attribute lists
+        // and block titles into its header, like Asciidoctor. The metadata
+        // still belongs to the first block. This only finds the entries: the
+        // body applies them in source order, so an attribute list before an
+        // entry still sees the earlier value.
+        rule untitled_header_entries(untitled: bool) -> Option<UntitledHeaderEntries<'input>>
+        = untitled_header(untitled) asciidoctor_mode()
+          entries:&(eol()* &block_metadata_line_match() entries:untitled_metadata_line()* { entries })
+        {
+            let mut entries = entries.into_iter().flatten();
+            entries.next().map(|first| {
+                let last = entries.last().unwrap_or_else(|| first.clone());
+                UntitledHeaderEntries {
+                    range: first.start..last.end,
+                    last_start: last.start,
+                    attributes: None,
+                }
+            })
+        }
+        / { None }
+
+        rule untitled_header(untitled: bool)
+        = {? untitled.then_some(()).ok_or("titled document") }
+
+        // One line of the first block's metadata, matched like
+        // `block_metadata_lines` without applying it. Returns an attribute
+        // entry's range.
+        rule untitled_metadata_line() -> Option<Range<usize>>
+        = line:(
+            start:position!() document_attribute_match() end:position!() &(eol() / ![_]) { Some(start..end) }
+            / (attribute_or_anchor_line_match() / title_line_match()) { None }
+            / metadata_comment_match() { None }
+          ) eol()* { line }
+
+        // An entry the header of a document without a title reads, applied as
+        // a header attribute. See `untitled_header_entries`.
+        rule untitled_header_entry(offset: usize)
+        = start:position!() untitled_header_entry_at(start + offset)
+          att:document_attribute_match() end:position!()
+        {
+            let location = state.create_block_location(start, end, offset);
+            state.apply_untitled_header_entry(&att, location);
+        }
+
+        rule untitled_header_entry_at(offset: usize)
+        = {?
+            state.is_untitled_header_entry(offset)
+                .then_some(())
+                .ok_or("not an untitled header entry")
         }
 
         /// Parse block metadata lines (anchors and attributes) that can appear before a document title.
@@ -786,7 +851,8 @@ peg::parser! {
         // Unused block metadata has no inline effects; document attributes still take effect.
         rule trailing_block_metadata(offset: usize) -> Result<Vec<Block<'input>>, Error>
         = &trailing_block_metadata_match() eol()* events:(
-            event:document_attribute_block(offset) (eol() / ![_]) eol()* { Some(event) }
+            untitled_header_entry(offset) (eol() / ![_]) eol()* { None }
+            / event:document_attribute_block(offset) (eol() / ![_]) eol()* { Some(event) }
             / comment:metadata_comment_line(offset) eol()* { Some(metadata_comment(state, comment)) }
             / (attribute_or_anchor_line_match() / title_line_match()) eol()* { None }
         )+
@@ -1265,7 +1331,9 @@ peg::parser! {
                         attributes.merge(parsed, state.options.compatibility_mode);
                     },
                     BlockMetadataLine::DocumentAttribute(declaration, location) => {
-                        if let Some(event) = state.apply_document_attribute(
+                        if state.is_untitled_header_entry(location.absolute_start) {
+                            state.apply_untitled_header_entry(&declaration, location);
+                        } else if let Some(event) = state.apply_document_attribute(
                             &declaration,
                             false,
                             location,
