@@ -111,6 +111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Image alternatives retain the parser-selected text, including literal trailing dashes in inline images.
 
+- Custom converters can resolve an ordered list's default numbering style with
+  `list::OrderedListNumbering::resolve()`, from its style and marker, or
+  `for_depth()`. The default follows Asciidoctor: `arabic`, `loweralpha`,
+  `lowerroman`, `upperalpha`, `upperroman`, then `arabic` past level 5.
+
 ### Added
 
 - Converters can resolve explicit block substitution settings in every build.

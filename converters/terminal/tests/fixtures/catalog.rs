@@ -51,6 +51,7 @@ terminal_fixture_catalog!([
     (book_special_section_numbering_all, false),
     (nested_sections, false),
     (ordered_list, false),
+    (ordered_list_nesting, false),
     (checklist_contexts, false),
     (nested_list_metadata, false),
     (unordered_list, false),

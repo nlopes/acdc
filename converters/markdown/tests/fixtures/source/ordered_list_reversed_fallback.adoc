@@ -1,0 +1,23 @@
+= Reversed list fallback
+
+Nested reversed lists count up too:
+
+[%reversed]
+. Three
+.. Nested
+[%reversed]
+... Deep B
+... Deep A
+. Two
+
+A reversed Q&A list:
+
+[qanda%reversed]
+First question?:: First answer.
+Second question?:: Second answer.
+
+A markerless list shows no numbers, so it has no warning:
+
+[unnumbered%reversed]
+. No marker
+. Still none

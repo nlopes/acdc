@@ -269,6 +269,9 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     bibliography_backlinks_written: HashSet<String>,
     unsupported_metadata_warnings: HashSet<&'static str>,
     ordered_unstyled_scope_depth: usize,
+    /// Open ordered lists that set `start` or `reversed`. Typst applies their
+    /// `set enum` rule to nested lists too, so those lists reset both values.
+    ordered_sequence_scope_depth: usize,
     unordered_style_scope_depth: usize,
     static_media_warning: StaticMediaWarningState,
     index_catalog: IndexCatalog,
@@ -509,6 +512,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             bibliography_backlinks_written: HashSet::new(),
             unsupported_metadata_warnings: HashSet::new(),
             ordered_unstyled_scope_depth: 0,
+            ordered_sequence_scope_depth: 0,
             unordered_style_scope_depth: 0,
             static_media_warning: StaticMediaWarningState::Pending,
             index_catalog: IndexCatalog::default(),
@@ -3121,19 +3125,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else if markerless {
             self.writer.write_raw_markup("(..numbers) => none");
         } else {
-            let numbering = match attributes
-                .and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
-            {
-                Some(style) => OrderedListNumbering::from_explicit_style(style).unwrap_or_default(),
-                None => match marker.matches('.').count() {
-                    2 => OrderedListNumbering::LowerAlpha,
-                    3 => OrderedListNumbering::LowerRoman,
-                    4 => OrderedListNumbering::UpperAlpha,
-                    5 => OrderedListNumbering::UpperRoman,
-                    _ => OrderedListNumbering::Arabic,
-                },
-            };
-            self.write_ordered_list_numbering(numbering);
+            self.write_ordered_list_numbering(OrderedListNumbering::resolve(
+                attribute_style(attributes),
+                marker,
+            ));
         }
         if attribute_style(attributes) == Some("unstyled") {
             self.writer.write_raw_markup(", body-indent: 0pt");
@@ -3141,15 +3136,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else if self.ordered_unstyled_scope_depth > 0 {
             self.writer.write_raw_markup(", body-indent: 0.5em");
         }
-        if let Some(start) = attributes
-            .and_then(|attributes| attributes.get("start").and_then(AttributeValueRef::as_str))
-            .and_then(|start| start.parse::<i64>().ok())
-            .filter(|start| *start > 0)
-        {
+        let start = ordered_list_start(attributes);
+        let reversed = has_attribute_token(attributes, "options", "reversed");
+        let resets_parent_sequence = self.ordered_sequence_scope_depth > 0;
+        if let Some(start) = start {
             let _ = write!(self.writer, ", start: {start}");
+        } else if resets_parent_sequence {
+            self.writer.write_raw_markup(", start: auto");
         }
-        if has_attribute_token(attributes, "options", "reversed") {
+        if reversed {
             self.writer.write_raw_markup(", reversed: true");
+        } else if resets_parent_sequence {
+            self.writer.write_raw_markup(", reversed: false");
+        }
+        if start.is_some() || reversed {
+            self.ordered_sequence_scope_depth += 1;
         }
         self.writer.write_raw_markup(")\n");
     }
@@ -3157,6 +3158,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn write_ordered_list_end(&mut self, attributes: Option<AttributesRef<'_>>) {
         if attribute_style(attributes) == Some("unstyled") {
             self.ordered_unstyled_scope_depth -= 1;
+        }
+        if ordered_list_start(attributes).is_some()
+            || has_attribute_token(attributes, "options", "reversed")
+        {
+            self.ordered_sequence_scope_depth -= 1;
         }
     }
 
@@ -5316,6 +5322,14 @@ fn has_attribute_token(attributes: Option<AttributesRef<'_>>, name: &str, token:
 
 fn attribute_style(attributes: Option<AttributesRef<'_>>) -> Option<&str> {
     attributes.and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
+}
+
+/// The positive `start` value of an ordered list, if it sets one.
+fn ordered_list_start(attributes: Option<AttributesRef<'_>>) -> Option<i64> {
+    attributes
+        .and_then(|attributes| attributes.get("start").and_then(AttributeValueRef::as_str))
+        .and_then(|start| start.parse::<i64>().ok())
+        .filter(|start| *start > 0)
 }
 
 fn inline_image_fallback_text(image: InlineImageRef<'_>) -> String {

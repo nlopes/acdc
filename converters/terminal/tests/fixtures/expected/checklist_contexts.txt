@@ -26,10 +26,10 @@
 
 • [1m[✔][0m Checklist parent
   1. Ordered child
-    1. [x] Literal lowercase marker
-    2. [X] Literal uppercase marker
-    3. [*] Literal star marker
-    4. [ ] Literal unchecked marker
+    a. [x] Literal lowercase marker
+    b. [X] Literal uppercase marker
+    c. [*] Literal star marker
+    d. [ ] Literal unchecked marker
 • [1m[ ][0m Checklist sibling
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m

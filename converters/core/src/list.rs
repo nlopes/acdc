@@ -1,10 +1,12 @@
 //! Shared list rendering helpers.
 //!
 //! Ordered lists may carry an explicit numbering style (`[upperalpha]`,
-//! `[lowerroman]`, …). Converters that render the marker as literal text (the
-//! terminal and manpage backends) use [`OrderedListNumbering`] to turn a 1-based
-//! item position into the styled marker. The HTML backend instead maps the style
-//! to a CSS class and `<ol type>`, so it does not use this helper.
+//! `[lowerroman]`, …). Without one, the style follows the nesting level of the
+//! list marker. Every backend resolves the style with [`OrderedListNumbering`].
+//! Converters that render the marker as literal text (the terminal and manpage
+//! backends) also use it to turn a 1-based item position into the styled
+//! marker. The HTML backend instead maps the style to a CSS class and
+//! `<ol type>`.
 
 /// The numbering style of an ordered list, resolved from its block style
 /// attribute. Unknown or absent styles resolve to [`Arabic`](Self::Arabic).
@@ -49,17 +51,46 @@ const ROMAN: [(usize, &str); 13] = [
 ];
 
 impl OrderedListNumbering {
+    /// The default style for a list at nesting `depth` (1 = top level), as in
+    /// asciidoctor: arabic, loweralpha, lowerroman, upperalpha, upperroman,
+    /// then arabic for every deeper level.
+    #[must_use]
+    pub const fn for_depth(depth: usize) -> Self {
+        match depth {
+            2 => Self::LowerAlpha,
+            3 => Self::LowerRoman,
+            4 => Self::UpperAlpha,
+            5 => Self::UpperRoman,
+            _ => Self::Arabic,
+        }
+    }
+
+    /// The nesting depth that an ordered list `marker` such as `..` denotes.
+    /// asciidoctor also derives the default style from the marker rather than
+    /// from the actual nesting.
+    #[must_use]
+    pub fn marker_depth(marker: &str) -> usize {
+        marker.matches('.').count().max(1)
+    }
+
+    /// Resolve a list's numbering from its block `style` and its `marker`.
+    /// An absent style uses the default for the marker's depth. An unknown
+    /// style falls back to [`Arabic`](Self::Arabic).
+    #[must_use]
+    pub fn resolve(style: Option<&str>, marker: &str) -> Self {
+        match style {
+            Some(style) => Self::from_explicit_style(style).unwrap_or_default(),
+            None => Self::for_depth(Self::marker_depth(marker)),
+        }
+    }
+
     /// Parse an explicit numbering-style name (a block style attribute value),
     /// returning [`None`] for any unrecognized name — the single source of truth
     /// for which style names exist.
     ///
-    /// Callers that simply want to default an absent/unknown style to [`Arabic`]
-    /// chain `.and_then(OrderedListNumbering::from_explicit_style).unwrap_or_default()`;
-    /// callers that must distinguish "no explicit style" from "explicit `arabic`"
-    /// (e.g. the HTML backend, which otherwise cycles by nesting depth) keep the
-    /// [`Option`].
-    ///
-    /// [`Arabic`]: Self::Arabic
+    /// Most callers want [`resolve`](Self::resolve). Callers that must treat an
+    /// unknown style differently from an absent one, such as the HTML backend,
+    /// which keeps an unknown style as the CSS class, keep the [`Option`].
     #[must_use]
     pub fn from_explicit_style(style: &str) -> Option<Self> {
         match style {
@@ -154,6 +185,34 @@ mod tests {
         assert_eq!(resolve(None), N::Arabic);
         assert_eq!(resolve(Some("bogus")), N::Arabic);
         assert_eq!(resolve(Some("upperroman")), N::UpperRoman);
+    }
+
+    #[test]
+    fn defaults_by_depth_like_asciidoctor() {
+        let styles: Vec<N> = (1..=7).map(N::for_depth).collect();
+        assert_eq!(
+            styles,
+            [
+                N::Arabic,
+                N::LowerAlpha,
+                N::LowerRoman,
+                N::UpperAlpha,
+                N::UpperRoman,
+                N::Arabic,
+                N::Arabic,
+            ]
+        );
+    }
+
+    #[test]
+    fn resolves_style_from_marker_depth() {
+        assert_eq!(N::resolve(None, "."), N::Arabic);
+        assert_eq!(N::resolve(None, ".."), N::LowerAlpha);
+        assert_eq!(N::resolve(None, "....."), N::UpperRoman);
+        assert_eq!(N::resolve(None, "......"), N::Arabic);
+        assert_eq!(N::resolve(None, "1."), N::Arabic);
+        assert_eq!(N::resolve(Some("lowergreek"), ".."), N::LowerGreek);
+        assert_eq!(N::resolve(Some("bogus"), ".."), N::Arabic);
     }
 
     #[test]

@@ -39,6 +39,9 @@ pub(crate) struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
+    /// Indent, in ens, of a list nested in the current list's items. It keeps
+    /// nested markers aligned with the text of the parent item.
+    pub(crate) nested_list_indent: usize,
     /// Whether the current section supplies the manpage name metadata.
     pub(crate) in_name_section: bool,
     /// Strip ASCII indentation from the next text node after a hard break.
@@ -74,6 +77,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
 
             diagnostics,
             list_depth: 0,
+            nested_list_indent: crate::list::LIST_ITEM_INDENT,
             in_name_section: false,
             strip_next_leading_space: false,
             in_inline_span: false,

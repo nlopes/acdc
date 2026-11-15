@@ -51,8 +51,9 @@
 //! content through native Markdown, embedded HTML, or code fallbacks.
 //! Link fallback text honors `hide-uri-scheme`, bracketed email autolinks stay
 //! visible, and link destinations escape Markdown-sensitive characters.
-//! Ordered lists retain reversed numbering, and ordered and unordered lists
-//! retain markerless presentation. GFM uses native task-list syntax, while
+//! Reversed ordered lists count up, with a warning, because Markdown has no
+//! descending numbers. Ordered and unordered lists retain markerless
+//! presentation. GFM uses native task-list syntax, while
 //! `CommonMark` retains checklist state as visible text. Horizontal and Q&A
 //! description lists have distinct layouts. Bibliography entries retain their
 //! anchors and visible bracketed labels.

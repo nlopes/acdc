@@ -16,23 +16,6 @@ fn has_checklist_items<'doc>(mut items: impl Iterator<Item = ListItemRef<'doc>>)
     items.any(|item| item.checked().is_some())
 }
 
-/// The numbering style for a list at the given nesting `depth`.
-/// Cycles through: arabic -> loweralpha -> lowerroman -> upperalpha -> upperroman -> arabic...
-///
-/// Note: This differs from asciidoctor, which stops cycling after depth 5 and uses
-/// `arabic` for all depths > 5. We intentionally continue cycling to provide better
-/// visual distinction in deeply nested lists (6+ levels). This is a design decision
-/// that improves usability for deep hierarchies while maintaining consistency.
-fn numbering_for_depth(depth: u8) -> OrderedListNumbering {
-    match depth % 5 {
-        2 => OrderedListNumbering::LowerAlpha, // a, b, c
-        3 => OrderedListNumbering::LowerRoman, // i, ii, iii
-        4 => OrderedListNumbering::UpperAlpha, // A, B, C
-        0 => OrderedListNumbering::UpperRoman, // I, II, III (depth 5, 10, 15...)
-        _ => OrderedListNumbering::Arabic,     // 1, 2, 3 (depth 1, 6, 11...)
-    }
-}
-
 /// Map a numbering style to its CSS class and `<ol type>` value. The `(class, type)`
 /// pairs match asciidoctor.
 fn numbering_class_and_type(
@@ -58,7 +41,7 @@ fn resolve_ordered_list_style(style: Option<&str>, depth: u8) -> (&str, Option<&
         };
     }
 
-    numbering_class_and_type(numbering_for_depth(depth))
+    numbering_class_and_type(OrderedListNumbering::for_depth(usize::from(depth)))
 }
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
@@ -335,7 +318,8 @@ fn render_checked_status_list<W: Write + ?Sized>(
 ) -> Result<(), Error> {
     // Open nested list
     if is_ordered {
-        let (style, type_attr) = numbering_class_and_type(numbering_for_depth(depth));
+        let (style, type_attr) =
+            numbering_class_and_type(OrderedListNumbering::for_depth(usize::from(depth)));
         if !semantic {
             write!(writer, "<div class=\"olist {style}")?;
             if checked.is_some() {

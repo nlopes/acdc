@@ -1,0 +1,50 @@
+= Ordered list sequence scope
+
+== Start stays with its list
+
+[lowerroman,start=5]
+. Five
+. Six
+[loweralpha]
+.. Child A
+.. Child B
+.. Child C
+. Seven
+
+== Reversed stays with its list
+
+[%reversed]
+. Two
+.. Child A
+.. Child B
+. One
+
+== Nested lists keep their own sequence
+
+[start=3]
+. Three
+[%reversed]
+.. Child B
+.. Child A
+. Four
+
+[%reversed]
+. Two
+[start=4]
+.. Child D
+.. Child E
+. One
+
+== Deeper lists reset too
+
+[start=7]
+. Seven
+* Bullet
+... Grandchild i
+... Grandchild ii
+. Eight
+
+== Later lists start fresh
+
+. One
+. Two

@@ -126,15 +126,15 @@ fn suppresses_list_marker(style: Option<&str>, ordered: bool) -> bool {
         || (ordered && style == Some("unnumbered"))
 }
 
-fn list_sequence(attributes: AttributesRef<'_>, item_count: usize) -> (usize, bool) {
-    let reversed = has_option(attributes, "reversed");
-    let start = attributes
+/// The first number of an ordered list. Markdown renderers number every list
+/// in ascending order, so a reversed list also counts up from here.
+fn list_start(attributes: AttributesRef<'_>) -> usize {
+    attributes
         .get("start")
         .and_then(AttributeValueRef::as_str)
         .and_then(|start| start.parse::<usize>().ok())
         .filter(|start| *start > 0)
-        .unwrap_or(if reversed { item_count } else { 1 });
-    (start, reversed)
+        .unwrap_or(1)
 }
 
 fn table_cells(table: TableRef<'_>) -> impl Iterator<Item = TableCellRef<'_>> {
@@ -1656,7 +1656,6 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             list.items(),
             "-",
             1,
-            false,
             suppresses_list_marker(list.style(), false),
         )
     }
@@ -1687,14 +1686,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                 "rendering numerically",
             )?;
         }
-        let (start, reversed) = list_sequence(list.attributes(), list.items().count());
+        let markerless = suppresses_list_marker(list.style(), true);
+        if !markerless {
+            self.write_reversed_list_warning(list.attributes())?;
+        }
         self.visit_list_items(
             traversal,
             list.items(),
             "1.",
-            start,
-            reversed,
-            suppresses_list_marker(list.style(), true),
+            list_start(list.attributes()),
+            markerless,
         )
     }
 
@@ -2150,14 +2151,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         list: DescriptionListRef<'a>,
     ) -> Result<(), Error> {
+        self.write_reversed_list_warning(list.attributes())?;
         let item_count = list.items().count();
-        let (start, reversed) = list_sequence(list.attributes(), item_count);
+        let start = list_start(list.attributes());
         for (index, item) in list.items().enumerate() {
-            let number = if reversed {
-                start.saturating_sub(index)
-            } else {
-                start.saturating_add(index)
-            };
+            let number = start.saturating_add(index);
             self.write_list_indent()?;
             write!(self.writer, "{number}. <em>")?;
             for (index, term) in item.terms().enumerate() {
@@ -2782,6 +2780,20 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         interdocument_xref(target, extension.strip_prefix('.').unwrap_or(extension))
     }
 
+    /// Markdown has no descending list numbers, so a reversed list counts up,
+    /// with a warning.
+    fn write_reversed_list_warning(&mut self, attributes: AttributesRef<'_>) -> Result<(), Error> {
+        if has_option(attributes, "reversed") {
+            self.write_list_indent()?;
+            self.write_warning(
+                "ordered-list-reversed",
+                "reversed ordered lists",
+                "numbering in ascending order",
+            )?;
+        }
+        Ok(())
+    }
+
     fn write_list_indent(&mut self) -> Result<(), Error> {
         for _ in 0..self.list_depth {
             write!(self.writer, "    ")?;
@@ -2795,16 +2807,11 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
         items: impl Iterator<Item = ListItemRef<'a>>,
         marker: &str,
         start: usize,
-        reversed: bool,
         markerless: bool,
     ) -> Result<(), Error> {
         for (index, item) in items.enumerate() {
             self.write_list_indent()?;
-            let number = if reversed {
-                start.saturating_sub(index)
-            } else {
-                start.saturating_add(index)
-            };
+            let number = start.saturating_add(index);
             let item_marker = if marker.ends_with('.') {
                 format!("{number}.")
             } else {

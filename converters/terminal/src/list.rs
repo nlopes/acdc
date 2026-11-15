@@ -259,14 +259,15 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Renders an ordered list in terminal format.
     ///
     /// Items are numbered from 1 by default. `start` and `%reversed` change the
-    /// sequence, and nested lists start a new sequence. Markerless styles omit
-    /// the item markers.
+    /// sequence, and nested lists start a new sequence. Without an explicit
+    /// style, the marker's nesting level selects the style, as in HTML.
+    /// Markerless styles omit the item markers.
     ///
     /// # Format
     /// ```text
     /// 1. First item
     /// 2. Second item
-    ///    1. Nested item
+    ///    a. Nested item
     /// 3. Third item
     /// ```
     pub(crate) fn render_ordered_list(
@@ -285,11 +286,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         {
             ListMarker::Hidden
         } else {
-            let numbering = list
-                .style()
-                .and_then(OrderedListNumbering::from_explicit_style)
-                .unwrap_or_default();
-            ListMarker::Numbered(numbering)
+            ListMarker::Numbered(OrderedListNumbering::resolve(list.style(), list.marker()))
         };
         let reversed = list.options().iter().any(|value| value == "reversed");
         let start = list

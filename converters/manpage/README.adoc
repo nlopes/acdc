@@ -95,6 +95,9 @@ The manpage converter:
   and poster, with one playback-fallback warning per document
 - Omits markers for `[none]`, `[no-bullet]`, and `[unstyled]` lists, plus
   `[unnumbered]` ordered lists, and honors `%reversed` with optional `start`
+- Numbers ordered lists with their explicit style, or with the default style for
+  their nesting level, as HTML does. Asciidoctor's manpage output always uses
+  `1.`, `2.`
 - Gives `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description
   lists distinct text layouts
 - Shows bibliography labels and renders concealed index terms, nested terms,

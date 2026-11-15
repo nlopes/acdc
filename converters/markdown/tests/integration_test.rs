@@ -774,6 +774,40 @@ fn ordered_list_with_non_numeric_style_warns_and_renders_numerically() -> Result
 }
 
 #[test]
+fn reversed_ordered_list_warns_and_counts_up_from_start() -> Result<(), Error> {
+    for (input, expected_start) in [
+        ("[%reversed]\n. Three\n. Two\n. One\n", 1),
+        ("[%reversed,start=5]\n. Five\n. Four\n", 5),
+    ] {
+        let (output, warnings) = convert_str(input)?;
+        assert!(
+            warnings.iter().any(|warning| warning
+                .message
+                .contains("reversed ordered lists not natively supported")),
+            "expected a reversed-list warning for {input:?}, got: {warnings:?}"
+        );
+        // CommonMark takes only the first number, so it must be the start.
+        let starts: Vec<u64> = MarkdownParser::new_ext(&output, MarkdownParserOptions::empty())
+            .filter_map(|event| {
+                if let Event::Start(Tag::List(Some(start))) = event {
+                    Some(start)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(starts, [expected_start], "output was: {output}");
+    }
+
+    let (_output, warnings) = convert_str("[unnumbered%reversed]\n. Hidden\n")?;
+    assert!(
+        warnings.is_empty(),
+        "markerless lists show no numbers to reverse: {warnings:?}"
+    );
+    Ok(())
+}
+
+#[test]
 fn ordered_list_without_style_does_not_warn() -> Result<(), Error> {
     let (output, warnings) = convert_str(". First\n. Second\n")?;
 

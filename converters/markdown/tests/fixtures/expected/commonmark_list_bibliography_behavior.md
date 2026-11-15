@@ -35,13 +35,15 @@ Ordered unnumbered two
 <a id="_reversed_lists"></a>
 ## Reversed lists
 
-3. Default three
+<!-- Warning: reversed ordered lists not natively supported in Markdown, numbering in ascending order -->
+1. Default three
 2. Default two
-1. Default one
+3. Default one
 
+<!-- Warning: reversed ordered lists not natively supported in Markdown, numbering in ascending order -->
 5. Five
-4. Four
-3. Three
+6. Four
+7. Three
 
 <a id="_bibliography"></a>
 ## Bibliography

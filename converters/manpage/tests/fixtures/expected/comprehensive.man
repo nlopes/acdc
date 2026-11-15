@@ -104,9 +104,9 @@ First step
 Second step
 .RS 0
 .RS 4
-.IP 1. 4
+.IP a. 4
 Sub\-step one
-.IP 2. 4
+.IP b. 4
 Sub\-step two
 .RE
 .RE

@@ -1,0 +1,17 @@
+[upperroman,start=7]
+. Seven
+. Eight
+.. Nested under eight
+. Nine
+
+[start=98]
+. Ninety-eight
+. Ninety-nine
+. One hundred
+
+[lowerroman]
+. One
+. Two
+
+[unnumbered]
+. No marker

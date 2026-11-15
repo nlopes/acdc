@@ -75,6 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Image alternatives retain the parser-selected text in fallback output.
 
+- Nested ordered lists without an explicit style use the default style for
+  their level, as in HTML: `a.` at level 2, `i.` at level 3, `A.` at level 4,
+  `I.` at level 5, and arabic numbers deeper.
+
 ### Fixed
 
 - A single-name author, such as `Jane`, no longer ends with a space in the

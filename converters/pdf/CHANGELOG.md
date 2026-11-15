@@ -72,6 +72,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Missing block images use the same resolved alternative text as embedded images. Replacement characters now appear in this fallback; Asciidoctor PDF keeps block alternatives literal.
 
+- Nested ordered lists no longer inherit their parent's `start` or
+  `%reversed`. In the `[lowerroman,start=5]` example from the AsciiDoc
+  documentation, the nested `[loweralpha]` list now starts at `a` instead of
+  `e`, matching Asciidoctor PDF.
+
 ### Changed
 
 - Source arrows now use the parser’s resolved value consistently in inline

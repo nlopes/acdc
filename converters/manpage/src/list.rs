@@ -17,6 +17,9 @@ use acdc_parser::{
 
 use crate::{Error, ManpageVisitor};
 
+/// The default indent, in ens, of list item text and of nested lists.
+pub(crate) const LIST_ITEM_INDENT: usize = 4;
+
 fn style_suppresses_marker(style: Option<&str>) -> bool {
     matches!(style, Some("none" | "no-bullet" | "unstyled"))
 }
@@ -36,12 +39,19 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             writeln!(self.writer_mut())?;
         }
 
-        let rs_indent = if self.list_depth > 0 { 4 } else { 0 };
+        let rs_indent = if self.list_depth > 0 {
+            self.nested_list_indent
+        } else {
+            0
+        };
         writeln!(self.writer_mut(), ".RS {rs_indent}")?;
         self.list_depth += 1;
+        let parent_nested_indent =
+            std::mem::replace(&mut self.nested_list_indent, LIST_ITEM_INDENT);
 
         let result = render_items(self, traversal);
 
+        self.nested_list_indent = parent_nested_indent;
         self.list_depth -= 1;
         writeln!(self.writer_mut(), ".RE")?;
 
@@ -104,6 +114,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     }
 
     /// Visit an ordered (numbered) list.
+    ///
+    /// The item indent fits the widest marker, so a marker such as `viii.`
+    /// stays on the same line as its text.
     pub(crate) fn render_ordered_list(
         &mut self,
         traversal: &mut TraversalContext<'a>,
@@ -111,30 +124,43 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let suppress_marker =
             style_suppresses_marker(list.style()) || list.style() == Some("unnumbered");
-        let numbering = list
-            .style()
-            .and_then(OrderedListNumbering::from_explicit_style)
-            .unwrap_or_default();
+        let numbering = OrderedListNumbering::resolve(list.style(), list.marker());
         let reversed = list.options().iter().any(|option| option == "reversed");
+        let item_count = list.items().count();
         let start = list
             .attributes()
             .get("start")
             .and_then(AttributeValueRef::as_str)
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
-            .unwrap_or(if reversed { list.items().count() } else { 1 });
-        self.with_list_scope(traversal, list.title(), |visitor, traversal| {
-            for (i, item) in list.items().enumerate() {
-                let w = visitor.writer_mut();
-                if suppress_marker {
-                    writeln!(w, ".IP \"\" 4")?;
-                } else {
+            .unwrap_or(if reversed { item_count } else { 1 });
+        let markers: Vec<String> = if suppress_marker {
+            Vec::new()
+        } else {
+            (0..item_count)
+                .map(|i| {
                     let number = if reversed {
                         start.saturating_sub(i)
                     } else {
                         start.saturating_add(i)
                     };
-                    writeln!(w, ".IP {}. 4", numbering.format(number))?;
+                    format!("{}.", numbering.format(number))
+                })
+                .collect()
+        };
+        // groff moves the text below the marker unless the marker is narrower
+        // than the indent.
+        let indent = markers
+            .iter()
+            .map(|marker| marker.chars().count() + 1)
+            .fold(LIST_ITEM_INDENT, usize::max);
+        self.with_list_scope(traversal, list.title(), |visitor, traversal| {
+            visitor.nested_list_indent = indent;
+            for (i, item) in list.items().enumerate() {
+                let w = visitor.writer_mut();
+                match markers.get(i) {
+                    Some(marker) => writeln!(w, ".IP {marker} {indent}")?,
+                    None => writeln!(w, ".IP \"\" {indent}")?,
                 }
 
                 // Visit principal text

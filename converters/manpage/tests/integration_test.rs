@@ -580,10 +580,11 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
 
 #[test]
 fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
-    // An explicit `[<style>]` on an ordered list drives the `.IP` tag text.
+    // An explicit `[<style>]` on an ordered list drives the `.IP` tag text. The
+    // indent grows past 4 ens only when the widest tag, here `iii.`, needs it.
     let cases = [
         ("upperalpha", [".IP A. 4", ".IP B. 4", ".IP C. 4"]),
-        ("lowerroman", [".IP i. 4", ".IP ii. 4", ".IP iii. 4"]),
+        ("lowerroman", [".IP i. 5", ".IP ii. 5", ".IP iii. 5"]),
         ("lowergreek", [".IP α. 4", ".IP β. 4", ".IP γ. 4"]),
     ];
     for (style, expected_tags) in cases {

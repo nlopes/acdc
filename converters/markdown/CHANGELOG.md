@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Inline image alternatives and tooltips preserve literal trailing dashes instead of replacing them with an em dash.
 
+- Reversed ordered lists, including reversed `[qanda]` lists, count up from
+  `start`, or from 1, with a warning. Markdown has no descending numbers:
+  renderers read only the first number, so the previous `3.`, `2.`, `1.` output
+  displayed as 3, 4, 5.
+
 ### Changed
 
 - Curved quotes and apostrophes retain their punctuation in body text, image

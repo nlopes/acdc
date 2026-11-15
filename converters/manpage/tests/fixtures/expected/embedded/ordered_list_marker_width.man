@@ -1,0 +1,32 @@
+.RS 0
+.IP VII. 6
+Seven
+.IP VIII. 6
+Eight
+.RS 0
+.RS 6
+.IP a. 4
+Nested under eight
+.RE
+.RE
+.IP IX. 6
+Nine
+.RE
+.RS 0
+.IP 98. 5
+Ninety\-eight
+.IP 99. 5
+Ninety\-nine
+.IP 100. 5
+One hundred
+.RE
+.RS 0
+.IP i. 4
+One
+.IP ii. 4
+Two
+.RE
+.RS 0
+.IP "" 4
+No marker
+.RE

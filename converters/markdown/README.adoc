@@ -57,10 +57,10 @@ Supported constructs:
   email autolinks remain visible. Quote, verse, literal, listing, source,
   example, and abstract paragraph styles retain distinct blockquote or
   preformatted treatments.
-- **Lists**: ordered lists preserve reversed numbering. Ordered and unordered
-  lists preserve markerless presentation, including in nested contexts. GFM
-  uses native task-list markers, while CommonMark keeps checked and unchecked
-  state as literal text. Horizontal and Q&A description lists retain distinct
+- **Lists**: Markdown has no descending numbers, so reversed ordered lists
+  count up, with a warning. Ordered and unordered lists preserve markerless
+  presentation, including in nested contexts. GFM uses native task-list
+  markers, while CommonMark keeps checked and unchecked state as literal text. Horizontal and Q&A description lists retain distinct
   layouts; other description styles use a content-preserving regular-list
   fallback.
 - **Code blocks**: fenced with the source language when specified. Source

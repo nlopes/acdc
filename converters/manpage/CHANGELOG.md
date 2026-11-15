@@ -78,6 +78,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Inline image alternatives preserve literal trailing dashes in fallback text.
 
+- Nested ordered lists without an explicit style use the default style for
+  their level, as in HTML: `a.` at level 2, `i.` at level 3, `A.` at level 4,
+  `I.` at level 5, and arabic numbers deeper. Asciidoctor's manpage output
+  numbers every level `1.`, `2.`.
+
+- Ordered list items are indented past their widest marker, so a marker such as
+  `viii.` or `100.` stays on the same line as the item text. Lists nested in
+  these items line up with the item text.
+
 ### Changed
 
 - Block `subs=` settings now work in every build. Literal content, escaped

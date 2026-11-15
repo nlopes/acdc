@@ -1,0 +1,70 @@
+.SH "AUTOMATIC STYLES"
+.RS 0
+.IP 1. 4
+Level 1 one
+.RS 0
+.RS 4
+.IP a. 4
+Level 2 one
+.RS 0
+.RS 4
+.IP i. 4
+Level 3 one
+.RS 0
+.RS 4
+.IP A. 4
+Level 4 one
+.RS 0
+.RS 4
+.IP I. 4
+Level 5 one
+.RS 0
+.RS 4
+.IP 1. 4
+Level 6 one
+.RS 0
+.RS 4
+.IP 1. 4
+Level 7 one
+.IP 2. 4
+Level 7 two
+.RE
+.RE
+.IP 2. 4
+Level 6 two
+.RE
+.RE
+.IP II. 4
+Level 5 two
+.RE
+.RE
+.IP B. 4
+Level 4 two
+.RE
+.RE
+.IP ii. 4
+Level 3 two
+.RE
+.RE
+.IP b. 4
+Level 2 two
+.RE
+.RE
+.IP 2. 4
+Level 1 two
+.RE
+.SH "EXPLICIT PARENT"
+.RS 0
+.IP A. 4
+Parent one
+.RS 0
+.RS 4
+.IP a. 4
+Child one
+.IP b. 4
+Child two
+.RE
+.RE
+.IP B. 4
+Parent two
+.RE

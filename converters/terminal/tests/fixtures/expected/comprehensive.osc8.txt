@@ -79,9 +79,9 @@ A pass-through: <raw>content</raw>.
 [38;5;15m[1m3.2. Ordered lists[0m
 
 1. First
-  1. Sub-first
-    1. Sub-sub-first
-  2. Sub-second
+  a. Sub-first
+    i. Sub-sub-first
+  b. Sub-second
 2. Second
 3. Third
 
