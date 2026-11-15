@@ -1,0 +1,66 @@
+[source,ruby]
+----
+puts "one" # <1>
+puts "two" # <2>
+----
+<1> First callout
++
+.Dropped title
+<2> Second callout
+
+//-
+
+* Outer item
+. Nested item
++
+[loweralpha]
+* Sibling of the outer item
+
+//-
+
+* Outer item
+. Nested item
++
+.Dropped title
+[[dropped-anchor]]
+:dropped-attribute: value
+* Sibling, without {dropped-attribute}
+
+//-
+
+* Item
++
+[loweralpha]
+// A comment with the dropped metadata.
+
+* Sibling in the same list
+
+//-
+
+* Item
+. Nested item
++
+[loweralpha]
+.. Attached list with its style
+* Sibling of the item
+
+//-
+
+Term:: Definition
+* Item in the definition
++
+[qanda]
+Second term:: Second item of the description list
+
+//-
+
+First term:: Definition
++
+Second term:: After a dropped continuation
+
+//-
+
+* Outer item
+Term:: Definition
++
+* Sibling of the outer item

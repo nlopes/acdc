@@ -199,8 +199,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A list attached to a list item with `+` now ends at the next item of an
   enclosing list in both modes, matching Asciidoctor. Previously, `* Next` after
   an ordered list attached to `* Item` was nested in that ordered list. A `+`
-  right before an item of an enclosing list is dropped, and the list continues
-  with that item instead of attaching it as a new list.
+  before an item of the same or an enclosing list is dropped, and the list
+  continues with that item instead of attaching it. This covers ordinary,
+  description, and callout lists. Block attributes, titles, anchors, and
+  attribute entries between the `+` and that item are dropped too, as in
+  Asciidoctor.
 
 - Description lists now group consecutive terms with one shared definition in both
   modes. An authored principal that expands to empty remains present. The read API

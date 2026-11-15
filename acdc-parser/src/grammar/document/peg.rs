@@ -3068,8 +3068,9 @@ peg::parser! {
             }))
         }
 
+        // A dropped `+` before this item leaves no line break to consume.
         rule callout_list_rest_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
-        = eol()+ item:callout_list_item(offset, block_metadata)
+        = eol()* item:callout_list_item(offset, block_metadata)
         {?
             Ok(item)
         }
@@ -3316,6 +3317,7 @@ peg::parser! {
         principal:description_list_principal(offset, block_metadata, term, term_start, term_end, principal_content, principal_start)
         // Now handle auto-attachment and explicit continuation
         attached_content:description_list_attached_content(offset, block_metadata, delimiter)*
+        parent_item_continuation(offset)?
         {
             tracing::debug!("parsing description list item with auto-attachment");
 
@@ -3469,7 +3471,7 @@ peg::parser! {
         // further continuations that belong to the parent item
         rule description_list_explicit_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, delimiter: &'input str) -> Result<Vec<Block<'input>>, Error>
         = continuations:(
-            description_continuation_gap(offset) "+" eol()
+            description_continuation_gap(offset) "+" eol() !at_open_list_item_after_metadata(offset)
             block:block_in_continuation(offset, block_metadata.parent_section_level, Some(ListMarker::Description(delimiter)))
             { block }
           )+
@@ -3484,7 +3486,7 @@ peg::parser! {
         // further continuations that belong to the parent item.
         // Pattern: exactly one newline before + (content\n+\nblock)
         rule list_explicit_continuation_immediate(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: Option<ListMarker<'input>>) -> Result<Block<'input>, Error>
-        = eol() !eol() "+" eol() !at_description_parent_item(offset) !at_ordinary_parent_item(offset)
+        = eol() !eol() "+" eol() !at_open_list_item_after_metadata(offset)
           block:block_in_continuation(offset, block_metadata.parent_section_level, parent_marker)
         {
             tracing::debug!("List immediate continuation block (0 empty lines)");
@@ -3498,18 +3500,31 @@ peg::parser! {
         // further continuations that belong to the parent item.
         // Pattern: two or more newlines before + (content\n\n+\nblock)
         rule list_explicit_continuation_ancestor(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: Option<ListMarker<'input>>) -> Result<Block<'input>, Error>
-        = eol() eol()+ "+" eol() !at_description_parent_item(offset) !at_ordinary_parent_item(offset)
+        = eol() eol()+ "+" eol() !at_open_list_item_after_metadata(offset)
           block:block_in_continuation(offset, block_metadata.parent_section_level, parent_marker)
         {
             tracing::debug!("List ancestor continuation block (1+ empty lines)");
             block
         }
 
-        // Asciidoctor drops a `+` that comes right before an item of an enclosing
-        // list, and the list continues with that item.
+        // Asciidoctor drops a `+` that comes before an item of an open list,
+        // together with any block metadata between them, and the list continues
+        // with that item. Comments without metadata stay attached as comment nodes.
         rule parent_item_continuation(offset: usize)
-        = eol()+ "+" whitespace()* eol()
-          &(at_description_parent_item(offset) / at_ordinary_parent_item(offset))
+        = eol()+ "+" whitespace()* eol() &at_open_list_item_after_metadata(offset)
+          dropped_continuation_metadata()
+
+        rule at_open_list_item_after_metadata(offset: usize)
+        = dropped_continuation_metadata() (
+            at_description_parent_item(offset)
+            / at_ordinary_parent_item(offset)
+            / at_callout_parent_item(offset)
+        )
+
+        // Block metadata, and comments around it, with no block to apply to.
+        rule dropped_continuation_metadata()
+        = ((metadata_comment_match() eol()*)* block_metadata_line_match() eol()*
+            ((block_metadata_line_match() / metadata_comment_match()) eol()*)*)?
 
         // Asciidoctor drops a continuation with no attachable block, including one
         // followed only by unused metadata. Leave that metadata for the block sequence
