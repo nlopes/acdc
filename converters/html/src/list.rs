@@ -1,4 +1,4 @@
-use std::{io::Write, iter::Peekable};
+use std::io::Write;
 
 use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
@@ -110,13 +110,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         } else {
             writeln!(self.writer, "<ul>")?;
         }
-        render_nested_list_items(
+        render_list_items(
             traversal,
-            &mut data.items().peekable(),
+            data.items(),
             self,
-            1,
-            false,
-            1,
             data.options().contains("interactive"),
         )?;
         writeln!(self.writer, "</ul>")?;
@@ -188,13 +185,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             write!(self.writer, " reversed")?;
         }
         writeln!(self.writer, ">")?;
-        render_nested_list_items(
+        render_list_items(
             traversal,
-            &mut data.items().peekable(),
+            data.items(),
             self,
-            1,
-            true,
-            1,
             data.options().contains("interactive"),
         )?;
         writeln!(self.writer, "</ol>")?;
@@ -309,107 +303,18 @@ fn visit_callout_list_semantic<'a, W: Write>(
     Ok(())
 }
 
-fn render_checked_status_list<W: Write + ?Sized>(
-    is_ordered: bool,
-    checked: Option<&ListItemCheckedStatus>,
-    depth: u8,
-    writer: &mut W,
-    semantic: bool,
-) -> Result<(), Error> {
-    // Open nested list
-    if is_ordered {
-        let (style, type_attr) =
-            numbering_class_and_type(OrderedListNumbering::for_depth(usize::from(depth)));
-        if !semantic {
-            write!(writer, "<div class=\"olist {style}")?;
-            if checked.is_some() {
-                writeln!(writer, " checklist\">")?;
-            } else {
-                writeln!(writer, "\">")?;
-            }
-        }
-
-        write!(writer, "<ol class=\"{style}")?;
-        if checked.is_some() {
-            write!(writer, " checklist\"")?;
-        } else {
-            write!(writer, "\"")?;
-        }
-        if let Some(t) = type_attr {
-            writeln!(writer, " type=\"{t}\">")?;
-        } else {
-            writeln!(writer, ">")?;
-        }
-    } else {
-        if !semantic {
-            // check if the item is a checkbox item
-            write!(writer, "<div class=\"ulist")?;
-            if checked.is_some() {
-                writeln!(writer, " checklist\">")?;
-            } else {
-                writeln!(writer, "\">")?;
-            }
-        }
-        write!(writer, "<ul")?;
-        if checked.is_some() {
-            if semantic {
-                writeln!(writer, " class=\"task-list\">")?;
-            } else {
-                writeln!(writer, " class=\"checklist\">")?;
-            }
-        } else {
-            writeln!(writer, ">")?;
-        }
-    }
-    Ok(())
-}
-
-/// `interactive` applies only to this list level. `depth` selects the ordered-list
-/// numbering style (1 = top level).
+/// Render a list's items in order. The parser nests lists, so an item's level
+/// doesn't affect its placement. `interactive` applies only to this list.
 #[tracing::instrument(skip(visitor, traversal, items))]
-fn render_nested_list_items<'a, W: Write>(
+fn render_list_items<'a, W: Write>(
     traversal: &mut TraversalContext<'a>,
-    items: &mut Peekable<impl Iterator<Item = ListItemRef<'a>>>,
+    items: impl Iterator<Item = ListItemRef<'a>>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
-    expected_level: u8,
-    is_ordered: bool,
-    depth: u8,
     interactive: bool,
 ) -> Result<(), Error> {
     let semantic = visitor.converter.variant() == HtmlVariant::Semantic;
-    let wrap_li_in_p = !semantic;
-    while let Some(item) = items.next_if(|item| item.level() >= expected_level) {
+    for item in items {
         render_list_item_content(traversal, item, visitor, interactive, semantic)?;
-        if item.level() == expected_level
-            && let Some(next) = items.peek().copied()
-            && next.level() > expected_level
-        {
-            render_checked_status_list(
-                is_ordered,
-                next.checked().as_ref(),
-                depth + 1,
-                visitor.writer_mut(),
-                !wrap_li_in_p,
-            )?;
-            render_nested_list_items(
-                traversal,
-                items,
-                visitor,
-                next.level(),
-                is_ordered,
-                depth + 1,
-                false,
-            )?;
-            let writer = visitor.writer_mut();
-            if is_ordered {
-                writeln!(writer, "</ol>")?;
-            } else {
-                writeln!(writer, "</ul>")?;
-            }
-            if wrap_li_in_p {
-                writeln!(writer, "</div>")?;
-            }
-        }
         writeln!(visitor.writer_mut(), "</li>")?;
     }
     Ok(())
@@ -666,13 +571,10 @@ fn render_bare_ulist_semantic<'a, W: Write>(
     } else {
         writeln!(visitor.writer, "<ul>")?;
     }
-    render_nested_list_items(
+    render_list_items(
         traversal,
-        &mut data.items().peekable(),
+        data.items(),
         visitor,
-        1,
-        false,
-        1,
         data.options().contains("interactive"),
     )?;
     writeln!(visitor.writer, "</ul>")?;
@@ -695,13 +597,10 @@ fn render_bare_olist_semantic<'a, W: Write>(
     } else {
         writeln!(visitor.writer, "<ol class=\"{style}\">")?;
     }
-    render_nested_list_items(
+    render_list_items(
         traversal,
-        &mut data.items().peekable(),
+        data.items(),
         visitor,
-        1,
-        true,
-        1,
         data.options().contains("interactive"),
     )?;
     writeln!(visitor.writer, "</ol>")?;

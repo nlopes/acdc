@@ -169,6 +169,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor. Previously the default style kept cycling, so a seventh-level
   list used `loweralpha`.
 
+- A list renders its items in order, without regrouping them by item level.
+  Parsed documents render as before, because the parser nests lists itself. A
+  list built or edited through the parser API with items at several levels now
+  renders flat, as in the other backends. An item at level 0 no longer drops
+  itself and every item after it.
+
 ### Changed
 
 - `pass:r,c[(C)]` now displays © instead of escaped HTML entity text;
