@@ -1,0 +1,66 @@
+* Delimited block, then a deeper item
++
+----
+code
+----
+** Nested after the block
+* Sibling
+
+//-
+
+* Paragraph and a blank line, then a deeper item
++
+Attached paragraph.
+
+** Nested after the blank line
+* Sibling
+
+//-
+
+. Ordered item with an example block
++
+====
+Example.
+====
+.. Nested ordered item
+. Ordered sibling
+
+//-
+
+* Item followed by another kind of list
++
+Attached paragraph.
+
+. Nested ordered list
+* Sibling of the first item
+
+//-
+
+* Item followed by a description list
++
+----
+code
+----
+Term:: Definition.
+* Sibling
+
+//-
+
+* Item with a source block
++
+----
+puts 'hi' <1>
+----
+<1> Callout explanation.
+* Sibling after the callout list
+
+//-
+
+* Top-level item
+** Deeper item
++
+----
+code
+----
+*** Nested under the deeper item
+* Top-level sibling

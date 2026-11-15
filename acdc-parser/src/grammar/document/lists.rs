@@ -59,13 +59,47 @@ impl ListMarker<'_> {
                 parent.starts_with(candidate)
             }
             (Self::Ordered(parent), Self::Ordered(candidate)) => {
-                parent.starts_with('.') == candidate.starts_with('.')
-                    && candidate.bytes().filter(|byte| *byte == b'.').count()
-                        <= parent.bytes().filter(|byte| *byte == b'.').count()
+                same_ordered_family(parent, candidate) && dots(candidate) <= dots(parent)
             }
             _ => false,
         }
     }
+}
+
+/// Whether ordered marker `candidate` starts a list nested in an item marked
+/// `base`. As in asciidoctor, numbered markers such as `1.` and `10.` are
+/// siblings, and dotted markers such as `..` nest by their dot count.
+///
+/// Markers of different kinds compare by length. asciidoctor nests a marker of
+/// the other kind unless it continues an enclosing list, but the grammar tracks
+/// only the innermost ordered list, so it can't tell when a numbered marker
+/// returns to a numbered ancestor after a dotted list.
+pub(super) fn ordered_marker_is_deeper(candidate: &str, base: &str) -> bool {
+    if same_ordered_family(candidate, base) {
+        dots(candidate) > dots(base)
+    } else {
+        candidate.len() > base.len()
+    }
+}
+
+/// Whether ordered marker `candidate` belongs to a list that encloses the list
+/// of an item marked `base`. Markers of different kinds compare by length, as
+/// in [`ordered_marker_is_deeper`].
+pub(super) fn ordered_marker_is_shallower(candidate: &str, base: &str) -> bool {
+    if same_ordered_family(candidate, base) {
+        dots(candidate) < dots(base)
+    } else {
+        candidate.len() < base.len()
+    }
+}
+
+/// Dotted markers (`.`, `..`) and numbered markers (`1.`) are separate kinds.
+fn same_ordered_family(first: &str, second: &str) -> bool {
+    first.starts_with('.') == second.starts_with('.')
+}
+
+fn dots(marker: &str) -> usize {
+    marker.bytes().filter(|byte| *byte == b'.').count()
 }
 
 /// Join a list item's first line and continuation lines with newlines.

@@ -181,6 +181,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Outer siblings remain in their list, and a blank line before `+` attaches the
   next block to the ordinary parent. Same-line description markers stay literal.
 
+- A list that follows a list item's attached blocks now nests in that item in
+  both modes, matching Asciidoctor. This covers a deeper item of the same list,
+  such as `**` after a `+` delimited block, or after an attached paragraph and
+  an empty line, as well as ordered, description, and callout lists. These
+  lists were previously parsed as siblings or as separate top-level lists. A
+  callout list nested this way ends at the next item of the enclosing list.
+
+- Numbered ordered list markers such as `10.` are now siblings of `9.`, as in
+  Asciidoctor, instead of starting a nested list.
+
 - Description lists now group consecutive terms with one shared definition in both
   modes. An authored principal that expands to empty remains present. The read API
   uses `item.terms()` and `item.definition()`; term content, anchors, and delimiters

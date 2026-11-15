@@ -25,6 +25,7 @@ use crate::{
             lists::{
                 DescriptionListScope, ListMarker, OrdinaryListScope, assemble_principal_text,
                 build_description_list_topology, calculate_item_end, find_dlist_marker,
+                ordered_marker_is_deeper, ordered_marker_is_shallower,
             },
             manpage::{
                 ManpageNameSection, derive_manpage_header_attrs, derive_name_section_attrs,
@@ -2195,7 +2196,7 @@ peg::parser! {
         rule at_ancestor_ordered_marker(ancestor: Option<&'input str>)
         = whitespace()* marker:ordered_list_marker() whitespace() {?
             match ancestor {
-                Some(m) if marker.len() <= m.len() => Ok(()),
+                Some(m) if !ordered_marker_is_deeper(marker, m) => Ok(()),
                 _ => Err("not ancestor")
             }
         }
@@ -2224,7 +2225,7 @@ peg::parser! {
         // Same-level markers continue the list as siblings; only shallower markers end it
         rule at_shallower_ordered_marker(base_marker: &str)
         = whitespace()* marker:ordered_list_marker() whitespace() {?
-            if marker.len() < base_marker.len() { Ok(()) } else { Err("same-or-deeper") }
+            if ordered_marker_is_shallower(marker, base_marker) { Ok(()) } else { Err("same-or-deeper") }
         }
 
         // Helper rule to check if we're at a deeper unordered marker (for nested same-type lists)
@@ -2238,7 +2239,7 @@ peg::parser! {
         // Used by ordered_list_item_nested_content to detect nested ordered lists
         rule at_deeper_ordered_marker(base_marker: &str)
         = whitespace()* marker:ordered_list_marker() whitespace() {?
-            if marker.len() > base_marker.len() { Ok(()) } else { Err("same-or-shallower") }
+            if ordered_marker_is_deeper(marker, base_marker) { Ok(()) } else { Err("same-or-shallower") }
         }
 
         // Helper rule to check if we're at a list separator (forces list termination)
@@ -2602,9 +2603,14 @@ peg::parser! {
           ) { nested }
         / eol()+ !at_callout_list_item() nested:unordered_list_item_nested_content(offset, block_metadata, current_marker, parent_ordered_marker) { nested }
 
+        // A list after an item's attached blocks nests in the item, as it does
+        // directly after the principal text.
         rule unordered_list_nested_after_attachment(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Result<Block<'input>, Error>
         = eol() &nested_unordered_child_after_metadata(offset, marker, parent_ordered_marker)
           nested:unordered_list_item_nested_content_with_metadata(offset, block_metadata, marker, parent_ordered_marker) {?
+              nested.ok_or("no nested list after attached content")
+          }
+        / nested:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) {?
               nested.ok_or("no nested list after attached content")
           }
 
@@ -2892,9 +2898,14 @@ peg::parser! {
           ) { nested }
         / eol()+ !at_callout_list_item() nested:ordered_list_item_nested_content(offset, block_metadata, current_marker, parent_unordered_marker) { nested }
 
+        // A list after an item's attached blocks nests in the item, as it does
+        // directly after the principal text.
         rule ordered_list_nested_after_attachment(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Result<Block<'input>, Error>
         = eol() &nested_ordered_child_after_metadata(offset, marker, parent_unordered_marker)
           nested:ordered_list_item_nested_content_with_metadata(offset, block_metadata, marker, parent_unordered_marker) {?
+              nested.ok_or("no nested list after attached content")
+          }
+        / nested:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) {?
               nested.ok_or("no nested list after attached content")
           }
 
@@ -2988,7 +2999,7 @@ peg::parser! {
         // Used to terminate nested lists when encountering parent-level or ancestor-level items
         rule at_shallower_or_equal_ordered_marker(parent_marker: &str)
         = whitespace()* marker:ordered_list_marker() whitespace() {?
-            if marker.len() <= parent_marker.len() { Ok(()) } else { Err("deeper") }
+            if ordered_marker_is_deeper(marker, parent_marker) { Err("deeper") } else { Ok(()) }
         }
 
         // Only a column-one marker with nonempty text starts a callout item.
@@ -3087,9 +3098,10 @@ peg::parser! {
           list:callout_list(start, offset, &child_metadata) { list }
 
         // Probe for an implicit child without consuming input. A parent marker
-        // takes precedence even when its text contains a description delimiter.
+        // takes precedence even when its text contains a description delimiter,
+        // and an item of an enclosing ordinary list ends the callout list.
         rule callout_child_marker(offset: usize)
-        = !at_callout_parent_item(offset) (
+        = !at_callout_parent_item(offset) !at_ordinary_parent_item(offset) (
             &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
             / check_line_is_description_list(offset)
         )

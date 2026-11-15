@@ -1,0 +1,247 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "ordered",
+      "marker": "9.",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "9.",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Nine",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 4
+                },
+                {
+                  "line": 1,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "10.",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Ten",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 5
+                },
+                {
+                  "line": 2,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": "11.",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Eleven",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 5
+                },
+                {
+                  "line": 3,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 10
+        }
+      ]
+    },
+    {
+      "name": "comment",
+      "type": "block",
+      "content": "-",
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "ordered",
+      "marker": ".",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "marker": ".",
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Dotted item",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 3
+                },
+                {
+                  "line": 7,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "ordered",
+              "marker": "10.",
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "10.",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "A numbered list nests under a dotted item",
+                      "location": [
+                        {
+                          "line": 8,
+                          "col": 5
+                        },
+                        {
+                          "line": 8,
+                          "col": 45
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 1
+                    },
+                    {
+                      "line": 8,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 45
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 45
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 8,
+      "col": 45
+    }
+  ]
+}

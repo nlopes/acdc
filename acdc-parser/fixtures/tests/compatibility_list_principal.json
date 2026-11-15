@@ -332,43 +332,44 @@
                   "col": 18
                 }
               ]
-            }
-          ],
-          "location": [
-            {
-              "line": 16,
-              "col": 1
             },
             {
-              "line": 21,
-              "col": 18
-            }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 16,
-          "col": 1
-        },
-        {
-          "line": 21,
-          "col": 18
-        }
-      ]
-    },
-    {
-      "name": "dlist",
-      "type": "block",
-      "items": [
-        {
-          "terms": [
-            {
-              "content": [
+              "name": "dlist",
+              "type": "block",
+              "items": [
                 {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Final empty term",
+                  "terms": [
+                    {
+                      "content": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Final empty term",
+                          "location": [
+                            {
+                              "line": 23,
+                              "col": 1
+                            },
+                            {
+                              "line": 23,
+                              "col": 16
+                            }
+                          ]
+                        }
+                      ],
+                      "delimiter": "::",
+                      "location": [
+                        {
+                          "line": 23,
+                          "col": 1
+                        },
+                        {
+                          "line": 23,
+                          "col": 18
+                        }
+                      ]
+                    }
+                  ],
                   "location": [
                     {
                       "line": 23,
@@ -376,12 +377,11 @@
                     },
                     {
                       "line": 23,
-                      "col": 16
+                      "col": 18
                     }
                   ]
                 }
               ],
-              "delimiter": "::",
               "location": [
                 {
                   "line": 23,
@@ -396,7 +396,7 @@
           ],
           "location": [
             {
-              "line": 23,
+              "line": 16,
               "col": 1
             },
             {
@@ -408,7 +408,7 @@
       ],
       "location": [
         {
-          "line": 23,
+          "line": 16,
           "col": 1
         },
         {
