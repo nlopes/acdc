@@ -1,0 +1,21 @@
+[[faq]]
+[qanda.extra%reversed,start=3]
+.Frequently asked
+First? [[first-q]]::
+Second?::
+Shared answer with *bold*.
++
+Attached paragraph.
++
+* Nested list
+Only blocks?::
++
+An attached block without answer text.
+
+//-
+
+* Item with a Q&A list
++
+[qanda]
+[[lead]]Leading anchor?:: _Formatted_ answer.
+`Code` question?::

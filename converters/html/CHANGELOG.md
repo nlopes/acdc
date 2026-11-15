@@ -175,6 +175,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   renders flat, as in the other backends. An item at level 0 no longer drops
   itself and every item after it.
 
+- `[qanda]` lists render as a numbered list with each question in italics,
+  followed by its answer, matching Asciidoctor's `qlist qanda` markup. They
+  rendered as ordinary description lists before. As in Asciidoctor, `start`
+  and `%reversed` don't apply. The semantic variant keeps its
+  `<dl class="qanda">` markup.
+
 ### Changed
 
 - `pass:r,c[(C)]` now displays © instead of escaped HTML entity text;

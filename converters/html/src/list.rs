@@ -4,8 +4,8 @@ use acdc_converters_core::{TraversalContext, list::OrderedListNumbering};
 use acdc_parser::{
     ListItemCheckedStatus,
     ast::{
-        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, DescriptionListRef,
-        DescriptionListTermRef, ListItemRef, OrderedListRef, UnorderedListRef,
+        AttributeValueRef, BlockKind, BlockRef, CalloutListRef, DescriptionListDefinitionRef,
+        DescriptionListRef, DescriptionListTermRef, ListItemRef, OrderedListRef, UnorderedListRef,
     },
 };
 
@@ -376,12 +376,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             crate::write_element_id(&mut self.writer, Some(id))?;
         }
 
-        // Description list
-        let is_horizontal = data.style() == Some("horizontal");
-        if is_horizontal {
-            visit_horizontal_description_list(traversal, list, self)?;
-        } else {
-            visit_standard_description_list(traversal, list, self)?;
+        match data.style() {
+            Some("horizontal") => visit_horizontal_description_list(traversal, list, self)?,
+            Some("qanda") => visit_qanda_list(traversal, list, self)?,
+            Some(_) | None => visit_standard_description_list(traversal, list, self)?,
         }
 
         // Close the description list
@@ -418,14 +416,7 @@ fn visit_horizontal_description_list<'a, W: Write>(
         }
         writeln!(visitor.writer, "</td>\n<td class=\"hdlist2\">")?;
         if let Some(definition) = item.definition() {
-            if let Some(principal) = definition.principal() {
-                write!(visitor.writer, "<p>")?;
-                visitor.visit_content(traversal, principal)?;
-                writeln!(visitor.writer, "</p>")?;
-            }
-            for block in definition.blocks() {
-                traversal.visit_block(visitor, block)?;
-            }
+            render_definition(traversal, definition, visitor)?;
         }
         writeln!(visitor.writer, "</td>\n</tr>")?;
     }
@@ -475,20 +466,58 @@ fn visit_standard_description_list<'a, W: Write>(
         }
         if let Some(definition) = item.definition() {
             writeln!(visitor.writer, "<dd>")?;
-            if let Some(principal) = definition.principal() {
-                write!(visitor.writer, "<p>")?;
-                visitor.visit_content(traversal, principal)?;
-                writeln!(visitor.writer, "</p>")?;
-            }
-            for block in definition.blocks() {
-                traversal.visit_block(visitor, block)?;
-            }
+            render_definition(traversal, definition, visitor)?;
             writeln!(visitor.writer, "</dd>")?;
         }
     }
 
     writer = visitor.writer_mut();
     writeln!(writer, "</dl>")?;
+    Ok(())
+}
+
+/// Renders a Q&A list as a numbered list with each question in italics,
+/// matching asciidoctor. Like asciidoctor, it ignores `start` and `%reversed`.
+fn visit_qanda_list<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    list: DescriptionListRef<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+) -> Result<(), Error> {
+    let class = build_class("qlist qanda", list.roles().iter());
+    writeln!(visitor.writer, " class=\"{class}\">")?;
+    visitor.render_title_content(traversal, list.title(), "<div class=\"title\">", "</div>\n")?;
+    writeln!(visitor.writer, "<ol>")?;
+    for item in list.items() {
+        writeln!(visitor.writer, "<li>")?;
+        for term in item.terms() {
+            write!(visitor.writer, "<p><em>")?;
+            render_description_term(traversal, term, visitor)?;
+            writeln!(visitor.writer, "</em></p>")?;
+        }
+        if let Some(definition) = item.definition() {
+            render_definition(traversal, definition, visitor)?;
+        }
+        writeln!(visitor.writer, "</li>")?;
+    }
+    writeln!(visitor.writer, "</ol>")?;
+    Ok(())
+}
+
+/// Renders a definition's principal text as a paragraph, followed by its
+/// attached blocks.
+fn render_definition<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    definition: DescriptionListDefinitionRef<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+) -> Result<(), Error> {
+    if let Some(principal) = definition.principal() {
+        write!(visitor.writer, "<p>")?;
+        visitor.visit_content(traversal, principal)?;
+        writeln!(visitor.writer, "</p>")?;
+    }
+    for block in definition.blocks() {
+        traversal.visit_block(visitor, block)?;
+    }
     Ok(())
 }
 
