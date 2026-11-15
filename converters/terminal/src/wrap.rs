@@ -135,6 +135,42 @@ pub(crate) fn wrap_ansi_text(text: &str, max_width: usize) -> String {
     result
 }
 
+/// Indent every line of `text` that has visible content by `indent` columns.
+///
+/// A style that is still active at a line break is closed before the indent
+/// and reopened after it, so the indent itself stays unstyled.
+pub(crate) fn indent_ansi_lines(text: &str, indent: usize) -> String {
+    let pad = " ".repeat(indent);
+    let mut result = String::with_capacity(text.len());
+    let mut active_codes: Vec<String> = Vec::new();
+    for (i, line) in text.split('\n').enumerate() {
+        if i > 0 {
+            result.push('\n');
+        }
+        if visible_len(line) > 0 {
+            if active_codes.is_empty() {
+                result.push_str(&pad);
+            } else {
+                result.push_str("\x1b[0m");
+                result.push_str(&pad);
+                result.extend(active_codes.iter().map(String::as_str));
+            }
+        }
+        let mut chars = line.chars().peekable();
+        while let Some(&ch) = chars.peek() {
+            if ch == '\x1b' {
+                let seq = collect_ansi_escape(&mut chars);
+                update_ansi_state_full(&seq, &mut active_codes);
+                result.push_str(&seq);
+            } else {
+                result.push(ch);
+                chars.next();
+            }
+        }
+    }
+    result
+}
+
 /// Token produced by scanning a line for ANSI sequences and words.
 enum Token {
     /// An ANSI escape sequence (CSI or OSC).
@@ -338,6 +374,24 @@ fn wrap_single_line(line: &str, max_width: usize, out: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn indent_skips_lines_without_visible_text() {
+        let input = "one\n\n\x1b[1m\x1b[0m\ntwo\n";
+        assert_eq!(
+            indent_ansi_lines(input, 3),
+            "   one\n\n\x1b[1m\x1b[0m\n   two\n"
+        );
+    }
+
+    #[test]
+    fn indent_keeps_styles_off_the_indent() {
+        let input = "\x1b[4mone\ntwo\x1b[24m\nthree";
+        assert_eq!(
+            indent_ansi_lines(input, 2),
+            "  \x1b[4mone\n\x1b[0m  \x1b[4mtwo\x1b[24m\n  three"
+        );
+    }
 
     #[test]
     fn plain_text_wraps_at_word_boundaries() {

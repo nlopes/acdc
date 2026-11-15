@@ -79,6 +79,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their level, as in HTML: `a.` at level 2, `i.` at level 3, `A.` at level 4,
   `I.` at level 5, and arabic numbers deeper.
 
+- Content attached to a list item starts at the column of the item text, as
+  in HTML, PDF and manpage output. This covers blocks attached with `+` in
+  ordered, bulleted, checklist and callout lists, and lists nested in ordered
+  items. Every line of an attached block is indented, also in description,
+  Q&A and bibliography items, and boxed blocks narrow to fit beside the
+  indent.
+- Ordered and callout list markers are right-aligned to the widest marker in
+  the list, so item text lines up, as in `VII.` and `VIII.` or `9.` and `10.`.
+
 ### Fixed
 
 - A single-name author, such as `Jane`, no longer ends with a space in the

@@ -1,0 +1,92 @@
+= List item attachments
+
+[upperroman,start=7]
+. Seven
+. Eight
++
+Continuation for eight,
+on two lines.
++
+----
+listing in eight
+----
+.. Nested under eight
+. Nine
+
+//-
+
+[start=9]
+. Nine
+. Ten
++
+Ten's continuation.
+. Eleven
+
+//-
+
+* Bullet
++
+Bullet continuation with *bold
+across* a line break.
++
+[NOTE]
+====
+An admonition in a bullet.
+====
++
+.Example in a bullet
+====
+* List inside the example
+====
+** Nested bullet
++
+Nested continuation.
+
+//-
+
+[none]
+* Markerless
++
+Markerless continuation.
+
+//-
+
+* [x] Checked
++
+Checklist continuation.
+
+//-
+
+Term:: Definition
++
+Description continuation,
+on two lines.
++
+----
+description listing
+----
+
+//-
+
+[qanda]
+Question?:: Answer
++
+Answer continuation,
+on two lines.
+
+//-
+
+[bibliography]
+* [[[ref]]] A reference.
++
+Reference continuation.
+
+----
+code <1>
+more <2>
+----
+<1> Callout text
++
+Callout continuation,
+on two lines.
+<2> Second callout

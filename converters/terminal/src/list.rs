@@ -15,13 +15,23 @@ use acdc_parser::{
     },
 };
 
-use crate::{Error, TerminalVisitor};
+use unicode_width::UnicodeWidthStr;
+
+use crate::{Error, TerminalVisitor, wrap::indent_ansi_lines};
 
 /// Write `indent` spaces to the writer. Does nothing when `indent` is 0.
 fn write_indent(w: &mut dyn Write, indent: usize) -> Result<(), Error> {
     if indent > 0 {
         write!(w, "{:indent$}", "", indent = indent)?;
     }
+    Ok(())
+}
+
+/// Write `marker` right-aligned in `width` columns, followed by a space.
+fn write_aligned_marker(w: &mut dyn Write, marker: &str, width: usize) -> Result<(), Error> {
+    let padding = width.saturating_sub(UnicodeWidthStr::width(marker));
+    write_indent(w, padding)?;
+    write!(w, "{marker} ")?;
     Ok(())
 }
 
@@ -50,6 +60,17 @@ enum ListMarker {
     Bullet(UnorderedMarker),
     Numbered(OrderedListNumbering),
     Hidden,
+}
+
+impl ListMarker {
+    /// The marker for item `number`, or `None` when the list hides markers.
+    fn text(self, number: usize, unicode: bool) -> Option<String> {
+        match self {
+            Self::Bullet(marker) => Some(marker.text(unicode).to_string()),
+            Self::Numbered(numbering) => Some(format!("{}.", numbering.format(number))),
+            Self::Hidden => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -108,63 +129,59 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
     /// Render list items with proper indentation.
     ///
-    /// All items in a single list are at the same nesting level. Nested lists appear
-    /// as `Block` children within individual items and are handled by the visitor
-    /// pattern (which reads `converter.list_indent` for the correct indentation).
+    /// Markers are right-aligned to the widest marker, so the item text and
+    /// every attached block start at the same column. Nested lists appear as
+    /// `Block` children within individual items.
     #[tracing::instrument(skip(self, traversal, items))]
     fn render_list_items(
         &mut self,
         traversal: &mut TraversalContext<'a>,
-        items: impl Iterator<Item = ListItemRef<'a>>,
+        items: impl Iterator<Item = ListItemRef<'a>> + Clone,
         indent: usize,
         marker: ListMarker,
         start: usize,
         reversed: bool,
     ) -> Result<(), Error> {
         let unicode = self.converter.appearance.capabilities.unicode;
-        for (idx, item) in items.enumerate() {
-            let number = if reversed {
-                start.saturating_sub(idx)
-            } else {
-                start.saturating_add(idx)
+        let markers: Vec<Option<String>> = (0..items.clone().count())
+            .map(|idx| {
+                let number = if reversed {
+                    start.saturating_sub(idx)
+                } else {
+                    start.saturating_add(idx)
+                };
+                marker.text(number, unicode)
+            })
+            .collect();
+        let width = markers
+            .iter()
+            .flatten()
+            .map(|marker| UnicodeWidthStr::width(marker.as_str()))
+            .max();
+        for (item, marker) in items.zip(&markers) {
+            write_indent(&mut self.writer, indent)?;
+            let column = match (marker, width) {
+                (Some(marker), Some(width)) => {
+                    write_aligned_marker(&mut self.writer, marker, width)?;
+                    indent + width + 1
+                }
+                (None, _) | (_, None) => indent,
             };
-            self.render_list_item(traversal, item, indent, marker, number, unicode)?;
+            self.render_list_item(traversal, item, column, unicode)?;
         }
         Ok(())
     }
 
-    /// Render a single list item with the specified indentation.
-    ///
-    /// After rendering the item's principal text, child blocks (which may include
-    /// nested lists) are visited with an increased `list_indent` on the converter.
+    /// Render a list item's checkbox, principal text and attached blocks after
+    /// its marker. Attached blocks start at `column`, the item text column.
     #[tracing::instrument(skip(self, traversal))]
     fn render_list_item(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         item: ListItemRef<'a>,
-        indent: usize,
-        marker: ListMarker,
-        item_number: usize,
+        column: usize,
         unicode: bool,
     ) -> Result<(), Error> {
-        write_indent(&mut self.writer, indent)?;
-
-        let marker_written = match marker {
-            ListMarker::Bullet(marker) => {
-                write!(self.writer, "{}", marker.text(unicode))?;
-                true
-            }
-            ListMarker::Numbered(numbering) => {
-                write!(self.writer, "{}.", numbering.format(item_number))?;
-                true
-            }
-            ListMarker::Hidden => false,
-        };
-
-        if marker_written {
-            write!(self.writer, " ")?;
-        }
-
         render_checked_status(item.checked().as_ref(), &mut self.writer, unicode)?;
         if item.checked().is_some() {
             write!(self.writer, " ")?;
@@ -175,17 +192,66 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         }
 
         writeln!(self.writer)?;
+        self.render_attached_blocks(traversal, item.blocks(), column)
+    }
 
-        // Render attached blocks with increased indentation.
-        // Set list_indent so nested lists rendered via the visitor pick up the right depth.
-        let nested_indent = indent + 2;
-        let old_indent = self.converter.list_indent.get();
-        self.converter.list_indent.set(nested_indent);
-        for block in item.blocks() {
-            traversal.visit_block(self, block)?;
+    /// Render blocks attached to a list item so that each line starts at `column`.
+    ///
+    /// Nested lists indent their own items. Other blocks render at the
+    /// remaining width and are then indented line by line.
+    fn render_attached_blocks(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        blocks: impl Iterator<Item = BlockRef<'a>>,
+        column: usize,
+    ) -> Result<(), Error> {
+        for block in blocks {
+            if matches!(
+                block.kind(),
+                BlockKind::DescriptionList(_)
+                    | BlockKind::OrderedList(_)
+                    | BlockKind::UnorderedList(_)
+            ) {
+                let previous = self.converter.list_indent.replace(column);
+                let result = traversal.visit_block(self, block);
+                self.converter.list_indent.set(previous);
+                result?;
+            } else {
+                self.render_indented_block(traversal, block, column)?;
+            }
         }
-        self.converter.list_indent.set(old_indent);
+        Ok(())
+    }
 
+    /// Render `block` with every line indented by `indent` columns.
+    fn render_indented_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+        indent: usize,
+    ) -> Result<(), Error> {
+        if indent == 0 {
+            return traversal.visit_block(self, block);
+        }
+        // Terminal images bypass the writer, so earlier text must reach the
+        // terminal first.
+        #[cfg(feature = "images")]
+        self.writer.flush()?;
+        let mut converter = self.converter.clone();
+        converter.terminal_width = converter.terminal_width.saturating_sub(indent);
+        // Lists inside the block indent relative to the block.
+        let previous = self.converter.list_indent.replace(0);
+        let mut buffer = Vec::new();
+        let result = {
+            let mut visitor =
+                TerminalVisitor::new(&mut buffer, &converter, self.diagnostics.reborrow());
+            traversal.visit_block(&mut visitor, block)
+        };
+        self.converter.list_indent.set(previous);
+        result?;
+        let rendered = String::from_utf8_lossy(&buffer);
+        self.writer
+            .write_all(indent_ansi_lines(&rendered, indent).as_bytes())?;
         Ok(())
     }
 
@@ -247,11 +313,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
             self.write_inlines(traversal, content)?;
             writeln!(self.writer)?;
-            let previous = self.converter.list_indent.replace(indent + 2);
-            for block in item.blocks() {
-                traversal.visit_block(self, block)?;
-            }
-            self.converter.list_indent.set(previous);
+            self.render_attached_blocks(traversal, item.blocks(), indent + 2)?;
         }
         Ok(())
     }
@@ -321,10 +383,13 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             writeln!(self.writer)?;
         }
 
-        for item in list.items() {
-            let item_number = item.callout().number();
-            write!(self.writer, "<{item_number}>")?;
-            write!(self.writer, " ")?;
+        let markers: Vec<String> = list
+            .items()
+            .map(|item| format!("<{}>", item.callout().number()))
+            .collect();
+        let width = markers.iter().map(String::len).max().unwrap_or(0);
+        for (item, marker) in list.items().zip(&markers) {
+            write_aligned_marker(&mut self.writer, marker, width)?;
 
             // Render principal text inline
             for node in item.principal().inlines() {
@@ -332,12 +397,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             }
 
             writeln!(self.writer)?;
-
-            // Render attached blocks with indentation
-            for block in item.blocks() {
-                write!(self.writer, "  ")?;
-                traversal.visit_block(self, block)?;
-            }
+            self.render_attached_blocks(traversal, item.blocks(), width + 1)?;
         }
         Ok(())
     }
@@ -445,7 +505,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         }
 
         if let Some(definition) = item.definition() {
-            self.render_description_blocks(traversal, definition.blocks(), indent + 2)?;
+            self.render_attached_blocks(traversal, definition.blocks(), indent + 2)?;
         }
         Ok(())
     }
@@ -496,7 +556,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         // Render description blocks indented
         if let Some(definition) = item.definition() {
-            self.render_description_blocks(traversal, definition.blocks(), indent + 2)?;
+            self.render_attached_blocks(traversal, definition.blocks(), indent + 2)?;
         }
         Ok(())
     }
@@ -550,30 +610,8 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
         // Render description blocks indented
         if let Some(definition) = item.definition() {
-            self.render_description_blocks(traversal, definition.blocks(), indent + 3)?;
+            self.render_attached_blocks(traversal, definition.blocks(), indent + 3)?;
         }
         Ok(())
-    }
-
-    fn render_description_blocks(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        mut blocks: impl Iterator<Item = BlockRef<'a>>,
-        indent: usize,
-    ) -> Result<(), Error> {
-        let previous_indent = self.converter.list_indent.replace(indent);
-        let result = blocks.try_for_each(|block| {
-            if !matches!(
-                block.kind(),
-                BlockKind::DescriptionList(_)
-                    | BlockKind::OrderedList(_)
-                    | BlockKind::UnorderedList(_)
-            ) {
-                write_indent(&mut self.writer, indent)?;
-            }
-            traversal.visit_block(self, block)
-        });
-        self.converter.list_indent.set(previous_indent);
-        result
     }
 }

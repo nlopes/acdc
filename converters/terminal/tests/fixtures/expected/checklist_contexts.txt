@@ -15,9 +15,9 @@
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 
 1. Ordered parent
-  • [1m[ ][0m Unchecked child
-    • [1m[✔][0m Checked grandchild
-  • [1m[✔][0m Checked sibling
+   • [1m[ ][0m Unchecked child
+     • [1m[✔][0m Checked grandchild
+   • [1m[✔][0m Checked sibling
 2. Ordered sibling
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
@@ -26,10 +26,10 @@
 
 • [1m[✔][0m Checklist parent
   1. Ordered child
-    a. [x] Literal lowercase marker
-    b. [X] Literal uppercase marker
-    c. [*] Literal star marker
-    d. [ ] Literal unchecked marker
+     a. [x] Literal lowercase marker
+     b. [X] Literal uppercase marker
+     c. [*] Literal star marker
+     d. [ ] Literal unchecked marker
 • [1m[ ][0m Checklist sibling
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m

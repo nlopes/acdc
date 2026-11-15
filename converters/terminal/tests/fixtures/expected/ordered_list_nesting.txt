@@ -5,18 +5,18 @@
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 
 1. Level 1 one
-  a. Level 2 one
-    i. Level 3 one
-      A. Level 4 one
-        I. Level 5 one
-          1. Level 6 one
-            1. Level 7 one
-            2. Level 7 two
-          2. Level 6 two
-        II. Level 5 two
-      B. Level 4 two
-    ii. Level 3 two
-  b. Level 2 two
+   a. Level 2 one
+       i. Level 3 one
+          A. Level 4 one
+              I. Level 5 one
+                 1. Level 6 one
+                    1. Level 7 one
+                    2. Level 7 two
+                 2. Level 6 two
+             II. Level 5 two
+          B. Level 4 two
+      ii. Level 3 two
+   b. Level 2 two
 2. Level 1 two
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
@@ -24,6 +24,6 @@
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 
 A. Parent one
-  a. Child one
-  b. Child two
+   a. Child one
+   b. Child two
 B. Parent two

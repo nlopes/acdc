@@ -1,0 +1,60 @@
+[1m[4mList item attachments[0m
+
+ VII. Seven
+VIII. Eight
+      Continuation for eight,
+      on two lines.
+      [38;5;8m──────────────────────────────────────────────────────────────────────────[39m
+      listing in eight
+      [38;5;8m──────────────────────────────────────────────────────────────────────────[39m
+      a. Nested under eight
+  IX. Nine
+
+ 9. Nine
+10. Ten
+    Ten’s continuation.
+11. Eleven
+
+• Bullet
+  Bullet continuation with [1mbold
+[0m  [1macross[22m a line break.
+
+  [38;5;12m│[39m [1mNote:[0m
+  [38;5;12m│[39m An admonition in a bullet.
+  [38;5;12m│[39m
+  [38;5;14m┌─ Example 1. Example in a bullet ───────────────────────────────────────────┐[39m
+  [38;5;14m│ [39m                                                                          [38;5;14m │[39m
+  [38;5;14m│ [39m• List inside the example                                                 [38;5;14m │[39m
+  [38;5;14m└────────────────────────────────────────────────────────────────────────────┘[39m
+  • Nested bullet
+    Nested continuation.
+
+Markerless
+Markerless continuation.
+
+• [1m[✔][0m Checked
+  Checklist continuation.
+
+[1mTerm[0m
+  Definition
+  Description continuation,
+  on two lines.
+  [38;5;8m──────────────────────────────────────────────────────────────────────────────[39m
+  description listing
+  [38;5;8m──────────────────────────────────────────────────────────────────────────────[39m
+
+[1mQ: [0m[1mQuestion?[0m
+[2mA: [0mAnswer
+   Answer continuation,
+   on two lines.
+
+[1m[ref][0m A reference.
+  Reference continuation.
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+code [38;5;11m[1m<1>[22m[39m
+more [38;5;11m[1m<2>[22m[39m
+[38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
+<1> Callout text
+    Callout continuation,
+    on two lines.
+<2> Second callout

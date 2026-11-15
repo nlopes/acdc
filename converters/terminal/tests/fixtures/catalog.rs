@@ -56,6 +56,7 @@ terminal_fixture_catalog!([
     (nested_list_metadata, false),
     (unordered_list, false),
     (callout_list_continuation, false),
+    (list_item_attachments, false),
     (description_list_mixed_content, false),
     (description_list_topology, false),
     (table_multi_cell_per_line, false),
