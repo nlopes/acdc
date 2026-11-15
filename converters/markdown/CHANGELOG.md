@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Extension-generated caption and captured-title links now use explicit labels,
+  preserving title formatting and source attributes while following final captions
+  and renamed targets. Repeated conversion preserves the shared parsed document.
+
 - **Breaking:** construct and render Markdown through `Converter`,
   renamed from `Processor`. Variant selection and output behavior are unchanged.
   Import the shared `acdc_converters_core::Converter` trait as `_` when

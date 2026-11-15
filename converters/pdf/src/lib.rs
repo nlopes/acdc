@@ -358,6 +358,8 @@ impl Converter<'_> {
         doc: DocumentRef<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let doc = prepared.document();
         let loaded = self.load_theme(diagnostics)?;
         let theme = &loaded.theme;
         let page_numbering = self.page_numbering_plan(doc, theme);
@@ -392,6 +394,8 @@ impl Converter<'_> {
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<RenderedPdf, Error> {
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let doc = prepared.document();
         self.validate_theme_config_paths(source_file, None)?;
         let loaded = self.load_theme(diagnostics)?;
         let theme = &loaded.theme;

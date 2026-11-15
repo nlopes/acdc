@@ -1,0 +1,18 @@
+= extension-display-removal(1)
+:doctype: manpage
+:docdate: 2026-11-15
+:revdate: 2026-11-15
+:reproducible:
+
+== NAME
+
+extension-display-removal - unresolved generated references
+
+[#removed]
+== Original *title*
+
+Removed content.
+
+== DESCRIPTION
+
+fixture-display::removed[]

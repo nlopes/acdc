@@ -119,14 +119,15 @@ impl Converter<'_> {
         _source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let document = doc;
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
         let attrs: DocumentAttributes<'_> = document.attributes().into();
 
         // This converter borrows from `doc`; its lifetime is independent of `self`.
         let converter: Converter<'_> = Converter {
             options: self.options.clone(),
             parser_options: ParserOptions::default().with_document_attributes(attrs),
-            references: Rc::new(doc.references().into()),
+            references: Rc::new(document.references().into()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
                 document

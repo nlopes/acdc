@@ -180,7 +180,8 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         // This converter borrows from `doc`; its lifetime is independent of `self`.
-        let document = doc;
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
         let converter = Converter {
             parser_options: ParserOptions::default()
                 .with_document_attributes(document.attributes().into()),

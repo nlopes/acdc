@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- Converter fixtures can use `fixture-display::id[]` to exercise captured titles,
+  finalized captions, renamed targets, and missing-target fallback through the
+  public extension API across backends.
+
 ### Fixed
 
 - Fixture generation now exits with an error when parsing or conversion fails, so scripts cannot report success with missing output. Failed conversions preserve existing expectations.

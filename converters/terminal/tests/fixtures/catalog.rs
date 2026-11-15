@@ -1,5 +1,7 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
+    (extension_displays, true),
+    (extension_display_removal, true),
     (description_shared_definitions, true),
     (subs_attributed_passthroughs, true),
     (subs_character_references, true),

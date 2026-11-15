@@ -9,6 +9,8 @@ use std::{
 use acdc_converters_core::Warning;
 use acdc_parser::{Options, ParseResult, SafeMode, parse_file};
 
+mod display;
+
 /// Output and structured diagnostics produced by a fixture adapter.
 pub struct FixtureOutput {
     /// Rendered bytes, before test-specific normalization.
@@ -25,7 +27,32 @@ pub fn parse_fixture(path: &Path) -> Result<ParseResult, Box<dyn Error>> {
     let options = Options::builder()
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
-    Ok(parse_file(path, &options)?)
+    parse_fixture_with_options(path, &options)
+}
+
+/// Parse a fixture with caller-supplied backend defaults and generic fixture processors.
+///
+/// # Errors
+/// Returns an error when parsing or a fixture's extension request fails.
+pub fn parse_fixture_with_options(
+    path: &Path,
+    options: &Options,
+) -> Result<ParseResult, Box<dyn Error>> {
+    // Keep ordinary fixtures on the ordinary parser path. Only the display
+    // fixture family opts into this public extension consumer.
+    let display_fixture = path
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            name.strip_prefix("commonmark_")
+                .unwrap_or(name)
+                .starts_with("extension_display")
+        });
+    if display_fixture {
+        Ok(display::registry()?.parse_file(path, options)?.finish()?)
+    } else {
+        Ok(parse_file(path, options)?)
+    }
 }
 
 /// Discover sorted `.adoc` files directly inside a fixture source directory.

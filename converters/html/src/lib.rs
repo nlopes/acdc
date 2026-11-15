@@ -280,7 +280,8 @@ impl<'a> Converter<'a> {
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let document = doc;
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
         let converter = Converter {
             toc_entries: document.toc_entries().map(TocEntry::from).collect(),
             references: document.references().into(),

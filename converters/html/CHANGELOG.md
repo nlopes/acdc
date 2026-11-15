@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Extension-generated caption and captured-title links now use explicit labels,
+  preserving title formatting and source attributes while following final captions
+  and renamed targets. Repeated conversion preserves the shared parsed document.
+
 - Highlighted source blocks with a line longer than 16 KiB render as plain
   source, with one structured warning per document. Text, callouts, line
   numbers, and selected-line backgrounds are preserved. This acdc limit avoids

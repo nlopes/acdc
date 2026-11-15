@@ -2107,6 +2107,43 @@ its captured attributes and `subs=` settings. Raw source, parsed inline content,
 and rendered output are separate views; extensions need no arena allocation or
 whole-document reparse.
 
+Use `DocumentEditor::capture()` to freeze a target's title, including its raw
+source, substitution order, formatting, and source-position attributes. A
+`CapturedTarget` belongs to one working document and remains a snapshot across
+later edits. Its `display()` method accepts `DisplayIntent::Caption`, `Title`, or
+`CaptionAndTitle`; pass these requests and `InlineBuilder::text()` values to
+`BlockBuilder::paragraph_inlines()` or `unordered_list()`. The list constructor
+still accepts string items; arrays or vectors of `InlineBuilder` values combine
+fragments into one item. Use `InlineBuilder::from()` to mix literal and structured
+items in the same list. `CaptionAndTitle` places the captured title outside the
+caption link. Explicit display labels take precedence over `reftext`, including
+an explicitly empty caption.
+Choose `Title` when a target has no caption; an explicit caption request without
+a prefix uses `[id]` rather than the target's generic reference label.
+
+`finish()` binds requests to surviving handles and their final caption data,
+following renamed output IDs without repeating selection or callbacks. A removed
+handle adds a located unresolved-reference warning and retains a missing target,
+even if another block reuses its old ID. Captions keep their final period and
+omit trailing whitespace in generated links. Captured title inline nodes retain
+their normal formatting and output-stage substitutions; caption resolution does
+not render titles or retain backend strings.
+
+Converter core's `display::prepare()` creates a fresh conversion context whose
+`document()` contains ordinary cross-references with explicit inline labels.
+The standard converters call it automatically. Custom converters should keep the
+returned context alive for traversal. Repeated conversions leave the shared
+`ParseResult` unchanged. Documents without display requests use the borrowed path.
+Native JSON identifies symbolic labels with `generated_display`; checked ASG
+export rejects them in both profiles until prepared through a conversion context.
+
+Direct comparisons with Asciidoctor 2.0.26 and `asciidoctor-lists` confirm explicit
+labels overriding `reftext` and caption punctuation. acdc intentionally freezes
+title attributes at selection and defers captions: the reference extension can
+reevaluate raw titles with later attributes, escape reused rendered titles, and
+retain captions captured before a later edit. These timing behaviors are not
+compatibility claims. User-defined late inline processors remain a later stage.
+
 Successful edits repair references, TOC, scoped footnotes, and unresolved/duplicate
 ID warnings before returning. Other parse and construction warnings retain their
 order; repair refreshes only reference-related warnings. Validation or repair
