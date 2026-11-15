@@ -191,6 +191,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Numbered ordered list markers such as `10.` are now siblings of `9.`, as in
   Asciidoctor, instead of starting a nested list.
 
+- A list attached to a list item with `+` now ends at the next item of an
+  enclosing list in both modes, matching Asciidoctor. Previously, `* Next` after
+  an ordered list attached to `* Item` was nested in that ordered list. A `+`
+  right before an item of an enclosing list is dropped, and the list continues
+  with that item instead of attaching it as a new list.
+
 - Description lists now group consecutive terms with one shared definition in both
   modes. An authored principal that expands to empty remains present. The read API
   uses `item.terms()` and `item.definition()`; term content, anchors, and delimiters

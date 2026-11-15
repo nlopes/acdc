@@ -1,0 +1,48 @@
+* Bullet with an attached ordered list
++
+. Five
+. Six
+* Sibling of the bullet
+
+//-
+
+* Bullet with a paragraph, then a list
++
+Attached paragraph.
++
+. Five
+.. Nested in five
+. Six
+* Sibling of the bullet
+
+//-
+
+. Ordered item with an attached bulleted list
++
+* First bullet
+* Second bullet
+. Sibling of the ordered item
+
+//-
+
+* Top-level item
+** Nested item
++
+. Attached to the nested item
+** Sibling of the nested item
+* Sibling of the top-level item
+
+//-
+
+* Item with an attached list and an empty line
++
+. Five
+
+* Sibling after the empty line
+
+//-
+
+* Item before a dropped continuation
++
+* Sibling, not an attached list
+* Another sibling
