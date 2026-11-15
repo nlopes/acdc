@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Registered extensions now support reader input, including source-ordered
+  callback attribute changes before later conditionals and includes. Applications
+  can compose registries in order with duplicate-name checks before parsing.
+
 - Tree processors can capture titles with `DocumentEditor::capture()` and build
   caption, title, or caption-and-title links through `DisplayIntent` and the inline
   block builders. `BlockBuilder::unordered_list()` accepts both literal strings

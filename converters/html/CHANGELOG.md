@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Reusing a converter for the same document or independent documents now produces
+  stable index anchors and catalog links, with numbering restarted per conversion.
+
 - Extension-generated caption and captured-title links now use explicit labels,
   preserving title formatting and source attributes while following final captions
   and renamed targets. Repeated conversion preserves the shared parsed document.

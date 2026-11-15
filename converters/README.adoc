@@ -6,6 +6,45 @@
 - `link:./pdf[pdf]` - `AsciiDoc` PDF backend backed by the Rust Typst engine
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
 
+== Library processing with extensions
+
+Configure the backend before parsing and wrap it in
+`acdc_converters_core::pipeline::Pipeline`. Its `parse`, `parse_file`, and
+`parse_from_reader` methods run the selected macros, ordered tree processors,
+and structural finalization. `write_to` and `convert` resolve deferred display
+labels before handing the finalized document to the backend.
+
+`ExtensionCatalog` separates named build availability from explicit activation.
+Registering a package invokes no factories. `select` validates all names and
+registration conflicts before input processing; packages run in selection order,
+preserving their own registration order. Repeated selections count once. Attach
+the returned registry with `Pipeline::with_extensions`. An empty selection keeps
+the ordinary parser path without extension indexes or retained title snapshots.
+
+The link:./html/examples/extension_pipeline.rs[extension pipeline example]
+registers and selects an application macro, configures HTML, parses, and writes
+output while retaining both parser and converter warnings:
+
+[source,console]
+----
+cargo run -p acdc-converters-html --example extension_pipeline --all-features
+----
+
+Use the parser registry directly when you need a working session for checked
+edits. Queries observe repairs when issued again; copied selections remain
+snapshots. Document-local handles survive insertion and replacement, and removed
+handles cannot select another block. Normalization repeats without callbacks or
+renumbering. Finishing consumes the session and rejects unresolved requests;
+pipeline parse methods return this finalized, ordinary `ParseResult`.
+
+Each document gets fresh handlers, including when factories are shared across
+parallel callers. Each conversion gets fresh counters and display content while
+preserving the parsed document. Custom backends must create their render state
+per conversion. A processor failure stops processing; earlier successful edits
+and external callback effects remain. Structured parser warnings stay on the
+parse result, and conversion warnings stay in `Diagnostics` or `ConversionResult`
+until the application presents them.
+
 == Development prerequisites
 
 Converter tests are run with `cargo nextest run --all-features`. The terminal

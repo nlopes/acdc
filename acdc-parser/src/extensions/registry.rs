@@ -29,6 +29,37 @@ pub struct RegistryBuilder {
 }
 
 impl RegistryBuilder {
+    /// Append another immutable registry in its registration order.
+    ///
+    /// # Errors
+    /// Rejects duplicate macro or tree-processor names without changing this builder.
+    pub fn extend(&mut self, registry: &Registry) -> Result<&mut Self, RegistrationError> {
+        for descriptor in &registry.0.macros {
+            if self.names.contains_key(&descriptor.name) {
+                return Err(RegistrationError::DuplicateName(descriptor.name.clone()));
+            }
+        }
+        for descriptor in &registry.0.trees {
+            if self.trees.iter().any(|entry| entry.name == descriptor.name) {
+                return Err(RegistrationError::DuplicateTreeProcessor(
+                    descriptor.name.clone(),
+                ));
+            }
+        }
+        let offset = self.macros.len();
+        self.names.extend(
+            registry
+                .0
+                .macros
+                .iter()
+                .enumerate()
+                .map(|(index, entry)| (entry.name.clone(), offset + index)),
+        );
+        self.macros.extend(registry.0.macros.iter().cloned());
+        self.trees.extend(registry.0.trees.iter().cloned());
+        Ok(self)
+    }
+
     /// Register a tree processor after the existing tree processors.
     ///
     /// Names match `[A-Za-z][A-Za-z0-9_-]*` and are independent of macro names.
@@ -168,6 +199,21 @@ impl Registry {
     ) -> Result<ExtensionParseResult, Error> {
         self.parse_using(options, |options, session| {
             crate::parse_file_with_session(path.as_ref(), options, session)
+        })
+    }
+
+    /// Parse a reader with the same session and source-order contract as [`Self::parse`].
+    /// Reader input keeps the ordinary reader attribute and include-origin policy.
+    ///
+    /// # Errors
+    /// Returns input, preprocessing, parsing, or processor errors.
+    pub fn parse_from_reader<R: std::io::Read>(
+        &self,
+        reader: R,
+        options: &Options<'_>,
+    ) -> Result<ExtensionParseResult, Error> {
+        self.parse_using(options, |options, session| {
+            crate::parse_reader_with_session(reader, options, session)
         })
     }
 

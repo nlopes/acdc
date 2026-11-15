@@ -303,8 +303,8 @@ impl<'a> Converter<'a> {
             listing_counter: Rc::new(Cell::new(
                 document.highest_caption_number(CaptionKind::Listing),
             )),
-            index_term_counter: self.index_term_counter.clone(),
-            index_catalog_counter: self.index_catalog_counter.clone(),
+            index_term_counter: Rc::new(Cell::new(0)),
+            index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };

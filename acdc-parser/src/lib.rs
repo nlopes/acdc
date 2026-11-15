@@ -387,6 +387,31 @@ pub fn parse_from_reader<R: std::io::Read>(
     parse_input(result, options, None, warnings_handle)
 }
 
+fn parse_reader_with_session<R: std::io::Read>(
+    mut reader: R,
+    options: &Options<'_>,
+    session: Option<&mut extensions::Session>,
+) -> Result<ParseResult, Error> {
+    let Some(session) = session else {
+        return parse_from_reader(reader, options);
+    };
+    let mut input = String::new();
+    reader.read_to_string(&mut input)?;
+    let options = options
+        .clone()
+        .prepare_for_parse(document_attribute::InputKind::Reader);
+    let warnings: Rc<RefCell<WarningCollection>> = Rc::default();
+    if options
+        .extensions
+        .as_ref()
+        .is_some_and(|registry| registry.may_execute(&input))
+    {
+        return parse_ordered_source(&input, options, None, warnings, session);
+    }
+    let result = Preprocessor::process(&input, &options, Rc::clone(&warnings))?;
+    parse_input(result, options, None, warnings)
+}
+
 /// Parse `AsciiDoc` content from a string.
 ///
 /// The default [`SafeMode::Secure`] turns include directives into links without

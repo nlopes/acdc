@@ -2064,6 +2064,11 @@ source location and a read-only attribute snapshot. Both compatibility modes
 support registrations. Factories are shared; handlers may use document-local,
 non-`Send` state. Completed callback effects remain if later parsing fails.
 
+`Registry::parse`, `parse_file`, and `parse_from_reader` share these stages.
+Reader input preserves ordinary reader attributes and include-origin policy.
+`RegistryBuilder::extend` composes immutable registries in order and rejects
+duplicate macro or tree-processor names before changing the builder.
+
 Nested source ordering supports compound bodies and pipe/exclamation-delimited
 AsciiDoc cells. CSV, TSV, DSV, and custom table separators retain buffered
 preprocessing. Unlike Asciidoctor 2.0.26, callbacks in supported nested bodies can
@@ -2173,6 +2178,14 @@ Earlier successful edits and external callback effects remain if a later process
 fails; a processor sequence is not a transaction. See the `extensions` module
 documentation for registration and processor examples. An empty registry uses the
 ordinary parser path.
+
+For backend-aware parsing through conversion, use converter core's
+`pipeline::Pipeline` with an already configured backend. `ExtensionCatalog`
+separates named availability from explicit activation and rejects unavailable
+selections before parsing. Pipeline parse methods return finalized `ParseResult`
+values with structured warnings; conversion prepares fresh display content and
+leaves parsed storage unchanged. See the
+link:../converters/README.adoc[converter guide] and its runnable library example.
 
 [#parser-fixtures]
 == Parser fixtures

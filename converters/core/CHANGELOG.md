@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Added a shared library pipeline for backend-aware parsing, selected extensions,
+  finalization, and conversion. Named extensions require explicit activation;
+  unavailable names fail before parsing. Files, readers, and source strings retain
+  structured diagnostics and support repeated conversion without changing the
+  parsed document. Inactive pipelines retain ordinary parsing.
+
 - Added `display::prepare()` for custom converters to resolve extension-generated
   caption and captured-title labels into ordinary explicit cross-references for
   each conversion, preserving the shared document and overriding generic `reftext`.

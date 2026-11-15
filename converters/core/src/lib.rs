@@ -55,6 +55,7 @@ mod inline_text;
 pub mod link;
 pub mod list;
 pub mod media;
+pub mod pipeline;
 pub mod section;
 pub mod substitutions;
 pub mod table;
