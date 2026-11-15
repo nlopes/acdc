@@ -2,28 +2,28 @@
 .RS 0
 .IP 1. 4
 Level 1 one
-.RS 0
 .RS 4
+.RS 0
 .IP a. 4
 Level 2 one
-.RS 0
 .RS 4
+.RS 0
 .IP i. 4
 Level 3 one
-.RS 0
 .RS 4
+.RS 0
 .IP A. 4
 Level 4 one
-.RS 0
 .RS 4
+.RS 0
 .IP I. 4
 Level 5 one
-.RS 0
 .RS 4
+.RS 0
 .IP 1. 4
 Level 6 one
-.RS 0
 .RS 4
+.RS 0
 .IP 1. 4
 Level 7 one
 .IP 2. 4
@@ -57,8 +57,8 @@ Level 1 two
 .RS 0
 .IP A. 4
 Parent one
-.RS 0
 .RS 4
+.RS 0
 .IP a. 4
 Child one
 .IP b. 4

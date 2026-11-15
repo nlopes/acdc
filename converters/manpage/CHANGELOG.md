@@ -87,6 +87,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `viii.` or `100.` stays on the same line as the item text. Lists nested in
   these items line up with the item text.
 
+- Content attached to a list item, both `+` continuation blocks and nested
+  lists, starts at the column where the item text starts, as in Asciidoctor.
+  Continuations in ordered, description, Q&A, bibliography, and callout lists
+  previously started at the marker or term, and lists nested in a bulleted
+  item started 4 ens past its text.
+
 ### Changed
 
 - Block `subs=` settings now work in every build. Literal content, escaped

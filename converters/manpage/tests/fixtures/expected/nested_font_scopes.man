@@ -77,7 +77,7 @@ R12 quote body.
 .IP \(bu 2
 R13 list item.
 .RS 2
-.RS 4
+.RS 0
 .TP
 \fBB29 \fII16\fB B30\fR
 R14 description.

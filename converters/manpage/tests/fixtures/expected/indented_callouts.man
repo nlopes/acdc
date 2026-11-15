@@ -114,7 +114,7 @@ I16 attached \fB(1)\fP
 .fam
 .fi
 .if n .RE
-.RS 4
+.RS 0
 .IP \fB(1)\fP 4
 Attached literal marker.
 .RE

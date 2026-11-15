@@ -3,8 +3,8 @@
 Seven
 .IP VIII. 6
 Eight
-.RS 0
 .RS 6
+.RS 0
 .IP a. 4
 Nested under eight
 .RE

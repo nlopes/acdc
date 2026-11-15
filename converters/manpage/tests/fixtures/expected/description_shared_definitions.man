@@ -39,7 +39,7 @@ Shared term groups.
 .br
 Second\fR
 Shared [1] and Shared index\&.
-.RS 0
+.RS
 .sp
 Attached body refers to [1]\&.
 .RE

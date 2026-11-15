@@ -1,0 +1,90 @@
+.RS 0
+.IP VII. 6
+Seven
+.IP VIII. 6
+Eight
+.RS 6
+.sp
+Continuation for eight.
+.RE
+.IP IX. 6
+Nine
+.RE
+.sp
+Paragraph between lists.
+.RS 0
+.IP \(bu 2
+Bullet one
+.RS 2
+.sp
+Continuation for bullet one.
+.RE
+.IP \(bu 2
+Bullet two
+.RS 2
+.RS 0
+.IP \(bu 2
+Nested bullet
+.RS 2
+.RS 0
+.IP \(bu 2
+Third level
+.RE
+.RE
+.RE
+.RE
+.RE
+.sp
+Paragraph between lists.
+.RS 0
+.TP
+\fBTerm one\fR
+Definition one.
+.RS
+.sp
+Continuation for term one.
+.RE
+.TP
+\fBTerm two\fR
+.RS
+.RS 0
+.IP \(bu 2
+Bullet in definition
+.RE
+.RE
+.RE
+.sp
+Paragraph between lists.
+.RS 0
+.TP
+\fBQ: What?\fR
+\fBA:\fP An answer.
+.RS
+.sp
+Continuation for the answer.
+.RE
+.RE
+.sp
+Paragraph between lists.
+.RS 0
+.TP
+\fB[ref]\fR
+ A reference.
+.RS
+.sp
+Continuation for the reference.
+.RE
+.RE
+.sp
+Paragraph between lists.
+.EX
+puts "hi" \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Prints hi
+.RS 4
+.sp
+Continuation for the callout.
+.RE
+.RE

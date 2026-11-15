@@ -1,0 +1,47 @@
+[upperroman,start=7]
+. Seven
+. Eight
++
+Continuation for eight.
+. Nine
+
+Paragraph between lists.
+
+* Bullet one
++
+Continuation for bullet one.
+* Bullet two
+** Nested bullet
+*** Third level
+
+Paragraph between lists.
+
+Term one:: Definition one.
++
+Continuation for term one.
+Term two::
+* Bullet in definition
+
+Paragraph between lists.
+
+[qanda]
+What?:: An answer.
++
+Continuation for the answer.
+
+Paragraph between lists.
+
+[bibliography]
+* [[[ref]]] A reference.
++
+Continuation for the reference.
+
+Paragraph between lists.
+
+[source,ruby]
+----
+puts "hi" # <1>
+----
+<1> Prints hi
++
+Continuation for the callout.

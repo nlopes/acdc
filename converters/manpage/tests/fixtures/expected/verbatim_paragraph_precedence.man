@@ -144,7 +144,7 @@ P14 attached \fB(1)\fP
 .fam
 .fi
 .if n .RE
-.RS 4
+.RS 0
 .IP \fB(1)\fP 4
 Attached source paragraph.
 .RE
@@ -181,7 +181,7 @@ Content stays together until the blank line.
 .TP
 \fBTerm\fR
 Parent description.
-.RS 0
+.RS
 .sp
 .if n .RS 4
 .nf
@@ -190,7 +190,7 @@ P18 attached to description \fB(1)\fP
 .fam
 .fi
 .if n .RE
-.RS 4
+.RS 0
 .IP \fB(1)\fP 4
 Description\-list continuation.
 .RE

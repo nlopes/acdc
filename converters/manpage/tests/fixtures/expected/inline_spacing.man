@@ -84,7 +84,7 @@ M20 Body  with  spaces.
 .IP \(bu 2
 M21 Item  with  spaces.
 .RS 2
-.RS 4
+.RS 0
 .TP
 \fBTerm\fR
 M22 Description  with  spaces.

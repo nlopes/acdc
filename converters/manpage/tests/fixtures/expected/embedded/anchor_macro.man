@@ -10,7 +10,7 @@ Expanded target.
 .IP \(bu 2
 List item.
 .RS 2
-.RS 4
+.RS 0
 .TP
 \fBTerm\fR
 Description.

@@ -112,8 +112,8 @@ outer \fB(1)\fP \fB(2)\fP
 .RS 0
 .IP \fB(1)\fP 4
 Alpha.
-.RS 0
 .RS 4
+.RS 0
 .IP \fB(1)\fP 4
 Inner.
 .RE

@@ -76,14 +76,14 @@ After.
 B11 \fBHighlighted across
 \fR
 the next line.
+.RS
 .RS 0
-.RS 4
 .IP \(bu 2
 B12 Before.
 ##
 After.
 .RS 2
-.RS 4
+.RS 0
 .IP 1. 4
 B13 Before.
 ##

@@ -17,8 +17,19 @@ use acdc_parser::{
 
 use crate::{Error, ManpageVisitor};
 
-/// The default indent, in ens, of list item text and of nested lists.
-pub(crate) const LIST_ITEM_INDENT: usize = 4;
+/// The default indent, in ens, of ordered list item text.
+const ORDERED_ITEM_INDENT: usize = 4;
+
+/// The column where a list item's text starts. The item's attached blocks,
+/// including nested lists, start there too, as in Asciidoctor.
+#[derive(Clone, Copy)]
+enum TextColumn {
+    /// This many ens right of where the item starts, such as the indent of the
+    /// item's `.IP`.
+    Indent(usize),
+    /// The indent of the `.TP` that started the item.
+    Tagged,
+}
 
 fn style_suppresses_marker(style: Option<&str>) -> bool {
     matches!(style, Some("none" | "no-bullet" | "unstyled"))
@@ -39,23 +50,36 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             writeln!(self.writer_mut())?;
         }
 
-        let rs_indent = if self.list_depth > 0 {
-            self.nested_list_indent
-        } else {
-            0
-        };
-        writeln!(self.writer_mut(), ".RS {rs_indent}")?;
-        self.list_depth += 1;
-        let parent_nested_indent =
-            std::mem::replace(&mut self.nested_list_indent, LIST_ITEM_INDENT);
-
+        // A nested list starts at the margin set for its parent item's
+        // attached blocks, which is already the parent's text column.
+        writeln!(self.writer_mut(), ".RS 0")?;
         let result = render_items(self, traversal);
-
-        self.nested_list_indent = parent_nested_indent;
-        self.list_depth -= 1;
         writeln!(self.writer_mut(), ".RE")?;
 
         result
+    }
+
+    /// Render a list item's attached blocks at the item's text column.
+    fn render_attached_blocks(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        blocks: impl Iterator<Item = BlockRef<'a>>,
+        column: TextColumn,
+    ) -> Result<(), Error> {
+        let mut blocks = blocks.peekable();
+        if blocks.peek().is_none() {
+            return Ok(());
+        }
+        match column {
+            TextColumn::Indent(indent) => writeln!(self.writer_mut(), ".RS {indent}")?,
+            // Without a width, `.RS` uses the indent of the preceding `.TP`.
+            TextColumn::Tagged => writeln!(self.writer_mut(), ".RS")?,
+        }
+        for block in blocks {
+            traversal.visit_block(self, block)?;
+        }
+        writeln!(self.writer_mut(), ".RE")?;
+        Ok(())
     }
 
     /// Visit an unordered (bulleted) list.
@@ -95,18 +119,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     writeln!(w)?;
                 }
 
-                // Visit attached blocks (list continuation content).
-                // Wrap in RS 2/RE so continuation text aligns with the item's text
-                // position, not the bullet position. After `.IP \(bu 2`, `.RS 0`
-                // would save the bullet margin; `.RS 2` advances past the bullet
-                // indent to match the text column.
-                if item.blocks().next().is_some() {
-                    writeln!(visitor.writer_mut(), ".RS 2")?;
-                    for block in item.blocks() {
-                        traversal.visit_block(visitor, block)?;
-                    }
-                    writeln!(visitor.writer_mut(), ".RE")?;
-                }
+                visitor.render_attached_blocks(traversal, item.blocks(), TextColumn::Indent(2))?;
             }
 
             Ok(())
@@ -153,9 +166,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         let indent = markers
             .iter()
             .map(|marker| marker.chars().count() + 1)
-            .fold(LIST_ITEM_INDENT, usize::max);
+            .fold(ORDERED_ITEM_INDENT, usize::max);
         self.with_list_scope(traversal, list.title(), |visitor, traversal| {
-            visitor.nested_list_indent = indent;
             for (i, item) in list.items().enumerate() {
                 let w = visitor.writer_mut();
                 match markers.get(i) {
@@ -170,14 +182,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     writeln!(w)?;
                 }
 
-                // Visit attached blocks (list continuation content)
-                if item.blocks().next().is_some() {
-                    writeln!(visitor.writer_mut(), ".RS 0")?;
-                    for block in item.blocks() {
-                        traversal.visit_block(visitor, block)?;
-                    }
-                    writeln!(visitor.writer_mut(), ".RE")?;
-                }
+                visitor.render_attached_blocks(
+                    traversal,
+                    item.blocks(),
+                    TextColumn::Indent(indent),
+                )?;
             }
 
             Ok(())
@@ -244,7 +253,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     Ok(())
                 })?;
                 writeln!(visitor.writer_mut())?;
-                visitor.render_list_item_content(traversal, content, item.blocks(), 0)?;
+                visitor.render_list_item_content(
+                    traversal,
+                    content,
+                    item.blocks(),
+                    TextColumn::Tagged,
+                )?;
             }
             Ok(())
         })
@@ -261,7 +275,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         } else {
             writeln!(self.writer_mut(), ".IP \\(bu 2")?;
         }
-        self.render_list_item_content(traversal, item.principal().inlines(), item.blocks(), 2)
+        self.render_list_item_content(
+            traversal,
+            item.principal().inlines(),
+            item.blocks(),
+            TextColumn::Indent(2),
+        )
     }
 
     fn render_list_item_content(
@@ -269,21 +288,13 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         principal: impl DoubleEndedIterator<Item = InlineRef<'a>> + ExactSizeIterator + Clone,
         blocks: impl Iterator<Item = BlockRef<'a>>,
-        indent: usize,
+        column: TextColumn,
     ) -> Result<(), Error> {
         if principal.len() != 0 {
             self.write_inlines(traversal, principal)?;
             writeln!(self.writer_mut())?;
         }
-        let mut blocks = blocks.peekable();
-        if blocks.peek().is_some() {
-            writeln!(self.writer_mut(), ".RS {indent}")?;
-            for block in blocks {
-                traversal.visit_block(self, block)?;
-            }
-            writeln!(self.writer_mut(), ".RE")?;
-        }
-        Ok(())
+        self.render_attached_blocks(traversal, blocks, column)
     }
 
     fn render_tagged_description_item(
@@ -321,7 +332,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         }
         writeln!(self.writer_mut())?;
         if let Some(definition) = item.definition() {
-            self.render_description_blocks(traversal, definition.blocks(), 4)?;
+            self.render_attached_blocks(traversal, definition.blocks(), TextColumn::Indent(4))?;
         }
         Ok(())
     }
@@ -360,7 +371,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             }
             writeln!(self.writer_mut())?;
         }
-        self.render_description_blocks(traversal, definition.blocks(), 0)
+        self.render_attached_blocks(traversal, definition.blocks(), TextColumn::Tagged)
     }
 
     fn write_description_terms(
@@ -373,23 +384,6 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 write!(self.writer_mut(), "\n.br\n")?;
             }
             self.write_content(traversal, term.content())?;
-        }
-        Ok(())
-    }
-
-    fn render_description_blocks(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        blocks: impl Iterator<Item = BlockRef<'a>>,
-        indent: usize,
-    ) -> Result<(), Error> {
-        let mut blocks = blocks.peekable();
-        if blocks.peek().is_some() {
-            writeln!(self.writer_mut(), ".RS {indent}")?;
-            for block in blocks {
-                traversal.visit_block(self, block)?;
-            }
-            writeln!(self.writer_mut(), ".RE")?;
         }
         Ok(())
     }
@@ -412,14 +406,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     writeln!(w)?;
                 }
 
-                // Visit attached blocks (continuation content)
-                if item.blocks().next().is_some() {
-                    writeln!(visitor.writer_mut(), ".RS 0")?;
-                    for block in item.blocks() {
-                        traversal.visit_block(visitor, block)?;
-                    }
-                    writeln!(visitor.writer_mut(), ".RE")?;
-                }
+                visitor.render_attached_blocks(traversal, item.blocks(), TextColumn::Indent(4))?;
             }
 
             Ok(())

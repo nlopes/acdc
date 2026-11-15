@@ -48,8 +48,8 @@ Beta.
 .RS 0
 .IP \fB(1)\fP 4
 Alpha.
-.RS 0
 .RS 4
+.RS 0
 .IP \(bu 2
 Child.
 .RE
@@ -61,8 +61,8 @@ Beta.
 .RS 0
 .IP \fB(1)\fP 4
 Alpha.
-.RS 0
 .RS 4
+.RS 0
 .TP
 \fBTerm\fR
 Child.
@@ -75,7 +75,7 @@ Beta.
 .RS 0
 .IP \fB(1)\fP 4
 Alpha.
-.RS 0
+.RS 4
 .sp
 Attached.
 .RE
@@ -114,7 +114,7 @@ Beta.
 .IP \(bu 2
 Parent.
 .RS 2
-.RS 4
+.RS 0
 .IP \fB(1)\fP 4
 Alpha.
 .IP \fB(2)\fP 4
@@ -129,7 +129,7 @@ See [nested\-target]\&.
 .IP \(bu 2
 Parent [1]\&.
 .RS 2
-.RS 4
+.RS 0
 .IP \fB(1)\fP 4
 Alpha [2]\&.
 .IP \fB(2)\fP 4
@@ -141,8 +141,8 @@ Beta [3]\&.
 .RS 0
 .IP \fB(1)\fP 4
 Alpha [4]\&.
-.RS 0
 .RS 4
+.RS 0
 .IP \(bu 2
 Child [5]\&.
 .RE

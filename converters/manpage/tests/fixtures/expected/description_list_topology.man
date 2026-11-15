@@ -34,13 +34,13 @@ description\-list\-topology \- verify nested description lists
 .TP
 \fBRoot one\fR
 Root one description.
+.RS
 .RS 0
-.RS 4
 .TP
 \fBChild one\fR
 Child one description.
+.RS
 .RS 0
-.RS 4
 .TP
 \fBGrandchild one\fR
 Grandchild one description.

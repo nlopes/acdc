@@ -40,7 +40,7 @@ second \fB(2)\fP
 .RS 0
 .IP \fB(1)\fP 4
 First \fBexplanation\fR\&.
-.RS 0
+.RS 4
 .sp
 Attached paragraph.
 .RE

@@ -72,8 +72,8 @@ Default one
 .RS 0
 .IP 5. 4
 Explicit five
-.RS 0
 .RS 4
+.RS 0
 .IP a. 4
 Nested one
 .IP b. 4

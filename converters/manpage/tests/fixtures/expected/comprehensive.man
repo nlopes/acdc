@@ -68,7 +68,7 @@ Increase verbosity level.
 .TP
 \fB\fB\-o\fB \fIFILE\fB\fR
 Write output to \fIFILE\fR instead of stdout.
-.RS 0
+.RS
 .sp
 If \fIFILE\fR exists, it will be overwritten.
 .RE
@@ -86,7 +86,7 @@ Item one
 .IP \(bu 2
 Item two with \fBbold\fR
 .RS 2
-.RS 4
+.RS 0
 .IP \(bu 2
 Nested item alpha
 .IP \(bu 2
@@ -102,8 +102,8 @@ Item three
 First step
 .IP 2. 4
 Second step
-.RS 0
 .RS 4
+.RS 0
 .IP a. 4
 Sub\-step one
 .IP b. 4
