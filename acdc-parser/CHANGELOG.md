@@ -57,8 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could compare as equal, so `ifeval::[9007199254740992 == 9007199254740993]`
   was true. Comparisons between an integer and a decimal number, such as
   `9007199254740993 > 9007199254740992.0`, are exact too, matching Asciidoctor.
-  Integer values are exact within the signed 128-bit range, and integer
-  arithmetic within the signed 64-bit range; Asciidoctor has no such limit.
+  Integer values are exact within the signed 128-bit range; Asciidoctor has no
+  such limit.
+- `ifeval` no longer evaluates arithmetic or functions in its operands, matching
+  Asciidoctor and the `ifeval` rules proposed for the AsciiDoc specification.
+  An unquoted operand such as `1 + 1`, `7 / 2`, or `max(1, 9)`, including one
+  that comes from an attribute value, is now text. Comparing it with a number
+  reports a warning that the operands have different types and excludes the
+  content, so `ifeval::[1 + 1 == 2]` no longer includes it.
 
 - Faster processing of included files, especially `lines=` and tag selections,
   while preserving resource limits, source locations, and compatibility modes.

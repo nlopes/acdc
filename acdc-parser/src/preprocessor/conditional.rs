@@ -257,20 +257,13 @@ impl Number {
     /// 2^127 is exactly representable and is the first value above `i128::MAX`.
     const I128_BOUND: f64 = 170_141_183_460_469_231_731_687_303_715_884_105_728.0;
 
-    /// Integer text stays an exact integer; other numbers and arithmetic
-    /// follow evalexpr, which keeps integer results as integers.
+    /// Integer text stays an exact integer; other numbers parse as `f64`.
+    /// Arithmetic isn't evaluated, so an operand such as `1 + 1` stays text.
     fn parse(text: &str) -> Option<Self> {
-        if let Ok(value) = text.parse() {
-            return Some(Self::Integer(value));
-        }
-        if let Ok(value) = text.parse() {
-            return Some(Self::Float(value));
-        }
-        match evalexpr::eval(text) {
-            Ok(evalexpr::Value::Int(value)) => Some(Self::Integer(value.into())),
-            Ok(evalexpr::Value::Float(value)) => Some(Self::Float(value)),
-            _ => None,
-        }
+        text.parse()
+            .map(Self::Integer)
+            .or_else(|_| text.parse().map(Self::Float))
+            .ok()
     }
 
     /// Compares exactly instead of rounding the integer to the nearest `f64`.
@@ -451,19 +444,36 @@ mod tests {
     }
 
     #[test]
-    fn test_ifeval_simple_math() -> Result<(), Error> {
+    fn ifeval_does_not_evaluate_arithmetic() -> Result<(), Error> {
         let line = "ifeval::[1 + 1 == 2]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
             matches!(&conditional, Conditional { condition: Condition::Ifeval(ifeval), content: None } if ifeval.left == EvalValue::String("1 + 1".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("2".to_string()))
         );
-        assert!(conditional.is_true(
-            &DocumentAttributes::default(),
-            &mut String::new(),
-            1,
-            0,
-            None
+
+        // Arithmetic and functions stay text, which doesn't compare with a number.
+        for expression in ["1 + 1 == 2", "7 / 2 == 3", "max(1, 9) == 9"] {
+            assert!(
+                matches!(
+                    evaluate_ifeval(expression, &DocumentAttributes::default()),
+                    Err(Error::InvalidIfEvalDirectiveMismatchedTypes(..))
+                ),
+                "{expression}"
+            );
+        }
+        // Text operands compare as written, not by their arithmetic value.
+        assert!(!evaluate_ifeval(
+            "1+1 == 1 + 1",
+            &DocumentAttributes::default()
         )?);
+
+        let mut attributes = DocumentAttributes::default();
+        assert!(attributes.set("power".into(), "2^10".into()).is_ok());
+        assert!(matches!(
+            evaluate_ifeval("{power} > 1000", &attributes),
+            Err(Error::InvalidIfEvalDirectiveMismatchedTypes(..))
+        ));
+        assert!(evaluate_ifeval("{power} == 2^10", &attributes)?);
         Ok(())
     }
 
@@ -559,8 +569,6 @@ mod tests {
     #[case::negative_beyond_f64_precision("-9007199254740993 < -9007199254740992", true)]
     #[case::near_i64_max("9223372036854775807 == 9223372036854775806", false)]
     #[case::beyond_i64("18446744073709551616 == 18446744073709551617", false)]
-    #[case::arithmetic_stays_exact("9007199254740992 + 1 == 9007199254740993", true)]
-    #[case::arithmetic_not_rounded("9007199254740992 + 1 == 9007199254740992", false)]
     #[case::integer_float_not_rounded("9007199254740993 == 9007199254740992.0", false)]
     #[case::integer_above_float("9007199254740993 > 9007199254740992.0", true)]
     #[case::float_below_integer("9007199254740992.0 < 9007199254740993", true)]
@@ -569,7 +577,6 @@ mod tests {
     #[case::integer_below_fraction("2 < 2.5", true)]
     #[case::negative_integer_above_fraction("-2 > -2.5", true)]
     #[case::fraction_below_integer("1.5 < 2", true)]
-    #[case::float_arithmetic("1 + 1.5 == 2.5", true)]
     fn ifeval_compares_numbers_exactly(
         #[case] expression: &str,
         #[case] expected: bool,
