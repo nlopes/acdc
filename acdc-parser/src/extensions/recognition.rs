@@ -34,6 +34,7 @@ pub(crate) fn recognize<'a>(
     };
     let target = decode(target);
     let arguments = decode(arguments);
+    let source = format!("{name}::{target}[{arguments}]");
     let target = state.intern_cow(apply_attribute_substitutions(
         target,
         &[Substitution::Attributes],
@@ -84,6 +85,7 @@ pub(crate) fn recognize<'a>(
         title,
         invocation: MacroInvocation {
             name: Cow::Borrowed(name),
+            source: Cow::Owned(source),
             target: Cow::Borrowed(target),
             positional: positional
                 .into_iter()

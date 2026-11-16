@@ -103,6 +103,11 @@ impl BlockMacro {
 #[non_exhaustive]
 pub struct MacroInvocation<'a> {
     pub name: Cow<'a, str>,
+    /// The accepted call from its name through the closing bracket, before
+    /// target expansion and argument interpretation. Table-cell escapes follow
+    /// the ordinary cell rules. Outer block metadata and trailing content are
+    /// excluded. Quotes, spacing, and argument slots remain.
+    pub source: Cow<'a, str>,
     pub target: Cow<'a, str>,
     pub positional: Vec<Option<Cow<'a, str>>>,
     pub attributes: ElementAttributes<'a>,
@@ -179,6 +184,7 @@ impl MacroInvocation<'_> {
     pub(super) fn to_owned_invocation(&self) -> MacroInvocation<'static> {
         MacroInvocation {
             name: Cow::Owned(self.name.to_string()),
+            source: Cow::Owned(self.source.to_string()),
             target: Cow::Owned(self.target.to_string()),
             positional: self
                 .positional

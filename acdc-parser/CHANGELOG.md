@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and grouped fragments through `InlineSpec` in generated paragraphs and list
   items.
 
+- Registered block macros retain their accepted call text, including quoted
+  arguments and unexpanded targets, for literal recovery. Tree processors can
+  also report source-located recoverable warnings.
+
 - Registered extensions now support reader input, including source-ordered
   callback attribute changes before later conditionals and includes. Applications
   can compose registries in order with duplicate-name checks before parsing.
