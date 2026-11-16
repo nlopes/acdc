@@ -223,6 +223,49 @@ fn callout_item_markers_stay_on_their_source_line(
     Ok(())
 }
 
+// A callout list item's marker location covers the marker, not the explanation.
+#[rstest::rstest]
+fn callout_item_marker_locations_cover_only_the_marker(
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    #[values(
+        "----\na <1>\nb <2>\n----\n<1> First\n<2> Second *bold*\n",
+        "----\na <.>\nb <.>\n----\n<.> First\n<.> Second *bold*\n"
+    )]
+    source: &str,
+) -> Result<(), Error> {
+    let parsed = parse(
+        source,
+        &Options::builder().with_compatibility_mode(mode).build()?,
+    )?;
+    let list = parsed
+        .document()
+        .blocks()
+        .find_map(|block| {
+            if let BlockKind::CalloutList(list) = block.kind() {
+                Some(list)
+            } else {
+                None
+            }
+        })
+        .ok_or("callout list")?;
+    let mut count = 0;
+    for item in list.items() {
+        let marker = item.callout().location();
+        let line_start = item.location().absolute_start();
+        let expected = source[line_start..]
+            .split_whitespace()
+            .next()
+            .ok_or("marker text")?;
+        assert_eq!(
+            source.get(marker.absolute_start()..=marker.absolute_end()),
+            Some(expected)
+        );
+        count += 1;
+    }
+    assert_eq!(count, 2);
+    Ok(())
+}
+
 #[test]
 fn included_description_delimiters_keep_unicode_source_coordinates() -> Result<(), Error> {
     let directory = tempfile::tempdir()?;

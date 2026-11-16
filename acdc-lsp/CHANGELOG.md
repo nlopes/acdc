@@ -20,7 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Callout list markers such as `<1>` are highlighted again when an include, an
   excluded conditional, or a comment line inside a paragraph comes earlier in
-  the document. Before, their highlight was misplaced or missing.
+  the document. Before, their highlight was misplaced or missing. The marker
+  token now covers only `<1>`; the explanation after it was highlighted as an
+  operator too.
 
 ### Added
 

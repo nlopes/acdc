@@ -206,10 +206,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor.
 
 - A callout list item's marker location (`callout().location()`, `callout.location`
-  in native JSON) is now on the item's own line. Before, an include, an
-  excluded conditional, or a comment line inside a paragraph earlier in the
-  document moved it by the number of lines added or removed, so editors using
-  it, such as acdc-lsp, could highlight `<1>` on the wrong line.
+  in native JSON, `callout_location` in the acdc ASG profile) now covers just
+  the marker, such as `<1>`, on the item's own line. Before, it covered the
+  item's whole first line, and an include, an excluded conditional, or a
+  comment line inside a paragraph earlier in the document moved it by the
+  number of lines added or removed, so editors using it, such as acdc-lsp,
+  could highlight `<1>` on the wrong line.
 
 - Description lists now group consecutive terms with one shared definition in both
   modes. An authored principal that expands to empty remains present. The read API

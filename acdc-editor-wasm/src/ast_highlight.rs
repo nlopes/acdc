@@ -1686,7 +1686,19 @@ mod tests {
         let input = "Text\n// A comment line.\n\n----\nputs 1 # <1>\n----\n<1> First callout\n";
         let result = highlight(input);
         assert!(
-            result.contains("\n<span class=\"adoc-callout\">&lt;1&gt; First callout</span>"),
+            result.contains("\n<span class=\"adoc-callout\">&lt;1&gt;</span> First callout\n"),
+            "result: {result}"
+        );
+    }
+
+    // The callout span covers the marker only, not the explanation after it.
+    #[test]
+    fn test_callout_list_marker_span_covers_only_the_marker() {
+        let result = highlight("----\nputs 1 # <1>\n----\n<1> A *bold* explanation\n");
+        assert!(
+            result.contains(
+                "\n<span class=\"adoc-callout\">&lt;1&gt;</span> A <span class=\"adoc-bold\">"
+            ),
             "result: {result}"
         );
     }

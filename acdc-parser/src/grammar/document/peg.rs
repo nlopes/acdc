@@ -3125,7 +3125,9 @@ peg::parser! {
 
         rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
         = at_callout_list_item()
+        marker_start:position!()
         marker:callout_list_marker()
+        marker_end:position!()
         whitespace()
         first_line_start:position!()
         // Parse first line (principal text)
@@ -3158,14 +3160,15 @@ peg::parser! {
                 .chain(explicit_continuations)
                 .collect::<Result<Vec<_>, _>>()?;
 
-            let location = state.create_location(span_start+offset, item_end+offset);
+            // The marker's location covers `<N>` only; the principal has its own.
+            let location = state.create_location(marker_start+offset, marker_end.saturating_sub(1)+offset);
 
             // Create a placeholder callout - will be resolved in callout_list
             // We pass the marker string to the parent rule for resolution
             let callout = if marker == "<.>" {
-                CalloutMarker::auto(0, location.clone()) // Number will be resolved later
+                CalloutMarker::auto(0, location) // Number will be resolved later
             } else {
-                CalloutMarker::explicit(0, location.clone())
+                CalloutMarker::explicit(0, location)
             };
 
             let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };

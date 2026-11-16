@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Callout list markers such as `<1>` are highlighted on their own line when a
   comment line inside a paragraph, an excluded conditional, or an include comes
   earlier in the document. Before, the highlight landed on an earlier line and
-  could split a block delimiter.
+  could split a block delimiter. The callout highlight now covers only `<1>`,
+  not the explanation after it.
 
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
 

@@ -731,3 +731,28 @@ fn callout_list_markers_stay_on_their_line_after_removed_lines() -> TestResult {
     }
     Ok(())
 }
+
+// The marker token covers `<1>` only; the explanation text is not an operator.
+#[test]
+fn callout_list_marker_token_covers_only_the_marker() -> TestResult {
+    let source = "----\nputs 1 # <1>\n----\n<1> A *bold* explanation\n";
+    for mode in MODES {
+        let tokens = decoded_in(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let line: Vec<_> = tokens.iter().filter(|token| token.0 == 3).collect();
+        let operators: Vec<_> = line
+            .iter()
+            .filter(|token| token.3 == "operator")
+            .map(|token| (token.1, token.2.as_str()))
+            .collect();
+        assert_eq!(operators, [(0, "<1>")], "{mode:?}: {tokens:?}");
+        assert!(
+            line.iter()
+                .any(|token| token.2 == "*bold*" && token.3 == "variable"),
+            "{mode:?}: {tokens:?}"
+        );
+    }
+    Ok(())
+}
