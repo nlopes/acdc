@@ -11,7 +11,7 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options,
-    pipeline::{ExtensionCatalog, ExtensionSelectionError, Pipeline},
+    pipeline::{ExtensionCatalog, ExtensionSelectionError, Extensions, Pipeline},
 };
 use acdc_parser::{
     Error as ParserError, Options as ParserOptions, OptionsBuilder, SafeMode, WarningKind,
@@ -117,7 +117,7 @@ fn catalog(created: &Arc<AtomicUsize>) -> Result<ExtensionCatalog, Box<dyn std::
     Ok(catalog)
 }
 
-fn pipeline(registry: Option<Registry>) -> Result<Pipeline<JsonConverter>, Error> {
+fn pipeline(registry: Option<Extensions>) -> Result<Pipeline<JsonConverter>, Error> {
     let pipeline = Pipeline::new(JsonConverter::new(
         Options::default(),
         ParserOptions::builder(),
@@ -289,7 +289,7 @@ fn pipeline_finalizes_once_and_prepares_explicit_labels_for_custom_backends() ->
     let mut builder = Registry::builder();
     builder.register_tree_processor(TreeProcessorRegistration::new("capture", || Capture))?;
     let registry = builder.build();
-    let pipeline = pipeline(Some(registry.clone()))?;
+    let pipeline = pipeline(Some(registry.clone().into()))?;
     let mut working = registry.parse(
         ":listing-caption: Code\n\n.A *title*\n[#code,reftext=Other]\n----\nbody\n----",
         pipeline.converter().parser_options(),
@@ -316,7 +316,7 @@ fn pipeline_empty_registries_keep_the_direct_path_and_reader_errors() -> TestRes
             Err(io::Error::other("reader failed"))
         }
     }
-    let pipeline = pipeline(Some(Registry::default()))?;
+    let pipeline = pipeline(Some(Registry::default().into()))?;
     let parsed = pipeline.parse("Paragraph.")?;
     assert!(serde_json::to_string(&parsed.document())?.contains("Paragraph."));
     assert!(pipeline.parse_from_reader(Broken).is_err());
@@ -335,10 +335,11 @@ fn pipeline_registry_composition_rejects_conflicts_atomically() -> TestResult {
         catalog.register("invalid name", Registry::default()),
         Err(ExtensionSelectionError::InvalidName(_))
     ));
-    let original = catalog.select(["counter"])?.ok_or("active registry")?;
+    let selected = catalog.select(["counter"])?.ok_or("active registry")?;
+    let original = selected.parser_registry().ok_or("parser registry")?;
     let mut incoming = Registry::builder();
     incoming.register(BlockMacro::new("fresh", || Counter { calls: 0 }))?;
-    incoming.extend(&original)?;
+    incoming.extend(original)?;
     let incoming = incoming.build();
     catalog.register("conflict", incoming.clone())?;
     assert!(matches!(
@@ -347,9 +348,9 @@ fn pipeline_registry_composition_rejects_conflicts_atomically() -> TestResult {
     ));
     assert_eq!(created.load(Ordering::SeqCst), 0);
     let mut builder = Registry::builder();
-    builder.extend(&original)?;
+    builder.extend(original)?;
     assert!(builder.extend(&incoming).is_err());
-    let pipeline = pipeline(Some(builder.build()))?;
+    let pipeline = pipeline(Some(builder.build().into()))?;
     let parsed = pipeline.parse("count::one[]\n\nfresh::idle[]")?;
     let rendered = render(&pipeline, parsed.document())?.0.to_string();
     assert!(rendered.contains("one:1"));
@@ -386,5 +387,47 @@ fn pipeline_selection_order_controls_processor_order() -> TestResult {
     let text = render(&pipeline, parsed.document())?.0.to_string();
     assert!(text.contains("first"));
     assert!(!text.contains("second"));
+    Ok(())
+}
+
+#[test]
+fn pipeline_renderer_factories_wait_for_matching_backend_sessions() -> TestResult {
+    use acdc_converters_core::render::{
+        BlockRenderProcessor, BlockRenderer, RenderError, RenderHost,
+    };
+
+    struct Decline;
+    impl BlockRenderProcessor for Decline {
+        fn render(
+            &mut self,
+            _: acdc_parser::ast::BlockRef<'_>,
+            _: &mut dyn RenderHost,
+        ) -> Result<bool, RenderError> {
+            Ok(false)
+        }
+    }
+
+    let created = Arc::new(AtomicUsize::new(0));
+    let factory_created = Arc::clone(&created);
+    let registrations =
+        Extensions::default().with_renderer(BlockRenderer::new("html", move || {
+            factory_created.fetch_add(1, Ordering::SeqCst);
+            Decline
+        }));
+    let mut available = ExtensionCatalog::default();
+    available.register("renderer", registrations)?;
+    assert_eq!(created.load(Ordering::SeqCst), 0);
+    assert!(available.select([] as [&str; 0])?.is_none());
+    assert!(available.select(["unknown"]).is_err());
+    let selected = available
+        .select(["renderer", "renderer"])?
+        .ok_or("selected renderer")?;
+    assert!(selected.parser_registry().is_none());
+    assert!(selected.render_session("markdown").is_none());
+    assert_eq!(created.load(Ordering::SeqCst), 0);
+    let first = selected.render_session("html").ok_or("first session")?;
+    let second = selected.render_session("html").ok_or("second session")?;
+    assert_eq!(created.load(Ordering::SeqCst), 2);
+    drop((first, second));
     Ok(())
 }

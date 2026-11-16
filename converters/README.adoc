@@ -18,7 +18,8 @@ labels before handing the finalized document to the backend.
 Registering a package invokes no factories. `select` validates all names and
 registration conflicts before input processing; packages run in selection order,
 preserving their own registration order. Repeated selections count once. Attach
-the returned registry with `Pipeline::with_extensions`. An empty selection keeps
+the returned `Extensions` with `Pipeline::with_extensions`. Parser registries are
+also accepted directly. An empty selection keeps
 the ordinary parser path without extension indexes or retained title snapshots.
 
 The link:./html/examples/extension_pipeline.rs[extension pipeline example]

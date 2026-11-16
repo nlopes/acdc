@@ -11,6 +11,7 @@ use std::{
 
 use acdc_parser::extensions::{
     BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroExecutionContext, MacroInvocation,
+    Registry,
 };
 use clap::{Parser, ValueEnum};
 

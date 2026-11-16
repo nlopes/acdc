@@ -15,7 +15,7 @@
 //! run once at committed source boundaries; tree processors run once after parsing.
 //! No handler is shared across documents, even when registry factories are shared.
 //!
-//! [`Registry`] exposes working sessions for callers that need checked tree edits.
+//! [`acdc_parser::extensions::Registry`] exposes working sessions for callers that need checked tree edits.
 //! Borrowed queries end before editing; query again to observe repairs. Copied
 //! selections stay snapshots. Document-local target handles survive insertions and
 //! replacement, but removed handles never bind to another block. Normalization is
@@ -37,18 +37,20 @@ use std::{
     path::Path,
 };
 
-use acdc_parser::{Error, ParseResult, ast::DocumentRef, extensions::Registry};
+use acdc_parser::{Error, ParseResult, ast::DocumentRef};
 
 use crate::{ConversionResult, Converter, Diagnostics, display};
 
 mod extensions;
+mod registrations;
 pub use extensions::{ExtensionCatalog, ExtensionSelectionError};
+pub use registrations::Extensions;
 
 /// A configured backend and the registrations explicitly active for its documents.
 #[derive(Debug)]
 pub struct Pipeline<C> {
     converter: C,
-    extensions: Option<Registry>,
+    extensions: Extensions,
 }
 
 impl<C> Pipeline<C> {
@@ -56,14 +58,17 @@ impl<C> Pipeline<C> {
     pub const fn new(converter: C) -> Self {
         Self {
             converter,
-            extensions: None,
+            extensions: Extensions {
+                parser: None,
+                renderers: Vec::new(),
+            },
         }
     }
 
     /// Activate registrations for subsequent parses. Empty registries keep the direct path.
     #[must_use]
-    pub fn with_extensions(mut self, registrations: Registry) -> Self {
-        self.extensions = (!registrations.is_empty()).then_some(registrations);
+    pub fn with_extensions(mut self, registrations: impl Into<Extensions>) -> Self {
+        self.extensions = registrations.into();
         self
     }
 
@@ -82,7 +87,7 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
     /// callback effects cannot be rolled back when a later stage fails.
     pub fn parse(&self, source: &str) -> Result<ParseResult, Error> {
         let options = self.converter.parser_options();
-        match &self.extensions {
+        match self.extensions.parser_registry() {
             Some(registry) => registry.parse(source, options)?.finish(),
             None => acdc_parser::parse(source, options),
         }
@@ -94,7 +99,7 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
     /// Returns input, processor, or finalization errors.
     pub fn parse_file(&self, path: impl AsRef<Path>) -> Result<ParseResult, Error> {
         let options = self.converter.parser_options();
-        match &self.extensions {
+        match self.extensions.parser_registry() {
             Some(registry) => registry.parse_file(path, options)?.finish(),
             None => acdc_parser::parse_file(path, options),
         }
@@ -106,7 +111,7 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
     /// Returns input, processor, or finalization errors.
     pub fn parse_from_reader(&self, reader: impl Read) -> Result<ParseResult, Error> {
         let options = self.converter.parser_options();
-        match &self.extensions {
+        match self.extensions.parser_registry() {
             Some(registry) => registry.parse_from_reader(reader, options)?.finish(),
             None => acdc_parser::parse_from_reader(reader, options),
         }
@@ -125,11 +130,12 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), C::Error> {
         let prepared = display::prepare(document)?;
-        self.converter.write_to(
+        self.converter.write_to_with_extensions(
             prepared.document(),
             writer,
             source_file,
             output_path,
+            &self.extensions,
             diagnostics,
         )
     }
@@ -144,7 +150,57 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         document: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, C::Error> {
-        let prepared = display::prepare(document)?;
-        self.converter.convert(prepared.document(), source_file)
+        if self.extensions.renderers.is_empty() {
+            let prepared = display::prepare(document)?;
+            self.converter.convert(prepared.document(), source_file)
+        } else {
+            <Self as Converter<'options>>::convert(self, document, source_file)
+        }
+    }
+}
+
+impl<'options, C: Converter<'options>> Converter<'options> for Pipeline<C> {
+    type Error = C::Error;
+
+    fn document_attributes_defaults()
+    -> &'static [(&'static str, acdc_parser::AttributeValue<'static>)] {
+        C::document_attributes_defaults()
+    }
+
+    fn new(
+        options: crate::Options,
+        parser: acdc_parser::OptionsBuilder<'options>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self::new(C::new(options, parser)?))
+    }
+
+    fn options(&self) -> &crate::Options {
+        self.converter.options()
+    }
+    fn parser_options(&self) -> &acdc_parser::Options<'options> {
+        self.converter.parser_options()
+    }
+    fn name(&self) -> &'static str {
+        self.converter.name()
+    }
+    fn warning_source(&self) -> crate::WarningSource {
+        self.converter.warning_source()
+    }
+    fn derive_output_path(
+        &self,
+        input: &Path,
+        document: DocumentRef<'_>,
+    ) -> Result<Option<std::path::PathBuf>, Self::Error> {
+        self.converter.derive_output_path(input, document)
+    }
+    fn write_to<W: Write>(
+        &self,
+        document: DocumentRef<'_>,
+        writer: W,
+        source: Option<&Path>,
+        output: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Self::Error> {
+        Self::write_to(self, document, writer, source, output, diagnostics)
     }
 }

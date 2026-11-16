@@ -2,10 +2,12 @@ use std::collections::{BTreeMap, HashSet};
 
 use acdc_parser::extensions::{RegistrationError, Registry};
 
+use super::Extensions;
+
 /// Available extension registrations. Availability does not activate processors.
 #[derive(Clone, Debug, Default)]
 pub struct ExtensionCatalog {
-    available: BTreeMap<String, Registry>,
+    available: BTreeMap<String, Extensions>,
 }
 
 /// Configuration rejected before input processing or handler construction.
@@ -41,7 +43,7 @@ impl ExtensionCatalog {
     pub fn register(
         &mut self,
         name: impl Into<String>,
-        registrations: Registry,
+        registrations: impl Into<Extensions>,
     ) -> Result<(), ExtensionSelectionError> {
         let name = name.into();
         let mut bytes = name.bytes();
@@ -53,7 +55,7 @@ impl ExtensionCatalog {
         if self.available.contains_key(&name) {
             return Err(ExtensionSelectionError::DuplicateName(name));
         }
-        self.available.insert(name, registrations);
+        self.available.insert(name, registrations.into());
         Ok(())
     }
 
@@ -71,10 +73,11 @@ impl ExtensionCatalog {
     pub fn select(
         &self,
         names: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<Option<Registry>, ExtensionSelectionError> {
+    ) -> Result<Option<Extensions>, ExtensionSelectionError> {
         let mut selected = HashSet::new();
         let mut builder = Registry::builder();
         let mut active = false;
+        let mut renderers = Vec::new();
         for name in names {
             let (name, registrations) = self
                 .available
@@ -83,14 +86,21 @@ impl ExtensionCatalog {
             if !selected.insert(name.as_str()) {
                 continue;
             }
-            builder
-                .extend(registrations)
-                .map_err(|source| ExtensionSelectionError::Conflict {
-                    name: name.clone(),
-                    source,
-                })?;
-            active |= !registrations.is_empty();
+            if let Some(parser) = registrations.parser_registry() {
+                builder
+                    .extend(parser)
+                    .map_err(|source| ExtensionSelectionError::Conflict {
+                        name: name.clone(),
+                        source,
+                    })?;
+                active = true;
+            }
+            renderers.extend(registrations.renderers.iter().cloned());
         }
-        Ok(active.then(|| builder.build()))
+        let extensions = Extensions {
+            parser: active.then(|| builder.build()),
+            renderers,
+        };
+        Ok((!extensions.is_empty()).then_some(extensions))
     }
 }

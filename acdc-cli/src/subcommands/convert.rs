@@ -18,7 +18,7 @@ use std::{
 use acdc_converters_core::Converter as _;
 use acdc_converters_core::{
     ConversionResult, Doctype, GeneratorMetadata, Options, OutputDestination,
-    pipeline::{ExtensionCatalog, Pipeline},
+    pipeline::{ExtensionCatalog, Extensions, Pipeline},
 };
 #[cfg(feature = "html")]
 use acdc_converters_html::HtmlVariant;
@@ -30,7 +30,6 @@ use acdc_converters_pdf::{PageOrientation, PageSize, PdfOptions, ThemeFormat};
 use acdc_converters_terminal::Error as TerminalError;
 use acdc_parser::{
     AttributeValue, Options as ParserOptions, OptionsBuilder, ParseResult, SafeMode, Warning,
-    extensions::Registry,
 };
 
 use clap::{ArgAction, Args as ClapArgs, ValueEnum};
@@ -534,7 +533,7 @@ fn selected_input_files(args: &Args) -> &[PathBuf] {
     }
 }
 
-fn configure_pipeline<P>(converter: P, extensions: Option<&Registry>) -> Pipeline<P> {
+fn configure_pipeline<P>(converter: P, extensions: Option<&Extensions>) -> Pipeline<P> {
     let pipeline = Pipeline::new(converter);
     match extensions {
         Some(registrations) => pipeline.with_extensions(registrations.clone()),
@@ -549,7 +548,7 @@ fn run_converter<P, F>(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
-    extensions: Option<&Registry>,
+    extensions: Option<&Extensions>,
     make_converter: F,
 ) -> MietteResult<ConversionSummary>
 where
@@ -644,7 +643,7 @@ fn run_multi_file<P, F>(
     base_options: &Options,
     document_attributes: &OptionsBuilder<'static>,
     files_to_process: &[PathBuf],
-    extensions: Option<&Registry>,
+    extensions: Option<&Extensions>,
     make_converter: F,
 ) -> MietteResult<ConversionSummary>
 where
@@ -1322,7 +1321,7 @@ fn run_terminal_stdin(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
-    extensions: Option<&Registry>,
+    extensions: Option<&Extensions>,
     output_to_file: bool,
 ) -> Result<ConversionSummary, TerminalError> {
     use acdc_converters_terminal::Converter;
@@ -1425,7 +1424,7 @@ fn run_terminal_with_pager(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
-    extensions: Option<&Registry>,
+    extensions: Option<&Extensions>,
 ) -> Result<ConversionSummary, TerminalError> {
     use acdc_converters_terminal::Converter;
 

@@ -1826,7 +1826,10 @@ ordinary parser path.
 For backend-aware parsing through conversion, use converter core's
 `pipeline::Pipeline` with an already configured backend. `ExtensionCatalog`
 separates named availability from explicit activation and rejects unavailable
-selections before parsing. Pipeline parse methods return finalized `ParseResult`
+selections before parsing. Selected `Extensions` can contain parser and native
+renderer registrations; `parser_registry()` exposes parser registrations when a
+working session is needed. Renderer-only selections retain ordinary parsing.
+Pipeline parse methods return finalized `ParseResult`
 values with structured warnings; conversion prepares fresh display content and
 leaves parsed storage unchanged. See the
 [converter guide](../converters/README.adoc) and its runnable library example.

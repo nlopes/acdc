@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native extensions can register backend-specific block renderers alongside
+  parser processors. Selection creates fresh render handlers for every conversion,
+  retains structured warnings, and lets the backend render titles and metadata.
+  `ExtensionCatalog::select()` now returns an `Extensions` selection; use
+  `parser_registry()` when a parser-only working session is needed. Existing parser
+  registries can still be attached directly to a pipeline.
+
 - Added a shared library pipeline for backend-aware parsing, selected extensions,
   finalization, and conversion. Named extensions require explicit activation;
   unavailable names fail before parsing. Files, readers, and source strings retain
