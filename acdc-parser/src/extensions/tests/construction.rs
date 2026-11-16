@@ -2,8 +2,111 @@ use super::{TestResult, support};
 use acdc_parser::{
     CaptionKind, CompatibilityMode, Options, WarningKind,
     ast::{BlockKind, CaptionRef, InlineKind},
-    extensions::{BlockBuilder, BlockContext, DocumentEditor},
+    extensions::{BlockBuilder, BlockContext, DocumentEditor, InlineSpec},
 };
+
+#[test]
+fn extensions_generated_paragraph_has_explicit_located_line_breaks() -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let mut result = support::registry().parse("Before.\n\nReplace me.", &options)?;
+        let target = result
+            .query()
+            .blocks()
+            .last()
+            .ok_or("target")?
+            .target()
+            .clone();
+        let origin = result
+            .query()
+            .get(&target)
+            .ok_or("target")?
+            .source_location();
+        DocumentEditor::new(&mut result).replace_block(
+            &target,
+            BlockBuilder::paragraph_inlines([
+                InlineSpec::Text("*literal* <&>".into()),
+                InlineSpec::LineBreak,
+                InlineSpec::Text("Second".into()),
+                InlineSpec::LineBreak,
+            ]),
+        )?;
+        result.normalize()?;
+        let parsed = result.finish()?;
+        let BlockKind::Paragraph(paragraph) =
+            parsed.document().blocks().last().ok_or("paragraph")?.kind()
+        else {
+            return Err("paragraph kind".into());
+        };
+        let nodes: Vec<_> = paragraph.content().inlines().collect();
+        assert_eq!(nodes.len(), 4);
+        assert!(
+            matches!(nodes[0].kind(), InlineKind::Plain(text) if text.text() == "*literal* <&>")
+        );
+        for node in [nodes[1], nodes[3]] {
+            assert!(matches!(node.kind(), InlineKind::LineBreak(_)));
+            assert_eq!(
+                acdc_parser::Location::from(node.location()),
+                origin.location
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn extensions_inline_sequences_preserve_paragraph_order_and_literal_text() -> TestResult {
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let mut result = support::registry().parse("Replace me.", &options)?;
+        let target = result
+            .query()
+            .blocks()
+            .next()
+            .ok_or("target")?
+            .target()
+            .clone();
+        let collected: InlineSpec = [
+            InlineSpec::Text("*literal* <&> {counter:x}".into()),
+            InlineSpec::LineBreak,
+        ]
+        .into_iter()
+        .collect();
+        DocumentEditor::new(&mut result).replace_block(
+            &target,
+            BlockBuilder::paragraph_inlines([
+                InlineSpec::from("Before "),
+                InlineSpec::Sequence(vec![
+                    InlineSpec::Sequence(Vec::new()),
+                    InlineSpec::Sequence(vec![collected]),
+                ]),
+                InlineSpec::from([InlineSpec::from("after")]),
+            ]),
+        )?;
+        let parsed = result.finish()?;
+        assert_eq!(parsed.warnings(), []);
+        let BlockKind::Paragraph(paragraph) =
+            parsed.document().blocks().next().ok_or("output")?.kind()
+        else {
+            return Err("paragraph".into());
+        };
+        let mut content = paragraph.content().inlines();
+        for expected in ["Before ", "*literal* <&> {counter:x}"] {
+            assert!(
+                matches!(content.next().ok_or("literal")?.kind(), InlineKind::Plain(text) if text.text() == expected)
+            );
+        }
+        assert!(matches!(
+            content.next().ok_or("break")?.kind(),
+            InlineKind::LineBreak(_)
+        ));
+        assert!(
+            matches!(content.next().ok_or("suffix")?.kind(), InlineKind::Plain(text) if text.text() == "after")
+        );
+        assert!(content.next().is_none());
+    }
+    Ok(())
+}
 
 #[test]
 fn extensions_image_replacement_preserves_identity_title_and_source_context() -> TestResult {

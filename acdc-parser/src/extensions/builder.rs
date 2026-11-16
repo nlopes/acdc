@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use super::InlineBuilder;
+use super::InlineSpec;
 use bumpalo::Bump;
 
 use crate::{
@@ -46,8 +46,8 @@ pub struct BlockBuilder {
 #[derive(Clone, Debug)]
 pub(crate) enum Content {
     Paragraph(String),
-    UnorderedList(Vec<InlineBuilder>),
-    ParagraphInlines(Vec<InlineBuilder>),
+    UnorderedList(Vec<InlineSpec>),
+    ParagraphInlines(Vec<InlineSpec>),
     Image(String),
     Literal(String),
     Listing(String),
@@ -96,39 +96,42 @@ impl BlockBuilder {
 
     /// Build an unordered list with literal text or structured inline content.
     ///
-    /// Strings remain literal. Arrays and vectors of [`InlineBuilder`] group
-    /// fragments into one item; an individual builder can also be an item.
+    /// Strings remain literal. Arrays and vectors of [`InlineSpec`] group
+    /// fragments into one item; an individual specification can also be an item.
     ///
     /// ```
-    /// use acdc_parser::extensions::{BlockBuilder, InlineBuilder};
+    /// use acdc_parser::extensions::{BlockBuilder, InlineSpec};
     ///
     /// let literal = BlockBuilder::unordered_list(["One", "Two"]);
     /// let owned = BlockBuilder::unordered_list(vec![String::from("Owned")]);
     /// let structured = BlockBuilder::unordered_list([
-    ///     InlineBuilder::text("Literal *markup*"),
-    ///     InlineBuilder::from([
-    ///         InlineBuilder::text("Several "),
-    ///         InlineBuilder::text("fragments"),
+    ///     InlineSpec::from("Literal *markup*"),
+    ///     InlineSpec::from([
+    ///         InlineSpec::from("Several "),
+    ///         InlineSpec::from("fragments"),
     ///     ]),
     /// ]);
     /// ```
     #[must_use]
-    pub fn unordered_list(items: impl IntoIterator<Item = impl Into<InlineBuilder>>) -> Self {
+    pub fn unordered_list(items: impl IntoIterator<Item = impl Into<InlineSpec>>) -> Self {
         Self::new(Content::UnorderedList(
             items.into_iter().map(Into::into).collect(),
         ))
     }
 
-    /// Build a paragraph from literal text and captured display requests.
+    /// Build a paragraph from literal text, hard breaks, groups, and captured displays.
+    /// Sequences preserve fragment order without adding spacing or breaks.
     #[must_use]
-    pub fn paragraph_inlines(content: impl IntoIterator<Item = InlineBuilder>) -> Self {
-        Self::new(Content::ParagraphInlines(content.into_iter().collect()))
+    pub fn paragraph_inlines(content: impl IntoIterator<Item = impl Into<InlineSpec>>) -> Self {
+        Self::new(Content::ParagraphInlines(
+            content.into_iter().map(Into::into).collect(),
+        ))
     }
 
     pub(super) fn has_displays(&self) -> bool {
         match &self.content {
             Content::ParagraphInlines(content) | Content::UnorderedList(content) => {
-                content.iter().any(InlineBuilder::has_displays)
+                content.iter().any(InlineSpec::has_displays)
             }
             Content::Paragraph(_)
             | Content::Image(_)
@@ -198,7 +201,7 @@ impl BlockBuilder {
         location: Location,
         mut metadata: BlockMetadata<'a>,
         title: Title<'a>,
-        mut inline: impl FnMut(InlineBuilder) -> Result<Vec<InlineNode<'a>>, crate::Error>,
+        mut inline: impl FnMut(InlineSpec) -> Result<Vec<InlineNode<'a>>, crate::Error>,
     ) -> Result<Block<'a>, crate::Error> {
         if let Some(id) = self.id {
             metadata.id = Some(Anchor::new(arena.alloc_str(&id), location.clone()));

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native extensions can compose literal text, hard breaks, captured target links,
+  and grouped fragments through `InlineSpec` in generated paragraphs and list
+  items.
+
 - Registered extensions now support reader input, including source-ordered
   callback attribute changes before later conditionals and includes. Applications
   can compose registries in order with duplicate-name checks before parsing.
