@@ -8,14 +8,14 @@ use std::{
 use bumpalo::Bump;
 
 use crate::{
-    Caption, CrossReference, Document, Error, InlineMacro, InlineNode, Plain, SourceLocation,
-    Title,
+    Caption, CrossReference, Document, Error, InlineMacro, InlineNode, SourceLocation, Title,
     ast::{CaptionRef, ContentRef},
     grammar::walk_document_inline_nodes_mut,
 };
 
 use super::{
-    DocumentEditor, ExtensionParseResult, TargetId, TitleSource, target::DocumentIdentity,
+    DocumentEditor, ExtensionParseResult, InlineSpec, TargetId, TitleSource, inline::plain,
+    target::DocumentIdentity,
 };
 
 mod prepared;
@@ -43,100 +43,34 @@ pub struct CapturedTarget {
 impl CapturedTarget {
     /// Describe an inline reference without allocating document storage.
     #[must_use]
-    pub fn display(&self, intent: DisplayIntent) -> InlineBuilder {
-        InlineBuilder(vec![InlineContent::Display(self.clone(), intent)])
+    pub fn display(&self, intent: DisplayIntent) -> InlineSpec {
+        InlineSpec::Display(DisplayRequest {
+            target: self.clone(),
+            intent,
+        })
     }
 }
 
-/// Inline content composed of literal text and symbolic display requests.
+/// An opaque captured-target display request for generated inline content.
 ///
-/// Strings become literal text. Arrays and vectors of builders group fragments
-/// into one content value without interpreting markup or invoking processors.
+/// Create requests through [`CapturedTarget::display`]. The host checks their
+/// document identity when applying an edit. Titles remain captured snapshots;
+/// captions and output IDs follow surviving targets during finalization.
 #[derive(Clone, Debug)]
-pub struct InlineBuilder(Vec<InlineContent>);
-
-#[derive(Clone, Debug)]
-enum InlineContent {
-    Text(String),
-    Display(CapturedTarget, DisplayIntent),
+pub struct DisplayRequest {
+    target: CapturedTarget,
+    intent: DisplayIntent,
 }
 
-impl InlineBuilder {
-    /// Literal text, escaped by the ordinary converter pipeline.
-    #[must_use]
-    pub fn text(text: impl Into<String>) -> Self {
-        Self(vec![InlineContent::Text(text.into())])
-    }
-
-    pub(super) fn has_displays(&self) -> bool {
-        self.0
-            .iter()
-            .any(|content| matches!(content, InlineContent::Display(..)))
-    }
-
-    pub(super) fn build<'a>(
+impl DisplayRequest {
+    pub(super) fn build_into<'a>(
         self,
-        arena: &'a Bump,
         document: &Document<'a>,
         identity: &DocumentIdentity,
         origin: &SourceLocation,
-    ) -> Result<Vec<InlineNode<'a>>, Error> {
-        let mut nodes = Vec::new();
-        for content in self.0 {
-            nodes.extend(content.build(arena, document, identity, origin)?);
-        }
-        Ok(nodes)
-    }
-}
-
-impl From<String> for InlineBuilder {
-    fn from(text: String) -> Self {
-        Self::text(text)
-    }
-}
-
-impl From<&str> for InlineBuilder {
-    fn from(text: &str) -> Self {
-        Self::text(text)
-    }
-}
-
-impl From<&String> for InlineBuilder {
-    fn from(text: &String) -> Self {
-        Self::text(text)
-    }
-}
-
-impl FromIterator<InlineBuilder> for InlineBuilder {
-    fn from_iter<T: IntoIterator<Item = InlineBuilder>>(content: T) -> Self {
-        Self(content.into_iter().flat_map(|inline| inline.0).collect())
-    }
-}
-
-impl From<Vec<InlineBuilder>> for InlineBuilder {
-    fn from(content: Vec<InlineBuilder>) -> Self {
-        content.into_iter().collect()
-    }
-}
-
-impl<const N: usize> From<[InlineBuilder; N]> for InlineBuilder {
-    fn from(content: [InlineBuilder; N]) -> Self {
-        content.into_iter().collect()
-    }
-}
-
-impl InlineContent {
-    fn build<'a>(
-        self,
-        arena: &'a Bump,
-        document: &Document<'a>,
-        identity: &DocumentIdentity,
-        origin: &SourceLocation,
-    ) -> Result<Vec<InlineNode<'a>>, Error> {
-        let (target, intent) = match self {
-            InlineContent::Text(text) => return Ok(vec![plain(arena.alloc_str(&text), origin)]),
-            InlineContent::Display(target, intent) => (target, intent),
-        };
+        nodes: &mut Vec<InlineNode<'a>>,
+    ) -> Result<(), Error> {
+        let Self { target, intent } = self;
         if target.document != *identity {
             return Err(failure(
                 origin,
@@ -155,23 +89,15 @@ impl InlineContent {
             origin: origin.clone(),
             resolved: None,
         }));
-        let mut nodes = vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(
+        nodes.push(InlineNode::Macro(InlineMacro::CrossReference(Box::new(
             xref,
-        )))];
+        ))));
         if intent == DisplayIntent::CaptionAndTitle && selection.title.is_present() {
             nodes.push(plain(" ", origin));
             nodes.extend(selection.title.as_inlines().iter().cloned());
         }
-        Ok(nodes)
+        Ok(())
     }
-}
-
-fn plain<'a>(text: &'a str, origin: &SourceLocation) -> InlineNode<'a> {
-    InlineNode::PlainText(Plain {
-        content: text,
-        location: origin.location.clone(),
-        escaped: true,
-    })
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -86,7 +86,8 @@
 //!
 //! [`DocumentEditor::capture`] freezes a title and its source context. Use
 //! [`CapturedTarget::display`] with [`BlockBuilder::paragraph_inlines`] or
-//! [`BlockBuilder::unordered_list`] for explicit caption/title links.
+//! [`BlockBuilder::unordered_list`] for explicit caption/title links. Compose
+//! these requests with literal text, hard breaks, and groups through [`InlineSpec`].
 //! Finalization follows surviving handles and their latest caption data, without
 //! refreshing captured titles. Converter core prepares a fresh ordinary document
 //! through [`PreparedDocument`] before traversal; the shared parse stays unchanged.
@@ -160,6 +161,7 @@ mod deferred;
 mod display;
 mod editor;
 pub(crate) mod finalization;
+mod inline;
 mod query;
 mod recognition;
 mod registry;
@@ -178,11 +180,12 @@ pub use builder::BlockBuilder;
 pub(crate) use builder::SourceContext;
 pub use deferred::{DeferredBlock, ExtensionBlock, PlaceholderId};
 pub use display::{
-    CapturedTarget, DisplayIntent, DisplayLabel, GeneratedDisplayRef, InlineBuilder,
+    CapturedTarget, DisplayIntent, DisplayLabel, DisplayRequest, GeneratedDisplayRef,
     PreparedDocument,
 };
 pub(crate) use display::{DisplayState, GeneratedDisplay};
 pub use editor::DocumentEditor;
+pub use inline::InlineSpec;
 pub use query::{BlockContext, BlockView, DocumentQuery};
 pub use registry::{RegistrationError, Registry, RegistryBuilder};
 pub use session::ExtensionParseResult;

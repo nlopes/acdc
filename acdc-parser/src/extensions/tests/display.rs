@@ -3,7 +3,7 @@ use acdc_parser::{
     CompatibilityMode, Options, WarningKind,
     ast::{BlockKind, InlineKind},
     extensions::{
-        BlockBuilder, BlockContext, DisplayIntent, DisplayLabel, DocumentEditor, InlineBuilder,
+        BlockBuilder, BlockContext, DisplayIntent, DisplayLabel, DocumentEditor, InlineSpec,
         PreparedDocument, TitleSource,
     },
 };
@@ -40,15 +40,15 @@ fn extensions_unordered_list_combines_literal_and_grouped_display_items() -> Tes
         editor.replace_block(
             &output,
             BlockBuilder::unordered_list([
-                InlineBuilder::from(owned.clone()),
-                InlineBuilder::from(&owned),
-                InlineBuilder::from(owned.as_str()),
-                InlineBuilder::from([
-                    InlineBuilder::text("Before "),
-                    InlineBuilder::from(vec![captured.display(DisplayIntent::Title)]),
-                    InlineBuilder::text(" after"),
+                InlineSpec::from(owned.clone()),
+                InlineSpec::from(&owned),
+                InlineSpec::from(owned.as_str()),
+                InlineSpec::Sequence(vec![
+                    InlineSpec::from("Before "),
+                    InlineSpec::from(vec![captured.display(DisplayIntent::Title)]),
+                    InlineSpec::from(" after"),
                 ]),
-                InlineBuilder::from(Vec::new()),
+                InlineSpec::from(Vec::new()),
             ]),
         )?;
         let parsed = result.finish()?;
@@ -280,7 +280,13 @@ fn extensions_foreign_display_is_rejected_atomically() -> TestResult {
     let before = serde_json::to_value(second.parsed.document())?;
     let error = DocumentEditor::new(&mut second).replace_block(
         &output,
-        BlockBuilder::paragraph_inlines([captured.display(DisplayIntent::Title)]),
+        BlockBuilder::paragraph_inlines([
+            InlineSpec::Text("Before the rejected request".into()),
+            InlineSpec::Sequence(vec![
+                InlineSpec::LineBreak,
+                InlineSpec::Sequence(vec![captured.display(DisplayIntent::Title)]),
+            ]),
+        ]),
     );
     assert!(error.is_err());
     assert_eq!(serde_json::to_value(second.parsed.document())?, before);

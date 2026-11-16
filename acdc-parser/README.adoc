@@ -2116,13 +2116,20 @@ Use `DocumentEditor::capture()` to freeze a target's title, including its raw
 source, substitution order, formatting, and source-position attributes. A
 `CapturedTarget` belongs to one working document and remains a snapshot across
 later edits. Its `display()` method accepts `DisplayIntent::Caption`, `Title`, or
-`CaptionAndTitle`; pass these requests and `InlineBuilder::text()` values to
-`BlockBuilder::paragraph_inlines()` or `unordered_list()`. The list constructor
-still accepts string items; arrays or vectors of `InlineBuilder` values combine
-fragments into one item. Use `InlineBuilder::from()` to mix literal and structured
-items in the same list. `CaptionAndTitle` places the captured title outside the
-caption link. Explicit display labels take precedence over `reftext`, including
-an explicitly empty caption.
+`CaptionAndTitle` and returns an `InlineSpec` with an opaque `DisplayRequest`.
+The host validates the captured document identity when applying an edit.
+
+Compose generated content with `InlineSpec::Text`, `LineBreak`, `Display`, and
+`Sequence`, then pass it to `BlockBuilder::paragraph_inlines()` or
+`unordered_list()`. Strings convert to literal text. Arrays and vectors of
+`InlineSpec`, and `FromIterator` over specifications, compose sequences. Nested
+and empty sequences add no spacing or breaks. A sequence supplied as one list
+item remains one item, including when empty. `InlineSpec::LineBreak` inserts an explicit hard line break. Construction
+never interprets text as markup or exposes document storage.
+
+`CaptionAndTitle` places the captured title outside the caption link. Explicit
+display labels take precedence over `reftext`, including an explicitly empty
+caption.
 Choose `Title` when a target has no caption; an explicit caption request without
 a prefix uses `[id]` rather than the target's generic reference label.
 
