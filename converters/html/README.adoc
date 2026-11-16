@@ -378,11 +378,8 @@ This is an acdc-only extension; Asciidoctor does not provide a
 `:acdc-terminal:` attribute, the `[terminal]` or `[terminal%replay]` block
 styles, or any equivalent built-in terminal preview or replay feature.
 
-NOTE: Terminal rendering is built directly into the HTML converter, the
-`terminal` Cargo feature of `acdc-converters-html`, backed by the
-`acdc-converters-terminal` crate, rather than being loaded as a plug-in. If
-acdc grows a first-class extension mechanism, this functionality may migrate to
-an extension instead of being compiled into the converter.
+The HTML converter implements terminal rendering with its optional dependency on
+`acdc-converters-terminal`.
 
 Use `:acdc-terminal:` when existing source blocks should look like terminal
 examples:

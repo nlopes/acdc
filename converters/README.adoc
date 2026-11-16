@@ -46,6 +46,10 @@ and external callback effects remain. Structured parser warnings stay on the
 parse result, and conversion warnings stay in `Diagnostics` or `ConversionResult`
 until the application presents them.
 
+Native block renderers use the same selection. They receive a fresh handler for
+each conversion and can use the backend's streaming output, title/caption, and
+metadata services. Declined blocks use ordinary rendering.
+
 == Development prerequisites
 
 Converter tests are run with `cargo nextest run --all-features`. The terminal

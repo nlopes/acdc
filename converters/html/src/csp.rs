@@ -12,11 +12,7 @@
 //! so arbitrary document content keeps loading.
 
 /// Features and script hashes used to build a document's Content Security Policy.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "independent on/off feature flags for selecting CSP sources"
-)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct CspFeatures {
     /// `:stem:` is set, so the inline `MathJax` config and the `MathJax` CDN loader are
     /// emitted.
@@ -28,9 +24,8 @@ pub(crate) struct CspFeatures {
     /// `icons=font` is set, so the Font Awesome stylesheet (and its fonts) are loaded
     /// from the CDN.
     pub icons_font: bool,
-    /// A  terminal replay player  may be present, so  its inline script  is allow-listed.
-    /// Ignored unless the `terminal` feature is compiled in.
-    pub replay: bool,
+    /// Hashes required by explicitly selected native renderers.
+    pub extension_script_hashes: Vec<&'static str>,
 }
 
 impl CspFeatures {
@@ -48,9 +43,14 @@ impl CspFeatures {
     pub(crate) fn content_security_policy(self) -> String {
         let mut script_src = String::from("script-src 'self'");
         #[cfg(feature = "terminal")]
-        if self.replay {
+        {
             script_src.push_str(" '");
             script_src.push_str(crate::REPLAY_PLAYER_SCRIPT_CSP_HASH);
+            script_src.push('\'');
+        }
+        for hash in self.extension_script_hashes {
+            script_src.push_str(" '");
+            script_src.push_str(hash);
             script_src.push('\'');
         }
         if self.stem {
@@ -146,7 +146,7 @@ mod tests {
     #[test]
     fn replay_adds_player_hash() {
         let policy = CspFeatures {
-            replay: true,
+            extension_script_hashes: Vec::new(),
             ..CspFeatures::default()
         }
         .content_security_policy();

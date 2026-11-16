@@ -111,7 +111,6 @@ The backend is configured before parsing so its attributes govern source
 processing. An `ExtensionCatalog` lists packages available in the application;
 explicit selection activates them and rejects unavailable names before reading
 input. Selected packages preserve selection order and their registration order.
-The production CLI registers no extension packages yet.
 
 `Pipeline` coordinates parser-owned source processing, committed callbacks,
 tree processors, and finalization for strings, files, and readers. Conversion
@@ -133,6 +132,14 @@ parsed storage. Parser and converter warnings remain structured until presented
 by the caller. Processor errors stop later work. Checked edits are atomic, but
 earlier successful edits and external callback effects cannot be rolled back as
 a sequence.
+
+Native block renderers are also immutable registrations with fresh mutable
+handlers per conversion. `Extensions` combines parser and renderer capabilities;
+renderer-only selections retain ordinary parsing. Backends dispatch selected
+renderers in order and use ordinary rendering when every handler declines.
+HTML supplies streaming output, diagnostics, metadata escaping, and caption/title
+services. Selected renderers supply their CSP script hashes. No handler can edit
+the shared parsed document through this rendering interface.
 
 ==== Inline preprocessing
 

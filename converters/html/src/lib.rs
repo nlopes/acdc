@@ -38,6 +38,7 @@ mod delimited;
 mod docinfo;
 mod document;
 mod error;
+mod extensions;
 mod html_visitor;
 mod icon;
 mod image;
@@ -177,6 +178,7 @@ pub struct Converter<'a> {
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the header opts into a catalog and the section hierarchy has a seed.
     generate_index: bool,
+    render_session: Option<Rc<RefCell<acdc_converters_core::render::RenderSession>>>,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -280,6 +282,29 @@ impl<'a> Converter<'a> {
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
+        self.convert_to_writer_with_extensions(
+            doc,
+            writer,
+            options,
+            &acdc_converters_core::pipeline::Extensions::default(),
+            diagnostics,
+        )
+    }
+
+    /// Convert with explicit native renderers and HTML-specific render options.
+    /// Use a pipeline for source parsing and configured file/stdout routing.
+    /// Each call starts fresh render handlers and leaves parsed storage unchanged.
+    ///
+    /// # Errors
+    /// Returns display, native renderer, conversion, or output errors.
+    pub fn convert_to_writer_with_extensions<W: Write>(
+        &self,
+        doc: DocumentRef<'_>,
+        writer: W,
+        options: &RenderOptions,
+        extensions: &acdc_converters_core::pipeline::Extensions,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Error> {
         let prepared = acdc_converters_core::display::prepare(doc)?;
         let document = prepared.document();
         let converter = Converter {
@@ -306,6 +331,9 @@ impl<'a> Converter<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
+            render_session: extensions
+                .render_session("html")
+                .map(|session| Rc::new(RefCell::new(session))),
             variant: self.variant,
         };
         let mut traversal = TraversalContext::new(document.attributes());
@@ -516,6 +544,25 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
+        self.write_to_with_extensions(
+            doc,
+            writer,
+            source_file,
+            output_path,
+            &acdc_converters_core::pipeline::Extensions::default(),
+            diagnostics,
+        )
+    }
+
+    fn write_to_with_extensions<W: Write>(
+        &self,
+        doc: DocumentRef<'_>,
+        writer: W,
+        source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        extensions: &acdc_converters_core::pipeline::Extensions,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Self::Error> {
         let render_options = RenderOptions {
             last_updated: source_file.and_then(|f| {
                 std::fs::metadata(f)
@@ -531,7 +578,13 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
                 .map(String::from),
             ..RenderOptions::default()
         };
-        self.convert_to_writer(doc, writer, &render_options, diagnostics)?;
+        self.convert_to_writer_with_extensions(
+            doc,
+            writer,
+            &render_options,
+            extensions,
+            diagnostics,
+        )?;
 
         // Embedded fragments have no <head> to link companion stylesheets from.
         if let Some(output_path) = output_path
@@ -595,6 +648,7 @@ impl<'a> Converter<'a> {
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
+            render_session: None,
             variant,
         })
     }

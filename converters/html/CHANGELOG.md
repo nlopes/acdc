@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- HTML callers can select native block renderers. Their CSP script hashes are
+  included in the document policy. Native renderer failures are
+  exposed through `Error::Extension` with their original error source.
+  Callers using HTML-specific `RenderOptions` can select registrations through
+  `convert_to_writer_with_extensions()`.
+
 - Reusing a converter for the same document or independent documents now produces
   stable index anchors and catalog links, with numbering restarted per conversion.
 

@@ -28,6 +28,9 @@ pub enum Error {
     #[error(transparent)]
     TerminalReplay(#[from] acdc_converters_terminal::replay::Error),
 
+    #[error(transparent)]
+    Extension(#[from] acdc_converters_core::render::RenderError),
+
     #[error("input file and output file cannot be the same: {0}")]
     OutputPathSameAsInput(std::path::PathBuf),
 
