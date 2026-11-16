@@ -70,6 +70,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   header that starts or ends in an included file keeps highlighting for its
   lines in the open document.
 
+- Comment lines and comment blocks among a block's metadata, such as between
+  `[[id]]` and `[.role]`, are highlighted as comments. Before, they were
+  highlighted as block attributes.
+
 - Attribute entries whose value wraps with ` \` are highlighted on every line,
   in the header and the body. Before, such an entry in the body had no
   highlighting at all.

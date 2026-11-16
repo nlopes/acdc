@@ -554,13 +554,80 @@ fn entries_among_first_block_metadata_are_highlighted_once() -> TestResult {
         let message = format!("{mode:?}: {tokens:?}");
         assert!(has_token(&tokens, 0, "a", "property"), "{message}");
         assert!(has_token(&tokens, 2, "[[x]]", "decorator"), "{message}");
+        assert!(has_token(&tokens, 3, "// note", "comment"), "{message}");
         assert!(has_token(&tokens, 4, ":b: ", "property"), "{message}");
         assert!(has_token(&tokens, 5, "continued", "string"), "{message}");
         assert!(has_token(&tokens, 6, "////", "operator"), "{message}");
+        assert!(has_token(&tokens, 7, ":x: y", "comment"), "{message}");
         assert!(has_token(&tokens, 8, "////", "operator"), "{message}");
         assert!(has_token(&tokens, 9, ":c: ", "property"), "{message}");
         assert!(has_token(&tokens, 10, "[.role]", "property"), "{message}");
         assert!(!has_kind_on_line(&tokens, 11, "property"), "{message}");
+    }
+    assert_eq!(
+        decoded_in(source, &options(CompatibilityMode::Asciidoctor)?)?,
+        decoded_in(source, &options(CompatibilityMode::Draft)?)?
+    );
+    Ok(())
+}
+
+/// The parser drops the comments among a block's metadata, so they are
+/// highlighted from the source, for any block.
+#[test]
+fn comments_among_block_metadata_are_highlighted_as_comments() -> TestResult {
+    let metadata = "[[x]]\n// note\n////\n[.hidden]\n////\n[.role]\nPara\n";
+    for mode in MODES {
+        for (before, after) in [
+            ("", ""),
+            ("= Title\n\n", ""),
+            ("Intro.\n\n", ""),
+            ("= Title\n\nIntro.\n\n", ""),
+            ("= Title\n\n====\n", "====\n"),
+            ("* Item\n+\n", ""),
+        ] {
+            let source = format!("{before}{metadata}{after}");
+            let tokens = decoded_in(&source, &options(mode)?)?;
+            let message = format!("{mode:?} {source:?}: {tokens:?}");
+            let first = u32::try_from(before.lines().count())?;
+            for (offset, spelling, kind) in [
+                (0, "[[x]]", "decorator"),
+                (1, "// note", "comment"),
+                (2, "////", "operator"),
+                (3, "[.hidden]", "comment"),
+                (4, "////", "operator"),
+                (5, "[.role]", "property"),
+            ] {
+                assert!(
+                    has_token(&tokens, first + offset, spelling, kind),
+                    "{message}"
+                );
+            }
+            for line in [first + 1, first + 3, first + 6] {
+                assert!(!has_kind_on_line(&tokens, line, "property"), "{message}");
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Lines that only look like comments among block metadata keep their tokens:
+/// a wrapped attribute value, and a comment block delimiter that an inactive
+/// conditional removes.
+#[test]
+fn metadata_lines_that_look_like_comments_keep_their_tokens() -> TestResult {
+    for mode in MODES {
+        let source = "Intro.\n\n[[x]]\n:a: one \\\n// two\n[.role]\nPara\n";
+        let tokens = decoded_in(source, &options(mode)?)?;
+        let message = format!("{mode:?} {source:?}: {tokens:?}");
+        assert!(has_token(&tokens, 4, "// two", "string"), "{message}");
+        assert!(has_token(&tokens, 5, "[.role]", "property"), "{message}");
+
+        let source = "Intro.\n\n[[x]]\nifdef::missing[]\n////\nendif::[]\n[.role]\nPara\n";
+        let tokens = decoded_in(source, &options(mode)?)?;
+        let message = format!("{mode:?} {source:?}: {tokens:?}");
+        assert!(has_kind_on_line(&tokens, 3, "keyword"), "{message}");
+        assert!(has_kind_on_line(&tokens, 5, "keyword"), "{message}");
+        assert!(has_token(&tokens, 6, "[.role]", "property"), "{message}");
     }
     Ok(())
 }

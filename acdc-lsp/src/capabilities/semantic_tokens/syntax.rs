@@ -16,13 +16,14 @@ use crate::{convert::position_to_offset, state::ConditionalBlock};
 
 pub(super) fn collect(
     document: DocumentRef<'_>,
+    conditionals: &[ConditionalBlock],
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
     for node in StructuralRef::Document(document).descendants() {
         match node {
             StructuralRef::Header(header) => collect_header(header, source, tokens),
-            StructuralRef::Block(block) => collect_block(block, source, tokens),
+            StructuralRef::Block(block) => collect_block(block, conditionals, source, tokens),
             StructuralRef::ListItem(item) => {
                 if let Some(range) = primary_range(item.location(), source) {
                     prefix(range.start, item.marker(), 8, source, tokens);
@@ -86,18 +87,8 @@ pub(super) fn header(
     let Some((first, last)) = header_lines(span, includes) else {
         return;
     };
-    let inactive = |line: u32| {
-        let line = line as usize;
-        conditionals.iter().any(|conditional| {
-            !conditional.is_active
-                && conditional
-                    .end_line
-                    .is_some_and(|end| conditional.start_line < line && line < end)
-        })
-    };
     let ends_in_primary = outermost_include(span.end()).is_none();
-    let mut comment_delimiter: Option<&str> = None;
-    let mut continuation = false;
+    let mut reader = MetadataReader::new(conditionals);
     for line in first.. {
         let Some(text) = source.line(line) else {
             break;
@@ -106,45 +97,101 @@ pub(super) fn header(
         // The preprocessor drops line comments that directly follow the
         // header, so they sit just outside the span.
         if line > last {
-            if !ends_in_primary || inactive(line) || !is_line_comment(text) {
+            if !ends_in_primary || is_inactive(conditionals, line) || !is_line_comment(text) {
                 break;
             }
             line_bytes(line, 0..text.len(), 5, 0, source, tokens);
             continue;
         }
-        // Comment blocks bypass preprocessor directives, so they are tracked
-        // before conditionals.
-        if let Some(delimiter) = comment_delimiter {
-            if text.trim_end() == delimiter {
-                comment_delimiter = None;
+        match reader.read(line, text) {
+            MetadataLine::CommentDelimiter(delimiter) => {
                 line_bytes(line, 0..delimiter.len(), 8, 0, source, tokens);
-            } else {
-                line_bytes(line, 0..text.len(), 5, 0, source, tokens);
             }
-            continue;
-        }
-        if inactive(line) {
-            continue;
-        }
-        if text.trim().is_empty() {
-            continuation = false;
-            continue;
-        }
-        if continuation {
-            line_bytes(line, 0..text.len(), 3, 0, source, tokens);
-            continuation = continues_value(text);
-            continue;
-        }
-        if let Some(delimiter) = comment_block_delimiter(text) {
-            comment_delimiter = Some(delimiter);
-            line_bytes(line, 0..delimiter.len(), 8, 0, source, tokens);
-        } else if is_line_comment(text) {
-            line_bytes(line, 0..text.len(), 5, 0, source, tokens);
-        } else if let Some((name, value)) = attribute_entry(text) {
-            attribute_line(name, line, source, tokens);
-            continuation = continues_value(value);
+            MetadataLine::Comment => line_bytes(line, 0..text.len(), 5, 0, source, tokens),
+            MetadataLine::WrappedValue => line_bytes(line, 0..text.len(), 3, 0, source, tokens),
+            MetadataLine::Entry(name) => attribute_line(name, line, source, tokens),
+            MetadataLine::Other => {}
         }
     }
+}
+
+/// A header or block metadata line, as the parser reads it.
+enum MetadataLine<'a> {
+    /// A line that opens or closes a comment block.
+    CommentDelimiter(&'a str),
+    /// A line comment, or a line inside a comment block.
+    Comment,
+    /// An attribute entry with this name.
+    Entry(&'a str),
+    /// A line that continues a wrapped attribute value.
+    WrappedValue,
+    /// Any other line, including empty lines and lines that an inactive
+    /// conditional removes.
+    Other,
+}
+
+/// Reads consecutive header or block metadata lines. The parser drops the
+/// comments among them, so their tokens come from the source text.
+struct MetadataReader<'a> {
+    conditionals: &'a [ConditionalBlock],
+    comment_delimiter: Option<&'a str>,
+    continuation: bool,
+}
+
+impl<'a> MetadataReader<'a> {
+    fn new(conditionals: &'a [ConditionalBlock]) -> Self {
+        Self {
+            conditionals,
+            comment_delimiter: None,
+            continuation: false,
+        }
+    }
+
+    /// Read the 0-based `line`, whose `text` has no line ending.
+    fn read(&mut self, line: u32, text: &'a str) -> MetadataLine<'a> {
+        // Comment blocks bypass preprocessor directives, so they are tracked
+        // before conditionals.
+        if let Some(delimiter) = self.comment_delimiter {
+            if text.trim_end() == delimiter {
+                self.comment_delimiter = None;
+                return MetadataLine::CommentDelimiter(delimiter);
+            }
+            return MetadataLine::Comment;
+        }
+        if is_inactive(self.conditionals, line) {
+            return MetadataLine::Other;
+        }
+        if text.trim().is_empty() {
+            self.continuation = false;
+            return MetadataLine::Other;
+        }
+        if self.continuation {
+            self.continuation = continues_value(text);
+            return MetadataLine::WrappedValue;
+        }
+        if let Some(delimiter) = comment_block_delimiter(text) {
+            self.comment_delimiter = Some(delimiter);
+            MetadataLine::CommentDelimiter(delimiter)
+        } else if is_line_comment(text) {
+            MetadataLine::Comment
+        } else if let Some((name, value)) = attribute_entry(text) {
+            self.continuation = continues_value(value);
+            MetadataLine::Entry(name)
+        } else {
+            MetadataLine::Other
+        }
+    }
+}
+
+/// Whether an inactive conditional removes the 0-based `line`.
+fn is_inactive(conditionals: &[ConditionalBlock], line: u32) -> bool {
+    let line = line as usize;
+    conditionals.iter().any(|conditional| {
+        !conditional.is_active
+            && conditional
+                .end_line
+                .is_some_and(|end| conditional.start_line < line && line < end)
+    })
 }
 
 /// The header's first and last lines in the primary file, 0-based.
@@ -241,11 +288,16 @@ fn collect_header(header: HeaderRef<'_>, source: &LineIndex<'_>, tokens: &mut Ve
     }
 }
 
-fn block_metadata(block: BlockRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+fn block_metadata(
+    block: BlockRef<'_>,
+    conditionals: &[ConditionalBlock],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
     if let Some(location) = block.attributes().and_then(AttributesRef::location)
         && let Some(range) = primary_range(location, source)
     {
-        add_range_with_priority(range, 2, 0, 0, source, tokens);
+        metadata_lines(range, conditionals, source, tokens);
     }
     for anchor in block.anchors() {
         add_token_for_location(anchor.location(), 7, 1, source, tokens);
@@ -260,8 +312,50 @@ fn block_metadata(block: BlockRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<
     delimiters(block.kind(), source, tokens);
 }
 
-fn collect_block(block: BlockRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
-    block_metadata(block, source, tokens);
+/// Highlight a block's metadata as metadata, except the comments among it.
+///
+/// Attribute entries among the metadata are blocks with their own tokens.
+fn metadata_lines(
+    range: Range,
+    conditionals: &[ConditionalBlock],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
+    let mut reader = MetadataReader::new(conditionals);
+    for line in range.start.line..=range.end.line {
+        let Some(text) = source.line(line) else {
+            break;
+        };
+        let text = text.trim_end_matches(['\r', '\n']);
+        match reader.read(line, text) {
+            MetadataLine::CommentDelimiter(delimiter) => {
+                line_bytes(line, 0..delimiter.len(), 8, 0, source, tokens);
+            }
+            MetadataLine::Comment => line_bytes(line, 0..text.len(), 5, 0, source, tokens),
+            MetadataLine::Entry(_) | MetadataLine::WrappedValue | MetadataLine::Other => {
+                let start = if line == range.start.line {
+                    range.start
+                } else {
+                    Position::new(line, 0)
+                };
+                let end = if line == range.end.line {
+                    range.end
+                } else {
+                    Position::new(line, source.line_width(line).unwrap_or_default())
+                };
+                add_range_with_priority(Range::new(start, end), 2, 0, 0, source, tokens);
+            }
+        }
+    }
+}
+
+fn collect_block(
+    block: BlockRef<'_>,
+    conditionals: &[ConditionalBlock],
+    source: &LineIndex<'_>,
+    tokens: &mut Vec<RawToken>,
+) {
+    block_metadata(block, conditionals, source, tokens);
     match block.kind() {
         BlockKind::Section(section) => {
             if let Some(title) = section.title() {

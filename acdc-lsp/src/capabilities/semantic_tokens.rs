@@ -106,7 +106,7 @@ pub(crate) fn compute_semantic_tokens(
     let mut tokens: Vec<RawToken> = Vec::new();
     let source = LineIndex::new(text);
 
-    syntax::collect(doc, &source, &mut tokens);
+    syntax::collect(doc, conditionals, &source, &mut tokens);
     // Before include tokens, so a directive inside a header comment block
     // stays a comment.
     syntax::header(doc, conditionals, includes, &source, &mut tokens);
