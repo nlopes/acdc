@@ -109,6 +109,46 @@ fn extensions_inline_sequences_preserve_paragraph_order_and_literal_text() -> Te
 }
 
 #[test]
+fn extensions_located_warnings_survive_edits_and_reject_foreign_targets() -> TestResult {
+    let options = Options::default();
+    let mut result = support::registry().parse("Before.\n\n== Remove\n\nBody.", &options)?;
+    let other = support::registry().parse("Foreign.", &options)?;
+    let foreign = other
+        .query()
+        .blocks()
+        .next()
+        .ok_or("foreign")?
+        .target()
+        .clone();
+    let target = result
+        .query()
+        .select(BlockContext::Section)
+        .next()
+        .ok_or("section")?
+        .target()
+        .clone();
+    let origin = result
+        .query()
+        .get(&target)
+        .ok_or("target")?
+        .source_location();
+    let mut editor = DocumentEditor::new(&mut result);
+    assert!(editor.warn(&foreign, "foreign warning").is_err());
+    editor.warn(&target, "recoverable extension problem")?;
+    editor.warn(&target, "recoverable extension problem")?;
+    editor.remove_section(&target)?;
+    assert!(editor.warn(&target, "removed warning").is_err());
+    result.normalize()?;
+    let parsed = result.finish()?;
+    assert_eq!(parsed.warnings().len(), 1);
+    assert_eq!(parsed.warnings()[0].source_location(), Some(&origin));
+    assert!(
+        matches!(&parsed.warnings()[0].kind, WarningKind::Other(message) if message == "recoverable extension problem")
+    );
+    Ok(())
+}
+
+#[test]
 fn extensions_image_replacement_preserves_identity_title_and_source_context() -> TestResult {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;

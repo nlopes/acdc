@@ -2,7 +2,7 @@ use super::{
     BlockBuilder, DeferredBlock, DocumentQuery, ExtensionParseResult, TargetId,
     traversal::BlockPath,
 };
-use crate::{Block, Error, SourceLocation};
+use crate::{Block, Error, SourceLocation, Warning, WarningKind};
 mod transaction;
 use transaction::Edit;
 
@@ -29,6 +29,23 @@ impl<'doc> DocumentEditor<'doc> {
     #[must_use]
     pub fn deferred_blocks(&self) -> &[DeferredBlock] {
         self.result.deferred_blocks()
+    }
+
+    /// Record a recoverable problem at a live target's source location.
+    /// Identical messages at the same location are coalesced. Later edits retain
+    /// the diagnostic, including when its target is removed.
+    ///
+    /// # Errors
+    /// Rejects foreign or removed targets without adding a warning.
+    pub fn warn(&mut self, target: &TargetId, message: impl Into<String>) -> Result<(), Error> {
+        self.path(target)?;
+        let warning = Warning::new(
+            WarningKind::Other(message.into().into()),
+            Some(self.location(target)),
+        );
+        warning.emit_trace();
+        self.result.parsed.append_extension_warnings(vec![warning]);
+        Ok(())
     }
 
     /// Return or assign an output ID without changing identity or numbering.

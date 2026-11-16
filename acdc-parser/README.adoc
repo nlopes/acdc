@@ -2097,6 +2097,12 @@ separate `remove_section()` operation. Tree processors run once in registration
 order and observe earlier edits; copied selections and generated summaries remain
 snapshots and are not rerun.
 
+`MacroInvocation::source` retains the accepted call from its name through the
+closing bracket, before target expansion and argument interpretation. Table-cell
+escapes follow the ordinary cell rules. It preserves arguments, quoting, spacing,
+and empty slots; outer block metadata and trailing content are excluded. Callbacks and deferred processors can return
+this source as literal text without reconstructing the call from resolved values.
+
 `BlockBuilder` builds paragraphs, unordered lists, images, listings, and literal
 blocks. Body strings remain literal and converters apply ordinary output escaping.
 `with_attributes()` interprets one attribute-list line, without square brackets,
@@ -2132,6 +2138,10 @@ display labels take precedence over `reftext`, including an explicitly empty
 caption.
 Choose `Title` when a target has no caption; an explicit caption request without
 a prefix uses `[id]` rather than the target's generic reference label.
+
+`DocumentEditor::warn()` records a recoverable warning at a live target's source
+location. Repeated messages at the same location are coalesced; diagnostics
+survive later edits and target removal. Foreign or removed targets are rejected.
 
 `finish()` binds requests to surviving handles and their final caption data,
 following renamed output IDs without repeating selection or callbacks. A removed
