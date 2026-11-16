@@ -4,6 +4,7 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     DocumentAttributes, Passthrough, PassthroughKind, Position, Substitution, Warning, WarningKind,
+    document_attribute::{continues_reference_name, starts_reference_name},
     grammar::{
         brackets::escaped_bracket_end, inline_boundaries::check_constrained_opening_boundary,
     },
@@ -361,7 +362,11 @@ peg::parser! {
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 
-        rule attribute_name_pattern() = ['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+
+        // As in Asciidoctor, a name starts with a word character and continues
+        // with word characters and `-`.
+        rule attribute_name_pattern()
+            = [c if starts_reference_name(c, document_attributes.reference_mode())]
+              [c if continues_reference_name(c, document_attributes.reference_mode())]*
 
         rule kbd_macro_pattern() = "kbd:[" balanced_bracket_content() "]"
 

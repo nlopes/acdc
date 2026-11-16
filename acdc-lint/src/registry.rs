@@ -82,6 +82,7 @@ const PARSER_WARNINGS: &[LintId] = &[
     LintId::TableCellOverflow,
     LintId::HeaderOnlyAttribute,
     LintId::UnsetAttributeValue,
+    LintId::AttributeNameNotNormalized,
 ];
 const MULTIPLE_DOCUMENT_TITLE: &[LintId] = &[LintId::MultipleDocumentTitle];
 const DELIMITED_BLOCKS: &[LintId] = &[LintId::DelimitedBlockMinimalDelimiter];

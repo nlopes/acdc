@@ -29,16 +29,20 @@ pub(super) fn substitute_include_attributes(
 ) -> AttributeSubstitution {
     let mut missing = Vec::new();
     let empty = crate::DocumentAttributeValue::from("");
-    let mut value = crate::substitute_attributes(text, |name| {
-        attributes.get(name).or_else(|| {
-            missing.push(name.to_owned());
-            matches!(
-                policy,
-                AttributeMissingPolicy::Drop | AttributeMissingPolicy::DropLine
-            )
-            .then_some(&empty)
-        })
-    })
+    let mut value = crate::model::substitution::substitute_attributes(
+        text,
+        attributes.reference_mode(),
+        |name| {
+            attributes.get(name).or_else(|| {
+                missing.push(name.to_owned());
+                matches!(
+                    policy,
+                    AttributeMissingPolicy::Drop | AttributeMissingPolicy::DropLine
+                )
+                .then_some(&empty)
+            })
+        },
+    )
     .into_owned();
 
     if policy == AttributeMissingPolicy::DropLine && !missing.is_empty() {

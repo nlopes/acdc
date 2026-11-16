@@ -199,7 +199,6 @@ pub use model::{
     TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry, TokenAssignment,
     UNNUMBERED_SECTION_STYLES, UnorderedList, UrlMacro, VERBATIM, Verbatim, VerticalAlignment,
     Video, XrefCaptionLabel, XrefSignifier, XrefStyle, apply_attribute_substitutions,
-    substitute_attributes,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{ConditionalEvaluation, OwnedSource, ParseInlineResult, ParseResult};

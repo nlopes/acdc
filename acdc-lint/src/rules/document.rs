@@ -47,6 +47,7 @@ fn lint_for_warning(kind: &WarningKind) -> Option<LintId> {
         WarningKind::UnsupportedCounter { .. } => Some(LintId::CounterSyntax),
         WarningKind::HeaderOnlyAttribute { .. } => Some(LintId::HeaderOnlyAttribute),
         WarningKind::UnsetAttributeValue { .. } => Some(LintId::UnsetAttributeValue),
+        WarningKind::AttributeNameNotNormalized { .. } => Some(LintId::AttributeNameNotNormalized),
         WarningKind::NonStandardAuthorLine { .. }
         | WarningKind::UnresolvedReference { .. }
         | WarningKind::LegacyFloatDiscreteHeading
@@ -169,6 +170,25 @@ mod tests {
 
         let report = report_for("= Title\n\n:!foo:\n:bar!:\n\nText.\n")?;
         assert!(!has_lint(&report, LintId::UnsetAttributeValue));
+        Ok(())
+    }
+
+    #[test]
+    fn parser_attribute_name_warning_is_linted() -> Result<(), Error> {
+        let report = report_for("= Title\n:TOC:\n:ok-name: 1\n\n:First Name: Dan\n\nText.\n")?;
+        assert_eq!(
+            diagnostics(&report, LintId::AttributeNameNotNormalized),
+            [
+                ("attribute entry `TOC` sets `toc`".to_owned(), Some(2)),
+                (
+                    "attribute entry `First Name` sets `firstname`".to_owned(),
+                    Some(5)
+                ),
+            ]
+        );
+        assert!(report.diagnostics().iter().all(|diagnostic| {
+            diagnostic.lint() != LintId::AttributeNameNotNormalized || diagnostic.help().is_some()
+        }));
         Ok(())
     }
 

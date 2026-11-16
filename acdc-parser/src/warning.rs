@@ -52,6 +52,7 @@ impl Warning {
             WarningKind::InvalidDocumentAttribute { .. } => "invalid-document-attribute",
             WarningKind::HeaderOnlyAttribute { .. } => "header-only-attribute",
             WarningKind::UnsetAttributeValue { .. } => "unset-attribute-value",
+            WarningKind::AttributeNameNotNormalized { .. } => "attribute-name-not-normalized",
             WarningKind::ContentRecovery { .. } => "content-recovery",
             WarningKind::Other(_) => "other",
         };
@@ -140,6 +141,9 @@ impl Warning {
             ),
             WarningKind::UnsetAttributeValue { .. } => Some(
                 "An unset entry such as `:!name:` or `:name!:` takes no value. Remove the text after it, or use `:name: value` to set the attribute.",
+            ),
+            WarningKind::AttributeNameNotNormalized { .. } => Some(
+                "Start attribute names with a letter, a digit, or `_`, and write them in lowercase using only letters, digits, `_`, and `-`. Asciidoctor mode removes other characters and lowercases the rest, as Asciidoctor does; Draft mode keeps names as written.",
             ),
             WarningKind::ContentRecovery { .. }
             | WarningKind::UnsupportedCounter { .. }
@@ -365,6 +369,24 @@ pub enum WarningKind {
         value: String,
     },
 
+    /// An attribute entry's name has uppercase letters, or characters other
+    /// than letters, digits, `_`, and `-`. Asciidoctor mode removes those
+    /// characters and lowercases the rest, as Asciidoctor does, and the entry
+    /// sets the result. Draft mode keeps the name as written, and also warns
+    /// about a name that doesn't start with a letter, a digit, or `_`, which
+    /// Asciidoctor mode doesn't read as an entry. Asciidoctor doesn't warn.
+    #[error("{}", unnormalized_name_message(.name, .normalized.as_deref(), *.applied))]
+    AttributeNameNotNormalized {
+        /// The name as written.
+        name: String,
+        /// The name Asciidoctor mode gives the entry, or `None` when Asciidoctor
+        /// mode reads the line as text because the name doesn't start with a
+        /// letter, a digit, or `_`.
+        normalized: Option<String>,
+        /// Whether the entry sets `normalized`, as in Asciidoctor mode.
+        applied: bool,
+    },
+
     /// An unsupported counter reference was omitted from the output.
     #[error("Counters ({reference}) are not supported and will be removed from output")]
     UnsupportedCounter {
@@ -385,6 +407,18 @@ pub enum WarningKind {
     /// Ad-hoc message not yet categorized into a typed variant.
     #[error("{0}")]
     Other(Cow<'static, str>),
+}
+
+fn unnormalized_name_message(name: &str, normalized: Option<&str>, applied: bool) -> String {
+    match (normalized, applied) {
+        (Some(normalized), true) => format!("attribute entry `{name}` sets `{normalized}`"),
+        (Some(normalized), false) => format!(
+            "attribute name `{name}` isn't normalized: Asciidoctor mode sets `{normalized}`"
+        ),
+        (None, _) => format!(
+            "attribute name `{name}` doesn't start with a letter, a digit, or `_`: Asciidoctor mode reads the entry as text"
+        ),
+    }
 }
 
 fn first_definition(location: &SourceLocation) -> String {

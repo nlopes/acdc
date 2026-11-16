@@ -7,7 +7,7 @@ use serde::{
 };
 
 use crate::{
-    Error, SourceLocation,
+    CompatibilityMode, Error, SourceLocation,
     ast::TextPartRef,
     document_attribute::{
         AssignmentDecision, AssignmentRequest, AssignmentState, AttributeLock, AttributeOrigin,
@@ -591,6 +591,12 @@ pub struct DocumentAttributes<'a> {
     base: Option<Arc<FxHashMap<AttributeName<'static>, DocumentAttributeValue<'static>>>>,
     entry_filter: EntryFilter,
     max_attribute_value_size: Option<usize>,
+    /// The compatibility mode whose name rules apply, recorded when parsing
+    /// starts. Asciidoctor mode stores every name in lowercase and looks names
+    /// up ignoring case. Draft mode also accepts the join controls U+200C and
+    /// U+200D in reference names. Attributes built outside a parse match names
+    /// exactly and read references as Asciidoctor mode does.
+    name_mode: Option<CompatibilityMode>,
 }
 
 impl<'a> DocumentAttributes<'a> {
@@ -690,6 +696,7 @@ impl Default for DocumentAttributes<'_> {
             base: Some(default_document_attribute_values()),
             entry_filter: EntryFilter::default(),
             max_attribute_value_size: None,
+            name_mode: None,
         }
     }
 }
@@ -703,6 +710,7 @@ impl<'a> DocumentAttributes<'a> {
             base,
             entry_filter: EntryFilter::default(),
             max_attribute_value_size: None,
+            name_mode: None,
         }
         .into_input_map();
         for (name, stored) in entries {
@@ -758,6 +766,58 @@ impl<'a> DocumentAttributes<'a> {
             base: None,
             entry_filter: EntryFilter::default(),
             max_attribute_value_size: None,
+            name_mode: None,
+        }
+    }
+
+    /// Apply the name rules of `mode`. Asciidoctor mode looks names up
+    /// ignoring case, as Asciidoctor does for attribute references and
+    /// conditional directives, and stores them lowercase.
+    pub(crate) fn apply_name_rules(&mut self, mode: CompatibilityMode) {
+        self.name_mode = Some(mode);
+        if mode != CompatibilityMode::Asciidoctor {
+            return;
+        }
+        let renamed: Vec<_> = self
+            .entries
+            .keys()
+            .filter(|name| matches!(self.lookup_name(name), Cow::Owned(_)))
+            .cloned()
+            .collect();
+        if renamed.is_empty() {
+            return;
+        }
+        for name in renamed {
+            if let Some(entry) = self.entries.remove(&name) {
+                let lowercase = name.to_lowercase();
+                // An entry already spelled in lowercase keeps its value.
+                self.entries.entry(Cow::Owned(lowercase)).or_insert(entry);
+            }
+        }
+        self.rebuild_entry_filter();
+    }
+
+    /// The compatibility mode whose rules decide which names are references.
+    pub(crate) fn reference_mode(&self) -> CompatibilityMode {
+        self.name_mode.unwrap_or_default()
+    }
+
+    /// The stored spelling of `name`.
+    fn lookup_name<'n>(&self, name: &'n str) -> Cow<'n, str> {
+        if self.name_mode != Some(CompatibilityMode::Asciidoctor) {
+            return Cow::Borrowed(name);
+        }
+        if name.is_ascii() {
+            if name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+                return Cow::Owned(name.to_ascii_lowercase());
+            }
+            return Cow::Borrowed(name);
+        }
+        let lowercase = name.to_lowercase();
+        if lowercase == name {
+            Cow::Borrowed(name)
+        } else {
+            Cow::Owned(lowercase)
         }
     }
 
@@ -1028,7 +1088,7 @@ impl<'a> DocumentAttributes<'a> {
     /// Whether an explicit assignment exists, including an unset assignment.
     #[must_use]
     pub fn is_explicit(&self, name: &str) -> bool {
-        self.entry(name).is_some()
+        self.entry(&self.lookup_name(name)).is_some()
     }
 
     pub(crate) fn locks_nested_attribute(&self, name: &str) -> bool {
@@ -1061,6 +1121,7 @@ impl<'a> DocumentAttributes<'a> {
     /// Borrow the effective value, including referenceable defaults.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&DocumentAttributeValue<'_>> {
+        let name = &*self.lookup_name(name);
         if let Some(entry) = self.entry(name) {
             return match &entry.assignment {
                 DocumentAttributeAssignment::Set(value) => Some(value),
@@ -1076,7 +1137,8 @@ impl<'a> DocumentAttributes<'a> {
     /// Borrow an explicit assignment, distinguishing unset from absent.
     #[must_use]
     pub fn assignment(&self, name: &str) -> Option<&DocumentAttributeAssignment<'_>> {
-        self.entry(name).map(|entry| &entry.assignment)
+        self.entry(&self.lookup_name(name))
+            .map(|entry| &entry.assignment)
     }
 
     /// Iterate over explicit assignments, including unsets but not implicit defaults.
@@ -1087,6 +1149,7 @@ impl<'a> DocumentAttributes<'a> {
     }
 
     pub(crate) fn status(&self, name: &str) -> DocumentAttributeStatus<'_> {
+        let name = &*self.lookup_name(name);
         if let Some(entry) = self.entry(name) {
             return match &entry.assignment {
                 DocumentAttributeAssignment::Set(value) => DocumentAttributeStatus::Set(value),
@@ -1179,6 +1242,7 @@ impl<'a> DocumentAttributes<'a> {
             base,
             entry_filter: _,
             max_attribute_value_size: _,
+            name_mode: _,
         } = other;
         if let Some(base) = base {
             if self.base.is_none() {
@@ -1237,6 +1301,7 @@ impl<'a> DocumentAttributes<'a> {
             base: self.base.clone(),
             entry_filter: self.entry_filter.clone(),
             max_attribute_value_size: self.max_attribute_value_size,
+            name_mode: self.name_mode,
         }
     }
 
@@ -1248,6 +1313,7 @@ impl<'a> DocumentAttributes<'a> {
             base,
             entry_filter: _,
             max_attribute_value_size,
+            name_mode,
         } = self;
         let entries = entries
             .into_iter()
@@ -1266,6 +1332,7 @@ impl<'a> DocumentAttributes<'a> {
             base,
             entry_filter: EntryFilter::default(),
             max_attribute_value_size,
+            name_mode,
         };
         attributes.rebuild_entry_filter();
         attributes

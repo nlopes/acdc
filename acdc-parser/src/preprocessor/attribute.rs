@@ -9,7 +9,7 @@ use crate::{
 
 #[tracing::instrument(level = "trace", skip_all, fields(input_len = line.len()))]
 pub(super) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
-    match attribute_parser::document_attribute(line) {
+    match attribute_parser::document_attribute(line, options.compatibility_mode) {
         Ok(declaration) => apply_declaration(
             &declaration,
             &mut options.document_attributes,
@@ -36,7 +36,7 @@ pub(super) fn apply_declaration(
         value
     };
     attributes.assign_document_value(
-        declaration.name.to_owned().into(),
+        declaration.attribute_name(mode).into_owned().into(),
         value,
         true,
         false,
@@ -45,8 +45,8 @@ pub(super) fn apply_declaration(
     Ok(())
 }
 
-pub(super) fn is_declaration(line: &str) -> bool {
-    line.starts_with(':') && attribute_parser::document_attribute(line).is_ok()
+pub(super) fn is_declaration(line: &str, mode: CompatibilityMode) -> bool {
+    line.starts_with(':') && attribute_parser::document_attribute(line, mode).is_ok()
 }
 
 #[cfg(test)]
@@ -96,7 +96,10 @@ mod tests {
             ":!name:value",
             ":name!:value",
         ] {
-            assert!(!is_declaration(line), "{line}");
+            assert!(
+                !is_declaration(line, CompatibilityMode::Asciidoctor),
+                "{line}"
+            );
             parse_line(&mut options, line)?;
         }
         assert!(!options.document_attributes.is_explicit("name"));
@@ -109,7 +112,10 @@ mod tests {
             ":!name: value",
             ":name!:\tvalue",
         ] {
-            assert!(is_declaration(line), "{line}");
+            assert!(
+                is_declaration(line, CompatibilityMode::Asciidoctor),
+                "{line}"
+            );
         }
         Ok(())
     }

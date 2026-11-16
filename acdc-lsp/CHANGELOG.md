@@ -78,6 +78,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the header and the body. Before, such an entry in the body had no
   highlighting at all.
 
+- Attribute references follow the parser's name rule for the configured
+  compatibility mode. Hover, inlay hints, code lens, and highlighting no longer
+  treat `{-x}` or `{x²}` as references, or, in Asciidoctor mode, names with a
+  zero-width joiner or non-joiner. Hover, inlay hints, and code lens now find
+  `{b}` in text such as `{a {b}`.
+
 - Builds without the default preview features no longer emit unused-code warnings.
 
 - IDs without recorded source coordinates no longer produce navigation targets

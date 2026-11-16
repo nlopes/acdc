@@ -249,12 +249,6 @@ impl<'doc> TraversalContext<'doc> {
     pub fn is_explicit(&self, name: &str) -> bool {
         self.attribute_assignment(name).is_some()
     }
-
-    /// Expand known references, borrowing unchanged input.
-    #[must_use]
-    pub fn substitute_attributes<'text>(&self, text: &'text str) -> Cow<'text, str> {
-        acdc_parser::substitute_attributes(text, |name| self.get(name))
-    }
 }
 
 #[cfg(test)]
@@ -352,14 +346,6 @@ mod tests {
             .ok_or("missing presence")?
             .write_text(&mut output)?;
         assert_eq!(output, "prefix:03");
-        let unchanged = "Unicode λ {missing} {removed} {unclosed";
-        assert!(
-            matches!(context.substitute_attributes(unchanged), Cow::Borrowed(value) if eq(value, unchanged))
-        );
-        assert_eq!(
-            context.substitute_attributes("λ {max-include-depth}/{present}/{name}/{missing}"),
-            "λ 03//\"quoted\"/{missing}"
-        );
         let defaults = DocumentAttributes::default();
         let defaults = TraversalContext::new(&defaults);
         assert_eq!(
@@ -369,15 +355,12 @@ mod tests {
             None
         );
         assert!(!defaults.is_explicit("max-include-depth"));
-        assert_eq!(defaults.substitute_attributes("{max-include-depth}"), "64");
-        Ok(())
-    }
-
-    #[test]
-    fn substitution_keeps_replacement_references_literal() -> Result<(), Error> {
-        let options = Options::with_attributes([("name", "{other}"), ("other", "expanded")])?;
-        let context = TraversalContext::new(options.document_attributes());
-        assert_eq!(context.substitute_attributes("{name}"), "{other}");
+        let mut default_depth = String::new();
+        defaults
+            .get("max-include-depth")
+            .ok_or("missing default depth")?
+            .write_text(&mut default_depth)?;
+        assert_eq!(default_depth, "64");
         Ok(())
     }
 
@@ -505,7 +488,7 @@ mod tests {
             let result = context.with_scope(|context| {
                 let Ok(()) = context.visit_blocks(&mut observer, &child_blocks);
                 assert!(context.is_nested_document());
-                assert_eq!(context.substitute_attributes("{name}"), "child");
+                assert_eq!(document_attribute_text(context.get("name")), Some("child"));
                 if fail {
                     Err("conversion failed")
                 } else {
@@ -514,7 +497,7 @@ mod tests {
             });
             assert_eq!(result.is_err(), fail);
             assert!(!context.is_nested_document());
-            assert_eq!(context.substitute_attributes("{name}"), "parent");
+            assert_eq!(document_attribute_text(context.get("name")), Some("parent"));
         }
         Ok(())
     }

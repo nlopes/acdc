@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use crate::{
-    Author, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
-    FootnoteDefinition,
+    Author, CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue,
+    DocumentAttributes, FootnoteDefinition, model::substitution::substitute_attributes,
 };
 
 use super::{
@@ -201,6 +203,48 @@ impl<'doc> From<AuthorRef<'doc>> for Author<'doc> {
 }
 
 impl<'doc> DocumentAttributesRef<'doc> {
+    /// The compatibility mode that parsed the document, which decides how
+    /// attribute names are read. Attributes built outside a parse report the
+    /// default mode.
+    #[must_use]
+    pub fn compatibility_mode(self) -> CompatibilityMode {
+        self.attributes.reference_mode()
+    }
+
+    /// Expand known attribute references in `text` once, leaving unresolved
+    /// references unchanged.
+    ///
+    /// Names are read as the document's compatibility mode does; see
+    /// [`CompatibilityMode::is_attribute_reference_name`]. `lookup` supplies
+    /// the values, such as those in effect at a position in the body. A
+    /// backslash before a valid reference is removed and protects that
+    /// reference from lookup. Only valid, unescaped references call `lookup`,
+    /// and inserted values are not scanned again. Other text and line endings
+    /// are preserved. This is one text-only pass: it applies no other
+    /// substitutions and no shell quoting.
+    ///
+    /// The result borrows the input when no reference is replaced or escape
+    /// removed.
+    ///
+    /// ```
+    /// use acdc_parser::{Options, parse};
+    ///
+    /// let parsed = parse("Text.\n", &Options::with_attributes([("name", "value")])?)?;
+    /// let attributes = parsed.document().attributes();
+    /// let expanded =
+    ///     attributes.substitute_attributes(r"{name} \{name} {missing}", |name| attributes.get(name));
+    /// assert_eq!(expanded, "value {name} {missing}");
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn substitute_attributes<'text, 'value>(
+        self,
+        text: &'text str,
+        lookup: impl FnMut(&str) -> Option<&'value DocumentAttributeValue<'value>>,
+    ) -> Cow<'text, str> {
+        substitute_attributes(text, self.compatibility_mode(), lookup)
+    }
+
     /// The effective value, including referenceable defaults.
     #[must_use]
     pub fn get(self, name: &str) -> Option<&'doc DocumentAttributeValue<'doc>> {

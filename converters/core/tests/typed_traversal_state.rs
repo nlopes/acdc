@@ -109,10 +109,20 @@ fn typed_nested_cells_restore_parent_state_after_success_and_error() -> Result<(
                 Some("article")
             );
             assert!(!context.contains_key("toc"));
-            assert_eq!(context.substitute_attributes("{cell-value}"), "one");
+            assert_eq!(
+                context
+                    .get("cell-value")
+                    .and_then(DocumentAttributeValue::text),
+                Some("one")
+            );
             let nested = context.with_table_cell(second, |context| -> Result<(), &str> {
                 replay_cell(context, second);
-                assert_eq!(context.substitute_attributes("{cell-value}"), "two");
+                assert_eq!(
+                    context
+                        .get("cell-value")
+                        .and_then(DocumentAttributeValue::text),
+                    Some("two")
+                );
                 if fail {
                     Err("nested conversion failed")
                 } else {
@@ -120,7 +130,12 @@ fn typed_nested_cells_restore_parent_state_after_success_and_error() -> Result<(
                 }
             });
             assert_eq!(nested.is_err(), fail);
-            assert_eq!(context.substitute_attributes("{cell-value}"), "one");
+            assert_eq!(
+                context
+                    .get("cell-value")
+                    .and_then(DocumentAttributeValue::text),
+                Some("one")
+            );
             if fail {
                 Err("conversion failed")
             } else {
@@ -130,7 +145,12 @@ fn typed_nested_cells_restore_parent_state_after_success_and_error() -> Result<(
         assert_eq!(result.is_err(), fail);
         assert!(!context.is_nested_document());
         assert!(!context.contains_key("cell-value"));
-        assert_eq!(context.substitute_attributes("{imagesdir}"), "parent");
+        assert_eq!(
+            context
+                .get("imagesdir")
+                .and_then(DocumentAttributeValue::text),
+            Some("parent")
+        );
         assert_eq!(
             context
                 .get("doctype")

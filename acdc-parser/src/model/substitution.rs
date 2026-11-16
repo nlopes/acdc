@@ -26,7 +26,10 @@ use std::{borrow::Cow, sync::Arc};
 
 use serde::Serialize;
 
-use crate::{CompatibilityMode, DocumentAttributes};
+use crate::{
+    CompatibilityMode, DocumentAttributes,
+    document_attribute::{is_reference_name, reference_name_len},
+};
 
 const SUBSTITUTION_STAGE_COUNT: usize = 7;
 const DISABLED_SUBSTITUTION: u8 = u8::MAX;
@@ -602,7 +605,9 @@ where
         match substitution {
             Substitution::Attributes => {
                 if let Cow::Owned(expanded) =
-                    substitute_attributes(&result, |name| attributes.get(name))
+                    substitute_attributes(&result, attributes.reference_mode(), |name| {
+                        attributes.get(name)
+                    })
                 {
                     result = Cow::Owned(expanded);
                 }
@@ -1556,20 +1561,17 @@ mod tests {
     }
 }
 
-/// Expand known attribute references once, leaving unresolved references unchanged.
-///
-/// Names contain one or more ASCII letters, digits, underscores, or hyphens.
-/// A backslash before a valid reference is removed and protects that reference
-/// from lookup. Only valid, unescaped references call `lookup`; inserted values
-/// are not scanned again. Other text and line endings are preserved.
-///
-/// The result borrows the input when no reference is replaced or escape removed.
-#[must_use]
-pub fn substitute_attributes<'text, 'value>(
+/// Expand known attribute references once, reading names as `mode` does and
+/// leaving unresolved references unchanged. A backslash before a valid reference
+/// is removed and protects that reference from lookup. Only valid, unescaped
+/// references call `lookup`; inserted values are not scanned again. The result
+/// borrows the input when no reference is replaced or escape removed.
+pub(crate) fn substitute_attributes<'text, 'value>(
     text: &'text str,
+    mode: CompatibilityMode,
     lookup: impl FnMut(&str) -> Option<&'value super::DocumentAttributeValue<'value>>,
 ) -> Cow<'text, str> {
-    substitute_attributes_with_ranges(text, lookup, |_, _| {})
+    substitute_attributes_with_ranges(text, mode, lookup, |_, _| {})
 }
 
 /// Resolve attribute source and return a diagnostic for unsupported profiles.
@@ -1681,7 +1683,7 @@ fn ordered_attribute_source(
         return None;
     }
     let mut references = rustc_hash::FxHashMap::default();
-    let _ = substitute_attributes(text, |name| {
+    let _ = substitute_attributes(text, attributes.reference_mode(), |name| {
         let value = attributes.get(name);
         references.entry(Box::<str>::from(name)).or_insert_with(|| {
             value
@@ -1707,6 +1709,7 @@ fn resolve_attribute_references<'text>(
     let mut fragments = Vec::new();
     let text = substitute_attributes_with_ranges(
         text,
+        attributes.reference_mode(),
         |name| attributes.get(name),
         |value, offset| {
             fragments.extend(
@@ -1889,13 +1892,21 @@ fn expand_attribute_entry_references(
     let mut output = String::with_capacity(text.len());
     let mut prepared = Vec::new();
     let mut cursor = 0;
-    while let Some(relative) = text[cursor..].find('{') {
-        let start = cursor + relative;
+    let mut search_from = 0;
+    while let Some(relative) = text[search_from..].find('{') {
+        let start = search_from + relative;
         let Some(close) = text[start..].find('}') else {
             break;
         };
         let end = start + close + 1;
         let name = &text[start + 1..end - 1];
+        if !is_reference_name(
+            name.strip_suffix('\\').unwrap_or(name),
+            attributes.reference_mode(),
+        ) {
+            search_from = start + 1;
+            continue;
+        }
         let escaped_start = text[cursor..start].ends_with('\\');
         if escaped_start || name.ends_with('\\') {
             append_attribute_slice(
@@ -1942,6 +1953,7 @@ fn expand_attribute_entry_references(
             append_attribute_slice(&mut output, &mut prepared, text, cursor..end, fragments, 0);
         }
         cursor = end;
+        search_from = end;
     }
     append_attribute_slice(
         &mut output,
@@ -1956,6 +1968,7 @@ fn expand_attribute_entry_references(
 
 fn substitute_attributes_with_ranges<'text, 'value>(
     text: &'text str,
+    mode: CompatibilityMode,
     mut lookup: impl FnMut(&str) -> Option<&'value super::DocumentAttributeValue<'value>>,
     mut substituted: impl FnMut(&super::DocumentAttributeValue<'value>, usize),
 ) -> Cow<'text, str> {
@@ -1963,10 +1976,7 @@ fn substitute_attributes_with_ranges<'text, 'value>(
     let mut unwritten = text;
     let mut output: Option<String> = None;
     while let Some((prefix, candidate)) = remaining.split_once('{') {
-        let name_len = candidate
-            .bytes()
-            .take_while(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'-'))
-            .count();
+        let name_len = reference_name_len(candidate, mode);
         let (name, after_name) = candidate.split_at(name_len);
         let Some(rest) = after_name.strip_prefix('}') else {
             remaining = after_name;
@@ -2005,9 +2015,15 @@ fn substitute_attributes_with_ranges<'text, 'value>(
 mod attribute_substitution_tests {
     use std::borrow::Cow;
 
-    use crate::{DocumentAttributeValue, Options};
+    use crate::{CompatibilityMode, DocumentAttributeValue, Options};
 
-    use super::substitute_attributes;
+    /// Expand references as Asciidoctor mode does.
+    fn substitute_attributes<'text, 'value>(
+        text: &'text str,
+        lookup: impl FnMut(&str) -> Option<&'value DocumentAttributeValue<'value>>,
+    ) -> Cow<'text, str> {
+        super::substitute_attributes(text, CompatibilityMode::Asciidoctor, lookup)
+    }
 
     #[rstest::rstest]
     #[case(r"\{shell}", "{shell}")]
@@ -2028,7 +2044,9 @@ mod attribute_substitution_tests {
     #[case("λ plain\r\ntext\n", &[])]
     #[case("{missing}", &["missing"])]
     #[case("{{missing}}", &["missing"])]
-    #[case("{} {bad name} {name.part} {café} {counter:n}", &[])]
+    #[case("{} {bad name} {name.part} {-x} {x²} {counter:n}", &[])]
+    #[case("{café} {CAFÉ} {cafe\u{301}} {_x} {x-}", &["café", "CAFÉ", "cafe\u{301}", "_x", "x-"])]
+    #[case("{a {b}", &["b"])]
     #[case(r"\{bad name} {shell\} ${shell:-fallback}", &[])]
     #[case("{unfinished", &[])]
     fn unchanged_text_stays_borrowed(#[case] input: &str, #[case] expected_names: &[&str]) {
@@ -2075,16 +2093,31 @@ mod attribute_substitution_tests {
         assert_eq!(names, vec!["shell"; calls]);
     }
 
+    #[rstest::rstest]
+    #[case::asciidoctor(CompatibilityMode::Asciidoctor, &["ab"])]
+    #[case::draft(CompatibilityMode::Draft, &["a\u{200C}b", "\u{200D}", "ab"])]
+    fn join_controls_are_name_characters_only_in_draft_mode(
+        #[case] mode: CompatibilityMode,
+        #[case] expected: &[&str],
+    ) {
+        let mut names = Vec::new();
+        let _ = super::substitute_attributes("{a\u{200C}b}{\u{200D}}{ab}", mode, |name| {
+            names.push(name.to_owned());
+            None
+        });
+        assert_eq!(names, expected);
+    }
+
     #[test]
     fn names_follow_the_parser_reference_grammar() {
         let value = DocumentAttributeValue::from("x");
         let mut names = Vec::new();
-        let output = substitute_attributes("{_}{-}{0}{A-b_2}", |name| {
+        let output = substitute_attributes("{_}{-}{-a}{0}{A-b_2}{é-}", |name| {
             names.push(name.to_owned());
             Some(&value)
         });
-        assert_eq!(output, "xxxx");
-        assert_eq!(names, ["_", "-", "0", "A-b_2"]);
+        assert_eq!(output, "x{-}{-a}xxx");
+        assert_eq!(names, ["_", "0", "A-b_2", "é-"]);
     }
 
     #[test]

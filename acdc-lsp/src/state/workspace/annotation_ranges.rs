@@ -23,7 +23,7 @@ fn raw_attribute_locations_preserve_crlf_unicode_and_inclusive_endpoints()
         text.get(definition.absolute_start..=definition.absolute_end),
         Some(":名: 😀")
     );
-    let references = extract_attribute_refs(text);
+    let references = extract_attribute_refs(text, acdc_parser::CompatibilityMode::Asciidoctor);
     let (_, reference) = references.first().ok_or("attribute reference")?;
     assert_eq!(
         text.get(reference.absolute_start..=reference.absolute_end),

@@ -8,6 +8,7 @@ mod attribute_continuation;
 mod attribute_entry_separator;
 mod attribute_first_code;
 mod attribute_mapping;
+mod attribute_names;
 mod attribute_parts;
 mod attribute_shorthand;
 mod content_attributes;

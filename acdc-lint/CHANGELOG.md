@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- New `attribute-name-not-normalized` lint reports attribute entries whose
+  names have uppercase letters or characters other than letters, digits, `_`,
+  and `-`, such as `:TOC:` or `:First Name:`. Asciidoctor mode normalizes those
+  names, as Asciidoctor does, and Draft mode keeps them as written. The lint
+  reports a parser warning, warns by default, and belongs to the
+  `document-structure` group.
+
 - New `header-only-attribute` lint reports body entries for attributes that only
   take effect in the document header, such as `doctype` or `toc` after the empty
   line that ends the header. New `unset-attribute-value` lint reports text after

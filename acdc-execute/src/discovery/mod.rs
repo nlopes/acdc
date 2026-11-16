@@ -12,9 +12,8 @@ use acdc_parser::{
     ColumnStyle, ParseResult, SourceLocation, Substitution, VERBATIM,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ColumnFormatRef, ContentRef,
-        StructuralRef, TableRef,
+        DocumentAttributesRef, StructuralRef, TableRef,
     },
-    substitute_attributes,
 };
 
 use crate::command::{CommandBlock, CommandGraph, CommandGraphBuilder, CommandId};
@@ -69,6 +68,7 @@ impl<'doc> BlockVisitor<'doc> for CommandCollector<'doc> {
                 block,
                 attributes,
                 self.parsed.resolve_location(block.location()),
+                self.parsed.document().attributes(),
                 traversal,
             )?;
             command.metadata.section_title = self.section_title.map(|title| {
@@ -149,6 +149,7 @@ fn parse_command_block(
     block: BlockRef<'_>,
     attributes: AttributesRef<'_>,
     location: SourceLocation,
+    document: DocumentAttributesRef<'_>,
     traversal: &TraversalContext<'_>,
 ) -> Result<(CommandBlock, Vec<CommandId>), DiscoveryError> {
     let anchor = block
@@ -204,7 +205,7 @@ fn parse_command_block(
             VERBATIM.contains(&Substitution::Attributes)
         };
     let script = if expands_attributes {
-        prepare_script(source_text, traversal, command_id, &location)?
+        prepare_script(source_text, document, traversal, command_id, &location)?
     } else {
         source_text.to_owned()
     };
@@ -216,12 +217,13 @@ fn parse_command_block(
 
 fn prepare_script(
     source: &str,
+    document: DocumentAttributesRef<'_>,
     traversal: &TraversalContext<'_>,
     id: &str,
     location: &SourceLocation,
 ) -> Result<String, DiscoveryError> {
     let mut missing = None;
-    let script = substitute_attributes(source, |name| {
+    let script = document.substitute_attributes(source, |name| {
         let value = traversal.get(name);
         if value.is_none() && missing.is_none() {
             missing = Some(name.to_owned());
@@ -911,6 +913,30 @@ mod tests {
                 find(&graph(&source), "run").script,
                 "{missing} \\{also-missing}\n"
             );
+        }
+
+        #[test]
+        fn join_controls_follow_the_compatibility_mode() {
+            let source = command("run", "attributes", "{a\u{200C}b}\n");
+            for (mode, expected) in [
+                (
+                    acdc_parser::CompatibilityMode::Asciidoctor,
+                    "{a\u{200C}b}\n",
+                ),
+                (acdc_parser::CompatibilityMode::Draft, "v\n"),
+            ] {
+                let options = Options::builder()
+                    .with_compatibility_mode(mode)
+                    .with_attribute("a\u{200C}b", "v")
+                    .build()
+                    .unwrap();
+                let parsed = acdc_parser::parse(&source, &options).unwrap();
+                assert_eq!(
+                    find(&CommandGraph::try_from(&parsed).unwrap(), "run").script,
+                    expected,
+                    "{mode:?}"
+                );
+            }
         }
 
         #[test]

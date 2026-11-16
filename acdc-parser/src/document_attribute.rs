@@ -383,6 +383,86 @@ pub(crate) fn is_header_only(name: &str) -> bool {
     HEADER_ONLY_EXACT.binary_search(&name).is_ok()
 }
 
+/// Whether Asciidoctor reads `:name:` as an attribute entry: after any leading
+/// `!`, the name must start with a letter, a digit, or `_`.
+pub(crate) fn starts_like_entry_name(name: &str) -> bool {
+    name.chars().next().is_some_and(is_name_word_char)
+}
+
+/// The name Asciidoctor gives an attribute entry: every character other than a
+/// word character or `-` removed, and the rest lowercased.
+pub(crate) fn normalized_entry_name(name: &str) -> Cow<'_, str> {
+    if name.bytes().all(|byte| {
+        byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'_' | b'-')
+    }) {
+        return Cow::Borrowed(name);
+    }
+    let normalized: String = name
+        .chars()
+        .filter(|&character| character == '-' || is_name_word_char(character))
+        .flat_map(char::to_lowercase)
+        .collect();
+    if normalized == name {
+        Cow::Borrowed(name)
+    } else {
+        Cow::Owned(normalized)
+    }
+}
+
+/// A word character in an attribute name, as Ruby's `\p{Word}` reads it in
+/// Asciidoctor: a letter, a mark, a decimal digit, or a connector such as `_`.
+pub(crate) fn is_name_word_char(character: char) -> bool {
+    if character.is_ascii() {
+        character.is_ascii_alphanumeric() || character == '_'
+    } else {
+        // Unlike Ruby's `\p{Word}`, the Unicode `\w` that `regex_syntax`
+        // implements includes the join controls.
+        !is_join_control(character) && regex_syntax::is_word_character(character)
+    }
+}
+
+/// The zero-width non-joiner (U+200C) and zero-width joiner (U+200D).
+const fn is_join_control(character: char) -> bool {
+    matches!(character, '\u{200C}' | '\u{200D}')
+}
+
+/// A word character in an attribute reference name: Draft mode also accepts the
+/// join controls, which Asciidoctor mode, like Asciidoctor, doesn't.
+fn is_reference_word_char(character: char, mode: CompatibilityMode) -> bool {
+    is_name_word_char(character) || (mode == CompatibilityMode::Draft && is_join_control(character))
+}
+
+/// Whether `character` can continue an attribute reference name.
+pub(crate) fn continues_reference_name(character: char, mode: CompatibilityMode) -> bool {
+    character == '-' || is_reference_word_char(character, mode)
+}
+
+/// Whether `character` can start an attribute reference name.
+pub(crate) fn starts_reference_name(character: char, mode: CompatibilityMode) -> bool {
+    is_reference_word_char(character, mode)
+}
+
+/// The byte length of the attribute reference name that starts `text`, or 0.
+/// As in Asciidoctor, the name starts with a word character and continues with
+/// word characters and `-`.
+pub(crate) fn reference_name_len(text: &str, mode: CompatibilityMode) -> usize {
+    let mut characters = text.char_indices();
+    if !characters
+        .next()
+        .is_some_and(|(_, character)| starts_reference_name(character, mode))
+    {
+        return 0;
+    }
+    characters
+        .find(|&(_, character)| !continues_reference_name(character, mode))
+        .map_or(text.len(), |(end, _)| end)
+}
+
+/// Whether `{name}` is an attribute reference in `mode`.
+pub(crate) fn is_reference_name(name: &str, mode: CompatibilityMode) -> bool {
+    !name.is_empty() && reference_name_len(name, mode) == name.len()
+}
+
 /// Join the lines of a wrapped attribute value. Every line but the last ends
 /// with a wrap marker. A soft wrap (` \`) drops its backslash and joins the next
 /// line after the space, and a hard wrap (` + \`) keeps its marker and a line
@@ -552,14 +632,24 @@ pub(crate) struct AttributeDeclaration<'a> {
 }
 
 impl<'a> AttributeDeclaration<'a> {
+    /// The attribute the entry sets. Asciidoctor mode normalizes the name as
+    /// written; Draft mode keeps it.
+    pub(crate) fn attribute_name(&self, mode: CompatibilityMode) -> Cow<'a, str> {
+        match mode {
+            CompatibilityMode::Asciidoctor => normalized_entry_name(self.name),
+            CompatibilityMode::Draft => Cow::Borrowed(self.name),
+        }
+    }
+
     pub(crate) fn resolve_value(
         &self,
         attributes: &DocumentAttributes<'_>,
         mode: CompatibilityMode,
     ) -> (RawAttributeValue<'a>, Option<String>) {
+        let is_leveloffset = self.attribute_name(mode) == "leveloffset";
         // Asciidoctor resolves literal signed offsets before attribute substitutions.
         // A sign introduced by a reference therefore remains an absolute value.
-        if self.name == "leveloffset"
+        if is_leveloffset
             && mode == CompatibilityMode::Asciidoctor
             && let RawAttributeValue::Text(text) = &self.value
             && let Some(value) = resolve_relative_leveloffset(text, attributes, mode)
@@ -567,7 +657,7 @@ impl<'a> AttributeDeclaration<'a> {
             return (RawAttributeValue::Resolved(value.into()), None);
         }
         let (mut value, warning) = self.value.resolve_with_warning(attributes);
-        if self.name == "leveloffset"
+        if is_leveloffset
             && mode == CompatibilityMode::Draft
             && let RawAttributeValue::Resolved(resolved) = &value
             && let Some(text) = resolved.text()

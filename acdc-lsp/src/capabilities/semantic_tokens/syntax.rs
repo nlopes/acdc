@@ -1,5 +1,5 @@
 use acdc_parser::{
-    ColumnStyle, Location,
+    ColumnStyle, CompatibilityMode, Location,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, DocumentRef, HeaderRef,
         IdOrigin, LocationRef, PositionRef, StructuralRef, TableRef, TableRowRef,
@@ -20,10 +20,11 @@ pub(super) fn collect(
     source: &LineIndex<'_>,
     tokens: &mut Vec<RawToken>,
 ) {
+    let mode = document.attributes().compatibility_mode();
     for node in StructuralRef::Document(document).descendants() {
         match node {
-            StructuralRef::Header(header) => collect_header(header, source, tokens),
-            StructuralRef::Block(block) => collect_block(block, conditionals, source, tokens),
+            StructuralRef::Header(header) => collect_header(header, source, mode, tokens),
+            StructuralRef::Block(block) => collect_block(block, conditionals, source, mode, tokens),
             StructuralRef::ListItem(item) => {
                 if let Some(range) = primary_range(item.location(), source) {
                     prefix(range.start, item.marker(), 8, source, tokens);
@@ -42,22 +43,22 @@ pub(super) fn collect(
                         }
                     }
                 }
-                collect_tokens_from_inlines(item.principal(), source, tokens);
+                collect_tokens_from_inlines(item.principal(), source, mode, tokens);
             }
             StructuralRef::DescriptionListTerm(term) => {
-                content(term.content(), 4, 0, source, tokens);
+                content(term.content(), 4, 0, source, mode, tokens);
                 if let Some(location) = term.delimiter_location() {
                     add_token_for_location(location, 8, 0, source, tokens);
                 }
             }
             StructuralRef::DescriptionListDefinition(definition) => {
                 if let Some(principal) = definition.principal() {
-                    collect_tokens_from_inlines(principal, source, tokens);
+                    collect_tokens_from_inlines(principal, source, mode, tokens);
                 }
             }
             StructuralRef::CalloutListItem(item) => {
                 add_token_for_location(item.callout().location(), 8, 0, source, tokens);
-                collect_tokens_from_inlines(item.principal(), source, tokens);
+                collect_tokens_from_inlines(item.principal(), source, mode, tokens);
             }
             StructuralRef::Document(_)
             | StructuralRef::DescriptionListItem(_)
@@ -279,12 +280,17 @@ fn continues_value(text: &str) -> bool {
         .is_some_and(|rest| !rest.is_empty())
 }
 
-fn collect_header(header: HeaderRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+fn collect_header(
+    header: HeaderRef<'_>,
+    source: &LineIndex<'_>,
+    mode: CompatibilityMode,
+    tokens: &mut Vec<RawToken>,
+) {
     if let Some(title) = header.title() {
-        heading(title, 0, source, tokens);
+        heading(title, 0, source, mode, tokens);
     }
     if let Some(subtitle) = header.subtitle() {
-        content(subtitle, 0, 0, source, tokens);
+        content(subtitle, 0, 0, source, mode, tokens);
     }
 }
 
@@ -292,6 +298,7 @@ fn block_metadata(
     block: BlockRef<'_>,
     conditionals: &[ConditionalBlock],
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
     if let Some(location) = block.attributes().and_then(AttributesRef::location)
@@ -307,7 +314,7 @@ fn block_metadata(
         BlockKind::Section(_) | BlockKind::DiscreteHeading(_)
     ) && let Some(title) = block.title()
     {
-        content(title, 0, 0, source, tokens);
+        content(title, 0, 0, source, mode, tokens);
     }
     delimiters(block.kind(), source, tokens);
 }
@@ -353,9 +360,10 @@ fn collect_block(
     block: BlockRef<'_>,
     conditionals: &[ConditionalBlock],
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
-    block_metadata(block, conditionals, source, tokens);
+    block_metadata(block, conditionals, source, mode, tokens);
     match block.kind() {
         BlockKind::Section(section) => {
             if let Some(title) = section.title() {
@@ -367,18 +375,22 @@ fn collect_block(
                 } else {
                     0
                 };
-                heading(title, modifiers, source, tokens);
+                heading(title, modifiers, source, mode, tokens);
             }
         }
         BlockKind::DiscreteHeading(node) => {
             if let Some(title) = node.title() {
-                heading(title, 0, source, tokens);
+                heading(title, 0, source, mode, tokens);
             }
         }
-        BlockKind::Paragraph(node) => collect_tokens_from_inlines(node.content(), source, tokens),
-        BlockKind::Listing(node) => verbatim(block.kind(), node.content(), source, tokens),
-        BlockKind::Literal(node) => verbatim(block.kind(), node.content(), source, tokens),
-        BlockKind::Passthrough(node) => verbatim(block.kind(), node.content(), source, tokens),
+        BlockKind::Paragraph(node) => {
+            collect_tokens_from_inlines(node.content(), source, mode, tokens);
+        }
+        BlockKind::Listing(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
+        BlockKind::Literal(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
+        BlockKind::Passthrough(node) => {
+            verbatim(block.kind(), node.content(), source, mode, tokens);
+        }
         BlockKind::Stem(node) => {
             if let Some(range) = delimited_body(block.kind(), source)
                 .or_else(|| primary_range(node.location(), source))
@@ -386,7 +398,7 @@ fn collect_block(
                 add_range_with_priority(range, 3, CODE, 0, source, tokens);
             }
         }
-        BlockKind::Verse(node) => collect_tokens_from_inlines(node.content(), source, tokens),
+        BlockKind::Verse(node) => collect_tokens_from_inlines(node.content(), source, mode, tokens),
         BlockKind::DelimitedComment(node) => {
             if let Some(range) = delimited_body(block.kind(), source)
                 .or_else(|| primary_range(node.location(), source))
@@ -395,20 +407,7 @@ fn collect_block(
             }
         }
         BlockKind::Comment(node) => add_token_for_location(node.location(), 5, 0, source, tokens),
-        BlockKind::DocumentAttribute(node) => {
-            if let Some(range) = primary_range(node.location(), source) {
-                attribute_line(node.name(), range.start.line, source, tokens);
-                if range.end.line > range.start.line {
-                    add_token_for_range(
-                        Range::new(Position::new(range.start.line + 1, 0), range.end),
-                        3,
-                        0,
-                        source,
-                        tokens,
-                    );
-                }
-            }
-        }
+        BlockKind::DocumentAttribute(node) => entry_tokens(node.location(), source, tokens),
         BlockKind::Admonition(node) => {
             let label = format!("{}:", node.variant()).to_ascii_uppercase();
             if let Some(range) = primary_range(node.location(), source)
@@ -421,7 +420,7 @@ fn collect_block(
         BlockKind::Image(_)
         | BlockKind::Audio(_)
         | BlockKind::Video(_)
-        | BlockKind::TableOfContents(_) => macro_tokens(block, source, tokens),
+        | BlockKind::TableOfContents(_) => macro_tokens(block, source, mode, tokens),
         BlockKind::ThematicBreak(_) | BlockKind::PageBreak(_) => {
             if let Some(range) = primary_range(block.location(), source) {
                 let start = if range.start.line == range.end.line {
@@ -450,7 +449,36 @@ fn collect_block(
     }
 }
 
-fn macro_tokens(block: BlockRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+/// Highlight a body attribute entry and the lines its wrapped value continues
+/// on. Asciidoctor mode normalizes the name the entry sets, so highlight the
+/// name as written.
+fn entry_tokens(location: LocationRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<RawToken>) {
+    let Some(range) = primary_range(location, source) else {
+        return;
+    };
+    if let Some((name, _)) = source
+        .line(range.start.line)
+        .and_then(|text| attribute_entry(text.trim_end_matches(['\r', '\n'])))
+    {
+        attribute_line(name, range.start.line, source, tokens);
+    }
+    if range.end.line > range.start.line {
+        add_token_for_range(
+            Range::new(Position::new(range.start.line + 1, 0), range.end),
+            3,
+            0,
+            source,
+            tokens,
+        );
+    }
+}
+
+fn macro_tokens(
+    block: BlockRef<'_>,
+    source: &LineIndex<'_>,
+    mode: CompatibilityMode,
+    tokens: &mut Vec<RawToken>,
+) {
     if let Some(mut range) = primary_range(block.location(), source)
         && let Some(start) = find_prefix(range, &["image::", "audio::", "video::", "toc::"], source)
     {
@@ -458,7 +486,7 @@ fn macro_tokens(block: BlockRef<'_>, source: &LineIndex<'_>, tokens: &mut Vec<Ra
         add_token_for_range(range, 1, 0, source, tokens);
     }
     for field in StructuralRef::Block(block).content_fields() {
-        collect_tokens_from_inlines(field.content(), source, tokens);
+        collect_tokens_from_inlines(field.content(), source, mode, tokens);
     }
 }
 
@@ -466,9 +494,10 @@ fn heading(
     title: ContentRef<'_>,
     modifiers: u32,
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
-    content(title, 0, modifiers, source, tokens);
+    content(title, 0, modifiers, source, mode, tokens);
     let Some(range) = content_range(title, source) else {
         return;
     };
@@ -551,13 +580,14 @@ fn verbatim(
     kind: BlockKind<'_>,
     body: ContentRef<'_>,
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
     if let Some(range) = delimited_body(kind, source) {
         add_range_with_priority(range, 3, CODE, 0, source, tokens);
-        collect_tokens_from_inlines(body, source, tokens);
+        collect_tokens_from_inlines(body, source, mode, tokens);
     } else {
-        content(body, 3, CODE, source, tokens);
+        content(body, 3, CODE, source, mode, tokens);
     }
 }
 
@@ -697,6 +727,7 @@ fn content(
     kind: u32,
     modifiers: u32,
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
     // Individual spans remain usable when a container crosses an include boundary.
@@ -705,7 +736,7 @@ fn content(
             add_range_with_priority(range, kind, modifiers, 0, source, tokens);
         }
     }
-    collect_tokens_from_inlines(content, source, tokens);
+    collect_tokens_from_inlines(content, source, mode, tokens);
 }
 
 fn primary_range(location: LocationRef<'_>, source: &LineIndex<'_>) -> Option<Range> {
@@ -786,6 +817,7 @@ fn attribute_line(name: &str, line: u32, source: &LineIndex<'_>, tokens: &mut Ve
 pub(super) fn attribute_references(
     location: LocationRef<'_>,
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
     let Some(range) = primary_range(location, source) else {
@@ -816,10 +848,7 @@ pub(super) fn attribute_references(
                 continue;
             }
             if let Some((name, _)) = text.get(offset + 1..).and_then(|rest| rest.split_once('}'))
-                && !name.is_empty()
-                && name
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || matches!(c, '_' | '-'))
+                && mode.is_attribute_reference_name(name)
             {
                 line_bytes(
                     line,

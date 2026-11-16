@@ -1118,8 +1118,11 @@ they have retained text. This text does not change JSON or semantic equality.
 
 Use `Block::metadata()` and `Block::location()` without matching each block
 variant. `BlockMetadata::uses_substitution()` checks enabled substitutions against
-the defaults for that block. `substitute_attributes()` performs one text-only
-attribute pass; it does not apply other inline substitutions or shell quoting.
+the defaults for that block. `DocumentAttributesRef::substitute_attributes()`
+performs one text-only attribute pass with values from a lookup you supply; it
+does not apply other inline substitutions or shell quoting. It reads names as
+the document's compatibility mode does, and
+`DocumentAttributesRef::compatibility_mode()` returns that mode.
 
 `ParseResult::source_location()` resolves an AST location to its original file,
 including partial and nested includes. Each location boundary has its own include
@@ -1189,6 +1192,38 @@ It does not dump document text, options, AST nodes, paths, or URLs.
 Read full diagnostics from `ParseResult::warnings()`,
 `ParseInlineResult::warnings()`, and returned errors.
 These diagnostics can contain source text and paths.
+
+## Attribute names
+
+In Asciidoctor mode, acdc normalizes attribute names as Asciidoctor does. An
+attribute entry's name loses every character other than a letter, a digit, `_`,
+or `-`, and the rest is lowercased: `:TOC:` sets `toc`, `:First Name: Dan` sets
+`firstname`, and `:my.attr:` sets `myattr`. A line such as `:.name: value`,
+whose name doesn't start with a letter, a digit, or `_`, is text, not an entry.
+Attribute references and `ifdef`, `ifndef`, and `ifeval` directives look names
+up in lowercase, so `{TOC}` and `ifdef::TOC[]` find `toc`. Names supplied
+through the API or CLI are lowercased but keep their other characters, as in
+Asciidoctor. Lookups through `DocumentAttributes` and `DocumentAttributesRef`
+ignore case in this mode too.
+
+Draft mode keeps names as written, because the AsciiDoc specification hasn't
+decided how to normalize them: `{TOC}` finds only `:TOC:`.
+
+In both modes, an entry whose name isn't normalized adds a located
+`WarningKind::AttributeNameNotNormalized` warning that names the attribute
+Asciidoctor mode sets. Asciidoctor doesn't warn.
+
+In both modes, a reference name starts with a letter, a digit, or `_` and
+continues with letters, digits, `_`, and `-`, as in Asciidoctor. Letters and
+digits include non-ASCII ones and combining marks, so `{café}` finds `:café:`.
+`{-x}` and `{x²}` are text, even when `-x` or `x²` is set through the API.
+
+The zero-width non-joiner (U+200C) and zero-width joiner (U+200D) depend on the
+mode. Asciidoctor mode, like Asciidoctor, doesn't count them as word
+characters: an entry drops them from its name, and a reference that contains
+one is text. Draft mode accepts them in reference names, as scripts such as
+Persian need them inside words, and keeps entry names as written.
+`CompatibilityMode::is_attribute_reference_name()` applies a mode's rule.
 
 ## Intrinsic document attributes
 

@@ -71,6 +71,28 @@ impl CompatibilityMode {
     pub(crate) fn ui_macros_enabled(self, attributes: &DocumentAttributes<'_>) -> bool {
         self == Self::Draft || attributes.contains_key("experimental")
     }
+
+    /// Whether `{name}` is an attribute reference in this mode.
+    ///
+    /// As in Asciidoctor, a name starts with a letter, a digit, or `_` and
+    /// continues with letters, digits, `_`, and `-`. Letters and digits include
+    /// non-ASCII ones and combining marks. Draft mode also accepts the
+    /// zero-width non-joiner (U+200C) and the zero-width joiner (U+200D), which
+    /// Asciidoctor doesn't.
+    ///
+    /// ```
+    /// use acdc_parser::CompatibilityMode;
+    ///
+    /// let asciidoctor = CompatibilityMode::Asciidoctor;
+    /// assert!(asciidoctor.is_attribute_reference_name("café"));
+    /// assert!(!asciidoctor.is_attribute_reference_name("-x"));
+    /// assert!(!asciidoctor.is_attribute_reference_name("a\u{200C}b"));
+    /// assert!(CompatibilityMode::Draft.is_attribute_reference_name("a\u{200C}b"));
+    /// ```
+    #[must_use]
+    pub fn is_attribute_reference_name(self, name: &str) -> bool {
+        crate::document_attribute::is_reference_name(name, self)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -208,6 +230,10 @@ impl<'a> Options<'a> {
     }
 
     pub(crate) fn prepare_for_parse(mut self, input_kind: InputKind<'_>) -> Self {
+        // Asciidoctor lowercases caller attribute names and the names that
+        // references and conditional directives look up.
+        self.document_attributes
+            .apply_name_rules(self.compatibility_mode);
         initialize_intrinsics(&mut self.document_attributes, self.safe_mode, input_kind);
         self.document_attributes
             .prepare_attribute_limit(self.safe_mode);

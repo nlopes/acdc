@@ -15,7 +15,7 @@ mod syntax;
 mod coverage_tests;
 
 use acdc_parser::{
-    Location,
+    CompatibilityMode, Location,
     ast::{ContentRef, DocumentRef, InlineKind, LocationRef},
 };
 use tower_lsp_server::ls_types::{
@@ -225,6 +225,7 @@ fn collect_conditional_tokens(
 fn collect_tokens_from_inlines(
     content: ContentRef<'_>,
     source: &LineIndex<'_>,
+    mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
     for inline in content.inlines() {
@@ -252,7 +253,7 @@ fn collect_tokens_from_inlines(
             InlineKind::Callout(_) => Some((8, 0)),
             InlineKind::IndexTerm(_) => Some((7, 0)),
             InlineKind::Plain(_) => {
-                syntax::attribute_references(inline.location(), source, tokens);
+                syntax::attribute_references(inline.location(), source, mode, tokens);
                 None
             }
             InlineKind::Symbol(_)
@@ -269,7 +270,7 @@ fn collect_tokens_from_inlines(
             add_token_for_location(inline.location(), kind, modifiers, source, tokens);
         }
         for field in inline.content_fields() {
-            collect_tokens_from_inlines(field.content(), source, tokens);
+            collect_tokens_from_inlines(field.content(), source, mode, tokens);
         }
     }
 }

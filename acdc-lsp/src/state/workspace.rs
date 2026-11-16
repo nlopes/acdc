@@ -816,7 +816,8 @@ impl Workspace {
 
         let raw_text = parsed.text();
         let definitions = crate::state::document::extract_attribute_defs(raw_text);
-        let references = crate::state::document::extract_attribute_refs(raw_text);
+        let references =
+            crate::state::document::extract_attribute_refs(raw_text, options.compatibility_mode);
         let raw_includes = crate::state::document::extract_includes(raw_text);
         let raw_conditionals = conditionals.unwrap_or_else(|| {
             crate::state::document::extract_conditionals(

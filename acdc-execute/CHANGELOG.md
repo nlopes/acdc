@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `subs=attributes` reads reference names in scripts as the document's
+  compatibility mode does, as the parser does: names may contain non-ASCII
+  letters, and Draft mode also accepts the zero-width joiner and non-joiner.
+  `{-x}` stays text.
 - Recognize `[[id]]` anchors as command IDs, alongside `[#id]` and `id=`. An explicit `id=` still takes precedence over aliases. Generated section IDs do not identify commands.
 
 ### Changed

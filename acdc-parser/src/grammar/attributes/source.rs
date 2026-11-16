@@ -4,6 +4,7 @@ use std::borrow::Cow;
 
 use crate::{
     CompatibilityMode, DocumentAttributes,
+    document_attribute::reference_name_len,
     grammar::inline_preprocessor::{ProcessedKind, SourceMap},
 };
 
@@ -25,10 +26,7 @@ pub(in crate::grammar) fn expand_attribute_list<'a>(
     while let Some(relative) = source[cursor..].find('{') {
         let open = cursor + relative;
         cursor = open + 1;
-        let name_len = source[cursor..]
-            .bytes()
-            .take_while(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'-'))
-            .count();
+        let name_len = reference_name_len(&source[cursor..], mode);
         let close = cursor + name_len;
         if name_len == 0 || !source[close..].starts_with('}') {
             continue;

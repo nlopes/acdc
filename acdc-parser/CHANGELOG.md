@@ -51,6 +51,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   applies in the body, such as `icons`, `stem`, and `sectnums`, don't warn, and
   neither do caller-supplied values or entries a caller lock rejects.
   Asciidoctor doesn't warn.
+- Asciidoctor mode now normalizes attribute names as Asciidoctor does. An
+  entry's name loses every character other than a letter, a digit, `_`, or `-`,
+  and is lowercased, so `:TOC:` turns on the table of contents and
+  `:First Name: Dan` sets `firstname`. A line such as `:.name: value` is now
+  text, not an entry. Attribute references and `ifdef`, `ifndef`, and `ifeval`
+  directives look names up in lowercase, so `{TOC}` and `ifdef::TOC[]` find
+  `toc`, and caller attributes such as `-a TOC` are lowercased. Lookups through
+  `DocumentAttributes` ignore case in this mode, and body entries report their
+  normalized name. Draft mode keeps names as written, since the specification
+  hasn't decided how to normalize them. In both modes, an entry whose name isn't
+  normalized adds a located `WarningKind::AttributeNameNotNormalized` warning.
+- Conditional directives now see entries such as `:my.attr:` or
+  `:First Name:`, whose names have characters other than letters, digits, `_`,
+  and `-`. Before, `ifdef` missed them even with the exact spelling.
+- Attribute references now read names as Asciidoctor does. Names may contain
+  non-ASCII letters, combining marks, and digits, so `{café}` resolves `:café:`
+  instead of staying text. A name must start with a letter, a digit, or `_`, so
+  `{-x}` is text even when `-x` is set. In Asciidoctor mode, the zero-width
+  non-joiner (U+200C) and zero-width joiner (U+200D) aren't word characters, as
+  in Asciidoctor: an entry drops them from its name, and a reference that
+  contains one is text. Draft mode accepts them in reference names. In verbatim
+  blocks with `subs=attributes`, block attribute lists, escaped passthroughs,
+  and `pass:a` entry values, text such as `{a {b}` now resolves `{b}`, as it
+  already did in paragraphs. `pass:a` entry values also leave invalid names
+  such as `{a b}` as text, including their backslash escapes.
+- **Breaking:** the free function `substitute_attributes()` is no longer
+  public. Use `DocumentAttributesRef::substitute_attributes()`, which expands
+  references by the document's compatibility mode with values from a lookup you
+  supply, such as `|name| attributes.get(name)`.
+- `CompatibilityMode::is_attribute_reference_name()` tells whether `{name}` is
+  a reference in a mode, and `DocumentAttributesRef::compatibility_mode()`
+  returns the mode that parsed a document.
 - Attribute entries whose value wraps with ` \` now have locations in the
   original source. The entry's location, and the header's when the entry ends
   it, end on the value's last line, at the right column. Before, they ended on

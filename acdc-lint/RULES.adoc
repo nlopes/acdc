@@ -119,6 +119,7 @@ Members:
 * xref:lint-table-cell-overflow[table-cell-overflow]
 * xref:lint-header-only-attribute[header-only-attribute]
 * xref:lint-unset-attribute-value[unset-attribute-value]
+* xref:lint-attribute-name-not-normalized[attribute-name-not-normalized]
 
 [[group-source-format]]
 === `source-format`
@@ -831,6 +832,44 @@ Removing the text doesn't change the output.
 [source,asciidoc]
 ----
 :!toc:
+----
+
+[[lint-attribute-name-not-normalized]]
+=== `attribute-name-not-normalized`
+
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
+
+==== What it does
+
+Reports attribute entries whose names have uppercase letters or characters other than letters, digits, `_`, and `-`, such as `:TOC:`, `:First Name:`, or `:my.attr:`.
+In Draft mode, it also reports names that don't start with a letter, a digit, or `_`.
+
+==== Why it is bad
+
+Asciidoctor removes the other characters and lowercases the rest, and so does acdc in Asciidoctor mode: `:TOC:` sets `toc`, and `:First Name:` sets `firstname`.
+Draft mode keeps the name as written, so the same entry sets a different attribute in each mode, and references that use another spelling don't find it.
+
+==== Drawbacks
+
+None.
+Writing the normalized name gives the same result in Asciidoctor mode and in Asciidoctor.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+:TOC:
+:First Name: Dan
+----
+
+.Good
+[source,asciidoc]
+----
+:toc:
+:firstname: Dan
 ----
 
 [[lint-delimited-block-minimal-delimiter]]

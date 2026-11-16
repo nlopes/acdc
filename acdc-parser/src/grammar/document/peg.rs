@@ -10,7 +10,9 @@ use crate::{
     Header, Image, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
     Paragraph, Plain, Position, Section, Source, Subtitle, TableOfContents, ThematicBreak, Title,
     UnorderedList, Video, Warning, WarningKind,
-    document_attribute::{AttributeDeclaration, RawAttributeValue, join_wrapped_value},
+    document_attribute::{
+        AttributeDeclaration, RawAttributeValue, join_wrapped_value, starts_like_entry_name,
+    },
     grammar::{
         ParserState,
         attributes::{
@@ -1109,7 +1111,7 @@ peg::parser! {
         rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
         = att:document_attribute_match()
         {
-            let name = Cow::Borrowed(att.name);
+            let name = att.attribute_name(state.options.compatibility_mode);
             let location = state.create_block_location(span_start, span_end, offset);
             let event = state
                 .apply_document_attribute(&att, false, location.clone())
@@ -4258,9 +4260,20 @@ peg::parser! {
         rule document_attribute_match() -> AttributeDeclaration<'input>
         = ":"
         key_entry:(
-            "!" key:$([^':' | '\n']+) { (false, key) }
-            / key:$([^('!' | ':' | '\n')]+) "!" { (false, key) }
-            / key:$([^':' | '\n']+) { (true, key) }
+            entry:(
+                "!" key:$([^':' | '\n']+) { (false, key) }
+                / key:$([^('!' | ':' | '\n')]+) "!" { (false, key) }
+                / key:$([^':' | '\n']+) { (true, key) }
+            ) {?
+                // Asciidoctor reads a line such as `:.name:` as text.
+                if state.options.compatibility_mode == CompatibilityMode::Asciidoctor
+                    && !starts_like_entry_name(entry.1)
+                {
+                    Err("attribute name starting with a word character")
+                } else {
+                    Ok(entry)
+                }
+            }
         )
         ":" &([' ' | '\t' | '\n'] / ![_])
         value:document_attribute_value()?

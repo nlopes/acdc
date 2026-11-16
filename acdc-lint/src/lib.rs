@@ -99,6 +99,8 @@ pub enum LintId {
     HeaderOnlyAttribute,
     /// Surface parser warnings for text after an unset attribute entry.
     UnsetAttributeValue,
+    /// Surface parser warnings for attribute entry names that aren't normalized.
+    AttributeNameNotNormalized,
     /// Use the minimum required delimiter length for delimited blocks.
     DelimitedBlockMinimalDelimiter,
     /// Put whitespace after heading markers.
@@ -401,6 +403,20 @@ pub const LINTS: &[LintInfo] = &[
         help: Some("remove the text after the entry, or use `:name: value` to set the attribute"),
     },
     LintInfo {
+        name: "attribute-name-not-normalized",
+        id: LintId::AttributeNameNotNormalized,
+        default_level: LintLevel::Warn,
+        summary: "write attribute names in lowercase with letters, digits, `_`, and `-`",
+        explanation: "Surfaces parser warnings for attribute entries such as `:TOC:` or \
+                      `:First Name:` whose names have uppercase letters or other characters. \
+                      Asciidoctor mode removes those characters and lowercases the rest, as \
+                      Asciidoctor does, while Draft mode keeps the name as written, so the \
+                      same entry sets different attributes in the two modes.",
+        help: Some(
+            "write the name in lowercase, starting with a letter, a digit, or `_`, and using only letters, digits, `_`, and `-`",
+        ),
+    },
+    LintInfo {
         name: "delimited-block-minimal-delimiter",
         id: LintId::DelimitedBlockMinimalDelimiter,
         default_level: LintLevel::Warn,
@@ -693,6 +709,7 @@ fn is_document_structure(lint: LintId) -> bool {
             | LintId::TableCellOverflow
             | LintId::HeaderOnlyAttribute
             | LintId::UnsetAttributeValue
+            | LintId::AttributeNameNotNormalized
     )
 }
 

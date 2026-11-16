@@ -342,7 +342,7 @@ impl CommentScanner {
             }
         } else if !line.is_empty()
             && !is_line_comment(line)
-            && !super::attribute::is_declaration(line)
+            && !super::attribute::is_declaration(line, self.compatibility_mode)
             && !line
                 .strip_prefix('.')
                 .is_some_and(|title| !title.is_empty() && !title.starts_with([' ', '\t', '.']))

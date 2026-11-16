@@ -632,6 +632,61 @@ fn metadata_lines_that_look_like_comments_keep_their_tokens() -> TestResult {
     Ok(())
 }
 
+/// Asciidoctor mode normalizes the name an entry sets, such as `my-attr` for
+/// `:My-Attr:`, but the entry's name is highlighted as written.
+#[test]
+fn entries_with_names_that_are_not_normalized_are_highlighted() -> TestResult {
+    for mode in MODES {
+        for (source, line, name, value) in [
+            (
+                "= Title\n:My-Attr: value\n\nPara\n",
+                1,
+                "My-Attr",
+                Some("value"),
+            ),
+            ("Para\n\n:My-Attr: value\n", 2, "My-Attr", Some("value")),
+            ("Para\n\n:!Other.Name:\n", 2, "Other.Name", None),
+        ] {
+            let tokens = decoded_in(source, &options(mode)?)?;
+            let message = format!("{mode:?} {source:?}: {tokens:?}");
+            assert!(has_token(&tokens, line, name, "property"), "{message}");
+            if let Some(value) = value {
+                assert!(has_token(&tokens, line, value, "string"), "{message}");
+            }
+        }
+    }
+    Ok(())
+}
+
+/// References follow the parser's name rule: names may contain any letter,
+/// mark, or decimal digit, and start with a word character. Draft mode also
+/// accepts the join controls U+200C and U+200D.
+#[test]
+fn references_with_unicode_names_are_highlighted() -> TestResult {
+    for (mode, expected) in [
+        (
+            CompatibilityMode::Asciidoctor,
+            &["{café}", "{CAFÉ}", "{b}"][..],
+        ),
+        (
+            CompatibilityMode::Draft,
+            &["{café}", "{CAFÉ}", "{b}", "{a\u{200C}b}"][..],
+        ),
+    ] {
+        let tokens = decoded_in(
+            "{café} {CAFÉ} {-x} {x²} {a {b} {a\u{200C}b}\n",
+            &options(mode)?,
+        )?;
+        let references: Vec<_> = tokens
+            .iter()
+            .filter(|token| token.3 == "property")
+            .map(|token| token.2.as_str())
+            .collect();
+        assert_eq!(references, expected, "{mode:?}: {tokens:?}");
+    }
+    Ok(())
+}
+
 #[test]
 fn wrapped_values_are_highlighted_on_every_line() -> TestResult {
     for mode in MODES {

@@ -7,7 +7,7 @@ use std::{
 };
 
 use acdc_parser::{
-    Location, ParseResult, Position, SourceLocation,
+    CompatibilityMode, Location, ParseResult, Position, SourceLocation,
     ast::{DocumentAttributesRef, DocumentRef},
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
@@ -193,7 +193,7 @@ impl DocumentState {
         let parsed = ParsedText::from_source(text.into_boxed_str());
         let raw_text = parsed.text();
         let definitions = extract_attribute_defs(raw_text);
-        let references = extract_attribute_refs(raw_text);
+        let references = extract_attribute_refs(raw_text, CompatibilityMode::default());
         let raw_includes = extract_includes(raw_text);
         let raw_conditionals = extract_conditionals(
             raw_text,
@@ -265,8 +265,12 @@ pub(super) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
 
 /// Extract attribute references (`{name}`) from raw text.
 ///
-/// Skips escaped references (`\{name}`) and includes references in attribute values.
-pub(super) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
+/// Skips escaped references (`\{name}`) and includes references in attribute
+/// values. Names follow the rule of `mode`.
+pub(super) fn extract_attribute_refs(
+    text: &str,
+    mode: CompatibilityMode,
+) -> Vec<(String, Location)> {
     let mut refs = Vec::new();
     let mut line_start = 0usize;
 
@@ -286,11 +290,18 @@ pub(super) fn extract_attribute_refs(text: &str) -> Vec<(String, Location)> {
                 .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
         {
             if let Some(value_part) = after_colon.get(end + 1..) {
-                extract_refs_from_line(this_line_start, line, line_idx, value_part, &mut refs);
+                extract_refs_from_line(
+                    this_line_start,
+                    line,
+                    line_idx,
+                    value_part,
+                    mode,
+                    &mut refs,
+                );
             }
             continue;
         }
-        extract_refs_from_line(this_line_start, line, line_idx, line, &mut refs);
+        extract_refs_from_line(this_line_start, line, line_idx, line, mode, &mut refs);
     }
 
     refs
@@ -302,6 +313,7 @@ fn extract_refs_from_line(
     line: &str,
     line_idx: usize,
     segment: &str,
+    mode: CompatibilityMode,
     refs: &mut Vec<(String, Location)>,
 ) {
     // segment is always a substring of line (either line itself or a suffix)
@@ -322,25 +334,24 @@ fn extract_refs_from_line(
         };
         let close = open + 1 + close;
 
-        if let Some(name) = segment.get(open + 1..close)
-            && !name.is_empty()
-            && name
-                .chars()
-                .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        {
-            let col_in_line = segment_offset_in_line + open;
-            let col_end = segment_offset_in_line + close + 1;
+        let Some(name) = segment
+            .get(open + 1..close)
+            .filter(|name| mode.is_attribute_reference_name(name))
+        else {
+            search_start = open + 1;
+            continue;
+        };
+        let col_in_line = segment_offset_in_line + open;
+        let col_end = segment_offset_in_line + close + 1;
 
-            let mut location = Location::default();
-            location.start =
-                Position::from_line_col(line_idx + 1, line[..col_in_line].chars().count() + 1);
-            location.end = Position::from_line_col(line_idx + 1, line[..col_end].chars().count());
-            location.absolute_start = line_start + col_in_line;
-            location.absolute_end = line_start + col_end - 1;
+        let mut location = Location::default();
+        location.start =
+            Position::from_line_col(line_idx + 1, line[..col_in_line].chars().count() + 1);
+        location.end = Position::from_line_col(line_idx + 1, line[..col_end].chars().count());
+        location.absolute_start = line_start + col_in_line;
+        location.absolute_end = line_start + col_end - 1;
 
-            refs.push((name.to_string(), location));
-        }
-
+        refs.push((name.to_string(), location));
         search_start = close + 1;
     }
 }
@@ -623,7 +634,7 @@ mod tests {
     #[test]
     fn test_extract_attribute_refs_basic() {
         let text = "== Section\n\nSee {my-attr} here.\n";
-        let refs = extract_attribute_refs(text);
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("my-attr"));
     }
@@ -631,7 +642,7 @@ mod tests {
     #[test]
     fn test_extract_attribute_refs_multiple_on_same_line() {
         let text = "The {foo} and {bar} values.\n";
-        let refs = extract_attribute_refs(text);
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         assert_eq!(refs.len(), 2);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("foo"));
         assert_eq!(refs.get(1).map(|(n, _)| n.as_str()), Some("bar"));
@@ -640,7 +651,7 @@ mod tests {
     #[test]
     fn test_extract_attribute_refs_escaped() {
         let text = "Not a ref: \\{escaped} but {real} is.\n";
-        let refs = extract_attribute_refs(text);
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("real"));
     }
@@ -648,7 +659,7 @@ mod tests {
     #[test]
     fn test_extract_attribute_refs_skips_definition_name() {
         let text = ":my-attr: some value\n\n{my-attr} is used here.\n";
-        let refs = extract_attribute_refs(text);
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         // Should find the ref on line 3, not the definition on line 1
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("my-attr"));
@@ -658,7 +669,7 @@ mod tests {
     #[test]
     fn test_extract_attribute_refs_in_definition_value() {
         let text = ":derived: prefix-{base}\n";
-        let refs = extract_attribute_refs(text);
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         // Should find {base} in the value part of the definition
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("base"));
@@ -667,7 +678,7 @@ mod tests {
     #[test]
     fn test_extract_attribute_refs_location() {
         let text = "= Doc\n\n{version} is the version.\n";
-        let refs = extract_attribute_refs(text);
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("version"));
         assert_eq!(refs.first().map(|(_, l)| l.start.line), Some(3));
@@ -676,10 +687,34 @@ mod tests {
 
     #[test]
     fn test_extract_attribute_refs_ignores_invalid_names() {
-        let text = "{} and {with spaces} and {valid-name}\n";
-        let refs = extract_attribute_refs(text);
+        let text = "{} and {with spaces} and {-x} and {x²} and {valid-name}\n";
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
         assert_eq!(refs.len(), 1);
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("valid-name"));
+    }
+
+    #[test]
+    fn test_extract_attribute_refs_join_controls_follow_mode() {
+        let text = "{a\u{200C}b} and {ab}\n";
+        for (mode, expected) in [
+            (CompatibilityMode::Asciidoctor, &["ab"][..]),
+            (CompatibilityMode::Draft, &["a\u{200C}b", "ab"][..]),
+        ] {
+            let refs = extract_attribute_refs(text, mode);
+            let names: Vec<_> = refs.iter().map(|(name, _)| name.as_str()).collect();
+            assert_eq!(names, expected, "{mode:?}");
+        }
+    }
+
+    #[test]
+    fn test_extract_attribute_refs_unicode_names() {
+        let text = "{café} and {a {b}\n";
+        let refs = extract_attribute_refs(text, CompatibilityMode::Asciidoctor);
+        let found: Vec<_> = refs
+            .iter()
+            .map(|(name, location)| (name.as_str(), location.start.column, location.end.column))
+            .collect();
+        assert_eq!(found, [("café", 1, 6), ("b", 15, 17)]);
     }
 
     fn attr_set(name: &str) -> (Cow<'static, str>, AttributeValue<'static>) {

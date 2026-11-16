@@ -20,6 +20,7 @@ use std::{
 use crate::{
     DocumentAttributes, Error, Location, Passthrough, PassthroughKind, Position, SourceLocation,
     Substitution, Warning, WarningKind,
+    document_attribute::reference_name_len,
     grammar::{
         LineMap,
         utf8_utils::{RoundDirection, step_char},
@@ -407,19 +408,14 @@ impl<'a> InlinePreprocessorParserState<'a> {
         let mut search_from = 0;
         while let Some(relative_start) = source[search_from..].find('{') {
             let start = search_from + relative_start;
-            let Some(relative_end) = source[start + 1..].find('}') else {
-                break;
-            };
-            let end = start + relative_end + 2;
-            let name = &source[start + 1..end - 1];
-            if name.is_empty()
-                || !name
-                    .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-            {
-                search_from = end;
+            let name_len =
+                reference_name_len(&source[start + 1..], document_attributes.reference_mode());
+            let end = start + name_len + 2;
+            if name_len == 0 || source.as_bytes().get(end - 1) != Some(&b'}') {
+                search_from = start + 1;
                 continue;
             }
+            let name = &source[start + 1..end - 1];
 
             output.push_str(&source[copied_until..start]);
             let location = self.location_from_offsets(source_start + start, source_start + end);

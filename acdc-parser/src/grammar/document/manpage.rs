@@ -40,7 +40,7 @@ pub(super) fn prepare_manpage_name_attributes<'input>(
                 .resolve_value(&attributes, state.options.compatibility_mode)
                 .0;
             let _ = attributes.assign_document_value(
-                declaration.name.into(),
+                declaration.attribute_name(state.options.compatibility_mode),
                 value,
                 false,
                 false,

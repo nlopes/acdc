@@ -7,7 +7,7 @@ use crate::{
     CharacterReference, CharacterReferenceKind, IndexTerm, InlineMacro, InlineNode, LineBreak,
     Location, ParseInlineResult, Passthrough, PassthroughKind, Plain, ProcessedContent, Raw,
     Substitution, SubstitutionSpec, Symbol, SymbolKind, Warning,
-    document_attribute::AssignmentState,
+    document_attribute::{AssignmentState, is_reference_name},
     model::substitution::{
         SubstitutionPlan, character_reference_end, resolve_passthrough_substitutions,
     },
@@ -1046,12 +1046,8 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             copied_until = end;
             continue;
         }
-        if name.is_empty()
-            || name
-                .bytes()
-                .any(|byte| !(byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_')))
-        {
-            cursor = end;
+        if !is_reference_name(name, state.options.compatibility_mode) {
+            cursor = start + 1;
             continue;
         }
 
@@ -1157,11 +1153,7 @@ fn escaped_raw_attribute_reference<'a>(
         return None;
     }
     let name = name.strip_suffix('\\').unwrap_or(name);
-    if name.is_empty()
-        || !name
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
-    {
+    if !is_reference_name(name, state.options.compatibility_mode) {
         return None;
     }
     let source_start = start - usize::from(escaped_start);
