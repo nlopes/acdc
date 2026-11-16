@@ -34,6 +34,7 @@ jobs:
             converters:
               - '.github/workflows/ci.yml'
               - 'converters/**'
+              - 'extensions/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -43,6 +44,7 @@ jobs:
               - 'acdc-execute/**'
               - 'acdc-parser/**'
               - 'converters/**'
+              - 'extensions/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             lsp:
@@ -156,8 +158,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y groff mandoc
-      - name: Run converter tests
-        run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
+      - name: Run converter and native extension tests
+        run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown -p acdc-extensions-terminal --all-features --verbose
       - name: Run HTML tests - no default features
         run: cargo nextest run -p acdc-converters-html --no-default-features --verbose
       - name: Run HTML tests - highlighting
@@ -209,6 +211,10 @@ jobs:
           for feature in html manpage markdown pdf terminal; do
             cargo run -p acdc-cli --no-default-features --features "$feature" -- convert --help
           done
+      - name: Test native terminal availability and activation
+        run: |
+          cargo nextest run -p acdc-cli --no-default-features --features html --test cli -E 'test(/native_terminal_selection/)'
+          cargo nextest run -p acdc-cli --no-default-features --features html-terminal --test cli -E 'test(/native_terminal_selection/)'
       - name: Smoke-test tool-only CLI builds
         shell: bash
         run: |

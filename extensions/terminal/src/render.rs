@@ -32,7 +32,7 @@ use acdc_parser::{
     ast::{AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef},
 };
 
-use crate::{Error, image_helpers::attribute_scalar};
+use crate::{Error, attribute_scalar};
 
 const DEFAULT_COLS: usize = 80;
 const AUTO_ROW_PADDING: usize = 1;
@@ -1329,14 +1329,15 @@ fn escape_html(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::estimate_rows;
     use acdc_converters_core::{
         Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning, WarningSource,
     };
     use acdc_parser::{Options as ParserOptions, SafeMode};
     use std::{collections::HashMap, error::Error};
 
-    use crate::{Converter, HtmlVariant, RenderOptions, terminal::resolved_usize};
+    use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
+
+    use super::{estimate_rows, resolved_usize};
 
     type TestResult = Result<(), Box<dyn Error>>;
 
@@ -1375,10 +1376,11 @@ mod tests {
         let source = WarningSource::new("html").with_variant(variant.as_str());
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        converter.convert_to_writer(
+        converter.convert_to_writer_with_extensions(
             doc,
             &mut output,
             &RenderOptions::default(),
+            &crate::extension(),
             &mut diagnostics,
         )?;
         Ok((String::from_utf8(output)?, warnings))

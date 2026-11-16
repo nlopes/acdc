@@ -11,13 +11,13 @@ default = []
 # Enable syntax highlighting for source blocks using giallo
 highlighting = ["dep:giallo", "acdc-converters-core/highlighting"]
 # Render terminal-converter output into selectable HTML via libghostty-vt.
-terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/emulator", "acdc-converters-terminal/highlighting"]
+terminal = ["dep:acdc-extensions-terminal"]
 
 network = ["dep:ureq", "acdc-parser/network"]
 
 [dependencies]
 acdc-converters-core.workspace = true
-acdc-converters-terminal = { workspace = true, optional = true }
+acdc-extensions-terminal = { workspace = true, optional = true }
 acdc-parser.workspace = true
 base64.workspace = true
 chrono.workspace = true

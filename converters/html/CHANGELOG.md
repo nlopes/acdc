@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Breaking:** terminal previews and replay now require selecting the native
+  `terminal` extension. The `terminal` build feature supplies availability;
+  library callers attach `terminal_extension()` to their pipeline. Existing syntax,
+  markup, title formatting, safe-mode fallback, and warnings are preserved.
+  CSP script permissions follow selected renderers. Native renderer failures are
+  exposed through `Error::Extension` with their original error source.
+  Callers using HTML-specific `RenderOptions` can select registrations through
+  `convert_to_writer_with_extensions()`.
+
 - Reusing a converter for the same document or independent documents now produces
   stable index anchors and catalog links, with numbering restarted per conversion.
 

@@ -15,6 +15,7 @@ members = [
   "converters/pdf",
   "converters/pdf/crates/*",
   "converters/terminal",
+  "extensions/terminal",
 ]
 default-members = [
   "acdc-cli",
@@ -31,6 +32,7 @@ default-members = [
   "converters/pdf",
   "converters/pdf/crates/*",
   "converters/terminal",
+  "extensions/terminal",
 ]
 resolver = "2"
 
@@ -50,6 +52,7 @@ acdc-converters-terminal = { path = "converters/terminal", default-features = fa
 acdc-execute = { path = "acdc-execute", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
+acdc-extensions-terminal = { path = "extensions/terminal" }
 base64 = "0.23"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }

@@ -2956,3 +2956,93 @@ fn include_leveloffset_entries_render_public_text_in_literal_contexts() -> Resul
     }
     Ok(())
 }
+
+#[cfg(feature = "html-terminal")]
+#[test]
+fn native_terminal_selection_covers_stdin_files_batches_and_safe_mode() -> Result<(), Box<dyn Error>>
+{
+    let source = "[terminal,cols=20,rows=3]\n----\nhello\n----";
+    let ordinary = run_acdc(&["convert", "--stdin", "--embedded"], Some(source))?;
+    assert!(ordinary.status.success());
+    assert!(!output_text(&ordinary.stdout).contains("terminal-view"));
+    for variant in ["standard", "semantic"] {
+        let output = run_acdc(
+            &[
+                "convert",
+                "--stdin",
+                "--embedded",
+                "--extension",
+                "terminal",
+                "--variant",
+                variant,
+            ],
+            Some(source),
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert!(output_text(&output.stdout).contains("terminal-view"));
+    }
+    let directory = tempdir()?;
+    let first = directory.path().join("first.adoc");
+    let second = directory.path().join("second.adoc");
+    fs::write(&first, source)?;
+    fs::write(&second, source)?;
+    let first_path = first.to_str().ok_or("first path")?;
+    let second_path = second.to_str().ok_or("second path")?;
+    let file = run_acdc(
+        &[
+            "convert",
+            "--extension",
+            "terminal",
+            "--out-file",
+            "-",
+            first_path,
+        ],
+        None,
+    )?;
+    assert!(file.status.success(), "{}", output_text(&file.stderr));
+    assert!(output_text(&file.stdout).contains("terminal-view"));
+    let batch = run_acdc(
+        &[
+            "convert",
+            "--extension",
+            "terminal",
+            first_path,
+            second_path,
+        ],
+        None,
+    )?;
+    assert!(batch.status.success(), "{}", output_text(&batch.stderr));
+    for path in [first, second] {
+        assert!(fs::read_to_string(path.with_extension("html"))?.contains("terminal-view"));
+    }
+    let restricted = run_acdc(
+        &[
+            "convert",
+            "--stdin",
+            "--embedded",
+            "--extension",
+            "terminal",
+            "--safe-mode",
+            "server",
+            "--fail-on-warnings",
+        ],
+        Some(source),
+    )?;
+    assert_eq!(restricted.status.code(), Some(1));
+    assert!(!output_text(&restricted.stdout).contains("terminal-view"));
+    assert!(output_text(&restricted.stderr).contains("terminal rendering is disabled"));
+    Ok(())
+}
+
+#[cfg(all(feature = "html", not(feature = "html-terminal")))]
+#[test]
+fn native_terminal_selection_is_unavailable_without_build_capability() -> Result<(), Box<dyn Error>>
+{
+    let output = run_acdc(
+        &["convert", "--extension", "terminal", "missing-input.adoc"],
+        None,
+    )?;
+    assert!(!output.status.success());
+    assert!(output_text(&output.stderr).contains("extension `terminal` is not available"));
+    Ok(())
+}
