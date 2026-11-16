@@ -178,6 +178,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "acdc-extensions-lists"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-parser",
+ "serde_json",
+]
+
+[[package]]
 name = "acdc-extensions-terminal"
 version = "0.1.0"
 dependencies = [
