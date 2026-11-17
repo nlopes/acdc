@@ -5,7 +5,7 @@
 //! cross references, and hard line breaks, so every backend shares the same list.
 
 use acdc_parser::{
-    Error,
+    AttributeValue, Error,
     ast::CaptionRef,
     extensions::{
         BlockBuilder, BlockContext, BlockMacro, BlockMacroOutput, BlockMacroProcessor,
@@ -21,7 +21,9 @@ use acdc_parser::{
 /// Returns an error if a built-in name conflicts with this registration.
 pub fn registry() -> Result<Registry, RegistrationError> {
     let mut builder = Registry::builder();
-    builder.register(BlockMacro::new("list-of", || Defer))?;
+    builder.register(
+        BlockMacro::new("list-of", || Defer).with_positional_attributes(["hide_empty_section"]),
+    )?;
     builder.register_tree_processor(TreeProcessorRegistration::new("lists", || Lists))?;
     Ok(builder.build())
 }
@@ -34,11 +36,11 @@ impl BlockMacroProcessor for Defer {
         invocation: &MacroInvocation<'_>,
         _: &mut MacroExecutionContext,
     ) -> Result<BlockMacroOutput, String> {
-        if invocation.attributes.get("enhanced_rendering").is_some()
-            || invocation.attributes.get("hide_empty_section").is_some()
-            || invocation.positional.iter().any(Option::is_some)
-        {
-            return Err("list-of currently supports only default options; enhanced_rendering and hide_empty_section are not implemented".into());
+        if invocation.attributes.get("enhanced_rendering").is_some() {
+            return Err("list-of does not support enhanced_rendering; title formatting is automatic, so remove this option".into());
+        }
+        if invocation.positional.iter().skip(1).any(Option::is_some) {
+            return Err("list-of supports one positional argument: hide_empty_section".into());
         }
         Ok(BlockMacroOutput::Deferred)
     }
@@ -46,10 +48,17 @@ impl BlockMacroProcessor for Defer {
 
 struct Lists;
 
+#[derive(Clone, Copy)]
+enum EmptySection {
+    Keep,
+    Hide,
+}
+
 enum Request {
     Generate {
         output: TargetId,
         context: BlockContext,
+        empty_section: EmptySection,
     },
     Unknown {
         output: TargetId,
@@ -63,13 +72,31 @@ impl From<&DeferredBlock> for Request {
         let output = request.target().clone();
         let invocation = &request.invocation;
         if let Some(context) = context(invocation.target.trim()) {
-            Self::Generate { output, context }
+            let empty_section = match invocation.attributes.get("hide_empty_section") {
+                None | Some(AttributeValue::Bool(false) | AttributeValue::None) => {
+                    EmptySection::Keep
+                }
+                Some(_) => EmptySection::Hide,
+            };
+            Self::Generate {
+                output,
+                context,
+                empty_section,
+            }
         } else {
             Self::Unknown {
                 output,
                 element: invocation.target.to_string(),
                 source: invocation.source.to_string(),
             }
+        }
+    }
+}
+
+impl Request {
+    fn output(&self) -> &TargetId {
+        match self {
+            Self::Generate { output, .. } | Self::Unknown { output, .. } => output,
         }
     }
 }
@@ -83,8 +110,17 @@ impl TreeProcessor for Lists {
             .map(Request::from)
             .collect();
         for request in requests {
-            let (output, block_context) = match request {
-                Request::Generate { output, context } => (output, context),
+            // A previous request may have removed the containing section and
+            // consumed every remaining request in its subtree.
+            if editor.query().get(request.output()).is_none() {
+                continue;
+            }
+            let (output, block_context, empty_section) = match request {
+                Request::Generate {
+                    output,
+                    context,
+                    empty_section,
+                } => (output, context, empty_section),
                 Request::Unknown {
                     output,
                     element,
@@ -97,10 +133,12 @@ impl TreeProcessor for Lists {
             };
             // Snapshot this request's membership before assigning IDs or editing
             // the placeholder. Later requests observe earlier completed edits.
+            let mut found = false;
             let entries: Vec<_> = editor
                 .query()
                 .select(block_context)
                 .filter_map(|view| {
+                    found = true;
                     let captioned = has_caption(view.caption());
                     (captioned || view.title().is_some()).then(|| {
                         (
@@ -115,6 +153,17 @@ impl TreeProcessor for Lists {
                 })
                 .collect();
             if entries.is_empty() {
+                if !found
+                    && matches!(empty_section, EmptySection::Hide)
+                    && let Some(section) = editor
+                        .query()
+                        .get(&output)
+                        .and_then(|view| view.containing_section())
+                        .cloned()
+                {
+                    editor.remove_section(&section)?;
+                    continue;
+                }
                 editor.discard_placeholder(&output)?;
                 continue;
             }

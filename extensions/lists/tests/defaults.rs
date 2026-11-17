@@ -286,23 +286,28 @@ fn requests_inside_asciidoc_cells_and_list_continuations_are_replaced() -> TestR
 
 #[test]
 fn unsupported_options_fail_at_the_macro_instead_of_being_ignored() -> TestResult {
-    for arguments in [
-        "enhanced_rendering=true",
-        "enhanced_rendering=false",
-        "hide_empty_section",
-        "hide_empty_section=false",
-        "true",
-        ",true",
-    ] {
-        let source = format!("= Document\n\nlist-of::image[{arguments}]");
-        let error = acdc_extensions_lists::registry()?
-            .parse(&source, &Options::default())
-            .err()
-            .ok_or("expected option error")?;
-        assert!(
-            matches!(error, Error::Extension(origin, message) if origin.location.start.line == 3 && message.contains("only default options")),
-            "{arguments}"
-        );
+    for mode in modes() {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for (arguments, message) in [
+            ("enhanced_rendering=true", "title formatting is automatic"),
+            ("enhanced_rendering=false", "title formatting is automatic"),
+            ("enhanced_rendering=0", "title formatting is automatic"),
+            ("enhanced_rendering=nil", "title formatting is automatic"),
+            ("enhanced_rendering=\"\"", "title formatting is automatic"),
+            ("enhanced_rendering=", "title formatting is automatic"),
+            (",true", "one positional argument"),
+            ("true,false", "one positional argument"),
+        ] {
+            let source = format!("= Document\n\nlist-of::image[{arguments}]");
+            let error = acdc_extensions_lists::registry()?
+                .parse(&source, &options)
+                .err()
+                .ok_or("expected option error")?;
+            assert!(
+                matches!(error, Error::Extension(origin, detail) if origin.location.start.line == 3 && detail.contains(message)),
+                "{mode:?}: {arguments}"
+            );
+        }
     }
     Ok(())
 }
