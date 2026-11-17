@@ -131,6 +131,27 @@ The `html-terminal` build feature makes the native `terminal` package available.
 Select it with `--extension terminal` for HTML terminal previews and replay.
 Without that build feature, the name is unavailable.
 
+The optional `lists` build feature makes `--extension lists` available for every
+compiled backend. Build it with `cargo build -p acdc-cli --features lists`, then:
+
+[source,console]
+....
+acdc convert --extension lists document.adoc
+acdc convert --backend pdf --extension lists document.adoc
+printf 'list-of::section[]\n\n== First section\n' | acdc convert --extension lists --stdin -o -
+....
+
+Use `list-of::image[]`, `list-of::table[]`, or another supported element name to
+generate linked entries, including targets later in the document. Authored IDs
+are preserved; generated IDs are deterministic and collision-safe. Titles retain
+their formatting and source-position attributes. `hide_empty_section=true` (or
+the first positional argument) removes the nearest section when no matching
+blocks exist. String values such as `false` still enable hiding, matching the
+Ruby extension. Omit the argument to keep the section. The Ruby
+`enhanced_rendering` toggle is unsupported because formatting is automatic;
+remove it when migrating. See the link:../extensions/lists/README.adoc[lists guide]
+for supported contexts, arguments, library registration, and reference differences.
+
 Files, stdin, batches, terminal output, and pager output use the same pipeline.
 The selected backend supplies attributes before preprocessing, and every document
 gets fresh extension handlers. Library callers use
@@ -519,6 +540,10 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | `html-terminal`
 | no
 | HTML terminal previews and session/replay rendering.
+
+| `lists`
+| no
+| Makes native `list-of` macros available; select them with `--extension lists`.
 
 | `terminal-emulator`
 | no

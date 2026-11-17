@@ -55,6 +55,7 @@ acdc-execute = { path = "acdc-execute", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
 acdc-extensions-terminal = { path = "extensions/terminal" }
+acdc-extensions-lists = { path = "extensions/lists", default-features = false }
 base64 = "0.23"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }

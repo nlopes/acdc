@@ -7,6 +7,10 @@ readme = "README.adoc"
 license = "MIT OR Apache-2.0"
 publish = false
 
+[features]
+default = []
+network = ["acdc-parser/network"]
+
 [dependencies]
 acdc-parser.workspace = true
 

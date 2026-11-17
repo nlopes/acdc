@@ -4,7 +4,8 @@
 extension API. Register `acdc_extensions_lists::registry()?` with the parser or
 as `lists` in converter core's `ExtensionCatalog`, then attach the selected
 extensions to a configured `Pipeline`. Each parse gets its own processor state.
-The CLI selection is not available yet.
+The CLI exposes the same registrations through its optional `lists` build feature
+and explicit `--extension lists` selection.
 
 [source,asciidoc]
 ----
@@ -32,6 +33,25 @@ follows surviving targets if their IDs change. Final caption numbers come from
 the host. Empty lists keep their containing section by default.
 Unknown names return a located warning and retain the accepted `list-of` call
 as literal text, including its arguments, quotes, and unexpanded target.
+
+== CLI activation
+
+[source,console]
+----
+cargo build -p acdc-cli --features lists
+acdc convert --extension lists document.adoc
+acdc convert --extension lists --backend terminal --no-pager document.adoc
+acdc convert --extension lists --stdin -o - < document.adoc
+----
+
+Select the relevant backend at build time too; for example,
+`--features lists,terminal` or `--features lists,pdf`. Files, stdin, and batches
+use the shared pipeline. Repeating `--extension lists` activates it once.
+The feature is off by default. A compiled but unselected extension keeps ordinary
+parsing behavior, and selecting an unavailable name fails before reading input.
+The library's optional `network` feature enables parser remote includes; caller
+permission and safe mode still apply. The CLI's `network` feature forwards it
+without enabling another backend.
 
 == Empty-section behavior
 
@@ -78,6 +98,12 @@ compatibility toggle is intentionally unsupported: remove that named argument
 when migrating a call. Supplying it produces an error explaining that formatting
 is automatic. There is no mode that reparses rendered backend markup as title
 source.
+
+Custom captions containing `{counter:...}` currently retain that literal text,
+as they do in ordinary acdc parsing. The pinned enhanced-rendering sample relies
+on those counters; native formatted titles and bibliography links work after
+removing the unsupported toggle, while counter expansion remains a parser and
+conversion-session limitation.
 
 The link:./examples/render.rs[library example] renders a source file through the
 shared HTML pipeline:

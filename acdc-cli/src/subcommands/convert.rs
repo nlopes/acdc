@@ -292,6 +292,17 @@ impl Args {
 
 pub(crate) fn run(args: &Args) -> MietteResult<()> {
     let available = ExtensionCatalog::default();
+    #[cfg(feature = "lists")]
+    let available = {
+        let mut available = available;
+        available
+            .register(
+                "lists",
+                acdc_extensions_lists::registry().map_err(|error| error::display(&error))?,
+            )
+            .map_err(|error| error::display(&error))?;
+        available
+    };
     #[cfg(feature = "html-terminal")]
     let available = {
         let mut available = available;

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- CLI builds with `lists` can select the extension with `--extension lists` for
+  any enabled converter. The library's optional `network` feature enables remote
+  includes under the parser's caller-permission and safe-mode rules.
+
 - Register `list-of::<element>[]` to generate linked caption and title lines for
   document elements through any converter. Existing IDs are preserved; generated
   IDs are deterministic and reused by repeated requests. Unknown elements produce

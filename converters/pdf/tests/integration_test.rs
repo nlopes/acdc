@@ -20,6 +20,49 @@ use support::converter as cli_fixture_converter;
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn native_lists_keep_formatted_titles_and_real_pdf_destinations() -> Result<(), Error> {
+    let source = "= Lists\n:word: Early\n\nlist-of::quote[]\n\nlist-of::quote[]\n\n<<<\n\n.First *{word}* & title\n[#authored,reftext=Other]\n[quote]\n____\nFirst body.\n____\n\n<<<\n\n.Second title\n[quote]\n____\nSecond body.\n____\n\n:word: Late\n";
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let working = acdc_extensions_lists::registry()?.parse(
+            source,
+            &Options::builder().with_compatibility_mode(mode).build()?,
+        )?;
+        let ids: Vec<_> = working
+            .query()
+            .select(acdc_parser::extensions::BlockContext::Quote)
+            .filter_map(|view| view.output_id().map(str::to_owned))
+            .collect();
+        assert_eq!(ids.len(), 2);
+        assert_eq!(ids.first().map(String::as_str), Some("authored"));
+        let parsed = working.finish()?;
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+        for _ in 0..2 {
+            let pdf = render_parsed(&parsed)?;
+            assert_eq!(pdf.get_pages().len(), 3);
+            let targets = named_destinations(&pdf)?;
+            for id in &ids {
+                assert!(targets.contains_key(id), "missing destination {id}");
+            }
+            let pages = internal_link_pages(&pdf, 1)?;
+            assert!(pages.iter().all(|page| matches!(page, 2 | 3)), "{pages:?}");
+            for target_page in [2, 3] {
+                assert!(pages.iter().filter(|page| **page == target_page).count() >= 2);
+            }
+            let text = pdf
+                .extract_text(&[1])?
+                .split_whitespace()
+                .collect::<String>();
+            assert_eq!(text.matches("FirstEarly&title").count(), 2, "{text}");
+            assert_eq!(text.matches("Secondtitle").count(), 2, "{text}");
+            assert!(!text.contains("Late"));
+            assert!(!text.contains("Other"));
+            assert!(!text.contains("list-of::"));
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn table_footnotes_keep_distinct_pdf_targets_for_each_owner() -> Result<(), Error> {
     let source = include_str!("fixtures/source/table_cell_footnotes.adoc");
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
