@@ -187,6 +187,7 @@ dependencies = [
  "acdc-converters-html",
  "acdc-parser",
  "serde_json",
+ "stats_alloc",
 ]
 
 [[package]]

@@ -30,11 +30,10 @@ impl DocumentEditor<'_> {
         let (new_target, reference_warnings, construction_warnings) =
             self.result.parsed.with_document_mut(|owner, document| {
                 let prepared = prepare(owner, document, &path, edit, mode, &origin, &identity)?;
-                let mut candidate = snapshot(document);
                 let mut candidate_index = index.clone();
-                candidate_index.prepare_edit(&mut candidate);
+                candidate_index.prepare_edit(document);
                 let outcome = transact(
-                    &mut candidate,
+                    document,
                     &mut candidate_index,
                     target,
                     &path,
@@ -42,7 +41,6 @@ impl DocumentEditor<'_> {
                     prepared,
                     &origin,
                 )?;
-                *document = candidate;
                 *index = candidate_index;
                 Ok::<_, Error>(outcome)
             })?;
@@ -64,20 +62,6 @@ impl DocumentEditor<'_> {
             .append_extension_warnings(construction_warnings);
         index.reserve_warnings(&self.result.parsed);
         Ok(new_target)
-    }
-}
-
-fn snapshot<'a>(document: &Document<'a>) -> Document<'a> {
-    Document {
-        generated_displays: document.generated_displays.clone(),
-        header: document.header.clone(),
-        untitled_header_location: document.untitled_header_location.clone(),
-        attributes: document.attributes.clone(),
-        blocks: document.blocks.clone(),
-        footnotes: document.footnotes.clone(),
-        toc_entries: document.toc_entries.clone(),
-        references: document.references.clone(),
-        location: document.location.clone(),
     }
 }
 
@@ -266,9 +250,7 @@ fn transact<'a>(
     mut prepared: Option<Prepared<'a>>,
     origin: &SourceLocation,
 ) -> Result<Outcome, Error> {
-    if prepared.as_ref().is_some_and(|prepared| prepared.displays) {
-        document.generated_displays.activate();
-    }
+    let displays = prepared.as_ref().is_some_and(|prepared| prepared.displays);
     if let Some(prepared) = &mut prepared
         && prepared.recaption
     {
@@ -280,34 +262,55 @@ fn transact<'a>(
     let warnings = prepared
         .as_mut()
         .map_or_else(Vec::new, |prepared| std::mem::take(&mut prepared.warnings));
-    let handle = match edit {
+    // The staged index can be discarded. Keep the displaced block so an
+    // unsuccessful catalog repair only needs to undo this one splice.
+    let (handle, previous) = match edit {
         Edit::Insert(_) => {
+            let handle = index
+                .insert_before(target)
+                .ok_or_else(|| failure(origin, "target is absent"))?;
             blocks.insert(
                 position,
                 prepared
                     .ok_or_else(|| failure(origin, "construction is absent"))?
                     .block,
             );
-            index
-                .insert_before(target)
-                .ok_or_else(|| failure(origin, "target is absent"))?
+            (handle, None)
         }
         Edit::Replace(_) => {
-            *blocks
+            let old = blocks
                 .get_mut(position)
-                .ok_or_else(|| failure(origin, "target is absent"))? = prepared
-                .ok_or_else(|| failure(origin, "construction is absent"))?
-                .block;
+                .ok_or_else(|| failure(origin, "target is absent"))?;
+            let previous = std::mem::replace(
+                old,
+                prepared
+                    .ok_or_else(|| failure(origin, "construction is absent"))?
+                    .block,
+            );
             index.replace(target);
-            target.clone()
+            (target.clone(), Some(previous))
         }
         Edit::Remove => {
-            blocks.remove(position);
             index.remove(target);
-            target.clone()
+            (target.clone(), Some(blocks.remove(position)))
         }
     };
-    Ok((handle, repair_document(document, Some(index))?, warnings))
+    let references = match repair_document(document, Some(index)) {
+        Ok(warnings) => warnings,
+        Err(error) => {
+            // Repair is atomic and cannot move the parent container.
+            let (blocks, position) = path
+                .container_mut(&mut document.blocks)
+                .ok_or_else(|| failure(origin, "target container is absent"))?;
+            let inserted = usize::from(!matches!(edit, Edit::Remove));
+            blocks.splice(position..position + inserted, previous);
+            return Err(error);
+        }
+    };
+    if displays {
+        document.generated_displays.activate();
+    }
+    Ok((handle, references, warnings))
 }
 
 fn caption(

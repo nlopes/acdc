@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Documents with repeated `list-of` requests allocate less memory during conversion.
+
 - CLI builds with `lists` can select the extension with `--extension lists` for
   any enabled converter. The library's optional `network` feature enables remote
   includes under the parser's caller-permission and safe-mode rules.

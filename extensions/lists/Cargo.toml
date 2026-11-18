@@ -18,6 +18,7 @@ acdc-parser.workspace = true
 acdc-converters-core.workspace = true
 acdc-converters-html.workspace = true
 serde_json.workspace = true
+stats_alloc = "0.1"
 
 [lints]
 workspace = true
