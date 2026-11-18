@@ -35,7 +35,7 @@ fn extensions_unordered_list_combines_literal_and_grouped_display_items() -> Tes
             .target()
             .clone();
         let owned = String::from("*literal* <&> {counter:x}");
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         let captured = editor.capture(&image)?;
         editor.replace_block(
             &output,
@@ -110,7 +110,7 @@ fn extensions_display_freezes_titles_and_defers_renamed_target_captions() -> Tes
             .ok_or("paragraph")?
             .target()
             .clone();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         let selected = editor.capture(&target)?;
         let second = editor.capture(&target)?;
         editor.replace_block(
@@ -212,7 +212,7 @@ fn extensions_display_removed_identity_never_rebinds_to_reused_id() -> TestResul
             .get(&output)
             .ok_or("output view")?
             .source_location();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         let captured = editor.capture(&image)?;
         editor.replace_block(
             &output,
@@ -268,7 +268,7 @@ fn extensions_foreign_display_is_rejected_atomically() -> TestResult {
         .ok_or("image")?
         .target()
         .clone();
-    let captured = DocumentEditor::new(&mut first).capture(&image)?;
+    let captured = DocumentEditor::new(&mut first, None).capture(&image)?;
     let mut second = registry.parse("Paragraph.", &Options::default())?;
     let output = second
         .query()
@@ -278,7 +278,7 @@ fn extensions_foreign_display_is_rejected_atomically() -> TestResult {
         .target()
         .clone();
     let before = serde_json::to_value(second.parsed.document())?;
-    let error = DocumentEditor::new(&mut second).replace_block(
+    let error = DocumentEditor::new(&mut second, None).replace_block(
         &output,
         BlockBuilder::paragraph_inlines([
             InlineSpec::Text("Before the rejected request".into()),
@@ -310,7 +310,7 @@ fn extensions_display_distinguishes_absent_and_present_empty_titles() -> TestRes
                 .ok_or("paragraph")?
                 .target()
                 .clone();
-            let mut editor = DocumentEditor::new(&mut result);
+            let mut editor = DocumentEditor::new(&mut result, None);
             let captured = editor.capture(&target)?;
             editor.insert_before(
                 &target,
@@ -355,7 +355,7 @@ fn extensions_symbolic_display_requires_lowering_before_checked_asg() -> TestRes
             .ok_or("image")?
             .target()
             .clone();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         let captured = editor.capture(&target)?;
         editor.insert_before(
             &target,

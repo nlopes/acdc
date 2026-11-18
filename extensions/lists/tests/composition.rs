@@ -21,8 +21,6 @@ impl TreeProcessor for Produce {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let targets: Vec<_> = editor
             .deferred_blocks()
-            .iter()
-            .filter(|request| request.invocation.name == "produce")
             .map(|request| request.target().clone())
             .collect();
         for target in targets {
@@ -51,7 +49,7 @@ fn producers_before_and_after_lists_keep_registration_order_and_run_once() -> Te
                     Ok(BlockMacroOutput::Deferred)
                 }
             }))?;
-            let registration = TreeProcessorRegistration::new("produce", || Produce);
+            let registration = TreeProcessorRegistration::for_macro("produce", || Produce);
             if producer_first {
                 builder.register_tree_processor(registration.clone())?;
             }

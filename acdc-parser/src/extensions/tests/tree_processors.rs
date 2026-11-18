@@ -28,7 +28,7 @@ impl TreeProcessor for Fresh {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         self.calls.fetch_add(1, Ordering::Relaxed);
         self.local.set(self.local.get() + 1);
-        let request = editor.deferred_blocks().first().expect("pending request");
+        let request = editor.deferred_blocks().next().expect("pending request");
         if self.fail {
             return Err(Error::Extension(
                 Box::new(request.invocation.location.clone()),
@@ -57,11 +57,13 @@ fn extensions_tree_processors_are_fresh_local_and_retained_until_result_drop() -
     let owned_drops = Arc::clone(&drops);
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("defer", || support::Defer))?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("fresh", move || Fresh {
-        local: Rc::new(Cell::new(0)),
-        calls: Arc::clone(&owned_calls),
-        drops: Arc::clone(&owned_drops),
-        fail: false,
+    builder.register_tree_processor(TreeProcessorRegistration::for_macro("defer", move || {
+        Fresh {
+            local: Rc::new(Cell::new(0)),
+            calls: Arc::clone(&owned_calls),
+            drops: Arc::clone(&owned_drops),
+            fail: false,
+        }
     }))?;
     let registry = builder.build();
     assert!(!registry.is_empty());
@@ -90,15 +92,20 @@ fn extensions_tree_errors_stop_later_processors_at_included_request() -> TestRes
     let mut builder = Registry::builder();
     builder
         .register(BlockMacro::new("defer", || support::Defer).with_target(MacroTarget::Required))?;
-    for name in ["failure", "later"] {
+    for first in [true, false] {
         let calls = Arc::clone(&calls);
         let drops = Arc::clone(&drops);
-        builder.register_tree_processor(TreeProcessorRegistration::new(name, move || Fresh {
+        let factory = move || Fresh {
             local: Rc::new(Cell::new(0)),
             calls: Arc::clone(&calls),
             drops: Arc::clone(&drops),
             fail: true,
-        }))?;
+        };
+        builder.register_tree_processor(if first {
+            TreeProcessorRegistration::for_macro("defer", factory)
+        } else {
+            TreeProcessorRegistration::new("later", factory)
+        })?;
     }
     let registry = builder.build();
     let options = Options::builder()
@@ -221,7 +228,6 @@ impl TreeProcessor for FillNested {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let targets: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| request.target().clone())
             .collect();
         for target in &targets {
@@ -257,7 +263,8 @@ impl TreeProcessor for FillNested {
 fn extensions_tree_edits_follow_list_compound_and_table_cell_containers() -> TestResult {
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("defer", || support::Defer))?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("nested", || FillNested))?;
+    builder
+        .register_tree_processor(TreeProcessorRegistration::for_macro("defer", || FillNested))?;
     let result = builder.build().parse(
         include_str!("../../../fixtures/tests/includes/extensions/extension-tree-nested.adoc"),
         &Options::default(),
@@ -299,26 +306,15 @@ impl TreeProcessor for Producer {
         self.0.fetch_add(1, Ordering::Relaxed);
         let requests: Vec<_> = editor
             .deferred_blocks()
-            .iter()
-            .map(|request| {
-                (
-                    request.target().clone(),
-                    request.invocation.target == "discard",
-                )
-            })
+            .map(|request| request.target().clone())
             .collect();
-        for (target, discard) in requests {
-            let target = &target;
-            if discard {
-                editor.discard_placeholder(target)?;
-            } else {
-                let inserted = editor.insert_before(
-                    target,
-                    BlockBuilder::paragraph("Produced").with_id("produced"),
-                )?;
-                assert_eq!(editor.ensure_id(&inserted)?, "produced");
-                assert!(editor.query().get(target).is_some());
-            }
+        for target in &requests {
+            let inserted = editor.insert_before(
+                target,
+                BlockBuilder::paragraph("Produced").with_id("produced"),
+            )?;
+            assert_eq!(editor.ensure_id(&inserted)?, "produced");
+            editor.discard_placeholder(target)?;
         }
         Ok(())
     }
@@ -336,13 +332,12 @@ impl TreeProcessor for Consumer {
             .collect();
         let targets: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| request.target().clone())
             .collect();
         for target in targets {
             editor.replace_placeholder(&target, BlockBuilder::unordered_list(selection.clone()))?;
         }
-        assert!(editor.deferred_blocks().is_empty());
+        assert!(editor.deferred_blocks().next().is_none());
         Ok(())
     }
 }
@@ -406,7 +401,6 @@ impl TreeProcessor for RemoveAndFill {
         Remove(Arc::new(AtomicUsize::new(0))).process(editor)?;
         let targets: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| request.target().clone())
             .collect();
         for target in targets {
@@ -421,7 +415,9 @@ fn extensions_generated_captions_keep_source_labels_and_advance_past_removed_ord
 {
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("defer", || support::Defer))?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("fill", || RemoveAndFill))?;
+    builder.register_tree_processor(TreeProcessorRegistration::for_macro("defer", || {
+        RemoveAndFill
+    }))?;
     let result = builder.build().parse(
         include_str!("../../../fixtures/tests/includes/extensions/extension-tree-captions.adoc"),
         &Options::default(),
@@ -463,20 +459,21 @@ fn extensions_tree_order_and_snapshot_selection() -> TestResult {
     let calls = Arc::new(AtomicUsize::new(0));
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("defer", || support::Defer))?;
+    builder.register(BlockMacro::new("produce", || support::Defer))?;
     for name in ["producer", "consumer", "remover"] {
         let calls = Arc::clone(&calls);
         match name {
             "producer" => {
-                builder
-                    .register_tree_processor(TreeProcessorRegistration::new(name, move || {
-                        Producer(Arc::clone(&calls))
-                    }))?;
+                builder.register_tree_processor(TreeProcessorRegistration::for_macro(
+                    "produce",
+                    move || Producer(Arc::clone(&calls)),
+                ))?;
             }
             "consumer" => {
-                builder
-                    .register_tree_processor(TreeProcessorRegistration::new(name, move || {
-                        Consumer(Arc::clone(&calls))
-                    }))?;
+                builder.register_tree_processor(TreeProcessorRegistration::for_macro(
+                    "defer",
+                    move || Consumer(Arc::clone(&calls)),
+                ))?;
             }
             _ => {
                 builder
@@ -486,7 +483,7 @@ fn extensions_tree_order_and_snapshot_selection() -> TestResult {
             }
         }
     }
-    let result = builder.build().parse("[#gone]\n== Remove\n\nRemoved\n\n[#stay]\n== Keep\n\n.Title\n[#snapshot]\n[role=kept]\ndefer::content[]\n\ndefer::discard[]", &Options::default())?;
+    let result = builder.build().parse("[#gone]\n== Remove\n\nRemoved\n\n[#stay]\n== Keep\n\n.Title\n[#snapshot]\n[role=kept]\ndefer::content[]\n\nproduce::discard[]", &Options::default())?;
     assert_eq!(calls.load(Ordering::Relaxed), 3);
     assert!(result.deferred_blocks().is_empty());
     let query = result.query();
@@ -546,7 +543,7 @@ impl TreeProcessor for CaptureAndRemove {
             .map(|view| view.target().clone())
             .collect();
         editor.remove_section(&gone)?;
-        assert!(editor.deferred_blocks().is_empty());
+        assert!(editor.deferred_blocks().next().is_none());
         let stay = editor
             .query()
             .select(BlockContext::Section)
@@ -580,7 +577,7 @@ impl TreeProcessor for CaptureAndRemove {
 fn extensions_removed_handles_do_not_rebind_and_surviving_paths_shift() -> TestResult {
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("defer", || support::Defer))?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("capture", || {
+    builder.register_tree_processor(TreeProcessorRegistration::for_macro("defer", || {
         CaptureAndRemove
     }))?;
     let result = builder.build().parse(

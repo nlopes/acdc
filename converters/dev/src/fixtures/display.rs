@@ -12,9 +12,10 @@ use acdc_parser::{
 pub(super) fn registry() -> Result<Registry, acdc_parser::extensions::RegistrationError> {
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("fixture-display", || Defer))?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("fixture-display", || {
-        Display
-    }))?;
+    builder.register_tree_processor(TreeProcessorRegistration::for_macro(
+        "fixture-display",
+        || Display,
+    ))?;
     Ok(builder.build())
 }
 
@@ -36,7 +37,6 @@ impl TreeProcessor for Display {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let requests: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| {
                 (
                     request.target().clone(),

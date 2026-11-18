@@ -20,12 +20,102 @@ impl BlockMacroProcessor for Defer {
     }
 }
 
+struct ResolveOwn(&'static str);
+
+impl TreeProcessor for ResolveOwn {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        let own: Vec<_> = editor
+            .deferred_blocks()
+            .map(|request| {
+                assert_eq!(request.invocation.name, self.0);
+                (
+                    request.target().clone(),
+                    request.invocation.target.to_string(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            own.iter()
+                .map(|(_, value)| value.as_str())
+                .collect::<Vec<_>>(),
+            ["one", "two"]
+        );
+        let others: Vec<_> = editor
+            .query()
+            .select(BlockContext::Extension)
+            .map(|view| view.target().clone())
+            .filter(|target| own.iter().all(|(owned, _)| owned != target))
+            .collect();
+        for target in others {
+            assert!(
+                editor
+                    .replace_placeholder(&target, BlockBuilder::literal("wrong"))
+                    .is_err()
+            );
+            assert!(
+                editor
+                    .replace_block(&target, BlockBuilder::literal("wrong"))
+                    .is_err()
+            );
+            assert!(editor.discard_placeholder(&target).is_err());
+        }
+        for (target, value) in own {
+            editor.replace_placeholder(&target, BlockBuilder::paragraph(value))?;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn deferred_handlers_only_resolve_their_own_interleaved_requests() -> TestResult {
+    for order in [["alpha", "beta"], ["beta", "alpha"]] {
+        let mut builder = Registry::builder();
+        builder.register_tree_processor(TreeProcessorRegistration::new("alpha", || RemoveFirst))?;
+        for name in order {
+            let mut package = Registry::builder();
+            package.register(BlockMacro::new(name, || Defer))?;
+            package
+                .register_tree_processor(TreeProcessorRegistration::for_macro(name, move || {
+                    ResolveOwn(name)
+                }))?;
+            builder.extend(&package.build())?;
+        }
+        let parsed = builder
+            .build()
+            .parse(
+                "alpha::one[]\n\nbeta::one[]\n\nalpha::two[]\n\nbeta::two[]\n\n[#gone]\n== Removed\n\nalpha::cancel[]\n\nbeta::cancel[]",
+                &Options::default(),
+            )?
+            .finish()?;
+        assert_eq!(parsed.document().blocks().count(), 4);
+    }
+    Ok(())
+}
+
+#[test]
+fn a_deferred_processor_requires_one_registered_macro() -> TestResult {
+    use acdc_parser::extensions::RegistrationError;
+
+    let mut builder = Registry::builder();
+    let resolve = TreeProcessorRegistration::for_macro("alpha", || ResolveOwn("alpha"));
+    assert!(matches!(
+        builder.register_tree_processor(resolve.clone()),
+        Err(RegistrationError::UnknownName(name)) if name == "alpha"
+    ));
+    builder.register(BlockMacro::new("alpha", || Defer))?;
+    builder.register_tree_processor(resolve.clone())?;
+    assert!(matches!(
+        builder.register_tree_processor(resolve),
+        Err(RegistrationError::DuplicateDeferredProcessor(name)) if name == "alpha"
+    ));
+    Ok(())
+}
+
 struct Fill;
 impl TreeProcessor for Fill {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let targets: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| request.target().clone())
             .collect();
         for target in targets {
@@ -68,7 +158,8 @@ fn extensions_finish_checks_pending_requests_and_returns_normal_parse_result() -
 
         let mut builder = Registry::builder();
         builder.register(BlockMacro::new("request", || Defer))?;
-        builder.register_tree_processor(TreeProcessorRegistration::new("fill", || Fill))?;
+        builder
+            .register_tree_processor(TreeProcessorRegistration::for_macro("request", || Fill))?;
         let parsed: ParseResult = builder
             .build()
             .parse(".A *title*\n[#list]\nrequest::[]", &options)?

@@ -225,7 +225,7 @@ fn extensions_title_sources_survive_placeholder_replacement_and_preserve_caption
             .target()
             .clone();
         let id = result.ensure_id(&target)?.to_owned();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, Some("defer"));
         editor.replace_placeholder(&target, BlockBuilder::paragraph("Replaced"))?;
         let query = editor.query();
         let replacement = query.get(&target).ok_or("replacement")?;

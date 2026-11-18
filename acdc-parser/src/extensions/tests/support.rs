@@ -67,10 +67,13 @@ pub(super) fn registry() -> Registry {
         .register(BlockMacro::new("fixture-build", || Defer))
         .expect("valid construction fixture macro");
     builder
-        .register_tree_processor(TreeProcessorRegistration::new("construct", || Construct))
+        .register_tree_processor(TreeProcessorRegistration::for_macro(
+            "fixture-build",
+            || Construct,
+        ))
         .expect("valid construction fixture processor");
     builder
-        .register_tree_processor(TreeProcessorRegistration::new("query", || Query))
+        .register_tree_processor(TreeProcessorRegistration::for_macro("query", || Query))
         .expect("valid query fixture processor");
     builder.build()
 }
@@ -81,8 +84,6 @@ impl TreeProcessor for Construct {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let requests: Vec<_> = editor
             .deferred_blocks()
-            .iter()
-            .filter(|request| request.invocation.name == "fixture-build")
             .map(|request| {
                 (
                     request.target().clone(),
@@ -109,8 +110,6 @@ impl TreeProcessor for Query {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let requests: Vec<_> = editor
             .deferred_blocks()
-            .iter()
-            .filter(|request| request.invocation.name == "query")
             .map(|request| request.target().clone())
             .collect();
         if requests.is_empty() {

@@ -74,7 +74,6 @@ impl TreeProcessor for FillList {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
         let targets: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| request.target().clone())
             .collect();
         for target in targets {
@@ -92,7 +91,8 @@ fn extension_generated_lists_preserve_metadata_references_and_literal_text()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("request", || ListRequest))?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("fill", || FillList))?;
+    builder
+        .register_tree_processor(TreeProcessorRegistration::for_macro("request", || FillList))?;
     let registry = builder.build();
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let converter = Converter::new(

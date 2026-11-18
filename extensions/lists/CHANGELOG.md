@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- `list-of` requests can be interleaved with other deferred macros. Each macro's
+  handler receives its own calls in source order.
+
 - Documents with repeated `list-of` requests allocate less memory during conversion.
 
 - CLI builds with `lists` can select the extension with `--extension lists` for

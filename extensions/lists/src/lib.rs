@@ -24,7 +24,7 @@ pub fn registry() -> Result<Registry, RegistrationError> {
     builder.register(
         BlockMacro::new("list-of", || Defer).with_positional_attributes(["hide_empty_section"]),
     )?;
-    builder.register_tree_processor(TreeProcessorRegistration::new("lists", || Lists))?;
+    builder.register_tree_processor(TreeProcessorRegistration::for_macro("list-of", || Lists))?;
     Ok(builder.build())
 }
 
@@ -103,12 +103,7 @@ impl Request {
 
 impl TreeProcessor for Lists {
     fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
-        let requests: Vec<_> = editor
-            .deferred_blocks()
-            .iter()
-            .filter(|request| request.invocation.name == "list-of")
-            .map(Request::from)
-            .collect();
+        let requests: Vec<_> = editor.deferred_blocks().map(Request::from).collect();
         for request in requests {
             // A previous request may have removed the containing section and
             // consumed every remaining request in its subtree.
