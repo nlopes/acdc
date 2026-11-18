@@ -246,6 +246,15 @@ impl BlockMacroProcessor for Never {
 
 #[test]
 fn extensions_empty_or_unused_registry_preserves_document_and_warnings() -> TestResult {
+    // Full document equality includes clock-derived intrinsic attributes on each parse.
+    if std::env::var("SOURCE_DATE_EPOCH").as_deref() != Ok("0") {
+        let status = std::process::Command::new(std::env::current_exe()?)
+            .args(["--exact", "extensions::tests::extensions_empty_or_unused_registry_preserves_document_and_warnings"])
+            .env("SOURCE_DATE_EPOCH", "0")
+            .status()?;
+        assert!(status.success());
+        return Ok(());
+    }
     let options = Options::default();
     for input in [
         include_str!("../../../fixtures/tests/xref_nested_sections.adoc"),
