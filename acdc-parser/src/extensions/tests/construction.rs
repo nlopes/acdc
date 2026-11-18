@@ -22,7 +22,7 @@ fn extensions_generated_paragraph_has_explicit_located_line_breaks() -> TestResu
             .get(&target)
             .ok_or("target")?
             .source_location();
-        DocumentEditor::new(&mut result).replace_block(
+        DocumentEditor::new(&mut result, None).replace_block(
             &target,
             BlockBuilder::paragraph_inlines([
                 InlineSpec::Text("*literal* <&>".into()),
@@ -72,7 +72,7 @@ fn extensions_inline_sequences_preserve_paragraph_order_and_literal_text() -> Te
         ]
         .into_iter()
         .collect();
-        DocumentEditor::new(&mut result).replace_block(
+        DocumentEditor::new(&mut result, None).replace_block(
             &target,
             BlockBuilder::paragraph_inlines([
                 InlineSpec::from("Before "),
@@ -132,7 +132,7 @@ fn extensions_located_warnings_survive_edits_and_reject_foreign_targets() -> Tes
         .get(&target)
         .ok_or("target")?
         .source_location();
-    let mut editor = DocumentEditor::new(&mut result);
+    let mut editor = DocumentEditor::new(&mut result, None);
     assert!(editor.warn(&foreign, "foreign warning").is_err());
     editor.warn(&target, "recoverable extension problem")?;
     editor.warn(&target, "recoverable extension problem")?;
@@ -164,7 +164,7 @@ fn extensions_image_replacement_preserves_identity_title_and_source_context() ->
         let before = result.query().get(&target).ok_or("original")?;
         let title = serde_json::to_value(before.title())?;
         let location = before.source_location();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         editor.replace_block(
             &target,
             BlockBuilder::image("generated.svg")
@@ -227,7 +227,7 @@ fn extensions_literal_diagrams_keep_custom_disabled_and_generated_captions() -> 
             .iter()
             .map(|request| request.target().clone())
             .collect();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, Some("defer"));
         for (position, target) in targets.iter().enumerate() {
             let literal = BlockBuilder::literal("*literal* <&>\n  spaces");
             editor.replace_placeholder(
@@ -274,7 +274,7 @@ fn extensions_generated_captions_respect_local_counter_seeds_without_reusing_num
             .iter()
             .map(|request| request.target().clone())
             .collect();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, Some("defer"));
         for target in &targets {
             editor.replace_placeholder(target, BlockBuilder::image("generated.svg"))?;
         }
@@ -308,7 +308,7 @@ fn extensions_repair_failure_does_not_publish_edits_or_consume_caption_numbers()
             .clone();
         let before = serde_json::to_value(result.parsed.document())?;
         let warnings = format!("{:?}", result.warnings());
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         let error = editor.replace_block(
             &target,
             BlockBuilder::image("new.svg")
@@ -352,7 +352,7 @@ fn extensions_reference_repair_failure_restores_each_splice() -> TestResult {
         }
     });
     let before = serde_json::to_value(result.parsed.document())?;
-    let mut editor = DocumentEditor::new(&mut result);
+    let mut editor = DocumentEditor::new(&mut result, Some("defer"));
     assert!(
         editor
             .insert_before(&target, BlockBuilder::paragraph("insert"))
@@ -370,7 +370,7 @@ fn extensions_reference_repair_failure_restores_each_splice() -> TestResult {
     assert_eq!(
         editor
             .deferred_blocks()
-            .first()
+            .next()
             .ok_or("pending placeholder")?
             .target(),
         &target
@@ -404,7 +404,8 @@ fn extensions_verbatim_styles_follow_ordinary_caption_rules() -> TestResult {
                 .ok_or("request")?
                 .target()
                 .clone();
-            DocumentEditor::new(&mut result).replace_placeholder(&target, content)?;
+            DocumentEditor::new(&mut result, Some("defer"))
+                .replace_placeholder(&target, content)?;
             assert_eq!(
                 matches!(
                     result.query().get(&target).and_then(|view| view.caption()),
@@ -437,7 +438,7 @@ fn extensions_caption_overflow_rejects_the_edit_without_consuming_the_request() 
             .clone();
         let before = serde_json::to_value(result.parsed.document())?;
         assert!(
-            DocumentEditor::new(&mut result)
+            DocumentEditor::new(&mut result, Some("defer"))
                 .replace_placeholder(&target, BlockBuilder::image("x.svg"))
                 .is_err()
         );
@@ -472,7 +473,7 @@ fn extensions_source_replacement_uses_local_substitutions_and_repairs_references
                 .iter()
                 .any(|warning| matches!(warning.kind, WarningKind::UnresolvedReference { .. }))
         );
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         editor.replace_source(
             &paragraph,
             "New *{label}* footnote:new[New definition] <<later>>.",
@@ -534,7 +535,7 @@ fn extensions_invalid_construction_is_atomic_and_removes_replaced_descendants() 
             .clone();
         let before = serde_json::to_value(result.parsed.document())?;
         let warnings = format!("{:?}", result.warnings());
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, Some("defer"));
         assert!(
             editor
                 .replace_block(&target, BlockBuilder::image("x.svg").with_id("duplicate"))
@@ -558,7 +559,7 @@ fn extensions_invalid_construction_is_atomic_and_removes_replaced_descendants() 
         editor.replace_block(&target, BlockBuilder::literal("Replacement"))?;
         assert!(editor.query().get(&child).is_none());
         assert!(editor.ensure_id(&child).is_err());
-        assert!(editor.deferred_blocks().is_empty());
+        assert!(editor.deferred_blocks().next().is_none());
         assert_eq!(format!("{:?}", result.warnings()), warnings);
         assert!(result.parsed.document().references().get("child").is_none());
         let _ = result.finish()?;
@@ -581,7 +582,7 @@ fn extensions_generated_metadata_distinguishes_empty_values_and_unsets() -> Test
             .ok_or("image")?
             .target()
             .clone();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         editor.replace_block(
             &target,
             BlockBuilder::image("new.svg")
@@ -663,7 +664,7 @@ fn extensions_source_replacement_reuses_scoped_notes_without_number_collisions()
             .filter(|view| matches!(view.output_id(), Some("body" | "cell")))
             .map(|view| view.target().clone())
             .collect();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, None);
         for target in targets {
             editor.replace_source(&target, "New footnote:[New anonymous] footnote:shared[].")?;
         }
@@ -676,7 +677,7 @@ fn extensions_source_replacement_reuses_scoped_notes_without_number_collisions()
             .ok_or("original")?
             .target()
             .clone();
-        DocumentEditor::new(&mut result)
+        DocumentEditor::new(&mut result, None)
             .replace_source(&original, "Updated footnote:shared[Updated named].")?;
         let document = result.finish()?;
         assert_eq!(document.document().footnotes().count(), 2);
@@ -711,14 +712,15 @@ fn extensions_normalize_preserves_unedited_numbers_and_clears_stale_duplicate_wa
             .ok_or("body")?
             .target()
             .clone();
-        DocumentEditor::new(&mut result).replace_source(&target, "Replacement.")?;
+        DocumentEditor::new(&mut result, None).replace_source(&target, "Replacement.")?;
         assert!(
             !result
                 .warnings()
                 .iter()
                 .any(|warning| matches!(warning.kind, WarningKind::DuplicateId { .. }))
         );
-        DocumentEditor::new(&mut result).replace_source(&target, "[[fresh]] One [[fresh]] two.")?;
+        DocumentEditor::new(&mut result, None)
+            .replace_source(&target, "[[fresh]] One [[fresh]] two.")?;
         assert_eq!(
             result
                 .warnings()

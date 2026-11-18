@@ -95,7 +95,7 @@ fn extensions_queries_observe_edits_and_reject_foreign_or_removed_handles() -> T
         let reused_id = result
             .ensure_id(handles.get(1).ok_or("pending")?)?
             .to_owned();
-        let mut editor = DocumentEditor::new(&mut result);
+        let mut editor = DocumentEditor::new(&mut result, Some("defer"));
         for target in foreign.query().blocks().map(|view| view.target().clone()) {
             assert!(editor.query().get(&target).is_none());
             assert!(editor.ensure_id(&target).is_err());
@@ -118,7 +118,7 @@ fn extensions_queries_observe_edits_and_reject_foreign_or_removed_handles() -> T
         let snapshot = handles.clone();
         assert_eq!(editor.query().select(BlockContext::Extension).count(), 1);
         editor.remove_section(section)?;
-        assert!(editor.deferred_blocks().is_empty());
+        assert!(editor.deferred_blocks().next().is_none());
         assert_eq!(editor.query().select(BlockContext::Extension).count(), 0);
         let new = editor.insert_before(
             stay,

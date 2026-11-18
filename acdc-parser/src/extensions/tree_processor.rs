@@ -20,6 +20,7 @@ pub trait TreeProcessor {
 #[derive(Clone)]
 pub struct TreeProcessorRegistration {
     pub(super) name: String,
+    pub(super) handles_deferred: bool,
     pub(super) factory: Arc<dyn Fn() -> Box<dyn TreeProcessor> + Send + Sync>,
 }
 
@@ -32,7 +33,20 @@ impl TreeProcessorRegistration {
     ) -> Self {
         Self {
             name: name.into(),
+            handles_deferred: false,
             factory: Arc::new(move || Box::new(factory())),
+        }
+    }
+
+    /// Resolve the pending calls of one previously registered block macro.
+    /// The processor runs in tree registration order and can query the entire document.
+    pub fn for_macro<P: TreeProcessor + 'static>(
+        macro_name: impl Into<String>,
+        factory: impl Fn() -> P + Send + Sync + 'static,
+    ) -> Self {
+        Self {
+            handles_deferred: true,
+            ..Self::new(macro_name, factory)
         }
     }
 }
@@ -42,6 +56,7 @@ impl fmt::Debug for TreeProcessorRegistration {
         formatter
             .debug_struct("TreeProcessorRegistration")
             .field("name", &self.name)
+            .field("handles_deferred", &self.handles_deferred)
             .finish_non_exhaustive()
     }
 }

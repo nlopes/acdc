@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Register a deferred block macro's tree processor with
+  `TreeProcessorRegistration::for_macro`. Its editor yields only that macro's
+  surviving requests in source order. Other processors can still query the
+  whole document and remove sections containing pending requests.
+
 - Reduced parsing overhead for nested blocks and author headers.
 
 - Reduced allocation traffic when tree processors repeatedly edit a document.

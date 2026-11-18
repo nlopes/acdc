@@ -10,12 +10,16 @@ use transaction::Edit;
 /// next observation. Validation and repair failures preserve the tree, handles,
 /// assigned numbers, and diagnostics. Surviving targets retain their identity.
 pub struct DocumentEditor<'doc> {
+    owner: Option<&'doc str>,
     pub(super) result: &'doc mut ExtensionParseResult,
 }
 
 impl<'doc> DocumentEditor<'doc> {
-    pub(super) const fn new(result: &'doc mut ExtensionParseResult) -> Self {
-        Self { result }
+    pub(super) const fn new(
+        result: &'doc mut ExtensionParseResult,
+        owner: Option<&'doc str>,
+    ) -> Self {
+        Self { owner, result }
     }
     #[must_use]
     pub fn query(&self) -> DocumentQuery<'_> {
@@ -25,10 +29,15 @@ impl<'doc> DocumentEditor<'doc> {
     pub(super) fn document_storage(&self) -> &crate::Document<'_> {
         self.result.parsed.document_storage()
     }
-    /// Pending requests whose placeholders remain in the document.
-    #[must_use]
-    pub fn deferred_blocks(&self) -> &[DeferredBlock] {
-        self.result.deferred_blocks()
+    /// Surviving requests for this processor's macro, in source order.
+    /// A general tree processor has no deferred requests.
+    pub fn deferred_blocks(&self) -> impl Iterator<Item = &DeferredBlock> {
+        self.owner.into_iter().flat_map(|owner| {
+            self.result
+                .deferred_blocks()
+                .iter()
+                .filter(move |request| request.invocation.name == owner)
+        })
     }
 
     /// Record a recoverable problem at a live target's source location.
@@ -76,21 +85,25 @@ impl<'doc> DocumentEditor<'doc> {
     /// metadata unless overridden. Descendant handles and requests are removed.
     ///
     /// # Errors
-    /// Rejects foreign/removed targets, sections, attribute events, and invalid content.
+    /// Rejects placeholders owned by another registration, foreign/removed targets,
+    /// sections, attribute events, and invalid content.
     pub fn replace_block(&mut self, target: &TargetId, content: BlockBuilder) -> Result<(), Error> {
+        if let Some(Block::Extension(block)) = self.query().get(target).map(|view| view.storage()) {
+            self.check_owner(target, block)?;
+        }
         self.apply(target, &Edit::Replace(content)).map(|_| ())
     }
     /// Replace a pending placeholder through the shared construction and repair path.
     ///
     /// # Errors
-    /// Rejects nonpending, foreign, or removed targets and invalid content.
+    /// Rejects targets outside this processor's pending requests and invalid content.
     pub fn replace_placeholder(
         &mut self,
         target: &TargetId,
         content: BlockBuilder,
     ) -> Result<(), Error> {
         self.pending(target)?;
-        self.replace_block(target, content)
+        self.apply(target, &Edit::Replace(content)).map(|_| ())
     }
     /// Replace retained paragraph or listing/literal source. Inline substitutions
     /// use the captured context and `subs=`. No block grammar or callbacks run.
@@ -140,20 +153,30 @@ impl<'doc> DocumentEditor<'doc> {
     /// Remove a pending placeholder and consume its request.
     ///
     /// # Errors
-    /// Rejects nonpending, foreign, or removed targets.
+    /// Rejects targets outside this processor's pending requests.
     pub fn discard_placeholder(&mut self, target: &TargetId) -> Result<(), Error> {
         self.pending(target)?;
         self.apply(target, &Edit::Remove).map(|_| ())
     }
     fn pending(&self, target: &TargetId) -> Result<(), Error> {
-        if self
-            .deferred_blocks()
-            .iter()
-            .any(|request| request.target() == target)
-        {
+        match self.query().get(target).map(|view| view.storage()) {
+            Some(Block::Extension(block)) => self.check_owner(target, block),
+            _ => Err(self.error(target, "target is not a pending placeholder")),
+        }
+    }
+
+    fn check_owner(
+        &self,
+        target: &TargetId,
+        block: &super::ExtensionBlock<'_>,
+    ) -> Result<(), Error> {
+        if self.owner == Some(block.invocation.name.as_ref()) {
             Ok(())
         } else {
-            Err(self.error(target, "target is not a pending placeholder"))
+            Err(self.error(
+                target,
+                "only the owning macro's deferred processor can resolve this placeholder",
+            ))
         }
     }
     pub(super) fn path(&self, target: &TargetId) -> Result<BlockPath, Error> {

@@ -93,8 +93,12 @@
 //! through [`PreparedDocument`] before traversal; the shared parse stays unchanged.
 //! Checked ASG export rejects symbolic displays until they have been prepared.
 //!
-//! Tree processors run after block macros and can replace pending requests with
-//! ordinary content. Builder bodies are literal; attribute lists use the parser's
+//! Tree processors run after block macros. Register a macro's resolver with
+//! [`TreeProcessorRegistration::for_macro`] to receive its surviving requests in
+//! source order. Only that processor can replace or discard those placeholders.
+//! All tree processors can query the document and edit ordinary blocks.
+//!
+//! Builder bodies are literal; attribute lists use the parser's
 //! metadata rules. Use [`DocumentEditor::replace_source`] explicitly to interpret
 //! retained paragraph or listing/literal source with its original substitutions.
 //!
@@ -113,7 +117,7 @@
 //! struct Fill;
 //! impl TreeProcessor for Fill {
 //!     fn process(&mut self, document: &mut DocumentEditor<'_>) -> Result<(), Error> {
-//!         let targets: Vec<_> = document.deferred_blocks().iter()
+//!         let targets: Vec<_> = document.deferred_blocks()
 //!             .map(|request| request.target().clone()).collect();
 //!         for target in targets {
 //!             document.replace_placeholder(&target, BlockBuilder::unordered_list(["One", "Two"]))?;
@@ -123,7 +127,7 @@
 //! }
 //! let mut builder = Registry::builder();
 //! builder.register(BlockMacro::new("request", || Request))?;
-//! builder.register_tree_processor(TreeProcessorRegistration::new("fill", || Fill))?;
+//! builder.register_tree_processor(TreeProcessorRegistration::for_macro("request", || Fill))?;
 //! let result = builder.build().parse("request::[]", &Options::default())?;
 //! assert!(result.deferred_blocks().is_empty());
 //! # Ok::<(), Box<dyn std::error::Error>>(())

@@ -101,6 +101,9 @@ content services. Extension edits preserve surviving numbering. The host allocat
 generated text; builders do not reparse it or store backend markup.
 
 The working session retains deferred requests and document-local processors.
+A tree processor registered with `TreeProcessorRegistration::for_macro` receives
+its macro's surviving requests in source order. Only that processor can resolve
+those placeholders. Removing a containing section cancels its pending requests.
 Its checked `finish()` operation rejects unresolved requests and returns the
 ordinary `ParseResult` for conversion. Registrations are explicit, and an empty
 registry retains the ordinary parsing path. Callback attribute changes follow

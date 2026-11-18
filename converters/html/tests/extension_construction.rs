@@ -32,7 +32,6 @@ impl TreeProcessor for DiagramProducer {
         }
         let requests: Vec<_> = editor
             .deferred_blocks()
-            .iter()
             .map(|request| request.target().clone())
             .collect();
         for target in requests {
@@ -57,7 +56,7 @@ fn diagram_consumer_builds_images_and_literal_figures_with_normal_rendering()
                 Ok(BlockMacroOutput::Deferred)
             }
         }))?;
-        builder.register_tree_processor(TreeProcessorRegistration::new("diagram", || {
+        builder.register_tree_processor(TreeProcessorRegistration::for_macro("diagram", || {
             DiagramProducer
         }))?;
         let converter = Converter::new(

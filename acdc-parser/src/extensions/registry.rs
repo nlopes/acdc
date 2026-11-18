@@ -18,6 +18,8 @@ pub enum RegistrationError {
     UnknownName(String),
     #[error("tree processor is already registered: {0}")]
     DuplicateTreeProcessor(String),
+    #[error("deferred processor already registered for block macro: {0}")]
+    DuplicateDeferredProcessor(String),
 }
 
 /// Builds a registry without modifying existing registry snapshots.
@@ -40,11 +42,7 @@ impl RegistryBuilder {
             }
         }
         for descriptor in &registry.0.trees {
-            if self.trees.iter().any(|entry| entry.name == descriptor.name) {
-                return Err(RegistrationError::DuplicateTreeProcessor(
-                    descriptor.name.clone(),
-                ));
-            }
+            self.check_tree_name(descriptor)?;
         }
         let offset = self.macros.len();
         self.names.extend(
@@ -62,24 +60,40 @@ impl RegistryBuilder {
 
     /// Register a tree processor after the existing tree processors.
     ///
-    /// Names match `[A-Za-z][A-Za-z0-9_-]*` and are independent of macro names.
+    /// General tree processor names are independent of macro names.
+    /// Use [`TreeProcessorRegistration::for_macro`] for deferred requests.
     ///
     /// # Errors
-    /// Rejects invalid names and duplicate tree processor registrations.
+    /// Rejects invalid or duplicate registrations. A macro must be registered
+    /// before its deferred processor and can have only one such processor.
     pub fn register_tree_processor(
         &mut self,
         registration: TreeProcessorRegistration,
     ) -> Result<&mut Self, RegistrationError> {
         validate_identifier(&registration.name)?;
-        if self
-            .trees
-            .iter()
-            .any(|entry| entry.name == registration.name)
-        {
-            return Err(RegistrationError::DuplicateTreeProcessor(registration.name));
+        if registration.handles_deferred && !self.names.contains_key(&registration.name) {
+            return Err(RegistrationError::UnknownName(registration.name));
         }
+        self.check_tree_name(&registration)?;
         self.trees.push(registration);
         Ok(self)
+    }
+
+    fn check_tree_name(
+        &self,
+        registration: &TreeProcessorRegistration,
+    ) -> Result<(), RegistrationError> {
+        if self.trees.iter().any(|entry| {
+            entry.name == registration.name
+                && entry.handles_deferred == registration.handles_deferred
+        }) {
+            return Err(if registration.handles_deferred {
+                RegistrationError::DuplicateDeferredProcessor(registration.name.clone())
+            } else {
+                RegistrationError::DuplicateTreeProcessor(registration.name.clone())
+            });
+        }
+        Ok(())
     }
 
     /// Register a macro after the existing registrations.
@@ -99,7 +113,7 @@ impl RegistryBuilder {
         Ok(self)
     }
 
-    /// Replace a macro explicitly, preserving its registration position.
+    /// Replace a macro explicitly, preserving its registration position and deferred processor.
     ///
     /// # Errors
     /// Rejects names that have not been registered.
@@ -236,8 +250,11 @@ impl Registry {
             result.repair_after_edit()?;
         }
         let mut processors = std::mem::take(&mut result.session.tree_processors);
-        for processor in &mut processors {
-            processor.process(&mut DocumentEditor::new(&mut result))?;
+        for (processor, registration) in processors.iter_mut().zip(&self.0.trees) {
+            let owner = registration
+                .handles_deferred
+                .then_some(registration.name.as_str());
+            processor.process(&mut DocumentEditor::new(&mut result, owner))?;
         }
         result.session.tree_processors = processors;
         Ok(result)
