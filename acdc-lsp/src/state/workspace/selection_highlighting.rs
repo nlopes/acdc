@@ -138,6 +138,7 @@ fn selected_reindented_includes_preserve_primary_selection_highlights_and_folds(
         &doc.conditionals,
         &doc.includes,
         doc.text(),
+        semantic_tokens::ClientHighlighting::TokensOnly,
     ));
     assert!(tokens.contains(&(6, 3, 7, 4, 8)));
     assert!(
@@ -169,6 +170,7 @@ fn nested_disabled_highlighting_has_unique_line_bounded_utf16_tokens() -> TestRe
         &doc.conditionals,
         &doc.includes,
         doc.text(),
+        semantic_tokens::ClientHighlighting::TokensOnly,
     ));
     let distinct: HashSet<_> = tokens.iter().copied().collect();
     assert_eq!(tokens.len(), distinct.len(), "duplicate tokens: {tokens:?}");

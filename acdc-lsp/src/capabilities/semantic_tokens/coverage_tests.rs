@@ -20,6 +20,15 @@ fn decoded_in(
     text: &str,
     options: &Options<'_>,
 ) -> Result<Vec<HighlightedToken>, Box<dyn std::error::Error>> {
+    decoded_for(text, options, ClientHighlighting::TokensOnly)
+}
+
+/// Decode tokens for a client that draws them in the given way.
+fn decoded_for(
+    text: &str,
+    options: &Options<'_>,
+    highlighting: ClientHighlighting,
+) -> Result<Vec<HighlightedToken>, Box<dyn std::error::Error>> {
     let parsed = acdc_parser::parse(text, options)?;
     let conditionals = evaluated_conditionals(text, &parsed);
     let tokens = compute_semantic_tokens(
@@ -27,6 +36,7 @@ fn decoded_in(
         &conditionals,
         &extract_includes(text),
         text,
+        highlighting,
     );
     let mut line = 0;
     let mut column = 0;
@@ -103,7 +113,7 @@ fn table_separators_and_cell_content_use_original_spelling() -> TestResult {
 
 #[test]
 fn block_syntax_and_multiline_content_receive_tokens() -> TestResult {
-    let source = "= Document\n:author: Ada\n\n== Section\n\n.List title\n* [x] Item\n\nTerm:: Definition\n\n[source]\n----\nfn main() {\n    println!(\"hello\");\n}\n----\n\n////\nfirst comment\nsecond comment\n////\n\nNOTE: Body text.\n";
+    let source = "= Document\n:author: Ada\n\n== Section\n\n.List title\n* [x] Item\n\nTerm:: Definition\n\n[source,rust]\n----\nfn main() {\n    println!(\"hello\");\n}\n----\n\n////\nfirst comment\nsecond comment\n////\n\nNOTE: Body text.\n";
     let tokens = decoded(source)?;
     for spelling in [
         "Document",
@@ -114,7 +124,7 @@ fn block_syntax_and_multiline_content_receive_tokens() -> TestResult {
         "*",
         "[x]",
         "::",
-        "[source]",
+        "[source,rust]",
         "----",
         "NOTE:",
     ] {
@@ -879,11 +889,11 @@ fn callout_list_marker_token_covers_only_the_marker() -> TestResult {
     Ok(())
 }
 
-// A body that names its language is left to the editor's highlighter, but it
-// keeps the tokens the parse adds inside it, such as callouts. Bodies without a
-// language keep their code token.
+// A client with its own syntax highlighting draws a body that names its
+// language, so it gets only the tokens the parse adds inside it, such as
+// callouts. Bodies without a language keep their code token.
 #[test]
-fn bodies_that_name_a_language_keep_only_inner_tokens() -> TestResult {
+fn bodies_that_name_a_language_are_left_to_clients_with_syntax_highlighting() -> TestResult {
     let source = "[source,ruby]\n----\nputs 1 # <1>\n----\n<1> Prints one\n\n[source]\n----\nuntagged source\n----\n\n----\nplain listing\n----\n\n....\nliteral text\n....\n\n++++\n<b>raw</b>\n++++\n";
     let code = |tokens: &[HighlightedToken], line: u32| {
         tokens
@@ -892,23 +902,34 @@ fn bodies_that_name_a_language_keep_only_inner_tokens() -> TestResult {
     };
     for mode in MODES {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
-        let tokens = decoded_in(source, &options)?;
-        assert!(!code(&tokens, 2), "{mode:?}: {tokens:?}");
+        let only = decoded_for(source, &options, ClientHighlighting::TokensOnly)?;
+        let augments = decoded_for(source, &options, ClientHighlighting::AugmentsSyntax)?;
+        assert!(code(&only, 2), "{mode:?}: {only:?}");
+        assert!(!code(&augments, 2), "{mode:?}: {augments:?}");
         for line in [8, 12, 16, 20] {
-            assert!(code(&tokens, line), "{mode:?} line {line}: {tokens:?}");
+            for tokens in [&only, &augments] {
+                assert!(code(tokens, line), "{mode:?} line {line}: {tokens:?}");
+            }
         }
-        assert!(
-            tokens
-                .iter()
-                .any(|token| token.0 == 2 && token.2 == "<1>" && token.3 == "operator"),
-            "{mode:?}: {tokens:?}"
-        );
-        for spelling in ["[source,ruby]", "[source]", "----", "....", "++++"] {
+        for tokens in [&only, &augments] {
             assert!(
-                tokens.iter().any(|token| token.2 == spelling),
-                "{mode:?} {spelling}: {tokens:?}"
+                tokens
+                    .iter()
+                    .any(|token| token.0 == 2 && token.2 == "<1>" && token.3 == "operator"),
+                "{mode:?}: {tokens:?}"
             );
+            for spelling in ["[source,ruby]", "[source]", "----", "....", "++++"] {
+                assert!(
+                    tokens.iter().any(|token| token.2 == spelling),
+                    "{mode:?} {spelling}: {tokens:?}"
+                );
+            }
         }
+        assert_eq!(
+            augments.len() + 1,
+            only.len(),
+            "{mode:?}: only the ruby body token differs"
+        );
     }
     Ok(())
 }

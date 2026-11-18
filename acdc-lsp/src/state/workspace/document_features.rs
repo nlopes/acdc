@@ -106,6 +106,7 @@ fn highlighting_and_folding_only_use_primary_source_ranges() -> Result<(), Box<d
         &doc.conditionals,
         &doc.includes,
         doc.text(),
+        semantic_tokens::ClientHighlighting::TokensOnly,
     );
     let mut line = 0;
     for token in &tokens.data {
