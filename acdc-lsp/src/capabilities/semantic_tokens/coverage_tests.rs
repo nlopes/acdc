@@ -878,3 +878,37 @@ fn callout_list_marker_token_covers_only_the_marker() -> TestResult {
     }
     Ok(())
 }
+
+// A body that names its language is left to the editor's highlighter, but it
+// keeps the tokens the parse adds inside it, such as callouts. Bodies without a
+// language keep their code token.
+#[test]
+fn bodies_that_name_a_language_keep_only_inner_tokens() -> TestResult {
+    let source = "[source,ruby]\n----\nputs 1 # <1>\n----\n<1> Prints one\n\n[source]\n----\nuntagged source\n----\n\n----\nplain listing\n----\n\n....\nliteral text\n....\n\n++++\n<b>raw</b>\n++++\n";
+    let code = |tokens: &[HighlightedToken], line: u32| {
+        tokens
+            .iter()
+            .any(|token| token.0 == line && token.4.contains(&"code".to_owned()))
+    };
+    for mode in MODES {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let tokens = decoded_in(source, &options)?;
+        assert!(!code(&tokens, 2), "{mode:?}: {tokens:?}");
+        for line in [8, 12, 16, 20] {
+            assert!(code(&tokens, line), "{mode:?} line {line}: {tokens:?}");
+        }
+        assert!(
+            tokens
+                .iter()
+                .any(|token| token.0 == 2 && token.2 == "<1>" && token.3 == "operator"),
+            "{mode:?}: {tokens:?}"
+        );
+        for spelling in ["[source,ruby]", "[source]", "----", "....", "++++"] {
+            assert!(
+                tokens.iter().any(|token| token.2 == spelling),
+                "{mode:?} {spelling}: {tokens:?}"
+            );
+        }
+    }
+    Ok(())
+}

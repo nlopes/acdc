@@ -364,6 +364,9 @@ fn collect_block(
     tokens: &mut Vec<RawToken>,
 ) {
     block_metadata(block, conditionals, source, mode, tokens);
+    let verbatim_body = |body: ContentRef<'_>, tokens: &mut Vec<RawToken>| {
+        verbatim(block, body, source, mode, tokens);
+    };
     match block.kind() {
         BlockKind::Section(section) => {
             if let Some(title) = section.title() {
@@ -386,11 +389,9 @@ fn collect_block(
         BlockKind::Paragraph(node) => {
             collect_tokens_from_inlines(node.content(), source, mode, tokens);
         }
-        BlockKind::Listing(node) => listing(block, node.content(), source, mode, tokens),
-        BlockKind::Literal(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
-        BlockKind::Passthrough(node) => {
-            verbatim(block.kind(), node.content(), source, mode, tokens);
-        }
+        BlockKind::Listing(node) => verbatim_body(node.content(), tokens),
+        BlockKind::Literal(node) => verbatim_body(node.content(), tokens),
+        BlockKind::Passthrough(node) => verbatim_body(node.content(), tokens),
         BlockKind::Stem(node) => {
             if let Some(range) = delimited_body(block.kind(), source)
                 .or_else(|| primary_range(node.location(), source))
@@ -576,37 +577,32 @@ fn delimiter_locations(kind: BlockKind<'_>) -> [Option<LocationRef<'_>>; 2] {
     }
 }
 
-fn listing(
+fn verbatim(
     block: BlockRef<'_>,
     body: ContentRef<'_>,
     source: &LineIndex<'_>,
     mode: CompatibilityMode,
     tokens: &mut Vec<RawToken>,
 ) {
-    let language = block
-        .attributes()
-        .and_then(|attributes| attributes.get("language"))
-        .and_then(AttributeValueRef::as_str);
-    // Leave tagged source bodies to the editor's injected highlighter,
-    // including when substitutions have produced parsed inline content.
-    if language.is_none_or(|language| language.trim().is_empty()) {
-        verbatim(block.kind(), body, source, mode, tokens);
-    }
-}
-
-fn verbatim(
-    kind: BlockKind<'_>,
-    body: ContentRef<'_>,
-    source: &LineIndex<'_>,
-    mode: CompatibilityMode,
-    tokens: &mut Vec<RawToken>,
-) {
-    if let Some(range) = delimited_body(kind, source) {
-        add_range_with_priority(range, 3, CODE, 0, source, tokens);
+    if let Some(range) = delimited_body(block.kind(), source) {
+        // Leave a body that names its language to the editor's injected
+        // highlighter, but keep the tokens inside it, such as callouts.
+        if !names_language(block) {
+            add_range_with_priority(range, 3, CODE, 0, source, tokens);
+        }
         collect_tokens_from_inlines(body, source, mode, tokens);
     } else {
         content(body, 3, CODE, source, mode, tokens);
     }
+}
+
+/// Whether a block names the language of its body, as `[source,json]` does.
+fn names_language(block: BlockRef<'_>) -> bool {
+    block
+        .attributes()
+        .and_then(|attributes| attributes.get("language"))
+        .and_then(AttributeValueRef::as_str)
+        .is_some_and(|language| !language.trim().is_empty())
 }
 
 fn delimited_body(kind: BlockKind<'_>, source: &LineIndex<'_>) -> Option<Range> {
