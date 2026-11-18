@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- Setting or unsetting `acdc-terminal` in the body now controls subsequent
+  source previews. Dimensions and theme also follow the current block’s scope.
+
 - Extracted terminal previews and recorded-session replay into the native
   `acdc-extensions-terminal` extension. Select `--extension terminal` with the CLI's
   `html-terminal` build feature, or register and select the package through the

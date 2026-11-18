@@ -46,6 +46,10 @@ permission.
 
 == Behavior and compatibility
 
+You can set or unset `acdc-terminal` between blocks to control subsequent source
+previews. Dimensions and theme follow the accepted document attributes at the
+block. Attributes local to an AsciiDoc table cell expire at the end of the cell.
+
 The syntax, terminal dimensions, themes, replay controls, static fallback,
 asciicast support, and source highlighting follow the
 link:../../converters/html/README.adoc[HTML authoring guide]. Both standard and

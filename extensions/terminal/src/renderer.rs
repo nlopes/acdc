@@ -31,19 +31,15 @@ impl BlockRenderProcessor for Terminal {
         } else {
             return Ok(false);
         };
-        let options = host.options().clone();
-        let safe_mode = options.safe_mode();
+        let safe_mode = host.options().safe_mode();
         if safe_mode >= SafeMode::Server {
-            host.output(&mut |_, diagnostics| {
-                diagnostics.warn_with_advice(
+            let (_, mut diagnostics, _) = host.output();
+            diagnostics.warn_with_advice(
                     format!("terminal rendering is disabled at safe mode `{safe_mode:?}`; rendering the block as a plain listing"),
                     "Use terminal previews only for trusted documents below Server safe mode, or use a plain listing block.",
                 );
-                Ok(())
-            })?;
             return Ok(false);
         }
-        let attrs = host.document_attributes().clone().into_static();
         let semantic = host.variant() == "html5s";
         let titled = block.title().is_some();
         let tag = if semantic && titled { "figure" } else { "div" };
@@ -60,28 +56,12 @@ impl BlockRenderProcessor for Terminal {
             host.title(block, "<div class=\"title\">", "</div>\n")?;
             host.write(b"<div class=\"content\">\n")?;
         }
-        host.output(&mut |writer, diagnostics| {
-            if session {
-                render_session(
-                    writer,
-                    content,
-                    attributes,
-                    options.clone(),
-                    &attrs,
-                    diagnostics,
-                )?;
-            } else {
-                render_listing(
-                    writer,
-                    content,
-                    attributes,
-                    options.clone(),
-                    &attrs,
-                    diagnostics,
-                )?;
-            }
-            Ok(())
-        })?;
+        let (writer, mut diagnostics, attrs) = host.output();
+        if session {
+            render_session(writer, content, attributes, attrs, &mut diagnostics)?;
+        } else {
+            render_listing(writer, content, attributes, attrs, &mut diagnostics)?;
+        }
         if !semantic {
             host.write(b"</div>\n")?;
         }

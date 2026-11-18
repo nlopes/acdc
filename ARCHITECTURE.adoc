@@ -140,8 +140,10 @@ handlers per conversion. `Extensions` combines parser and renderer capabilities;
 renderer-only selections retain ordinary parsing. Backends dispatch selected
 renderers in order and use ordinary rendering when every handler declines.
 HTML supplies streaming output, diagnostics, metadata escaping, and caption/title
-services. Selected renderers supply their CSP script hashes. No handler can edit
-the shared parsed document through this rendering interface.
+services. Renderers read attributes from the active traversal so accepted body
+assignments apply in source order and cell-local values expire on exit. Selected
+renderers supply their CSP script hashes. No handler can edit the shared parsed
+document through this rendering interface.
 
 `extensions/terminal` owns the terminal preview and replay implementation and
 player script. It uses these generic host services instead of terminal-specific

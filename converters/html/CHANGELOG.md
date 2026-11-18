@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native HTML renderers now observe body attribute changes in source order
+  and restore the enclosing settings after each AsciiDoc table cell.
+
 - **Breaking:** terminal previews and replay now require selecting the native
   `terminal` extension. The `terminal` build feature supplies availability;
   library callers attach `terminal_extension()` to their pipeline. Existing syntax,
