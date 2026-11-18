@@ -1317,7 +1317,16 @@ peg::parser! {
         = metadata:block_metadata_with_title(offset, parent_section_level, false) { metadata }
 
         rule block_metadata_with_title(offset: usize, parent_section_level: Option<SectionLevel>, parse_title: bool) -> Result<BlockParsingMetadata<'input>, Error>
-        = meta_start:position!() lines:block_metadata_lines(offset)
+        // Media macros and Markdown fences can supply their own attributes.
+        // Other blocks without a metadata prefix use the document defaults directly.
+        = !block_metadata_line_match() !media_block_ahead_true() !markdown_code_delimiter() {
+            let mut metadata = BlockParsingMetadata::new(state.options.compatibility_mode);
+            metadata.metadata.source_context = crate::extensions::SourceContext::capture(state);
+            metadata.parent_section_level = parent_section_level;
+            metadata.hardbreaks = state.hardbreaks && metadata.substitutions.enabled(&Substitution::PostReplacements);
+            Ok(metadata)
+        }
+        / meta_start:position!() lines:block_metadata_lines(offset)
           block_start:position!() media_ahead:media_block_ahead() form:attribute_block_form(offset)
         {
             let mut attributes = ParsedAttributeList::default();
