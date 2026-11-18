@@ -31,14 +31,14 @@ A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered 
 The server supplies token types and formatting modifiers; the editor chooses the colors.
 In addition to standard modifiers, it reports `disabled`, `bold`, `italic`, `code`,
 `highlight`, `subscript`, and `superscript`. Clients can style these separately.
-Source blocks with a nonempty language, such as `[source,json]`, leave their bodies
-to the editor's embedded-language highlighter. Untagged source, listing, literal,
-and passthrough blocks retain a code face. The server does not supply
-language-specific Rust, JSON, or JavaScript tokens.
-
-In Zed, use `"semantic_tokens": "combined"` for AsciiDoc to retain Tree-sitter
-injections alongside semantic tokens. With `"full"`, Tree-sitter highlighting is
-disabled, so language-tagged source bodies have no syntax colors.
+Listing, literal, and passthrough block bodies receive a code face, without
+language-specific Rust, JSON, or JavaScript tokens. An editor that reports
+`augmentsSyntaxTokens` draws delimited bodies that name a language, such as
+`[source,json]`, with its own highlighter instead, and receives only the tokens
+inside them, such as callouts. Bodies without a language keep the code face.
+Zed reports it with `"semantic_tokens": "combined"`, so a `[source,json]` body
+shows JSON colors. Zed reads this mode when it starts the server, so restart
+the language server after changing it.
 
 ## Installation
 

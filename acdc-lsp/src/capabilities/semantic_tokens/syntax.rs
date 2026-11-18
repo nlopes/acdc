@@ -8,9 +8,9 @@ use acdc_parser::{
 use tower_lsp_server::ls_types::{Position, Range};
 
 use super::{
-    BOLD, CODE, ITALIC, LineIndex, RawToken, add_attribute_token, add_range_with_priority,
-    add_token_for_location, add_token_for_range, byte_range_to_utf16_range,
-    collect_tokens_from_inlines, is_primary_location,
+    BOLD, CODE, ClientHighlighting, ITALIC, LineIndex, RawToken, add_attribute_token,
+    add_range_with_priority, add_token_for_location, add_token_for_range,
+    byte_range_to_utf16_range, collect_tokens_from_inlines, is_primary_location,
 };
 use crate::{convert::position_to_offset, state::ConditionalBlock};
 
@@ -18,13 +18,16 @@ pub(super) fn collect(
     document: DocumentRef<'_>,
     conditionals: &[ConditionalBlock],
     source: &LineIndex<'_>,
+    highlighting: ClientHighlighting,
     tokens: &mut Vec<RawToken>,
 ) {
     let mode = document.attributes().compatibility_mode();
     for node in StructuralRef::Document(document).descendants() {
         match node {
             StructuralRef::Header(header) => collect_header(header, source, mode, tokens),
-            StructuralRef::Block(block) => collect_block(block, conditionals, source, mode, tokens),
+            StructuralRef::Block(block) => {
+                collect_block(block, conditionals, source, mode, highlighting, tokens);
+            }
             StructuralRef::ListItem(item) => {
                 if let Some(range) = primary_range(item.location(), source) {
                     prefix(range.start, item.marker(), 8, source, tokens);
@@ -361,11 +364,12 @@ fn collect_block(
     conditionals: &[ConditionalBlock],
     source: &LineIndex<'_>,
     mode: CompatibilityMode,
+    highlighting: ClientHighlighting,
     tokens: &mut Vec<RawToken>,
 ) {
     block_metadata(block, conditionals, source, mode, tokens);
     let verbatim_body = |body: ContentRef<'_>, tokens: &mut Vec<RawToken>| {
-        verbatim(block, body, source, mode, tokens);
+        verbatim(block, body, source, mode, highlighting, tokens);
     };
     match block.kind() {
         BlockKind::Section(section) => {
@@ -582,12 +586,13 @@ fn verbatim(
     body: ContentRef<'_>,
     source: &LineIndex<'_>,
     mode: CompatibilityMode,
+    highlighting: ClientHighlighting,
     tokens: &mut Vec<RawToken>,
 ) {
     if let Some(range) = delimited_body(block.kind(), source) {
-        // Leave a body that names its language to the editor's injected
-        // highlighter, but keep the tokens inside it, such as callouts.
-        if !names_language(block) {
+        // An editor with its own highlighting may draw a body in the language
+        // its block names. See `ClientHighlighting`.
+        if highlighting == ClientHighlighting::TokensOnly || !names_language(block) {
             add_range_with_priority(range, 3, CODE, 0, source, tokens);
         }
         collect_tokens_from_inlines(body, source, mode, tokens);

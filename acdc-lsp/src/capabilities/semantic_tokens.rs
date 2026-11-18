@@ -95,6 +95,59 @@ struct RawToken {
     priority: u8,
 }
 
+/// How the client draws semantic tokens, from its `augmentsSyntaxTokens`
+/// capability (LSP 3.17).
+///
+/// The capability says whether the editor has syntax highlighting of its own
+/// under the tokens. The server uses it for one decision: whether to send the
+/// code token that covers the whole body of a delimited block that names its
+/// language, such as `[source,json]`.
+///
+/// An `AsciiDoc` grammar can highlight such a body in that language, and the
+/// code token would cover those colors. A body without a language, such as a
+/// plain `----`, `....`, or `++++` block, gives the grammar nothing to add, so
+/// it keeps its code token either way. What a grammar can't see comes from
+/// the parse, so tokens inside the body, such as callouts, are sent either
+/// way.
+///
+/// Each answer leads to the right result:
+///
+/// - `true`: the editor's own highlighting draws bodies that name a language.
+///   Zed sends this in its `combined` mode, where Tree-sitter highlights the
+///   body's language. Neovim sends it too, and its built-in `AsciiDoc` syntax
+///   styles listing and literal blocks.
+/// - `false`: the editor draws only the tokens, so every body keeps its code
+///   token. Zed sends this in its `full` mode.
+/// - Not sent: the server can't tell whether anything else highlights the
+///   body, so every body keeps its code token, as before. Eglot doesn't send
+///   the capability, and it serves both Emacs setups: adoc-mode's highlighting
+///   with tokens on top, and tokens alone. A setup with adoc-mode's
+///   highlighting can send `true` to get adoc-mode's colors in source blocks. I'm
+///   using Emacs + Eglot + adoc-mode as examples here because that's what I use.
+///
+/// The server doesn't highlight the body's language itself. That needs a
+/// grammar for every language and the editor's theme, and the editor already
+/// has both.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ClientHighlighting {
+    /// The client draws only semantic tokens, or doesn't say.
+    #[default]
+    TokensOnly,
+    /// The client draws semantic tokens over its own syntax highlighting.
+    AugmentsSyntax,
+}
+
+impl ClientHighlighting {
+    /// Read the client's `augmentsSyntaxTokens` capability.
+    pub(crate) fn from_augments_syntax_tokens(augments: Option<bool>) -> Self {
+        if augments == Some(true) {
+            Self::AugmentsSyntax
+        } else {
+            Self::TokensOnly
+        }
+    }
+}
+
 /// Compute semantic tokens for a document, including conditional directive awareness.
 #[must_use]
 pub(crate) fn compute_semantic_tokens(
@@ -102,11 +155,12 @@ pub(crate) fn compute_semantic_tokens(
     conditionals: &[ConditionalBlock],
     includes: &[(String, Location)],
     text: &str,
+    highlighting: ClientHighlighting,
 ) -> SemanticTokens {
     let mut tokens: Vec<RawToken> = Vec::new();
     let source = LineIndex::new(text);
 
-    syntax::collect(doc, conditionals, &source, &mut tokens);
+    syntax::collect(doc, conditionals, &source, highlighting, &mut tokens);
     // Before include tokens, so a directive inside a header comment block
     // stays a comment.
     syntax::header(doc, conditionals, includes, &source, &mut tokens);
@@ -404,7 +458,13 @@ mod tests {
     fn tokens_use_utf16_columns_and_stop_at_line_end() -> Result<(), Box<dyn std::error::Error>> {
         let text = "😀 *bold*\n*multi\nline*\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], text);
+        let tokens = compute_semantic_tokens(
+            parsed.document(),
+            &[],
+            &[],
+            text,
+            ClientHighlighting::TokensOnly,
+        );
         let first = tokens.data.first().ok_or("missing token")?;
         assert_eq!(first.delta_start, 3);
         assert_eq!(first.length, 6);
@@ -467,7 +527,13 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let text = "Text.\r\n\r\n:!name:\r\n:name!:\r\n:other: value\r\n";
         let parsed = acdc_parser::parse(text, &Options::default())?;
-        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], text);
+        let tokens = compute_semantic_tokens(
+            parsed.document(),
+            &[],
+            &[],
+            text,
+            ClientHighlighting::TokensOnly,
+        );
         let actual: Vec<_> = tokens
             .data
             .iter()
@@ -498,7 +564,13 @@ Some content.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], content);
+        let tokens = compute_semantic_tokens(
+            parsed.document(),
+            &[],
+            &[],
+            content,
+            ClientHighlighting::TokensOnly,
+        );
         // Should have at least tokens for section titles
         assert_ne!(tokens.data, []);
         Ok(())
@@ -516,7 +588,13 @@ See <<target>> for more.
         let options = Options::default();
         let parsed = acdc_parser::parse(content, &options)?;
 
-        let tokens = compute_semantic_tokens(parsed.document(), &[], &[], content);
+        let tokens = compute_semantic_tokens(
+            parsed.document(),
+            &[],
+            &[],
+            content,
+            ClientHighlighting::TokensOnly,
+        );
         // Should have tokens for section, anchor, and xref
         assert!(tokens.data.len() >= 2);
         Ok(())
@@ -567,7 +645,13 @@ See <<target>> for more.
             end_line: Some(2),
         }];
 
-        let tokens = compute_semantic_tokens(doc, &conditionals, &[], content);
+        let tokens = compute_semantic_tokens(
+            doc,
+            &conditionals,
+            &[],
+            content,
+            ClientHighlighting::TokensOnly,
+        );
         // Should have tokens: ifdef line (KEYWORD), inactive content (COMMENT+disabled), endif (KEYWORD)
         assert!(tokens.data.len() >= 3);
 
@@ -630,7 +714,13 @@ See <<target>> for more.
             end_line: Some(2),
         }];
 
-        let tokens = compute_semantic_tokens(doc, &conditionals, &[], content);
+        let tokens = compute_semantic_tokens(
+            doc,
+            &conditionals,
+            &[],
+            content,
+            ClientHighlighting::TokensOnly,
+        );
         // Active block: should have KEYWORD tokens for directives but NO disabled tokens
         let mut abs_tokens = Vec::new();
         let mut prev_line = 0u32;

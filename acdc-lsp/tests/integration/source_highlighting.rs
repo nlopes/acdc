@@ -373,3 +373,46 @@ fn conditional_overlays_follow_body_changes_and_selected_nested_includes() -> Te
     }
     Ok(())
 }
+
+#[test]
+fn delimited_bodies_follow_the_clients_augments_syntax_tokens() -> TestResult {
+    let project = Project::new("source-highlight-augments")?;
+    let uri = project.uri("document.adoc")?;
+    let semantic_tokens = |augments: Option<bool>| {
+        let mut capability = json!({
+            "requests": {"full": true},
+            "tokenTypes": [],
+            "tokenModifiers": [],
+            "formats": ["relative"]
+        });
+        if let (Some(augments), Some(object)) = (augments, capability.as_object_mut()) {
+            object.insert("augmentsSyntaxTokens".into(), augments.into());
+        }
+        json!({"textDocument": {"semanticTokens": capability}})
+    };
+    for (augments, body_token) in [(None, true), (Some(false), true), (Some(true), false)] {
+        let mut client = LspTestClient::new()?;
+        client.initialize_with_params(
+            json!({"processId":null,"capabilities":semantic_tokens(augments)}),
+        )?;
+        client.open_document(
+            &uri,
+            "[source,json]\n----\n{\"port\": 8080}\n----\n\n----\nplain listing\n----\n",
+        )?;
+        let tokens = decoded(&mut client, &uri)?;
+        assert_eq!(
+            tokens.iter().any(|token| token[0] == 2),
+            body_token,
+            "{augments:?}: {tokens:?}"
+        );
+        // A body without a language keeps its token for every client.
+        assert!(
+            [0, 1, 3, 5, 6, 7]
+                .iter()
+                .all(|line| tokens.iter().any(|token| token[0] == *line)),
+            "{augments:?}: {tokens:?}"
+        );
+        client.shutdown();
+    }
+    Ok(())
+}

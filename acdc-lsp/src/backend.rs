@@ -45,7 +45,9 @@ use crate::{
     capabilities::{
         call_hierarchy, code_actions, code_lens, completion, definition, document_links,
         file_rename, folding, formatting, hover, inlay_hints, on_type_formatting, references,
-        rename, selection_range, semantic_tokens, signature_help, symbols,
+        rename, selection_range,
+        semantic_tokens::{self, ClientHighlighting},
+        signature_help, symbols,
     },
     config::{
         AnalysisConfiguration, RootConfiguration, ServerOptions, SettingsUpdate, WorkspaceSettings,
@@ -57,6 +59,7 @@ use crate::{
 #[derive(Clone, Copy, Default)]
 struct ClientFeatures {
     configuration: ConfigurationSupport,
+    highlighting: ClientHighlighting,
     refresh: RefreshSupport,
     watched_files: bool,
     #[cfg(feature = "preview")]
@@ -163,6 +166,14 @@ impl Backend {
                     .and_then(|capability| capability.dynamic_registration)
                     .unwrap_or(false),
             },
+            highlighting: ClientHighlighting::from_augments_syntax_tokens(
+                params
+                    .capabilities
+                    .text_document
+                    .as_ref()
+                    .and_then(|capabilities| capabilities.semantic_tokens.as_ref())
+                    .and_then(|capability| capability.augments_syntax_tokens),
+            ),
             refresh: RefreshSupport {
                 semantic_tokens: workspace
                     .and_then(|capabilities| capabilities.semantic_tokens.as_ref())
@@ -984,6 +995,7 @@ impl LanguageServer for Backend {
     ) -> Result<Option<SemanticTokensResult>> {
         let _mutation = self.mutation.lock().await;
         let uri = params.text_document.uri;
+        let highlighting = self.features().highlighting;
 
         let response = if let Some(doc) = self.workspace.get_document(&uri) {
             doc.ast().map(|ast| {
@@ -992,6 +1004,7 @@ impl LanguageServer for Backend {
                     &doc.conditionals,
                     &doc.includes,
                     doc.text(),
+                    highlighting,
                 ))
             })
         } else {
