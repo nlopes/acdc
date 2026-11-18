@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reduced parsing overhead for nested blocks and author headers.
 
+- Reduced allocation traffic when tree processors repeatedly edit a document.
+
 - Native extensions can compose literal text, hard breaks, captured target links,
   and grouped fragments through `InlineSpec` in generated paragraphs and list
   items.

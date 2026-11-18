@@ -334,6 +334,52 @@ fn extensions_repair_failure_does_not_publish_edits_or_consume_caption_numbers()
 }
 
 #[test]
+fn extensions_reference_repair_failure_restores_each_splice() -> TestResult {
+    let mut result = support::registry().parse(
+        "= Document\n\n== Section\n\nInside.\n\ndefer::[]",
+        &Options::default(),
+    )?;
+    let target = result
+        .deferred_blocks()
+        .first()
+        .ok_or("placeholder")?
+        .target()
+        .clone();
+    // Simulate a prepared section whose reference membership cannot be rebuilt.
+    result.parsed.with_document_mut(|_, document| {
+        if let Some(acdc_parser::Block::Section(section)) = document.blocks.first_mut() {
+            section.id = None;
+        }
+    });
+    let before = serde_json::to_value(result.parsed.document())?;
+    let mut editor = DocumentEditor::new(&mut result);
+    assert!(
+        editor
+            .insert_before(&target, BlockBuilder::paragraph("insert"))
+            .is_err()
+    );
+    assert_eq!(serde_json::to_value(editor.document_storage())?, before);
+    assert!(
+        editor
+            .replace_placeholder(&target, BlockBuilder::paragraph("replace"))
+            .is_err()
+    );
+    assert_eq!(serde_json::to_value(editor.document_storage())?, before);
+    assert!(editor.discard_placeholder(&target).is_err());
+    assert_eq!(serde_json::to_value(editor.document_storage())?, before);
+    assert_eq!(
+        editor
+            .deferred_blocks()
+            .first()
+            .ok_or("pending placeholder")?
+            .target(),
+        &target
+    );
+    assert!(editor.query().get(&target).is_some());
+    Ok(())
+}
+
+#[test]
 fn extensions_verbatim_styles_follow_ordinary_caption_rules() -> TestResult {
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;

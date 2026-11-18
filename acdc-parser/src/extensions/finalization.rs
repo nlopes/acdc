@@ -6,7 +6,6 @@ use crate::{
 
 #[derive(Default)]
 struct Uses<'a> {
-    xrefs: Vec<(&'a str, crate::Location)>,
     seen: std::collections::HashMap<&'a str, crate::Location>,
     warnings: Vec<Warning>,
 }
@@ -73,12 +72,17 @@ pub(super) fn repair_document(
     document: &mut crate::Document<'_>,
     index: Option<&super::query::TargetIndex>,
 ) -> Result<Vec<Warning>, Error> {
-    document
-        .rebuild_footnotes()
+    let mut repaired = document
+        .with_repaired_footnotes()
         .map_err(|error| failure(document, error))?;
-    document
+    let candidate = repaired.as_mut().unwrap_or(document);
+    candidate
         .rebuild_extension_references()
-        .map_err(|error| failure(document, error))?;
+        .map_err(|error| failure(candidate, error))?;
+    if let Some(repaired) = repaired {
+        document.commit_repair(repaired);
+    }
+
     if let Some(index) = index {
         index.repair_section_references(document);
     }
@@ -88,28 +92,24 @@ pub(super) fn repair_document(
     }
     reference_walk::blocks(&mut uses, &mut document.blocks, true)
         .unwrap_or_else(|never| match never {});
+    let ids: std::collections::HashSet<_> = document.references.keys().copied().collect();
     crate::grammar::walk_document_inline_nodes_mut(document, &mut |inline| {
         if let crate::InlineNode::Macro(crate::InlineMacro::CrossReference(reference)) = inline
             && (reference.target_is_local
                 || reference.source_syntax.target_is_local(reference.target))
+            && !ids.contains(reference.target)
         {
-            uses.xrefs
-                .push((reference.target, reference.location.clone()));
+            uses.warnings.push(Warning::new(
+                WarningKind::UnresolvedReference {
+                    target: reference.target.into(),
+                },
+                Some(crate::SourceLocation::at_location(
+                    None,
+                    reference.location.clone(),
+                )),
+            ));
         }
     });
-    uses.warnings.extend(
-        uses.xrefs
-            .into_iter()
-            .filter(|(target, _)| !document.references.contains_key(target))
-            .map(|(target, location)| {
-                Warning::new(
-                    WarningKind::UnresolvedReference {
-                        target: target.into(),
-                    },
-                    Some(crate::SourceLocation::at_location(None, location)),
-                )
-            }),
-    );
     Ok::<_, Error>(uses.warnings)
 }
 

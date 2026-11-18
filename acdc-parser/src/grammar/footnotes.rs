@@ -356,6 +356,18 @@ impl Document<'_> {
     /// Missing or ambiguous definitions or owner bindings, cycles, and number
     /// overflow leave the document unchanged.
     pub fn rebuild_footnotes(&mut self) -> Result<(), FootnoteRebuildError> {
+        if let Some(candidate) = self.with_repaired_footnotes()? {
+            self.commit_repair(candidate);
+        }
+        Ok(())
+    }
+
+    /// Prepare changed owners without publishing them, so a checked edit can
+    /// validate reference membership before committing either catalog.
+    pub(crate) fn with_repaired_footnotes(&mut self) -> Result<Option<Self>, FootnoteRebuildError> {
+        if !super::location_walk::has_footnotes(self) {
+            return Ok(None);
+        }
         let mut header = self.header.clone();
         let mut blocks = self.blocks.clone();
         let mut footnotes = self.footnotes.clone();
@@ -376,21 +388,26 @@ impl Document<'_> {
         try_walk_document_inline_nodes_mut(&mut derived, &mut |node| {
             bindings.borrow().rebind(node)
         })?;
-        let mut prepared = Document {
+        let mut candidate = Self {
             header,
             blocks,
             footnotes,
-            ..Document::default()
+            attributes: self.attributes.clone(),
+            location: self.location.clone(),
+            untitled_header_location: self.untitled_header_location.clone(),
+            ..Self::default()
         };
-        try_walk_document_reftext_inlines_mut(&mut prepared, &mut |node| {
+        try_walk_document_reftext_inlines_mut(&mut candidate, &mut |node| {
             bindings.borrow().rebind(node)
         })?;
-        self.header = prepared.header;
-        self.blocks = prepared.blocks;
-        self.footnotes = prepared.footnotes;
-        self.toc_entries = derived.toc_entries;
-        self.references = derived.references;
-        Ok(())
+        candidate.toc_entries = derived.toc_entries;
+        candidate.references = derived.references;
+        Ok(Some(candidate))
+    }
+
+    pub(crate) fn commit_repair(&mut self, mut candidate: Self) {
+        candidate.generated_displays = std::mem::take(&mut self.generated_displays);
+        *self = candidate;
     }
 }
 

@@ -560,7 +560,8 @@ pub(crate) fn renumber_sections<'a>(
     let mut toc_numbers: HashMap<String, VecDeque<Option<SectionNumber>>> =
         HashMap::with_capacity(toc_entries.len());
     let mut record_number =
-        |section: &Section<'a>, numbers: SectionNumbers, name, record_toc: bool| {
+        |section: &mut Section<'a>, numbers: SectionNumbers, name, record_toc: bool| {
+            section.numbering.number.clone_from(&numbers.shown);
             update_section_reference(section, name, &numbers, references);
             if record_toc {
                 toc_numbers
@@ -653,7 +654,7 @@ pub(crate) fn extension_reference_numbers(
 ) -> Vec<SectionReference> {
     let mut references = Vec::new();
     let mut state = NumberingState::default();
-    let mut record = |_: &Section<'_>, numbers: SectionNumbers, name, _: bool| {
+    let mut record = |_: &mut Section<'_>, numbers: SectionNumbers, name, _: bool| {
         references.push(SectionReference {
             name,
             number: numbers.reference,
@@ -673,7 +674,8 @@ pub(crate) fn number_parsed_sections<'a>(
     let mut state = NumberingState::default();
     let mut toc_index = 0;
     let mut record_number =
-        |section: &Section<'a>, numbers: SectionNumbers, name, record_toc: bool| {
+        |section: &mut Section<'a>, numbers: SectionNumbers, name, record_toc: bool| {
+            section.numbering.number.clone_from(&numbers.shown);
             update_section_reference(section, name, &numbers, references);
             if !record_toc {
                 return;
@@ -727,7 +729,7 @@ fn renumber_blocks<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
+    F: FnMut(&mut Section<'a>, SectionNumbers, &'static str, bool),
 {
     for block in blocks {
         match block {
@@ -838,7 +840,7 @@ fn renumber_delimited<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
+    F: FnMut(&mut Section<'a>, SectionNumbers, &'static str, bool),
 {
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
@@ -872,7 +874,7 @@ fn renumber_section<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
+    F: FnMut(&mut Section<'a>, SectionNumbers, &'static str, bool),
 {
     let level = state.numbering_level(section.level, section.kind);
     let participates = section_participates(section, is_book);
@@ -899,7 +901,6 @@ fn renumber_section<'a, F>(
             reference: number,
         }
     };
-    section.numbering.number.clone_from(&numbers.shown);
     record_number(
         section,
         numbers,
@@ -950,7 +951,7 @@ fn renumber_table<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
+    F: FnMut(&mut Section<'a>, SectionNumbers, &'static str, bool),
 {
     for row in table
         .header
