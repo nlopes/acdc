@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native block renderers can read the attributes in effect at the block,
+  including accepted body assignments and local table-cell settings.
+  Implementations of `RenderHost::document_attributes` now return a reference
+  to the current `TraversalContext`. Callers of `RenderHost::output` now
+  destructure the returned writer, diagnostics, and traversal context.
+
 - Native extensions can register backend-specific block renderers alongside
   parser processors. Selection creates fresh render handlers for every conversion,
   retains structured warnings, and lets the backend render titles and metadata.

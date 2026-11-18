@@ -6,7 +6,7 @@ use acdc_converters_core::{
     Diagnostics, Options, TraversalContext,
     render::{RenderError, RenderHost},
 };
-use acdc_parser::{CaptionKind, DocumentAttributes, ast::BlockRef};
+use acdc_parser::{CaptionKind, ast::BlockRef};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
@@ -44,8 +44,8 @@ impl<W: Write> RenderHost for Host<'_, '_, '_, W> {
     fn variant(&self) -> &str {
         self.visitor.converter.variant.backend_profile().backend()
     }
-    fn document_attributes(&self) -> &DocumentAttributes<'_> {
-        self.visitor.converter.document_attributes()
+    fn document_attributes(&self) -> &TraversalContext<'_> {
+        self.traversal
     }
     fn options(&self) -> &Options {
         &self.visitor.converter.options
@@ -87,10 +87,11 @@ impl<W: Write> RenderHost for Host<'_, '_, '_, W> {
         Ok(())
     }
 
-    fn output(
-        &mut self,
-        operation: &mut dyn FnMut(&mut dyn Write, &mut Diagnostics<'_>) -> Result<(), RenderError>,
-    ) -> Result<(), RenderError> {
-        operation(&mut self.visitor.writer, &mut self.visitor.diagnostics)
+    fn output(&mut self) -> (&mut dyn Write, Diagnostics<'_>, &TraversalContext<'_>) {
+        (
+            &mut self.visitor.writer,
+            self.visitor.diagnostics.reborrow(),
+            self.traversal,
+        )
     }
 }

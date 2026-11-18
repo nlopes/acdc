@@ -2,9 +2,9 @@
 
 use std::{fmt, io::Write, sync::Arc};
 
-use acdc_parser::{DocumentAttributes, ast::BlockRef};
+use acdc_parser::ast::BlockRef;
 
-use crate::{Diagnostics, Options};
+use crate::{Diagnostics, Options, TraversalContext};
 
 /// A native renderer or host-service failure, preserving its original source.
 pub type RenderError = Box<dyn std::error::Error + Send + Sync>;
@@ -63,8 +63,8 @@ pub trait BlockRenderProcessor {
 pub trait RenderHost {
     /// Current backend variant, such as `html5` or `html5s`.
     fn variant(&self) -> &str;
-    /// Backend document attributes with parsed values and assignment metadata.
-    fn document_attributes(&self) -> &DocumentAttributes<'_>;
+    /// Attributes in effect at this block, including body and table-cell assignments.
+    fn document_attributes(&self) -> &TraversalContext<'_>;
     /// Validated application options, including safe mode.
     fn options(&self) -> &Options;
     /// Open a backend element with the block's ID, roles, and default classes.
@@ -84,20 +84,15 @@ pub trait RenderHost {
     /// Returns title-rendering or output errors.
     fn title(&mut self, block: BlockRef<'_>, prefix: &str, suffix: &str)
     -> Result<(), RenderError>;
-    /// Borrow output and its structured diagnostics together, without buffering.
-    ///
-    /// # Errors
-    /// Preserves failures returned by the operation.
-    fn output(
-        &mut self,
-        operation: &mut dyn FnMut(&mut dyn Write, &mut Diagnostics<'_>) -> Result<(), RenderError>,
-    ) -> Result<(), RenderError>;
+    /// Borrow output, structured diagnostics, and the current traversal together.
+    fn output(&mut self) -> (&mut dyn Write, Diagnostics<'_>, &TraversalContext<'_>);
     /// Write trusted backend output.
     ///
     /// # Errors
     /// Returns output errors.
     fn write(&mut self, bytes: &[u8]) -> Result<(), RenderError> {
-        self.output(&mut |writer, _| Ok(writer.write_all(bytes)?))
+        let (writer, _, _) = self.output();
+        Ok(writer.write_all(bytes)?)
     }
 }
 
