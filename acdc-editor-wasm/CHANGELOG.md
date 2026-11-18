@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could split a block delimiter. The callout highlight now covers only `<1>`,
   not the explanation after it.
 
+- The demo site's editor and preview headers have the same height, and the
+  compatibility selector has a cleaner, rounded look in light and dark themes.
+
 - Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
 
 ### Added

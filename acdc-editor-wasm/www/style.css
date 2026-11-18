@@ -111,7 +111,12 @@ body.resizing .preview-pane {
 }
 
 .pane-label {
-    padding: 4px 12px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    height: 34px;
+    flex: none;
+    padding: 0 12px;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
@@ -1630,20 +1635,78 @@ body.resizing .preview-pane {
 }
 
 .editor-toolbar {
-    display: flex;
-    align-items: center;
     justify-content: space-between;
     gap: 1rem;
 }
 
 .editor-toolbar label {
-    font-size: 12px;
-    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 11px;
+    font-weight: 500;
     text-transform: none;
     letter-spacing: normal;
 }
 
 .editor-toolbar select {
+    appearance: none;
+    -webkit-appearance: none;
+    box-sizing: border-box;
+    height: 24px;
+    margin: 0;
+    padding: 0 26px 0 10px;
     font: inherit;
-    margin-left: 0.25rem;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    color: #343a40;
+    background-color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236c757d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.editor-toolbar select:hover {
+    border-color: #adb5bd;
+    background-color: #f8f9fa;
+}
+
+.editor-toolbar select:focus {
+    outline: none;
+}
+
+.editor-toolbar select:focus-visible {
+    border-color: #4c8bf5;
+    box-shadow: 0 0 0 3px rgba(76, 139, 245, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+    .editor-toolbar select {
+        color: #d4d4d4;
+        background-color: #1e1e1e;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238b929a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        border-color: #3a3a3a;
+        box-shadow: none;
+    }
+
+    .editor-toolbar select:hover {
+        border-color: #555;
+        background-color: #2a2a2a;
+    }
+
+    .editor-toolbar select:focus-visible {
+        border-color: #6ea0f7;
+        box-shadow: 0 0 0 3px rgba(110, 160, 247, 0.3);
+    }
+
+    .editor-toolbar select option {
+        background: #1e1e1e;
+        color: #d4d4d4;
+    }
 }
