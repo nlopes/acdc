@@ -108,6 +108,26 @@ impl OwnedInput {
 #[cfg(test)]
 mod source_storage_tests {
     #[test]
+    fn inactive_source_edits_keep_the_owned_input() -> Result<(), Box<dyn std::error::Error>> {
+        let mut builder = crate::extensions::Registry::builder();
+        builder.register_preprocessor("observe", || {
+            |_: &str, _: &crate::extensions::SourceProcessorContext<'_>| Ok(Vec::new())
+        })?;
+        let input = "A paragraph.\n\n".repeat(1000);
+        let parsed = builder
+            .build()
+            .parse(&input, &crate::Options::default())?
+            .finish()?;
+        let owner = parsed.cell.borrow_owner();
+        assert!(std::ptr::eq(
+            parsed.preprocessed_source(),
+            owner.source.as_ref()
+        ));
+        assert!(owner.processed_source.get().is_none());
+        Ok(())
+    }
+
+    #[test]
     fn ordered_pass_through_keeps_one_complete_source_buffer() -> Result<(), crate::Error> {
         for paragraphs in [100, 1000] {
             let input = "A *formatted* paragraph.\n\n".repeat(paragraphs);

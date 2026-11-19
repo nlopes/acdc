@@ -709,7 +709,8 @@ impl<'input> InputCursor<'input> {
     }
 
     fn skip_unchanged_input(&mut self, options: &Options<'_>, include_root: bool) {
-        if (!include_root && self.preprocessor.include_context.depth == 0)
+        let at_root = self.preprocessor.include_context.depth == 0;
+        if at_root && (!include_root || !self.out.line_origins.is_empty())
             || self.bulk_consumed
             || self.line_number != 1
             || self.front_matter.is_some()

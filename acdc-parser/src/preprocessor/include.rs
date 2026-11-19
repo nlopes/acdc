@@ -736,7 +736,7 @@ impl<'a> Include<'a> {
 
     /// Remove common leading whitespace and add `indent` spaces to nonblank lines.
     /// Return the text and its column change. Return `None` if the text exceeds the size limit.
-    fn apply_indent(lines: &[&str], indent: usize) -> Option<(String, isize)> {
+    fn apply_indent(lines: &[&str], indent: usize) -> Option<(String, i32)> {
         let min_indent = lines
             .iter()
             .filter(|line| !line.trim().is_empty())
@@ -766,8 +766,7 @@ impl<'a> Include<'a> {
                 content.push_str(&line[min_indent..]);
             }
         }
-        let column_shift =
-            isize::try_from(indent).unwrap_or(0) - isize::try_from(min_indent).unwrap_or(0);
+        let column_shift = i32::try_from(indent).ok()? - i32::try_from(min_indent).ok()?;
         Some((content, column_shift))
     }
 
@@ -890,7 +889,7 @@ impl<'a> Include<'a> {
             ));
         }
         for origin in &mut line_origins {
-            origin.column_shift = column_shift;
+            origin.column_shift = Some(column_shift);
         }
         let scoped_options = self.scoped_options()?;
         let mut included = IncludeResult {

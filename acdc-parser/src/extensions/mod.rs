@@ -1,4 +1,4 @@
-//! Registered block macros and ordered tree processors with fresh document sessions.
+//! Registered source, block macro, and tree processors with fresh document sessions.
 //!
 //! ```
 //! use acdc_parser::{Options, extensions::{
@@ -55,6 +55,26 @@
 //!     &Options::default(),
 //! )?.finish()?;
 //! assert!(parsed.conditionals().next().unwrap().is_active());
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
+//!
+//! Source preprocessors run once on the normalized entry text. Return line edits
+//! in source order. Each processor sees the preceding edits.
+//!
+//! ```
+//! use acdc_parser::{Options,
+//!     extensions::{Registry, SourceEdit, SourceProcessorContext}};
+//!
+//! let mut builder = Registry::builder();
+//! builder.register_preprocessor("strip-marker", || |text: &str, _: &SourceProcessorContext<'_>| {
+//!     Ok(if text.lines().next() == Some("GENERATED") {
+//!         vec![SourceEdit::Remove(1)]
+//!     } else {
+//!         Vec::new()
+//!     })
+//! })?;
+//! let parsed = builder.build().parse("GENERATED\nVersion 1.", &Options::default())?.finish()?;
+//! assert_eq!(parsed.preprocessed_source(), "Version 1.");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
@@ -170,6 +190,8 @@ mod query;
 mod recognition;
 mod registry;
 mod session;
+mod source;
+pub use source::{SourceEdit, SourcePreprocessor, SourceProcessorContext};
 mod target;
 mod title;
 mod traversal;
