@@ -95,7 +95,7 @@ where
 struct CommittedCell<'a> {
     cell: TableCell<'a>,
     warnings: Vec<Warning>,
-    macro_callbacks: usize,
+    block_callbacks: usize,
     used: bool,
     location: SourceLocation,
 }
@@ -169,7 +169,7 @@ impl<'a> TableReader<'a> {
     where
         F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
     {
-        let before = accepted.macro_callbacks();
+        let before = accepted.block_callbacks();
         input.begin_cell(self.separator, self.delimiter, start);
         let mut warnings = Vec::new();
         let result = if spec.style == Some(ColumnStyle::AsciiDoc) {
@@ -230,7 +230,7 @@ impl<'a> TableReader<'a> {
                 CommittedCell {
                     cell,
                     warnings,
-                    macro_callbacks: accepted.macro_callbacks() - before,
+                    block_callbacks: accepted.block_callbacks() - before,
                     used: false,
                     location: state.create_error_source_location(state.create_location(key, key)),
                 },
@@ -365,12 +365,12 @@ impl BlockCursor {
         if let Some(discarded) = parser
             .cells
             .values()
-            .filter(|cell| !cell.used && cell.macro_callbacks > 0)
+            .filter(|cell| !cell.used && cell.block_callbacks > 0)
             .min_by_key(|cell| cell.location.location.absolute_start)
         {
             return Err(Error::Extension(
                 Box::new(discarded.location.clone()),
-                "table layout discarded a cell after its block macro executed".into(),
+                "table layout discarded a cell after its block processor executed".into(),
             ));
         }
         match accepted.run(&mut block, state, output) {

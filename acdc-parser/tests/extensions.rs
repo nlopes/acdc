@@ -534,3 +534,6 @@ fn invalid_direct_macro_output_reports_the_included_invocation() -> TestResult {
     }
     Ok(())
 }
+
+#[path = "extensions/raw_styles.rs"]
+mod raw_styles;

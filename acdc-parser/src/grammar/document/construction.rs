@@ -2,6 +2,7 @@
 
 use crate::{
     Block, Error,
+    extensions::{ExtensionBlock, Invocation},
     grammar::{ParserState, helpers::BlockParsingMetadata},
 };
 
@@ -96,6 +97,44 @@ impl<'a> DelimitedConstruction<'a> {
         self,
         state: &mut ParserState<'a>,
     ) -> Result<(Block<'a>, Option<ContentRequest<'a>>), Error> {
+        let p = &self.params;
+        if let Some(style) = self.metadata.metadata.style
+            && let Some(registry) = &state.options.extensions
+            && let Some(context) = p.kind.raw_context()
+            && let Some((processor, descriptor)) = registry.raw_style(style, context)
+        {
+            let mut metadata = self.metadata.metadata;
+            descriptor.bind_arguments(&mut metadata);
+            super::delimited::resolve_delimited_close(state, p)?;
+            let location = state.create_block_location(p.start, p.end, p.offset);
+            let body_start = p.content_start + p.offset;
+            let body_location = if p.source_text.is_empty() {
+                state.create_location(body_start, body_start)
+            } else {
+                state.create_block_location(
+                    p.content_start,
+                    p.content_start + p.source_text.len(),
+                    p.offset,
+                )
+            };
+            metadata.move_positional_attributes_to_attributes();
+            return Ok((
+                Block::Extension(Box::new(ExtensionBlock {
+                    processor,
+                    invocation: Invocation::Style {
+                        context,
+                        body: p.source_text,
+                        body_location: state.create_error_source_location(body_location),
+                        location: state.create_error_source_location(location.clone()),
+                    },
+                    title: self.metadata.title,
+                    metadata,
+                    location,
+                    placeholder: None,
+                })),
+                None,
+            ));
+        }
         let mut content = CaptureContent::default();
         let block =
             build_delimited_block_with_parser(state, &self.metadata, &self.params, &mut content)?;

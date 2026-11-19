@@ -170,7 +170,9 @@ impl<'doc> DocumentEditor<'doc> {
         target: &TargetId,
         block: &super::ExtensionBlock<'_>,
     ) -> Result<(), Error> {
-        if self.owner == Some(block.invocation.name.as_ref()) {
+        if let super::Invocation::Macro(call) = &block.invocation
+            && self.owner == Some(call.name.as_ref())
+        {
             Ok(())
         } else {
             Err(self.error(

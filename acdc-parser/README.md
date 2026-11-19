@@ -1714,6 +1714,19 @@ The image inherits the invocation's title, ID, roles, and source location.
 Tree processors see the image as soon as they run. Use
 `BlockMacroOutput::Deferred` when construction needs the rest of the document.
 
+Register a raw block style with `RegistryBuilder::register_block_style` and
+`BlockStyle::raw`. Select `RawBlockContext::Listing`, `RawBlockContext::Literal`,
+or both. The handler receives `RawBlockInput` after include and conditional processing,
+with whitespace and the final newline before the closing delimiter preserved.
+It can read the original title, body and block locations, source-position
+attributes, and the substitutions declared for the body. Positional arguments
+can be named with `with_positional_attributes`. Named values take precedence,
+and `with_defaults` fills missing values.
+
+Return `Ok(Some(builder))` to emit an ordinary block or `Ok(None)` to consume
+the invocation. The output inherits the title, ID, and roles. The input style
+has been consumed. Other delimiters keep their ordinary behavior.
+
 `Registry::parse`, `parse_file`, and `parse_from_reader` share these stages.
 Reader input preserves ordinary reader attributes and include-origin policy.
 `RegistryBuilder::extend` composes immutable registries in order and rejects

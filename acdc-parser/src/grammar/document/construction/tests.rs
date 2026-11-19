@@ -236,6 +236,16 @@ impl crate::extensions::BlockMacroProcessor for UnusedProcessor {
     }
 }
 
+fn macro_call<'b, 'a>(block: &'b Block<'a>) -> Option<&'b crate::extensions::MacroInvocation<'a>> {
+    if let Block::Extension(extension) = block
+        && let crate::extensions::Invocation::Macro(call) = &extension.invocation
+    {
+        Some(call)
+    } else {
+        None
+    }
+}
+
 fn probe_options(mode: CompatibilityMode) -> Result<Options<'static>, Box<dyn std::error::Error>> {
     let mut registry = crate::extensions::Registry::builder();
     registry.register(crate::extensions::BlockMacro::new("probe", || {
@@ -259,9 +269,9 @@ fn table_driver_commits_each_duplicate_with_isolated_attributes() -> TestResult 
             &mut state,
             ConstructionMode::Ordered,
             &mut |block, state| {
-                if let Block::Extension(extension) = block {
+                if let Some(call) = macro_call(block) {
                     calls.push((
-                        extension.invocation.target.to_string(),
+                        call.target.to_string(),
                         state.document_attributes.text("value").map(str::to_owned),
                     ));
                     let value = state.intern_str(&calls.len().to_string());
@@ -316,8 +326,8 @@ fn table_driver_ignores_macros_in_plain_literal_header_and_rejected_cells() -> T
         &mut state,
         ConstructionMode::Ordered,
         &mut |block, _| {
-            if let Block::Extension(extension) = block {
-                calls.push(extension.invocation.target.to_string());
+            if let Some(call) = macro_call(block) {
+                calls.push(call.target.to_string());
             }
             Ok(())
         },
@@ -349,8 +359,8 @@ fn table_driver_restores_cell_scope_after_handler_failure() -> TestResult {
         &mut state,
         ConstructionMode::Ordered,
         &mut |block, state| {
-            if let Block::Extension(extension) = block {
-                calls.push(extension.invocation.target.to_string());
+            if let Some(call) = macro_call(block) {
+                calls.push(call.target.to_string());
                 assert_eq!(state.document_attributes.text("cell-only"), Some("local"));
                 return Err(Error::Parse(
                     Box::new(state.create_error_source_location(block.location().clone())),
@@ -417,10 +427,10 @@ fn ordinary_list_driver_runs_attached_macros_before_later_principals() -> TestRe
             &mut state,
             ConstructionMode::Ordered,
             &mut |block, state| {
-                if let Block::Extension(extension) = block {
-                    calls.push(extension.invocation.target.to_string());
+                if let Some(call) = macro_call(block) {
+                    calls.push(call.target.to_string());
                     Rc::make_mut(&mut state.document_attributes)
-                        .set_text("value".into(), extension.invocation.target.clone());
+                        .set_text("value".into(), call.target.clone());
                 }
                 Ok(())
             },
@@ -482,8 +492,8 @@ fn ordinary_list_driver_restores_scopes_when_an_attached_handler_fails() -> Test
         &mut state,
         ConstructionMode::Ordered,
         &mut |block, state| {
-            if let Block::Extension(extension) = block {
-                calls.push(extension.invocation.target.to_string());
+            if let Some(call) = macro_call(block) {
+                calls.push(call.target.to_string());
                 return Err(Error::Parse(
                     Box::new(state.create_error_source_location(block.location().clone())),
                     "stop".into(),
@@ -532,10 +542,10 @@ fn callout_list_driver_commits_attached_macros_before_later_items() -> TestResul
             &mut state,
             ConstructionMode::Ordered,
             &mut |block, state| {
-                if let Block::Extension(extension) = block {
-                    calls.push(extension.invocation.target.to_string());
+                if let Some(call) = macro_call(block) {
+                    calls.push(call.target.to_string());
                     Rc::make_mut(&mut state.document_attributes)
-                        .set_text("value".into(), extension.invocation.target.clone());
+                        .set_text("value".into(), call.target.clone());
                 }
                 Ok(())
             },
@@ -574,8 +584,8 @@ fn callout_list_driver_restores_scope_after_handler_failure() -> TestResult {
         &mut state,
         ConstructionMode::Ordered,
         &mut |block, state| {
-            if let Block::Extension(extension) = block {
-                calls.push(extension.invocation.target.to_string());
+            if let Some(call) = macro_call(block) {
+                calls.push(call.target.to_string());
                 assert!(state.callout_list_offset.is_some());
                 return Err(Error::Parse(
                     Box::new(state.create_error_source_location(block.location().clone())),
@@ -643,10 +653,10 @@ fn description_list_driver_runs_attachments_before_later_principals() -> TestRes
             &mut state,
             ConstructionMode::Ordered,
             &mut |block, state| {
-                if let Block::Extension(extension) = block {
-                    calls.push(extension.invocation.target.to_string());
+                if let Some(call) = macro_call(block) {
+                    calls.push(call.target.to_string());
                     Rc::make_mut(&mut state.document_attributes)
-                        .set_text("value".into(), extension.invocation.target.clone());
+                        .set_text("value".into(), call.target.clone());
                 }
                 Ok(())
             },
@@ -692,8 +702,8 @@ fn description_list_driver_does_not_recover_handler_failure(#[case] input: &str)
         &mut state,
         ConstructionMode::Ordered,
         &mut |block, state| {
-            if let Block::Extension(extension) = block {
-                calls.push(extension.invocation.target.to_string());
+            if let Some(call) = macro_call(block) {
+                calls.push(call.target.to_string());
                 return Err(Error::Parse(
                     Box::new(state.create_error_source_location(block.location().clone())),
                     "stop".into(),
@@ -739,8 +749,8 @@ fn description_list_driver_preserves_native_macro_recovery(#[case] input: &str) 
             &mut ordered_state,
             ConstructionMode::Ordered,
             &mut |block, _| {
-                if let Block::Extension(extension) = block {
-                    calls.push(extension.invocation.target.to_string());
+                if let Some(call) = macro_call(block) {
+                    calls.push(call.target.to_string());
                 }
                 Ok(())
             },
@@ -787,10 +797,10 @@ fn abbreviated_quote_driver_commits_children_in_source_order(#[case] input: &str
             &mut state,
             ConstructionMode::Ordered,
             &mut |block, state| {
-                if let Block::Extension(extension) = block {
-                    calls.push(extension.invocation.target.to_string());
+                if let Some(call) = macro_call(block) {
+                    calls.push(call.target.to_string());
                     Rc::make_mut(&mut state.document_attributes)
-                        .set_text("value".into(), extension.invocation.target.clone());
+                        .set_text("value".into(), call.target.clone());
                 }
                 if let Block::Paragraph(paragraph) = block {
                     paragraphs.push(
@@ -833,8 +843,8 @@ fn abbreviated_quote_driver_stops_after_handler_failure(#[case] input: &str) -> 
         &mut state,
         ConstructionMode::Ordered,
         &mut |block, state| {
-            if let Block::Extension(extension) = block {
-                calls.push(extension.invocation.target.to_string());
+            if let Some(call) = macro_call(block) {
+                calls.push(call.target.to_string());
                 return Err(Error::Parse(
                     Box::new(state.create_error_source_location(block.location().clone())),
                     "stop".into(),

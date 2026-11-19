@@ -71,19 +71,16 @@ pub(crate) fn recognize<'a>(
             positional.push((!empty_slot).then_some(value));
         }
     }
-    for (name, value) in descriptor.positional.iter().zip(&positional) {
-        if let Some(value) = value {
-            attributes.insert_if_absent(
-                Cow::Borrowed(state.intern_str(name)),
-                AttributeValue::String(Cow::Borrowed(value)),
-            );
-        }
-    }
-    attributes.merge_defaults(descriptor.defaults.clone());
+    bind_arguments(
+        &mut attributes,
+        &descriptor.positional,
+        positional.iter().copied(),
+        &descriptor.defaults,
+    );
     Ok(Block::Extension(Box::new(ExtensionBlock {
         metadata,
         title,
-        invocation: MacroInvocation {
+        invocation: super::Invocation::Macro(MacroInvocation {
             name: Cow::Borrowed(name),
             source: Cow::Owned(source),
             target: Cow::Borrowed(target),
@@ -94,9 +91,26 @@ pub(crate) fn recognize<'a>(
             attributes,
             document_attributes: DocumentAttributes::clone(&state.document_attributes),
             location: state.create_error_source_location(location.clone()),
-        },
+        }),
         location,
         processor,
         placeholder: None,
     })))
+}
+
+pub(super) fn bind_arguments<'a>(
+    attributes: &mut ElementAttributes<'a>,
+    names: &[String],
+    positions: impl Iterator<Item = Option<&'a str>>,
+    defaults: &ElementAttributes<'static>,
+) {
+    for (name, value) in names.iter().zip(positions) {
+        if let Some(value) = value {
+            attributes.insert_if_absent(
+                Cow::Owned(name.clone()),
+                AttributeValue::String(Cow::Borrowed(value)),
+            );
+        }
+    }
+    attributes.merge_defaults(defaults.clone());
 }
