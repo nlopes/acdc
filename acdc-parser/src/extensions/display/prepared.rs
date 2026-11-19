@@ -93,7 +93,7 @@ impl<'doc> PreparedDocument<'doc> {
                         xref.text = build_label(&owner.arena, &display, label);
                         // A present-empty label must not fall back to generic reftext.
                         if xref.text.is_empty() {
-                            xref.text.push(plain("", &display.origin));
+                            xref.text.push(plain("", &display.origin.location));
                         }
                     }
                     Ok::<_, Error>(())
@@ -122,11 +122,11 @@ fn build_label<'a>(
             } else {
                 vec![plain(
                     arena.alloc_str(&format!("[{}]", GeneratedDisplayRef(display).target())),
-                    &display.origin,
+                    &display.origin.location,
                 )]
             }
         }
-        DisplayLabel::Text(text) => vec![plain(arena.alloc_str(&text), &display.origin)],
+        DisplayLabel::Text(text) => vec![plain(arena.alloc_str(&text), &display.origin.location)],
         DisplayLabel::Caption { trim_end } => {
             let mut nodes = display
                 .resolved

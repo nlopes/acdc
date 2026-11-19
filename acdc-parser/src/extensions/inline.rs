@@ -2,9 +2,9 @@
 
 use bumpalo::Bump;
 
-use crate::{Document, Error, InlineNode, LineBreak, Plain, SourceLocation};
+use crate::{Error, InlineNode, LineBreak, Location, Plain};
 
-use super::{DisplayRequest, target::DocumentIdentity};
+use super::DisplayRequest;
 
 /// Declarative input for generated inline content.
 ///
@@ -52,34 +52,30 @@ impl InlineSpec {
     pub(super) fn build<'a>(
         self,
         arena: &'a Bump,
-        document: &Document<'a>,
-        identity: &DocumentIdentity,
-        origin: &SourceLocation,
+        location: &Location,
+        mut display: impl FnMut(DisplayRequest, &mut Vec<InlineNode<'a>>) -> Result<(), Error>,
     ) -> Result<Vec<InlineNode<'a>>, Error> {
         let mut nodes = Vec::new();
-        self.build_into(arena, document, identity, origin, &mut nodes)?;
+        self.build_into(arena, location, &mut display, &mut nodes)?;
         Ok(nodes)
     }
 
     fn build_into<'a>(
         self,
         arena: &'a Bump,
-        document: &Document<'a>,
-        identity: &DocumentIdentity,
-        origin: &SourceLocation,
+        location: &Location,
+        display: &mut impl FnMut(DisplayRequest, &mut Vec<InlineNode<'a>>) -> Result<(), Error>,
         nodes: &mut Vec<InlineNode<'a>>,
     ) -> Result<(), Error> {
         match self {
-            Self::Text(text) => nodes.push(plain(arena.alloc_str(&text), origin)),
+            Self::Text(text) => nodes.push(plain(arena.alloc_str(&text), location)),
             Self::LineBreak => {
-                nodes.push(InlineNode::LineBreak(LineBreak::new(
-                    origin.location.clone(),
-                )));
+                nodes.push(InlineNode::LineBreak(LineBreak::new(location.clone())));
             }
-            Self::Display(request) => request.build_into(document, identity, origin, nodes)?,
+            Self::Display(request) => display(request, nodes)?,
             Self::Sequence(content) => {
                 for inline in content {
-                    inline.build_into(arena, document, identity, origin, nodes)?;
+                    inline.build_into(arena, location, display, nodes)?;
                 }
             }
         }
@@ -123,10 +119,10 @@ impl<const N: usize> From<[Self; N]> for InlineSpec {
     }
 }
 
-pub(super) fn plain<'a>(text: &'a str, origin: &SourceLocation) -> InlineNode<'a> {
+pub(super) fn plain<'a>(text: &'a str, location: &Location) -> InlineNode<'a> {
     InlineNode::PlainText(Plain {
         content: text,
-        location: origin.location.clone(),
+        location: location.clone(),
         escaped: true,
     })
 }

@@ -1,7 +1,7 @@
 use std::{
     fmt,
     hash::{Hash, Hasher},
-    rc::Rc,
+    sync::Arc,
 };
 
 use crate::{Anchor, Block, ReferenceTarget, grammar::reference_walk};
@@ -9,11 +9,11 @@ use crate::{Anchor, Block, ReferenceTarget, grammar::reference_walk};
 use super::ExtensionParseResult;
 
 #[derive(Clone, Debug, Default)]
-pub(super) struct DocumentIdentity(Rc<()>);
+pub(super) struct DocumentIdentity(Arc<()>);
 
 impl PartialEq for DocumentIdentity {
     fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
+        Arc::ptr_eq(&self.0, &other.0)
     }
 }
 
@@ -21,7 +21,7 @@ impl Eq for DocumentIdentity {}
 
 impl Hash for DocumentIdentity {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        Rc::as_ptr(&self.0).hash(state);
+        Arc::as_ptr(&self.0).hash(state);
     }
 }
 

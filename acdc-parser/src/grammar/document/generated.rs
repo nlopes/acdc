@@ -7,7 +7,7 @@ use bumpalo::Bump;
 use crate::{
     BlockMetadata, ContentAttribute, Error, FootnoteDefinition, Location, Options, SourceLocation,
     Title, Warning,
-    extensions::{BlockBuilder, SourceContext},
+    extensions::{BlockBuilder, ExtensionBlock, SourceContext},
     grammar::{BlockAttributeMode, ParserState},
 };
 
@@ -23,7 +23,7 @@ pub(crate) struct Context<'doc, 'a> {
 }
 
 impl<'a> Context<'_, 'a> {
-    fn state(&self, input: &'a str, arena: &'a Bump) -> Result<ParserState<'a>, Error> {
+    pub(crate) fn state(&self, input: &'a str, arena: &'a Bump) -> Result<ParserState<'a>, Error> {
         let mut options = Options::builder()
             .with_compatibility_mode(self.source.mode)
             .build()?;
@@ -47,13 +47,45 @@ pub(crate) struct Prepared<'a> {
     pub(crate) warnings: Vec<Warning>,
 }
 
+impl<'a> ParserState<'a> {
+    pub(crate) fn prepare_macro_output(
+        &self,
+        builder: &BlockBuilder,
+        extension: &mut ExtensionBlock<'a>,
+    ) -> Result<Prepared<'a>, Error> {
+        let metadata = std::mem::take(&mut extension.metadata);
+        let title = std::mem::take(&mut extension.title);
+        // The invocation's metadata has already been interpreted in source order.
+        if builder.defaults.is_none() && builder.attributes.is_empty() && builder.unsets.is_empty()
+        {
+            return Ok(Prepared {
+                metadata,
+                title,
+                alt: None,
+                explicit_alt: false,
+                warnings: Vec::new(),
+            });
+        }
+        prepare(
+            self.arena,
+            builder,
+            metadata,
+            title,
+            &extension.invocation.location,
+            &extension.location,
+            |input| Ok(Self::for_inline_parsing(input, self, self.inline_ctx)),
+        )
+    }
+}
+
 pub(crate) fn prepare<'a>(
     arena: &'a Bump,
     builder: &BlockBuilder,
-    inherited: BlockMetadata<'a>,
+    mut inherited: BlockMetadata<'a>,
     title: Title<'a>,
-    context: &Context<'_, 'a>,
     origin: &SourceLocation,
+    location: &Location,
+    make_state: impl FnOnce(&'a str) -> Result<ParserState<'a>, Error>,
 ) -> Result<Prepared<'a>, Error> {
     let sources: Vec<_> = builder.defaults.iter().chain(&builder.attributes).collect();
     if sources.iter().any(|source| source.contains(['\n', '\r'])) {
@@ -69,7 +101,7 @@ pub(crate) fn prepare<'a>(
             .collect::<Vec<_>>()
             .join("\n"),
     );
-    let mut state = context.state(input, arena)?;
+    let mut state = make_state(input)?;
     let mode = if builder.is_image() {
         BlockAttributeMode::Macro
     } else {
@@ -85,15 +117,20 @@ pub(crate) fn prepare<'a>(
     if title.is_present() {
         attributes.title = None;
     }
+    // Attribute positions and pending reftext belong to the parsed source.
+    // Generated lists have their own input and positions.
+    inherited.attribute_positions = None;
+    inherited.positional_attributes.clear();
+    inherited.reftext_source = None;
     let previous = inherited.clone();
-    attributes.overlay_prepared(inherited, context.source.mode);
+    attributes.overlay_prepared(inherited, state.options.compatibility_mode);
     let mut explicit_alt = builder.unsets.iter().any(|name| name == "alt");
     for source in &builder.attributes {
         let source = input.get(offset..offset + source.len()).unwrap_or_default();
         let parsed = metadata::parse_block_attribute_list(&mut state, source, offset, mode, 0)?;
         explicit_alt |=
             parsed.metadata.first_source.is_some() || parsed.metadata.alt_source.is_some();
-        attributes.merge(parsed, context.source.mode);
+        attributes.merge(parsed, state.options.compatibility_mode);
         offset += source.len() + 1;
     }
     let explicit_title = attributes.title.is_some();
@@ -102,7 +139,7 @@ pub(crate) fn prepare<'a>(
     for name in &builder.unsets {
         unset(&mut prepared, name);
     }
-    prepared.warnings = std::mem::take(&mut *state.warnings.borrow_mut()).into_vec();
+    prepared.warnings = state.take_inline_warnings();
     for warning in &mut prepared.warnings {
         warning.location = Some(origin.clone());
     }
@@ -112,7 +149,7 @@ pub(crate) fn prepare<'a>(
         prepared.title =
             std::mem::take(&mut prepared.title).with_source(Some(std::sync::Arc::new(source)));
     }
-    remap(&mut prepared, &previous, explicit_title, &origin.location);
+    remap(&mut prepared, &previous, explicit_title, location);
     Ok(prepared)
 }
 

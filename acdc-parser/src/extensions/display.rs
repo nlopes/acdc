@@ -93,7 +93,7 @@ impl DisplayRequest {
             xref,
         ))));
         if intent == DisplayIntent::CaptionAndTitle && selection.title.is_present() {
-            nodes.push(plain(" ", origin));
+            nodes.push(plain(" ", &origin.location));
             nodes.extend(selection.title.as_inlines().iter().cloned());
         }
         Ok(())

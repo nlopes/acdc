@@ -174,10 +174,19 @@ pub enum BlockMacroOutput {
     /// Emit one plain-text node in a paragraph, preserving the macro's outer
     /// title and metadata. The text is not parsed as inline markup.
     Paragraph(String),
+    /// Construct an ordinary block at the invocation, inheriting its title and metadata.
+    /// Captured target displays require the document available during tree processing.
+    Block(super::BlockBuilder),
     /// Remove the macro and its block metadata.
     None,
     /// Retain a placeholder and its arguments for document-level construction.
     Deferred,
+}
+
+impl From<super::BlockBuilder> for BlockMacroOutput {
+    fn from(builder: super::BlockBuilder) -> Self {
+        Self::Block(builder)
+    }
 }
 
 impl MacroInvocation<'_> {

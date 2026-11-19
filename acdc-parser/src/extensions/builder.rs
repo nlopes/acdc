@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use super::InlineSpec;
+use super::{ExtensionBlock, InlineSpec};
 use bumpalo::Bump;
 
 use crate::{
-    Anchor, Block, BlockMetadata, CaptionKind, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, DocumentAttributes, Image, InlineNode, ListItem, Location, Paragraph,
-    Plain, Source, Title, UnorderedList, Verbatim,
+    Anchor, Block, BlockMetadata, Caption, CaptionKind, CompatibilityMode, DelimitedBlock,
+    DelimitedBlockType, DocumentAttributes, Error, Image, InlineNode, ListItem, Location,
+    Paragraph, Plain, Source, Title, UnorderedList, Verbatim, grammar::ParserState,
 };
 
 #[derive(Clone, Debug)]
@@ -193,6 +193,50 @@ impl BlockBuilder {
     pub fn with_id(mut self, id: impl Into<String>) -> Self {
         self.id = Some(id.into());
         self
+    }
+
+    pub(super) fn build_at_macro<'a>(
+        self,
+        extension: &mut ExtensionBlock<'a>,
+        state: &ParserState<'a>,
+    ) -> Result<Block<'a>, Error> {
+        if self.id.as_deref() == Some("") {
+            return Err(Error::Extension(
+                Box::new(extension.invocation.location.clone()),
+                "output ID must not be empty".into(),
+            ));
+        }
+        let prepared = state.prepare_macro_output(&self, extension)?;
+        let mut metadata = prepared.metadata;
+        for warning in prepared.warnings {
+            state.add_warning(warning);
+        }
+        if let Some(kind) = self.caption_kind(metadata.style) {
+            metadata.caption = Some(Caption::resolve(
+                &metadata,
+                &extension.invocation.document_attributes,
+                kind,
+            ));
+        }
+        let location = &extension.location;
+        let mut block = self.build(
+            state.arena,
+            location.clone(),
+            metadata,
+            prepared.title,
+            |inline| {
+                inline.build(state.arena, location, |_, _| {
+                    Err(Error::Extension(
+                        Box::new(extension.invocation.location.clone()),
+                        "captured displays require a tree processor".into(),
+                    ))
+                })
+            },
+        )?;
+        if let Block::Image(image) = &mut block {
+            image.alt = prepared.alt;
+        }
+        Ok(block)
     }
 
     pub(super) fn build<'a>(

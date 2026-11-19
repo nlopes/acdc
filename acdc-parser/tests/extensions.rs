@@ -1,9 +1,12 @@
 use acdc_parser::{
     CompatibilityMode, Error, Options, ParseResult,
-    ast::{BlockKind, ElementIdRef, FootnoteDefinitionRef, InlineKind, ReferenceTargetRef},
+    ast::{
+        BlockKind, CaptionRef, ElementIdRef, FootnoteDefinitionRef, InlineKind, ReferenceTargetRef,
+    },
     extensions::{
         BlockBuilder, BlockContext, BlockMacro, BlockMacroOutput, BlockMacroProcessor,
-        DocumentEditor, MacroInvocation, Registry, TreeProcessor, TreeProcessorRegistration,
+        DocumentEditor, MacroExecutionContext, MacroInvocation, Registry, TitleSource,
+        TreeProcessor, TreeProcessorRegistration,
     },
 };
 
@@ -14,7 +17,7 @@ impl BlockMacroProcessor for Defer {
     fn process(
         &mut self,
         _: &MacroInvocation<'_>,
-        _: &mut acdc_parser::extensions::MacroExecutionContext,
+        _: &mut MacroExecutionContext,
     ) -> Result<BlockMacroOutput, String> {
         Ok(BlockMacroOutput::Deferred)
     }
@@ -376,6 +379,158 @@ fn extensions_preserve_scoped_include_assignments_and_origins() -> TestResult {
             "{mode:?}"
         );
         assert_eq!(extended.warnings(), native.warnings(), "{mode:?}");
+    }
+    Ok(())
+}
+
+struct ObserveLogo;
+
+impl TreeProcessor for ObserveLogo {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        assert_eq!(editor.query().select(BlockContext::Image).count(), 1);
+        assert_eq!(editor.query().select(BlockContext::Extension).count(), 0);
+        Ok(())
+    }
+}
+
+#[test]
+fn committed_macro_returns_an_ordinary_image_at_its_include_location() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let included = directory.path().join("branding.adoc");
+    std::fs::write(&included, ".The *logo*\n[#brand.wide]\nlogo::acme[]\n")?;
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(acdc_parser::SafeMode::Safe)
+            .with_base_dir(directory.path())
+            .build()?;
+        for observe in [false, true] {
+            let mut registry = Registry::builder();
+            registry.register(BlockMacro::new("logo", || {
+                let mut called = false;
+                move |call: &MacroInvocation<'_>, _: &mut MacroExecutionContext| {
+                    assert!(!std::mem::replace(&mut called, true));
+                    assert_eq!(call.target, "acme");
+                    Ok(BlockBuilder::image(format!("{}.svg", call.target)).into())
+                }
+            }))?;
+            if observe {
+                registry
+                    .register_tree_processor(TreeProcessorRegistration::new("observe", || {
+                        ObserveLogo
+                    }))?;
+            }
+            let result = registry
+                .build()
+                .parse("Intro.\n\ninclude::branding.adoc[]", &options)?;
+            assert!(result.deferred_blocks().is_empty());
+            let logo = result
+                .query()
+                .select(BlockContext::Image)
+                .next()
+                .ok_or("missing image")?;
+            assert_eq!(logo.output_id(), Some("brand"));
+            assert_eq!(
+                logo.source_location().file.as_deref(),
+                Some(included.as_path())
+            );
+            // A block span starts at its first attached metadata line.
+            assert_eq!(logo.source_location().location.start.line, 1);
+            assert_eq!(logo.source_location().location.end.line, 3);
+            assert_eq!(
+                logo.title_source().map(TitleSource::raw_source),
+                Some("The *logo*")
+            );
+            assert!(logo.title().is_some_and(|title| {
+                title
+                    .inlines()
+                    .any(|inline| matches!(inline.kind(), InlineKind::Bold(_)))
+            }));
+            let BlockKind::Image(image) = logo.block().kind() else {
+                return Err("missing image".into());
+            };
+            assert!(image.roles().contains("wide"));
+            assert_eq!(image.source().to_string(), "acme.svg");
+            assert!(
+                matches!(logo.caption(), Some(CaptionRef::Numbered { number: Some(n), .. }) if n.get() == 1)
+            );
+            let parsed = result.finish()?;
+            assert_eq!(parsed.warnings(), []);
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn committed_macro_interprets_builder_attributes_at_the_invocation() -> TestResult {
+    let mut registry = Registry::builder();
+    registry.register(BlockMacro::new("logo", || {
+        |_: &MacroInvocation<'_>, _: &mut MacroExecutionContext| {
+            Ok(BlockBuilder::image("brand.svg")
+                .with_attributes("alt={label},width=120")
+                .into())
+        }
+    }))?;
+    let registry = registry.build();
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let result = registry.parse(
+            ":label: Early\n\n[#brand.wide]\nlogo::acme[]\n\n:label: Late",
+            &options,
+        )?;
+        let logo = result
+            .query()
+            .select(BlockContext::Image)
+            .next()
+            .ok_or("missing image")?;
+        let BlockKind::Image(image) = logo.block().kind() else {
+            return Err("missing image".into());
+        };
+        assert!(image.roles().contains("wide"));
+        assert_eq!(logo.output_id(), Some("brand"));
+        let alt = image
+            .alt()
+            .and_then(|alt| alt.inlines().next())
+            .ok_or("missing alt")?;
+        assert!(
+            matches!(alt.kind(), InlineKind::Plain(plain) if plain.text() == "Early")
+                || matches!(alt.kind(), InlineKind::Raw(raw) if raw.text() == "Early")
+        );
+        assert_eq!(alt.location().start().line(), 3);
+        assert_eq!(alt.location().end().line(), 4);
+    }
+    Ok(())
+}
+
+#[test]
+fn invalid_direct_macro_output_reports_the_included_invocation() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let included = directory.path().join("branding.adoc");
+    std::fs::write(&included, "First.\n\nlogo::acme[]")?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Safe)
+        .with_base_dir(directory.path())
+        .build()?;
+    for invalid in [
+        BlockBuilder::image("http://[invalid"),
+        BlockBuilder::paragraph("text").with_id(""),
+        BlockBuilder::literal("text").with_attributes("role=one\nrole=two"),
+    ] {
+        let mut registry = Registry::builder();
+        registry.register(BlockMacro::new("logo", move || {
+            let invalid = invalid.clone();
+            move |_: &MacroInvocation<'_>, _: &mut MacroExecutionContext| Ok(invalid.clone().into())
+        }))?;
+        let error = registry
+            .build()
+            .parse("include::branding.adoc[]", &options)
+            .err()
+            .ok_or("expected invalid builder to fail")?;
+        let Error::Extension(origin, _) = error else {
+            return Err(error.into());
+        };
+        assert_eq!(origin.file.as_deref(), Some(included.as_path()));
+        assert_eq!(origin.location.start.line, 3);
     }
     Ok(())
 }
