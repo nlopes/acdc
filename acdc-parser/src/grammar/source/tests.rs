@@ -143,7 +143,7 @@ fn windows_preserve_included_diagnostic_ranges_and_final_separator_clipping() ->
         file_chain: vec!["part.adoc".into()],
         start_line: 41,
         source_start_offset: 900,
-        column_shift: 0,
+        column_shift: Some(0),
     };
     let mut reference = ParserState::new(&complete, &arena, Rc::new(Options::default()));
     reference.source_ranges.push(range.clone());

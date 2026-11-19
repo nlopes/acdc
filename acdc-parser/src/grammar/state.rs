@@ -1509,7 +1509,7 @@ mod tests {
             file_chain: vec!["included.adoc".to_string()],
             start_line: 1,
             source_start_offset: 0,
-            column_shift: 0,
+            column_shift: Some(0),
         });
 
         // Location inside the included range (second line of include: "inc_line2")
@@ -1551,7 +1551,7 @@ mod tests {
                 file_chain: vec!["outer.adoc".to_string(), "inner.adoc".to_string()],
                 start_line: 4,
                 source_start_offset: 0,
-                column_shift: shift,
+                column_shift: Some(shift),
             });
             let start = input.find("<<").ok_or("missing reference")?;
             let location = state.create_location(start, input.len() - 2);
@@ -1580,7 +1580,7 @@ mod tests {
                 file_chain: chain,
                 start_line: 4,
                 source_start_offset: 100,
-                column_shift: 0,
+                column_shift: Some(0),
             },
             SourceRange {
                 start_offset: 4,
@@ -1589,7 +1589,7 @@ mod tests {
                 file_chain: vec!["b.adoc".to_owned()],
                 start_line: 2,
                 source_start_offset: 0,
-                column_shift: 0,
+                column_shift: Some(0),
             },
         ];
         let source = state.create_error_source_location(state.create_location(0, 6));

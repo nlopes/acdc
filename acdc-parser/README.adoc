@@ -2055,7 +2055,7 @@ to preserve their isolation. The fixture runner's case names are unchanged.
 [#registered-extensions]
 == Registered extensions
 
-Applications can register block macros and ordered tree processors with
+Applications can register source preprocessors, block macros, and tree processors with
 `extensions::Registry`. Each parse creates fresh processor instances. Block-macro
 callbacks run once when their block commits. `MacroExecutionContext::set_attribute`
 and `unset_attribute` request changes before subsequent conditionals and includes,
@@ -2067,7 +2067,13 @@ non-`Send` state. Completed callback effects remain if later parsing fails.
 `Registry::parse`, `parse_file`, and `parse_from_reader` share these stages.
 Reader input preserves ordinary reader attributes and include-origin policy.
 `RegistryBuilder::extend` composes immutable registries in order and rejects
-duplicate macro or tree-processor names before changing the builder.
+duplicate registrations within each family before changing the builder.
+
+Use `register_preprocessor` to edit normalized entry text before the reader
+interprets directives. Each processor sees the previous processor's edits.
+Return an empty vector to keep the borrowed source. Removed lines retain the
+original positions of subsequent text. Replacement text points to the start
+of the edited line.
 
 Nested source ordering supports compound bodies and pipe/exclamation-delimited
 AsciiDoc cells. CSV, TSV, DSV, and custom table separators retain buffered

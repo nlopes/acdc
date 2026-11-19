@@ -271,7 +271,7 @@ impl Candidates {
             origins.push(SourceLineOrigin {
                 line: line.number,
                 offset: line.offset,
-                column_shift: 0,
+                column_shift: Some(0),
             });
         }
         Ok(Selected {

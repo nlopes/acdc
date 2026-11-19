@@ -12,12 +12,13 @@ use bumpalo::Bump;
 
 use crate::{
     Error, Options,
+    extensions::{SourceEdit, SourceProcessorContext},
     model::{LeveloffsetRange, SourceRange},
     warning::WarningCollection,
 };
 
 use super::{
-    Preprocessor, PreprocessorResult, SourceOrigin,
+    Preprocessor, PreprocessorResult, SourceLineOrigin, SourceOrigin,
     cursor::{Advance, Emission, InputCursor},
     has_attribute_driven_styles, skim_front_matter,
 };
@@ -75,7 +76,33 @@ impl<'a> SourceReader<'a> {
             Some(file) => SourceOrigin::entry_file(file, options.base_dir.as_deref())?,
             None => SourceOrigin::memory(options.base_dir.as_deref()),
         };
+        let mut origins = Vec::new();
+        let mut text = Cow::Borrowed(normalized);
+        if let Some(registry) = &options.extensions {
+            let context = SourceProcessorContext {
+                file,
+                line: 1,
+                offset: 0,
+                attributes: &options.document_attributes,
+                warnings: &warnings,
+            };
+            for mut processor in registry.preprocessors() {
+                let edits = processor
+                    .process(&text, &context)
+                    .map_err(|message| context.error(message))?;
+                if !edits.is_empty() {
+                    let (updated, mapped) = apply_edits(&text, &origins, edits)
+                        .map_err(|message| context.error(message))?;
+                    text = Cow::Owned(updated);
+                    origins = mapped;
+                }
+            }
+        }
         let preprocessor = Preprocessor::new(&options, warnings);
+        let normalized = match text {
+            Cow::Borrowed(text) => text,
+            Cow::Owned(text) => arena.alloc_str(&text),
+        };
         let front_matter = options
             .document_attributes
             .contains_key("skip-front-matter")
@@ -85,7 +112,8 @@ impl<'a> SourceReader<'a> {
         // That can expose directives previously hidden in a comment block, so
         // those sources must keep the scanner resumable even if today's values
         // would allow the complete input to pass through unchanged.
-        if front_matter.is_none()
+        if origins.is_empty()
+            && front_matter.is_none()
             && !has_attribute_driven_styles(normalized)
             && let Some(scanner) = preprocessor.try_pass_through(
                 normalized,
@@ -118,7 +146,7 @@ impl<'a> SourceReader<'a> {
             normalized,
             Some(origin),
             Rc::make_mut(&mut options),
-            Vec::new(),
+            origins,
             front_matter,
             arena,
         );
@@ -232,6 +260,56 @@ impl<'a> SourceReader<'a> {
             .ok_or_else(|| std::io::Error::other("missing source cursor"))?
             .read_all(Rc::make_mut(&mut self.options))
     }
+}
+
+/// Compose each line edit with the previous stage's source map. Only an
+/// editing processor pays for a new text buffer and line map.
+fn apply_edits(
+    input: &str,
+    origins: &[SourceLineOrigin],
+    edits: Vec<SourceEdit>,
+) -> Result<(String, Vec<SourceLineOrigin>), String> {
+    let mut edits = edits.into_iter().peekable();
+    let mut output = String::with_capacity(input.len());
+    let mut mapped = Vec::new();
+    let mut offset = 0;
+    let mut emit = |line: &str, origin| {
+        if !mapped.is_empty() {
+            output.push('\n');
+        }
+        output.push_str(line);
+        mapped.push(origin);
+    };
+    for (index, line) in input.split('\n').enumerate() {
+        let number = index + 1;
+        let origin = origins
+            .get(index)
+            .copied()
+            .unwrap_or_else(|| SourceLineOrigin::one_to_one(number, offset));
+        offset += line.len() + 1;
+        match edits.next_if(|edit| edit.line() == number) {
+            None => emit(line, origin),
+            Some(SourceEdit::Remove(_)) => {}
+            Some(SourceEdit::Replace { text, .. }) => {
+                for replacement in text.split('\n') {
+                    emit(
+                        replacement.trim_end(),
+                        SourceLineOrigin {
+                            column_shift: None,
+                            ..origin
+                        },
+                    );
+                }
+            }
+        }
+    }
+    if let Some(edit) = edits.next() {
+        return Err(format!(
+            "invalid source edit at line {}: edits must address existing lines in ascending order",
+            edit.line()
+        ));
+    }
+    Ok((output, mapped))
 }
 
 #[cfg(test)]

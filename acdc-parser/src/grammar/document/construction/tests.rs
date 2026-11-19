@@ -129,7 +129,7 @@ fn compound_driver_restores_context_when_a_child_handler_fails(
             file_chain: vec!["part.adoc".into()],
             start_line: 41,
             source_start_offset: 100,
-            column_shift: 0,
+            column_shift: Some(0),
         });
     }
     let mut calls = 0;

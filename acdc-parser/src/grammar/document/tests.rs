@@ -1497,7 +1497,7 @@ fn test_grammar_warning_resolves_source_range() {
         file_chain: vec!["sponsor.adoc".to_string()],
         start_line: 1,
         source_start_offset: 0,
-        column_shift: 0,
+        column_shift: Some(0),
     }];
 
     // Trigger warning at byte offset 40 (inside the included range)
@@ -1538,7 +1538,7 @@ fn test_grammar_warning_falls_back_to_entry_file() {
         file_chain: vec!["other.adoc".to_string()],
         start_line: 1,
         source_start_offset: 0,
-        column_shift: 0,
+        column_shift: Some(0),
     }];
 
     state.add_generic_warning_at("example warning".into(), state.create_location(17, 21));

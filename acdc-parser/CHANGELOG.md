@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native extensions can edit entry-source lines before parsing. Retained lines keep their original source locations.
+
 - Tagged includes read complete lines faster while preserving selection across reader chunk boundaries.
 
 - Register a deferred block macro's tree processor with

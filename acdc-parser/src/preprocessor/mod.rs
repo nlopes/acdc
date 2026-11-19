@@ -364,7 +364,7 @@ impl SourceOrigin {
 struct SourceLineOrigin {
     pub(super) line: usize,
     pub(super) offset: usize,
-    pub(super) column_shift: isize,
+    pub(super) column_shift: Option<i32>,
 }
 
 impl SourceLineOrigin {
@@ -372,7 +372,7 @@ impl SourceLineOrigin {
         Self {
             line,
             offset,
-            column_shift: 0,
+            column_shift: Some(0),
         }
     }
 }
@@ -596,9 +596,9 @@ impl<'input> PreprocessorState<'input> {
         let origin = self.origin_of_line(input_line);
         if self.run.is_some()
             && (origin.line != self.run_expected_src_line
-                || self
-                    .run
-                    .is_some_and(|run| run.origin.column_shift != origin.column_shift))
+                || self.run.is_some_and(|run| {
+                    origin.column_shift.is_none() || run.origin.column_shift != origin.column_shift
+                }))
         {
             self.flush_run();
         }

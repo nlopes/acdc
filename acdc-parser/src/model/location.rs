@@ -99,7 +99,8 @@ pub(crate) struct SourceRange {
     /// subtracts it to recover origin columns. `0` for untransformed ranges, whose
     /// preprocessed↔origin mapping is byte-for-byte (1:1); a non-zero shift marks the
     /// range as **not 1:1**, so its `source_offset` no longer recovers origin offsets.
-    pub(crate) column_shift: isize,
+    /// Generated source uses the edited line start as a point anchor (`None`).
+    pub(crate) column_shift: Option<i32>,
 }
 
 impl SourceRange {
@@ -120,7 +121,11 @@ impl SourceRange {
     /// Original-file byte offset for a preprocessed `offset` inside this range.
     #[must_use]
     pub(crate) fn source_offset(&self, offset: usize) -> usize {
-        self.source_start_offset + offset.saturating_sub(self.start_offset)
+        if self.column_shift.is_none() {
+            self.source_start_offset
+        } else {
+            self.source_start_offset + offset.saturating_sub(self.start_offset)
+        }
     }
 }
 
