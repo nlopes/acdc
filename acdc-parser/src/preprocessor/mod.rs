@@ -233,13 +233,22 @@ struct IncludeContext {
     depth: usize,
     max_depth: usize,
     local_depth_limit: Option<usize>,
-    // Clones share one counter across all sibling and nested includes.
-    remaining_include_bytes: Rc<Cell<usize>>,
+    session: Rc<IncludeSession>,
     block_context: comment::BlockContext,
 }
 
+/// Sibling and nested scopes share one byte budget and one set of processors.
+#[derive(Debug)]
+struct IncludeSession {
+    remaining_bytes: Cell<usize>,
+    processors: Option<crate::extensions::IncludeProcessors>,
+}
+
 impl IncludeContext {
-    fn root(options: &Options<'_>) -> Self {
+    fn root(
+        options: &Options<'_>,
+        processors: Option<crate::extensions::IncludeProcessors>,
+    ) -> Self {
         let max_depth = options
             .document_attributes
             .get(crate::document_attribute::MAX_INCLUDE_DEPTH_ATTR)
@@ -251,7 +260,10 @@ impl IncludeContext {
             depth: 0,
             max_depth,
             local_depth_limit: None,
-            remaining_include_bytes: Rc::new(Cell::new(options.max_total_include_bytes())),
+            session: Rc::new(IncludeSession {
+                remaining_bytes: Cell::new(options.max_total_include_bytes()),
+                processors,
+            }),
             block_context: comment::BlockContext::default(),
         }
     }
@@ -270,10 +282,10 @@ impl IncludeContext {
         let bytes = content
             .len()
             .saturating_add(usize::from(!content.is_empty()));
-        let Some(remaining) = self.remaining_include_bytes.get().checked_sub(bytes) else {
+        let Some(remaining) = self.session.remaining_bytes.get().checked_sub(bytes) else {
             return false;
         };
-        self.remaining_include_bytes.set(remaining);
+        self.session.remaining_bytes.set(remaining);
         true
     }
 
@@ -766,7 +778,7 @@ impl Preprocessor {
     fn new(options: &Options<'_>, warnings: Rc<RefCell<WarningCollection>>) -> Self {
         Self {
             warnings,
-            include_context: IncludeContext::root(options),
+            include_context: IncludeContext::root(options, None),
         }
     }
 
@@ -1561,7 +1573,8 @@ mod tests {
             ..Options::default()
         };
 
-        let actual = i128::try_from(IncludeContext::root(&options).max_depth).unwrap_or(i128::MAX);
+        let actual =
+            i128::try_from(IncludeContext::root(&options, None).max_depth).unwrap_or(i128::MAX);
         assert_eq!(
             crate::document_attribute::default_value(
                 crate::document_attribute::MAX_INCLUDE_DEPTH_ATTR
@@ -1591,8 +1604,10 @@ mod tests {
     #[test]
     fn mapped_include_fast_path_preserves_normalization() -> Result<(), Error> {
         let mut options = Options::default();
-        let preprocessor =
-            Preprocessor::nested(&Rc::default(), IncludeContext::root(&options).nested());
+        let preprocessor = Preprocessor::nested(
+            &Rc::default(),
+            IncludeContext::root(&options, None).nested(),
+        );
         let origin = SourceOrigin::Memory { base_dir: None };
         for (input, expected) in [
             ("", ""),

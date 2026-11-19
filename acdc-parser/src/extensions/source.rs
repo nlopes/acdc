@@ -1,10 +1,10 @@
-//! Document-local hooks for the entry source.
+//! Document-local hooks for the entry source and resolved includes.
 
 use std::{cell::RefCell, fmt, path::Path, sync::Arc};
 
 use crate::{
-    DocumentAttributes, Error, Position, SourceLocation, Warning, WarningKind,
-    warning::WarningCollection,
+    DocumentAttributes, Error, IncludeSource, IncludeSourceTarget, Position, SourceLocation,
+    Warning, WarningKind, warning::WarningCollection,
 };
 
 /// An edit to one line of the normalized entry source supplied to this processor.
@@ -29,7 +29,8 @@ impl SourceEdit {
 }
 
 /// Read-only document attributes and the source position of the current hook.
-/// Entry preprocessors run at the start of the document.
+/// For entry preprocessors the position is the start of the document. For
+/// include processors it is the directive in its containing source.
 pub struct SourceProcessorContext<'a> {
     pub file: Option<&'a Path>,
     pub line: usize,
@@ -92,6 +93,37 @@ where
     }
 }
 
+/// Supplies bytes for a resolved include. The host selects lines, enforces
+/// budgets, resolves nested targets and maps locations in the supplied source.
+pub trait IncludeProcessor {
+    /// The first processor returning a source handles the directive.
+    /// Return `Ok(None)` to try the next processor or the configured loader.
+    ///
+    /// # Errors
+    /// Return a message to stop parsing at the include directive.
+    fn process(
+        &mut self,
+        target: &IncludeSourceTarget,
+        context: &SourceProcessorContext<'_>,
+    ) -> Result<Option<IncludeSource>, String>;
+}
+
+impl<F> IncludeProcessor for F
+where
+    F: FnMut(
+        &IncludeSourceTarget,
+        &SourceProcessorContext<'_>,
+    ) -> Result<Option<IncludeSource>, String>,
+{
+    fn process(
+        &mut self,
+        target: &IncludeSourceTarget,
+        context: &SourceProcessorContext<'_>,
+    ) -> Result<Option<IncludeSource>, String> {
+        self(target, context)
+    }
+}
+
 pub(super) struct SourceRegistration<P: ?Sized> {
     pub(super) name: String,
     pub(super) factory: Arc<dyn Fn() -> Box<P> + Send + Sync>,
@@ -111,5 +143,40 @@ impl<P: ?Sized> fmt::Debug for SourceRegistration<P> {
         f.debug_tuple("SourceRegistration")
             .field(&self.name)
             .finish()
+    }
+}
+
+/// Nested include scopes share the active document's processor instances.
+pub(crate) struct IncludeProcessors(RefCell<Box<[Box<dyn IncludeProcessor>]>>);
+
+impl IncludeProcessors {
+    pub(super) fn new(registrations: &[SourceRegistration<dyn IncludeProcessor>]) -> Option<Self> {
+        (!registrations.is_empty()).then(|| {
+            Self(RefCell::new(
+                registrations.iter().map(|r| (r.factory)()).collect(),
+            ))
+        })
+    }
+
+    pub(crate) fn process(
+        &self,
+        target: &IncludeSourceTarget,
+        context: &SourceProcessorContext<'_>,
+    ) -> Result<Option<IncludeSource>, Error> {
+        for processor in self.0.borrow_mut().iter_mut() {
+            if let Some(source) = processor
+                .process(target, context)
+                .map_err(|message| context.error(message))?
+            {
+                return Ok(Some(source));
+            }
+        }
+        Ok(None)
+    }
+}
+
+impl fmt::Debug for IncludeProcessors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IncludeProcessors").finish_non_exhaustive()
     }
 }

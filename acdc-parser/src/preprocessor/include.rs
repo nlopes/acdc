@@ -85,8 +85,8 @@ use url::Url;
 
 use crate::{
     CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
-    IncludeSourceErrorKind, IncludeSourceProvider, IncludeSourceTarget, Location, Options,
-    SafeMode, Warning,
+    IncludeLoader, IncludeSource, IncludeSourceErrorKind, IncludeSourceProvider,
+    IncludeSourceTarget, Location, Options, SafeMode, Warning,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
@@ -140,6 +140,7 @@ pub(super) struct Include<'a> {
     context: IncludeContext,
     // Location information for error reporting
     line_number: usize,
+    current_offset: usize,
     current_file: Option<PathBuf>,
     /// Shared warnings sink threaded from the outer `Preprocessor` so
     /// non-fatal include conditions (disabled URL includes, missing
@@ -242,7 +243,7 @@ fn uri_directory(uri: &str) -> &str {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct LocationContext<'a> {
     line_number: usize,
-    _current_offset: usize,
+    current_offset: usize,
     current_file: Option<&'a Path>,
 }
 
@@ -254,7 +255,7 @@ impl<'a> LocationContext<'a> {
     ) -> Self {
         Self {
             line_number,
-            _current_offset: current_offset,
+            current_offset,
             current_file,
         }
     }
@@ -1129,20 +1130,61 @@ impl<'a> Include<'a> {
         ranges
     }
 
+    /// Custom loaders are caller capabilities. A rejected target must never
+    /// reach an extension. URI targets also require a supported transport.
+    /// System-local targets can be supplied entirely in memory.
+    fn open_source(
+        &self,
+        target: &IncludeSourceTarget,
+        provider: &dyn IncludeSourceProvider,
+    ) -> Result<IncludeSource, Error> {
+        let open = || provider.open(target).map_err(Error::IncludeSource);
+        let Some(processors) = &self.context.session.processors else {
+            return open();
+        };
+        let loaded = if matches!(self.options.include_loader, IncludeLoader::Custom(_))
+            || matches!(target, IncludeSourceTarget::Uri(_))
+        {
+            Some(open()?)
+        } else {
+            None
+        };
+        let context = crate::extensions::SourceProcessorContext {
+            file: self.current_file.as_deref(),
+            line: self.line_number,
+            offset: self.current_offset,
+            attributes: &self.options.document_attributes,
+            warnings: &self.warnings,
+        };
+        match processors.process(target, &context)?.or(loaded) {
+            Some(source) => Ok(source),
+            None => open(),
+        }
+    }
+
     /// Read and select URI content. Do not process nested directives yet.
     fn read_content_from_url(
         &self,
         url: &str,
         source_provider: &dyn IncludeSourceProvider,
     ) -> Result<reader::Selected, UrlReadError> {
-        let source = source_provider
-            .open(&IncludeSourceTarget::Uri(url.to_string()))
-            .map_err(|error| match error.kind() {
-                IncludeSourceErrorKind::Unsupported => UrlReadError::Unsupported(error.to_string()),
-                IncludeSourceErrorKind::NotFound | IncludeSourceErrorKind::Unavailable => {
-                    UrlReadError::Retrieval
+        let source = self
+            .open_source(&IncludeSourceTarget::Uri(url.to_string()), source_provider)
+            .map_err(|error| {
+                let Error::IncludeSource(error) = error else {
+                    return UrlReadError::Other(error);
+                };
+                match error.kind() {
+                    IncludeSourceErrorKind::Unsupported => {
+                        UrlReadError::Unsupported(error.to_string())
+                    }
+                    IncludeSourceErrorKind::NotFound | IncludeSourceErrorKind::Unavailable => {
+                        UrlReadError::Retrieval
+                    }
+                    IncludeSourceErrorKind::Fatal => {
+                        UrlReadError::Other(Error::IncludeSource(error))
+                    }
                 }
-                IncludeSourceErrorKind::Fatal => UrlReadError::Other(Error::IncludeSource(error)),
             })?;
         reader::read(source, self.encoding.as_deref(), url, &self.selection).map_err(|error| {
             // Discard partial content when the response cannot be read.
@@ -1206,9 +1248,14 @@ impl<'a> Include<'a> {
         optional: bool,
         source_provider: &dyn IncludeSourceProvider,
     ) -> Result<LocalIncludeOutcome, Error> {
-        let source = match source_provider.open(&IncludeSourceTarget::File(path.to_path_buf())) {
+        let source = match self.open_source(
+            &IncludeSourceTarget::File(path.to_path_buf()),
+            source_provider,
+        ) {
             Ok(source) => source,
-            Err(error) if error.kind() == IncludeSourceErrorKind::NotFound => {
+            Err(Error::IncludeSource(error))
+                if error.kind() == IncludeSourceErrorKind::NotFound =>
+            {
                 if optional {
                     tracing::info!(
                         line = self.line_number,
@@ -1219,7 +1266,7 @@ impl<'a> Include<'a> {
                 }
                 return Ok(LocalIncludeOutcome::Missing);
             }
-            Err(error)
+            Err(Error::IncludeSource(error))
                 if matches!(
                     error.kind(),
                     IncludeSourceErrorKind::Unavailable | IncludeSourceErrorKind::Unsupported
@@ -1228,7 +1275,7 @@ impl<'a> Include<'a> {
                 self.warn_located(format!("include file not readable: {}", path.display()));
                 return Ok(LocalIncludeOutcome::Unreadable);
             }
-            Err(error) => return Err(Error::IncludeSource(error)),
+            Err(error) => return Err(error),
         };
 
         let display_path = path.display().to_string();
@@ -1585,7 +1632,7 @@ mod tests {
             line,
             LocationContext::new(1, 0, None),
             options,
-            IncludeContext::root(options),
+            IncludeContext::root(options, None),
             &Rc::default(),
         )
     }
