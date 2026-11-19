@@ -195,18 +195,18 @@ impl BlockBuilder {
         self
     }
 
-    pub(super) fn build_at_macro<'a>(
+    pub(super) fn build_at_invocation<'a>(
         self,
         extension: &mut ExtensionBlock<'a>,
         state: &ParserState<'a>,
     ) -> Result<Block<'a>, Error> {
         if self.id.as_deref() == Some("") {
             return Err(Error::Extension(
-                Box::new(extension.invocation.location.clone()),
+                Box::new(extension.invocation.location().clone()),
                 "output ID must not be empty".into(),
             ));
         }
-        let prepared = state.prepare_macro_output(&self, extension)?;
+        let prepared = state.prepare_block_output(&self, extension)?;
         let mut metadata = prepared.metadata;
         for warning in prepared.warnings {
             state.add_warning(warning);
@@ -214,7 +214,9 @@ impl BlockBuilder {
         if let Some(kind) = self.caption_kind(metadata.style) {
             metadata.caption = Some(Caption::resolve(
                 &metadata,
-                &extension.invocation.document_attributes,
+                extension
+                    .invocation
+                    .document_attributes(&state.document_attributes),
                 kind,
             ));
         }
@@ -227,7 +229,7 @@ impl BlockBuilder {
             |inline| {
                 inline.build(state.arena, location, |_, _| {
                     Err(Error::Extension(
-                        Box::new(extension.invocation.location.clone()),
+                        Box::new(extension.invocation.location().clone()),
                         "captured displays require a tree processor".into(),
                     ))
                 })

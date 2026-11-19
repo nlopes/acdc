@@ -635,7 +635,10 @@ impl SourceHandler for Configure {
         let Block::Extension(extension) = block else {
             return Ok(Vec::new());
         };
-        self.events.push(extension.invocation.target.to_string());
+        let crate::extensions::Invocation::Macro(call) = &extension.invocation else {
+            return Ok(Vec::new());
+        };
+        self.events.push(call.target.to_string());
         Ok(vec![(
             "enabled".into(),
             DocumentAttributeAssignment::Set("yes".into()),

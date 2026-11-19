@@ -189,6 +189,9 @@
 //! blocks in both profiles and compatibility modes.
 
 mod block_macro;
+mod block_style;
+pub use block_style::{BlockStyle, RawBlockContext, RawBlockInput, RawBlockProcessor};
+pub(crate) use deferred::Invocation;
 mod builder;
 mod deferred;
 mod display;

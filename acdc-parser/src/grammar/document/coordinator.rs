@@ -28,7 +28,7 @@ use super::{
 pub(super) struct Execution<'handler, F> {
     callback: &'handler mut F,
     failed: bool,
-    macro_callbacks: usize,
+    block_callbacks: usize,
 }
 
 impl<'handler, F> Execution<'handler, F> {
@@ -36,7 +36,7 @@ impl<'handler, F> Execution<'handler, F> {
         Self {
             callback,
             failed: false,
-            macro_callbacks: 0,
+            block_callbacks: 0,
         }
     }
     #[inline]
@@ -49,14 +49,14 @@ impl<'handler, F> Execution<'handler, F> {
     where
         F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
     {
-        self.macro_callbacks += usize::from(matches!(block, Block::Extension(_)));
+        self.block_callbacks += usize::from(matches!(block, Block::Extension(_)));
         let result = (self.callback)(block, state, output);
         self.failed |= result.is_err();
         result
     }
 
-    pub(super) const fn macro_callbacks(&self) -> usize {
-        self.macro_callbacks
+    pub(super) const fn block_callbacks(&self) -> usize {
+        self.block_callbacks
     }
 
     pub(super) fn failed(&self) -> bool {
@@ -301,6 +301,8 @@ impl BlockCursor {
             Ok(started) => started,
             Err(error) => return Ok(Err(error)),
         };
+        // Extension output resolves its own caption at the invocation.
+        let needs_caption = needs_caption && !matches!(block, Block::Extension(_));
         let child = if let Block::Section(section) = &block
             && self.mode == ConstructionMode::Ordered
         {

@@ -3,8 +3,9 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 use crate::{Error, Options, ParseResult};
 
 use super::{
-    BlockMacro, DocumentEditor, ExtensionParseResult, IncludeProcessor, IncludeProcessors, Session,
-    SourcePreprocessor, TreeProcessorRegistration, source::SourceRegistration,
+    BlockMacro, BlockStyle, DocumentEditor, ExtensionParseResult, IncludeProcessor,
+    IncludeProcessors, RawBlockContext, Session, SourcePreprocessor, TreeProcessorRegistration,
+    source::SourceRegistration,
 };
 
 /// A registration rejected before any document is parsed.
@@ -19,6 +20,8 @@ pub enum RegistrationError {
     DuplicateName(String),
     #[error("block macro is not registered: {0}")]
     UnknownName(String),
+    #[error("block style is already registered: {0}")]
+    DuplicateBlockStyle(String),
     #[error("tree processor is already registered: {0}")]
     DuplicateTreeProcessor(String),
     #[error("source preprocessor is already registered: {0}")]
@@ -32,6 +35,7 @@ pub enum RegistrationError {
 /// Builds a registry without modifying existing registry snapshots.
 #[derive(Debug, Default)]
 pub struct RegistryBuilder {
+    styles: Vec<BlockStyle>,
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
     trees: Vec<TreeProcessorRegistration>,
@@ -45,6 +49,9 @@ impl RegistryBuilder {
     /// # Errors
     /// Rejects duplicate registrations without changing this builder.
     pub fn extend(&mut self, registry: &Registry) -> Result<&mut Self, RegistrationError> {
+        for style in &registry.0.styles {
+            self.check_style_name(&style.handler.name)?;
+        }
         for descriptor in &registry.0.macros {
             if self.names.contains_key(&descriptor.name) {
                 return Err(RegistrationError::DuplicateName(descriptor.name.clone()));
@@ -69,6 +76,7 @@ impl RegistryBuilder {
         }
         self.preprocessors
             .extend_from_slice(&registry.0.preprocessors);
+        self.styles.extend_from_slice(&registry.0.styles);
         self.includes.extend_from_slice(&registry.0.includes);
         let offset = self.macros.len();
         self.names.extend(
@@ -82,6 +90,28 @@ impl RegistryBuilder {
         self.macros.extend(registry.0.macros.iter().cloned());
         self.trees.extend(registry.0.trees.iter().cloned());
         Ok(self)
+    }
+
+    /// Register a style for the selected raw delimited block contexts.
+    /// Each document gets a fresh processor. Style names are independent of macro names.
+    ///
+    /// # Errors
+    /// Rejects invalid identifiers and duplicate style names.
+    pub fn register_block_style(
+        &mut self,
+        style: BlockStyle,
+    ) -> Result<&mut Self, RegistrationError> {
+        self.check_style_name(&style.handler.name)?;
+        self.styles.push(style);
+        Ok(self)
+    }
+
+    fn check_style_name(&self, name: &str) -> Result<(), RegistrationError> {
+        validate_identifier(name)?;
+        if self.styles.iter().any(|style| style.handler.name == name) {
+            return Err(RegistrationError::DuplicateBlockStyle(name.to_owned()));
+        }
+        Ok(())
     }
 
     /// Append an entry-source preprocessor in registration order.
@@ -201,6 +231,7 @@ impl RegistryBuilder {
     #[must_use]
     pub fn build(self) -> Registry {
         Registry(Arc::new(RegistryData {
+            styles: self.styles,
             macros: self.macros,
             names: self.names,
             trees: self.trees,
@@ -245,6 +276,7 @@ fn validate_identifier(name: &str) -> Result<(), RegistrationError> {
 
 #[derive(Debug, Default)]
 struct RegistryData {
+    styles: Vec<BlockStyle>,
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
     trees: Vec<TreeProcessorRegistration>,
@@ -268,7 +300,10 @@ impl Registry {
     }
 
     fn has_input_processors(&self) -> bool {
-        !(self.0.macros.is_empty() && self.0.preprocessors.is_empty() && self.0.includes.is_empty())
+        !(self.0.styles.is_empty()
+            && self.0.macros.is_empty()
+            && self.0.preprocessors.is_empty()
+            && self.0.includes.is_empty())
     }
 
     pub(crate) fn preprocessors(&self) -> impl Iterator<Item = Box<dyn SourcePreprocessor>> + '_ {
@@ -366,10 +401,24 @@ impl Registry {
             .map(|descriptor| (index, descriptor))
     }
 
+    pub(crate) fn raw_style(
+        &self,
+        name: &str,
+        context: RawBlockContext,
+    ) -> Option<(usize, &BlockStyle)> {
+        self.0
+            .styles
+            .iter()
+            .enumerate()
+            .find(|(_, style)| style.handler.name == name && style.contexts.contains(&context))
+    }
+
     /// A conservative dispatch filter, not a syntax recognizer. Includes can
     /// introduce registered names that are absent from the entry source.
     pub(crate) fn may_execute(&self, source: &str) -> bool {
         !self.0.preprocessors.is_empty()
+            || (!self.0.styles.is_empty()
+                && (source.contains("----") || source.contains("....") || source.contains("```")))
             || source.match_indices("::").any(|(end, _)| {
                 let name = source[..end]
                     .rsplit(|c: char| !c.is_ascii_alphanumeric() && c != '_' && c != '-')
@@ -385,6 +434,11 @@ impl Registry {
                 .macros
                 .iter()
                 .map(|entry| (entry.factory)())
+                .collect(),
+            self.0
+                .styles
+                .iter()
+                .map(|entry| (entry.handler.factory)())
                 .collect(),
             self.0.trees.iter().map(|entry| (entry.factory)()).collect(),
         )

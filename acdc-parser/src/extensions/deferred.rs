@@ -1,8 +1,8 @@
 use serde::{Serialize, Serializer, ser::SerializeMap};
 
-use crate::{BlockMetadata, Location, Title};
+use crate::{BlockMetadata, DocumentAttributes, Location, SourceLocation, Title};
 
-use super::{MacroInvocation, TargetId};
+use super::{MacroInvocation, RawBlockContext, TargetId};
 
 /// An opaque identity valid only in the document session that allocated it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -25,6 +25,36 @@ impl DeferredBlock {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum Invocation<'a> {
+    Macro(MacroInvocation<'a>),
+    Style {
+        context: RawBlockContext,
+        body: &'a str,
+        body_location: SourceLocation,
+        location: SourceLocation,
+    },
+}
+
+impl<'a> Invocation<'a> {
+    pub(crate) fn location(&self) -> &SourceLocation {
+        match self {
+            Self::Macro(call) => &call.location,
+            Self::Style { location, .. } => location,
+        }
+    }
+
+    pub(crate) fn document_attributes<'b>(
+        &'b self,
+        current: &'b DocumentAttributes<'a>,
+    ) -> &'b DocumentAttributes<'a> {
+        match self {
+            Self::Macro(call) => &call.document_attributes,
+            Self::Style { .. } => current,
+        }
+    }
+}
+
 /// A deferred block that must be resolved before conversion.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -33,7 +63,7 @@ pub struct ExtensionBlock<'a> {
     pub(crate) title: Title<'a>,
     pub(crate) location: Location,
     pub(crate) processor: usize,
-    pub(crate) invocation: MacroInvocation<'a>,
+    pub(crate) invocation: Invocation<'a>,
     pub(crate) placeholder: Option<PlaceholderId>,
 }
 
@@ -49,9 +79,12 @@ impl Serialize for ExtensionBlock<'_> {
         let mut map = serializer.serialize_map(None)?;
         map.serialize_entry("name", "extension")?;
         map.serialize_entry("type", "block")?;
-        map.serialize_entry("macro", &self.invocation.name)?;
-        map.serialize_entry("target", &self.invocation.target)?;
-        map.serialize_entry("attributes", &self.invocation.attributes)?;
+        let Invocation::Macro(call) = &self.invocation else {
+            return Err(serde::ser::Error::custom("unprocessed raw block style"));
+        };
+        map.serialize_entry("macro", &call.name)?;
+        map.serialize_entry("target", &call.target)?;
+        map.serialize_entry("attributes", &call.attributes)?;
         map.serialize_entry("metadata", &self.metadata)?;
         map.serialize_entry("title", &self.title)?;
         map.serialize_entry("location", &self.location)?;

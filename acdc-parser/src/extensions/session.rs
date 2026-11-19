@@ -3,12 +3,14 @@ use std::{cell::OnceCell, fmt};
 use crate::{Block, Error, ParseResult, grammar::ParserState};
 
 use super::{
-    BlockBuilder, BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery,
-    PlaceholderId, TargetId, TreeProcessor, query::TargetIndex, target::DocumentIdentity,
+    BlockBuilder, BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery, Invocation,
+    PlaceholderId, RawBlockInput, RawBlockProcessor, TargetId, TreeProcessor, query::TargetIndex,
+    target::DocumentIdentity,
 };
 
 pub(crate) struct Session {
     processors: Vec<Box<dyn BlockMacroProcessor>>,
+    styles: Box<[Box<dyn RawBlockProcessor>]>,
     pub(super) tree_processors: Vec<Box<dyn TreeProcessor>>,
     pub(super) deferred: Vec<DeferredBlock>,
     pub(super) processed_blocks: bool,
@@ -110,10 +112,12 @@ impl ExtensionParseResult {
 impl Session {
     pub(super) fn new(
         processors: Vec<Box<dyn BlockMacroProcessor>>,
+        styles: Box<[Box<dyn RawBlockProcessor>]>,
         tree_processors: Vec<Box<dyn TreeProcessor>>,
     ) -> Self {
         Self {
             processors,
+            styles,
             tree_processors,
             deferred: Vec::new(),
             processed_blocks: false,
@@ -133,49 +137,77 @@ impl Session {
     ) -> Result<bool, Error> {
         if let Block::Extension(extension) = block {
             self.processed_blocks = true;
-            let output = self
-                .processors
-                .get_mut(extension.processor)
-                .ok_or_else(|| {
-                    Error::Extension(
-                        Box::new(extension.invocation.location.clone()),
-                        "processor is absent from the document session".into(),
-                    )
-                })?
-                .process(&extension.invocation, context)
-                .map_err(|message| {
-                    Error::Extension(Box::new(extension.invocation.location.clone()), message)
-                })?;
-            let builder = match output {
-                BlockMacroOutput::Paragraph(text) => BlockBuilder::paragraph(text),
-                BlockMacroOutput::Block(builder) => builder,
-                BlockMacroOutput::None => return Ok(false),
-                BlockMacroOutput::Deferred => {
-                    let placeholder = PlaceholderId(self.deferred.len());
-                    extension.placeholder = Some(placeholder);
-                    self.deferred.push(DeferredBlock {
-                        placeholder,
-                        invocation: extension.invocation.to_owned_invocation(),
-                        target: TargetId {
-                            document: self.identity().clone(),
-                            slot: placeholder.0,
-                        },
-                    });
-                    return Ok(true);
+            let origin = extension.invocation.location();
+            let fail = |message| Error::Extension(Box::new(origin.clone()), message);
+            let builder = match &extension.invocation {
+                Invocation::Style {
+                    context,
+                    body,
+                    body_location,
+                    ..
+                } => {
+                    let processor = self.styles.get_mut(extension.processor).ok_or_else(|| {
+                        fail("style processor is absent from the document session".into())
+                    })?;
+                    let raw = RawBlockInput {
+                        context: *context,
+                        body,
+                        body_location,
+                        location: origin,
+                        document_attributes: state.document_attributes.as_ref().into(),
+                        metadata: &extension.metadata,
+                        title: extension.title.source(),
+                    };
+                    let Some(builder) = processor.process(raw).map_err(fail)? else {
+                        return Ok(false);
+                    };
+                    // The handler consumes the input style.
+                    extension.metadata.style = None;
+                    builder
+                }
+                Invocation::Macro(call) => {
+                    let output = self
+                        .processors
+                        .get_mut(extension.processor)
+                        .ok_or_else(|| {
+                            fail("processor is absent from the document session".into())
+                        })?
+                        .process(call, context)
+                        .map_err(fail)?;
+                    match output {
+                        BlockMacroOutput::Paragraph(text) => BlockBuilder::paragraph(text),
+                        BlockMacroOutput::Block(builder) => builder,
+                        BlockMacroOutput::None => return Ok(false),
+                        BlockMacroOutput::Deferred => {
+                            let placeholder = PlaceholderId(self.deferred.len());
+                            extension.placeholder = Some(placeholder);
+                            self.deferred.push(DeferredBlock {
+                                placeholder,
+                                invocation: call.to_owned_invocation(),
+                                target: TargetId {
+                                    document: self.identity().clone(),
+                                    slot: placeholder.0,
+                                },
+                            });
+                            return Ok(true);
+                        }
+                    }
                 }
             };
-            *block = builder.build_at_macro(extension, state).map_err(|error| {
-                if matches!(error, Error::Extension(..)) {
-                    return error;
-                }
-                let message = if let Error::Parse(_, message) | Error::PegParse(_, message) = error
-                {
-                    message
-                } else {
-                    error.to_string()
-                };
-                Error::Extension(Box::new(extension.invocation.location.clone()), message)
-            })?;
+            *block = builder
+                .build_at_invocation(extension, state)
+                .map_err(|error| {
+                    if matches!(error, Error::Extension(..)) {
+                        return error;
+                    }
+                    let message =
+                        if let Error::Parse(_, message) | Error::PegParse(_, message) = error {
+                            message
+                        } else {
+                            error.to_string()
+                        };
+                    Error::Extension(Box::new(extension.invocation.location().clone()), message)
+                })?;
         }
         Ok(true)
     }

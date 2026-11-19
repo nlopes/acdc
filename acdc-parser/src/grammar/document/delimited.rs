@@ -182,6 +182,20 @@ impl DelimitedKind {
         ) && !matches!(style, Some("comment" | "verse"))
     }
 
+    pub(super) fn raw_context(self) -> Option<crate::extensions::RawBlockContext> {
+        use crate::extensions::RawBlockContext;
+        match self {
+            Self::Listing => Some(RawBlockContext::Listing),
+            Self::Literal => Some(RawBlockContext::Literal),
+            Self::Comment
+            | Self::Example
+            | Self::Open
+            | Self::Sidebar
+            | Self::Passthrough
+            | Self::Quote => None,
+        }
+    }
+
     pub(super) fn with_style(self, style: Option<&str>) -> Self {
         match (self, style) {
             (Self::Open | Self::Literal, Some("source" | "listing")) => Self::Listing,

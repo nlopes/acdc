@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input.
+
 - Block macro handlers can return a `BlockBuilder` directly with `.into()`. Tree processors see the resulting block with the invocation’s title, ID, roles, and source location.
 
 - Include processors can supply virtual content. They see attributes set by earlier block macros and follow the caller's include permissions, selection options, and expansion limits.

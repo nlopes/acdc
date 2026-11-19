@@ -48,7 +48,7 @@ pub(crate) struct Prepared<'a> {
 }
 
 impl<'a> ParserState<'a> {
-    pub(crate) fn prepare_macro_output(
+    pub(crate) fn prepare_block_output(
         &self,
         builder: &BlockBuilder,
         extension: &mut ExtensionBlock<'a>,
@@ -71,7 +71,7 @@ impl<'a> ParserState<'a> {
             builder,
             metadata,
             title,
-            &extension.invocation.location,
+            extension.invocation.location(),
             &extension.location,
             |input| Ok(Self::for_inline_parsing(input, self, self.inline_ctx)),
         )
