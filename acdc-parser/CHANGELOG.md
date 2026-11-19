@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Tagged includes read complete lines faster while preserving selection across reader chunk boundaries.
+
 - Register a deferred block macro's tree processor with
   `TreeProcessorRegistration::for_macro`. Its editor yields only that macro's
   surviving requests in source order. Other processors can still query the

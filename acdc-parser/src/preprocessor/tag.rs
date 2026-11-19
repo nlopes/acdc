@@ -77,7 +77,7 @@ pub(super) enum Issue {
 /// Returns `("tag", name)` for an opening marker and `("end", name)` for a
 /// closing marker. The marker may follow a comment prefix or another
 /// non-word-boundary character.
-fn extract_tag_directive(line: &str) -> Option<(&'static str, &str)> {
+pub(super) fn extract_tag_directive(line: &str) -> Option<(&'static str, &str)> {
     for (directive, keyword) in [("tag", "tag::"), ("end", "end::")] {
         if let Some(pos) = line.find(keyword) {
             if pos > 0
