@@ -98,7 +98,14 @@ impl<'a> SourceReader<'a> {
                 }
             }
         }
-        let preprocessor = Preprocessor::new(&options, warnings);
+        let includes = options
+            .extensions
+            .as_ref()
+            .and_then(crate::extensions::Registry::include_processors);
+        let preprocessor = Preprocessor {
+            warnings,
+            include_context: super::IncludeContext::root(&options, includes),
+        };
         let normalized = match text {
             Cow::Borrowed(text) => text,
             Cow::Owned(text) => arena.alloc_str(&text),

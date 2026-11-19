@@ -3,8 +3,8 @@ use std::{collections::HashMap, path::Path, sync::Arc};
 use crate::{Error, Options, ParseResult};
 
 use super::{
-    BlockMacro, DocumentEditor, ExtensionParseResult, Session, SourcePreprocessor,
-    TreeProcessorRegistration, source::SourceRegistration,
+    BlockMacro, DocumentEditor, ExtensionParseResult, IncludeProcessor, IncludeProcessors, Session,
+    SourcePreprocessor, TreeProcessorRegistration, source::SourceRegistration,
 };
 
 /// A registration rejected before any document is parsed.
@@ -23,6 +23,8 @@ pub enum RegistrationError {
     DuplicateTreeProcessor(String),
     #[error("source preprocessor is already registered: {0}")]
     DuplicatePreprocessor(String),
+    #[error("include processor is already registered: {0}")]
+    DuplicateIncludeProcessor(String),
     #[error("deferred processor already registered for block macro: {0}")]
     DuplicateDeferredProcessor(String),
 }
@@ -34,6 +36,7 @@ pub struct RegistryBuilder {
     names: HashMap<String, usize>,
     trees: Vec<TreeProcessorRegistration>,
     preprocessors: Vec<SourceRegistration<dyn SourcePreprocessor>>,
+    includes: Vec<SourceRegistration<dyn IncludeProcessor>>,
 }
 
 impl RegistryBuilder {
@@ -57,8 +60,16 @@ impl RegistryBuilder {
                 RegistrationError::DuplicatePreprocessor,
             )?;
         }
+        for entry in &registry.0.includes {
+            check_source_name(
+                &self.includes,
+                &entry.name,
+                RegistrationError::DuplicateIncludeProcessor,
+            )?;
+        }
         self.preprocessors
             .extend_from_slice(&registry.0.preprocessors);
+        self.includes.extend_from_slice(&registry.0.includes);
         let offset = self.macros.len();
         self.names.extend(
             registry
@@ -89,6 +100,28 @@ impl RegistryBuilder {
             RegistrationError::DuplicatePreprocessor,
         )?;
         self.preprocessors.push(SourceRegistration {
+            name,
+            factory: Arc::new(move || Box::new(factory())),
+        });
+        Ok(self)
+    }
+
+    /// Append an include processor. Each parse gets its own instance.
+    ///
+    /// # Errors
+    /// Rejects invalid identifiers and duplicate names within this family.
+    pub fn register_include_processor<P: IncludeProcessor + 'static>(
+        &mut self,
+        name: impl Into<String>,
+        factory: impl Fn() -> P + Send + Sync + 'static,
+    ) -> Result<&mut Self, RegistrationError> {
+        let name = name.into();
+        check_source_name(
+            &self.includes,
+            &name,
+            RegistrationError::DuplicateIncludeProcessor,
+        )?;
+        self.includes.push(SourceRegistration {
             name,
             factory: Arc::new(move || Box::new(factory())),
         });
@@ -172,6 +205,7 @@ impl RegistryBuilder {
             names: self.names,
             trees: self.trees,
             preprocessors: self.preprocessors,
+            includes: self.includes,
         }))
     }
 }
@@ -215,6 +249,7 @@ struct RegistryData {
     names: HashMap<String, usize>,
     trees: Vec<TreeProcessorRegistration>,
     preprocessors: Vec<SourceRegistration<dyn SourcePreprocessor>>,
+    includes: Vec<SourceRegistration<dyn IncludeProcessor>>,
 }
 
 /// A cheap-to-clone, immutable collection of extension factories.
@@ -233,11 +268,15 @@ impl Registry {
     }
 
     fn has_input_processors(&self) -> bool {
-        !(self.0.macros.is_empty() && self.0.preprocessors.is_empty())
+        !(self.0.macros.is_empty() && self.0.preprocessors.is_empty() && self.0.includes.is_empty())
     }
 
     pub(crate) fn preprocessors(&self) -> impl Iterator<Item = Box<dyn SourcePreprocessor>> + '_ {
         self.0.preprocessors.iter().map(|entry| (entry.factory)())
+    }
+
+    pub(crate) fn include_processors(&self) -> Option<IncludeProcessors> {
+        IncludeProcessors::new(&self.0.includes)
     }
 
     pub(crate) fn has_tree_processors(&self) -> bool {

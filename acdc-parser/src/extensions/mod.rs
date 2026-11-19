@@ -1,4 +1,4 @@
-//! Registered source, block macro, and tree processors with fresh document sessions.
+//! Registered source, include, block macro, and tree processors with fresh document sessions.
 //!
 //! ```
 //! use acdc_parser::{Options, extensions::{
@@ -59,10 +59,11 @@
 //! ```
 //!
 //! Source preprocessors run once on the normalized entry text. Return line edits
-//! in source order. Each processor sees the preceding edits.
+//! in source order. The first include processor to supply bytes handles that
+//! resolved target. All supplied bytes pass through ordinary include processing.
 //!
 //! ```
-//! use acdc_parser::{Options,
+//! use acdc_parser::{IncludeSource, IncludeSourceTarget, Options, SafeMode,
 //!     extensions::{Registry, SourceEdit, SourceProcessorContext}};
 //!
 //! let mut builder = Registry::builder();
@@ -73,7 +74,15 @@
 //!         Vec::new()
 //!     })
 //! })?;
-//! let parsed = builder.build().parse("GENERATED\nVersion 1.", &Options::default())?.finish()?;
+//! builder.register_include_processor("version", || |target: &IncludeSourceTarget, _: &SourceProcessorContext<'_>| {
+//!     Ok(match target {
+//!         IncludeSourceTarget::File(path) if path.ends_with("version.adoc") =>
+//!             Some(IncludeSource::from_string("Version 1.")),
+//!         _ => None,
+//!     })
+//! })?;
+//! let options = Options::builder().with_safe_mode(SafeMode::Safe).build()?;
+//! let parsed = builder.build().parse("GENERATED\ninclude::version.adoc[]", &options)?.finish()?;
 //! assert_eq!(parsed.preprocessed_source(), "Version 1.");
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
@@ -191,7 +200,8 @@ mod recognition;
 mod registry;
 mod session;
 mod source;
-pub use source::{SourceEdit, SourcePreprocessor, SourceProcessorContext};
+pub(crate) use source::IncludeProcessors;
+pub use source::{IncludeProcessor, SourceEdit, SourcePreprocessor, SourceProcessorContext};
 mod target;
 mod title;
 mod traversal;

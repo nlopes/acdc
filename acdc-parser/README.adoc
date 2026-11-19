@@ -2055,7 +2055,7 @@ to preserve their isolation. The fixture runner's case names are unchanged.
 [#registered-extensions]
 == Registered extensions
 
-Applications can register source preprocessors, block macros, and tree processors with
+Applications can register source preprocessors, include processors, block macros, and tree processors with
 `extensions::Registry`. Each parse creates fresh processor instances. Block-macro
 callbacks run once when their block commits. `MacroExecutionContext::set_attribute`
 and `unset_attribute` request changes before subsequent conditionals and includes,
@@ -2074,6 +2074,16 @@ interprets directives. Each processor sees the previous processor's edits.
 Return an empty vector to keep the borrowed source. Removed lines retain the
 original positions of subsequent text. Replacement text points to the start
 of the edited line.
+
+Use `register_include_processor` to supply bytes for a resolved file or HTTP(S)
+target. The callback can read the document attributes at the directive and
+report a located warning. The first processor returning a source handles the
+directive. If all decline, the reader uses the configured loader. Line and tag
+selection, encoding, nesting, indentation, and byte limits apply to virtual
+sources. Secure mode, disabled loading, depth limits, and URI permissions
+are checked before dispatch. A system-local target may be entirely virtual.
+For custom loaders and URI targets the loader must successfully open the
+target before any processor can supply replacement bytes.
 
 Nested source ordering supports compound bodies and pipe/exclamation-delimited
 AsciiDoc cells. CSV, TSV, DSV, and custom table separators retain buffered

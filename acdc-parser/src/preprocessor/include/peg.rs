@@ -31,6 +31,7 @@ peg::parser! {
                     options: inputs.options.clone(),
                     context: inputs.context.clone(),
                     line_number: inputs.location.line_number,
+                    current_offset: inputs.location.current_offset,
                     current_file: inputs.location.current_file.map(Path::to_path_buf),
                     warnings: Rc::clone(inputs.warnings),
                 };
