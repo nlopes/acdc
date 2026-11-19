@@ -120,27 +120,23 @@ fn prepare<'a>(
     if builder.source_body {
         return prepare_source(owner, original, builder, &inline_context, origin).map(Some);
     }
-    let mut inherited = if replacing {
-        original.metadata().cloned().unwrap_or_default()
+    let (mut inherited, title) = if replacing {
+        (
+            original.metadata().cloned().unwrap_or_default(),
+            original.title().cloned().unwrap_or_default(),
+        )
     } else {
-        BlockMetadata::default()
+        (BlockMetadata::default(), Title::default())
     };
-    inherited.attribute_positions = None;
-    inherited.positional_attributes.clear();
-    inherited.reftext_source = None;
     inherited.prefix_events = None;
-    let title = if replacing {
-        original.title().cloned().unwrap_or_default()
-    } else {
-        Title::default()
-    };
     let mut attributes = crate::grammar::prepare_generated(
         &owner.arena,
         builder,
         inherited,
         title,
-        &inline_context,
         origin,
+        &origin.location,
+        |input| inline_context.state(input, &owner.arena),
     )?;
     attributes.metadata.source_context = Some(std::sync::Arc::new(context));
     let kind = builder.caption_kind(attributes.metadata.style);
@@ -156,16 +152,16 @@ fn prepare<'a>(
             origin.location.clone(),
             attributes.metadata,
             attributes.title,
-            |inline| inline.build(&owner.arena, document, identity, origin),
+            |inline| {
+                inline.build(&owner.arena, &origin.location, |request, nodes| {
+                    request.build_into(document, identity, origin, nodes)
+                })
+            },
         )
         .map_err(|error| failure(origin, &error.to_string()))?;
     if let Block::Image(image) = &mut block {
-        let inherited_alt = if replacing {
-            if let Block::Image(image) = original {
-                image.alt.clone()
-            } else {
-                None
-            }
+        let inherited_alt = if replacing && let Block::Image(image) = original {
+            image.alt.clone()
         } else {
             None
         };

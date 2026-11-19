@@ -2064,6 +2064,12 @@ source location and a read-only attribute snapshot. Both compatibility modes
 support registrations. Factories are shared; handlers may use document-local,
 non-`Send` state. Completed callback effects remain if later parsing fails.
 
+A block macro can return an ordinary block directly. For example, a handler for
+`logo::acme[]` can return `Ok(BlockBuilder::image("acme.svg").into())`.
+The image inherits the invocation's title, ID, roles, and source location.
+Tree processors see the image as soon as they run. Use
+`BlockMacroOutput::Deferred` when construction needs the rest of the document.
+
 `Registry::parse`, `parse_file`, and `parse_from_reader` share these stages.
 Reader input preserves ordinary reader attributes and include-origin policy.
 `RegistryBuilder::extend` composes immutable registries in order and rejects

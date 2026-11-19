@@ -1,10 +1,10 @@
 use std::{cell::OnceCell, fmt};
 
-use crate::{Block, Error, InlineNode, Paragraph, ParseResult, Plain, grammar::ParserState};
+use crate::{Block, Error, ParseResult, grammar::ParserState};
 
 use super::{
-    BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery, PlaceholderId, TargetId,
-    TreeProcessor, query::TargetIndex, target::DocumentIdentity,
+    BlockBuilder, BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery,
+    PlaceholderId, TargetId, TreeProcessor, query::TargetIndex, target::DocumentIdentity,
 };
 
 pub(crate) struct Session {
@@ -146,27 +146,9 @@ impl Session {
                 .map_err(|message| {
                     Error::Extension(Box::new(extension.invocation.location.clone()), message)
                 })?;
-            match output {
-                BlockMacroOutput::Paragraph(text) => {
-                    let mut paragraph = Paragraph::new(
-                        vec![InlineNode::PlainText(Plain {
-                            content: state.intern_str(&text),
-                            location: extension.location.clone(),
-                            escaped: true,
-                        })],
-                        extension.location.clone(),
-                    );
-                    paragraph.metadata = std::mem::take(&mut extension.metadata);
-                    paragraph.title = std::mem::take(&mut extension.title);
-                    if let Some(kind) = crate::CaptionKind::for_style(paragraph.metadata.style) {
-                        paragraph.metadata.caption = Some(crate::Caption::resolve(
-                            &paragraph.metadata,
-                            &extension.invocation.document_attributes,
-                            kind,
-                        ));
-                    }
-                    *block = Block::Paragraph(paragraph);
-                }
+            let builder = match output {
+                BlockMacroOutput::Paragraph(text) => BlockBuilder::paragraph(text),
+                BlockMacroOutput::Block(builder) => builder,
                 BlockMacroOutput::None => return Ok(false),
                 BlockMacroOutput::Deferred => {
                     let placeholder = PlaceholderId(self.deferred.len());
@@ -179,8 +161,21 @@ impl Session {
                             slot: placeholder.0,
                         },
                     });
+                    return Ok(true);
                 }
-            }
+            };
+            *block = builder.build_at_macro(extension, state).map_err(|error| {
+                if matches!(error, Error::Extension(..)) {
+                    return error;
+                }
+                let message = if let Error::Parse(_, message) | Error::PegParse(_, message) = error
+                {
+                    message
+                } else {
+                    error.to_string()
+                };
+                Error::Extension(Box::new(extension.invocation.location.clone()), message)
+            })?;
         }
         Ok(true)
     }
