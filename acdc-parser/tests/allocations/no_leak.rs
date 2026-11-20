@@ -1,16 +1,12 @@
 //! Parse results must release temporary buffers as well as the retained AST.
 //! Allocation regions measure requested bytes still live after each result drops.
-//!
-//! Each integration test file is its own binary in Cargo, so installing a
-//! `#[global_allocator]` here does not affect other tests.
 
 use acdc_parser::{Options, parse, parse_file};
 use std::{alloc::System, error::Error, path::Path};
 
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -28,7 +24,6 @@ fn net_bytes_delta(region: &Region<'_, System>) -> i64 {
 
 /// Parse the mdbasics fixture in a loop and assert that net allocator bytes
 /// return close to baseline. Fails loudly on any `Box::leak`-style escape.
-#[test]
 fn parse_file_does_not_leak_across_iterations() -> TestResult {
     let opts = Options::builder().build()?;
     let fixture = Path::new("fixtures/samples/mdbasics/mdbasics.adoc");
@@ -42,7 +37,7 @@ fn parse_file_does_not_leak_across_iterations() -> TestResult {
         let _doc = parse_file(fixture, &opts)?;
     }
 
-    let region = Region::new(GLOBAL);
+    let region = Region::new(ALLOCATOR);
     for _ in 0..MEASURED_ITERATIONS {
         let _doc = parse_file(fixture, &opts)?;
     }
@@ -64,7 +59,6 @@ fn parse_file_does_not_leak_across_iterations() -> TestResult {
 
 /// Parse inline content repeatedly and assert the same invariant for the
 /// `parse_inline` entry point.
-#[test]
 fn parse_inline_does_not_leak_across_iterations() -> TestResult {
     let opts = Options::builder().with_attribute("name", "World").build()?;
     // Mix of substitution, passthrough, and nested macros — forces the
@@ -78,7 +72,7 @@ fn parse_inline_does_not_leak_across_iterations() -> TestResult {
         let _nodes = acdc_parser::parse_inline(input, &opts)?;
     }
 
-    let region = Region::new(GLOBAL);
+    let region = Region::new(ALLOCATOR);
     for _ in 0..MEASURED_ITERATIONS {
         let _nodes = acdc_parser::parse_inline(input, &opts)?;
     }
@@ -95,7 +89,6 @@ fn parse_inline_does_not_leak_across_iterations() -> TestResult {
     Ok(())
 }
 
-#[test]
 fn document_inline_temporaries_are_released() -> TestResult {
     let options = Options::builder()
         .with_attribute("name", "World")
@@ -138,7 +131,7 @@ fn document_inline_temporaries_are_released() -> TestResult {
         for _ in 0..WARMUP_ITERATIONS {
             assert_eq!(parse(input, &options).is_ok(), succeeds, "{name}");
         }
-        let region = Region::new(GLOBAL);
+        let region = Region::new(ALLOCATOR);
         for _ in 0..MEASURED_ITERATIONS {
             assert_eq!(parse(input, &options).is_ok(), succeeds, "{name}");
         }
@@ -154,7 +147,6 @@ fn document_inline_temporaries_are_released() -> TestResult {
 /// Compile-time guarantee that `parse_file` returns a truly `'static` value
 /// that can outlive any local buffer. Fails to compile if the signature ever
 /// regresses to a borrowed lifetime.
-#[test]
 fn parse_file_returns_static_document() -> TestResult {
     fn assert_static<T: 'static>(_: &T) {}
 
@@ -165,7 +157,6 @@ fn parse_file_returns_static_document() -> TestResult {
 }
 
 /// Include buffers and their source maps must drop with the parse result.
-#[test]
 fn included_content_does_not_leak_across_iterations() -> TestResult {
     let options = Options::builder()
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
@@ -175,7 +166,7 @@ fn included_content_does_not_leak_across_iterations() -> TestResult {
         let parsed = parse_file(path, &options)?;
         assert_eq!(parsed.warnings(), []);
     }
-    let region = Region::new(GLOBAL);
+    let region = Region::new(ALLOCATOR);
     for _ in 0..MEASURED_ITERATIONS {
         let _parsed = parse_file(path, &options)?;
     }
@@ -186,4 +177,10 @@ fn included_content_does_not_leak_across_iterations() -> TestResult {
         "included content retained {delta} bytes"
     );
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [parse_file_does_not_leak_across_iterations, parse_inline_does_not_leak_across_iterations, document_inline_temporaries_are_released, parse_file_returns_static_document, included_content_does_not_leak_across_iterations],
+    }
 }

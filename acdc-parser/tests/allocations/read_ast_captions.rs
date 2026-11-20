@@ -1,4 +1,4 @@
-use std::{alloc::System, hint::black_box, num::NonZeroU32, ptr};
+use std::{hint::black_box, num::NonZeroU32, ptr};
 
 use acdc_parser::{
     Block, Caption, CaptionKind, CompatibilityMode, ContentAttribute, Document, Options,
@@ -6,10 +6,9 @@ use acdc_parser::{
     ast::{CaptionRef, DocumentRef, ReferenceTargetRef},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -24,9 +23,8 @@ const SOURCE: &str = "= Doc\n:listing-caption: Listing\n\n\
     [#empty]\n.Empty title\n[caption='']\nimage::empty.svg[]\n\n\
     :figure-caption!:\n\n[#disabled]\n.Disabled title\nimage::disabled.svg[]\n";
 
-#[rstest::rstest]
 fn highest_caption_numbers_use_stored_tree_values_without_allocating(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -131,7 +129,6 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
     Ok(())
 }
 
-#[test]
 fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let mut reference = ReferenceTarget::from(
@@ -183,7 +180,6 @@ fn constructed_caption_states_do_not_gain_content_or_ordinals() -> Result<(), Er
     Ok(())
 }
 
-#[test]
 fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
     let mut document = Document::default();
@@ -248,7 +244,6 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
     Ok(())
 }
 
-#[test]
 fn caption_reads_are_shared_and_allocate_nothing() -> Result<(), Error> {
     fn shared<T: Copy + Send + Sync>() {}
     shared::<CaptionRef<'_>>();
@@ -277,4 +272,11 @@ fn caption_reads_are_shared_and_allocate_nothing() -> Result<(), Error> {
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [constructed_caption_states_do_not_gain_content_or_ordinals, caption_reads_preserve_registered_snapshots_after_owner_edits, caption_reads_are_shared_and_allocate_nothing],
+        modes: [highest_caption_numbers_use_stored_tree_values_without_allocating],
+    }
 }

@@ -68,7 +68,7 @@ name = "fixtures"
 harness = false
 
 [[test]]
-name = "owned_inline_selection"
+name = "allocations"
 harness = false
 
 [[bench]]

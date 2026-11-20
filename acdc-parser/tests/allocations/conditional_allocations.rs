@@ -6,13 +6,12 @@
 //! underlying work directly: allocation and reallocation counts plus requested
 //! bytes. Keep this file to one test because allocator regions are process-wide.
 
-use std::{alloc::System, fmt::Write as _, hint::black_box, path::Path};
+use std::{fmt::Write as _, hint::black_box, path::Path};
 
 use acdc_parser::{Error, Options, parse, parse_file};
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
+use stats_alloc::{Region, Stats};
 
-#[global_allocator]
-static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 // Requested allocation sizes can differ slightly across compiler targets due
 // to standard-library type layout. Keep this fixed tolerance small enough that
@@ -126,7 +125,7 @@ fn slow_path_control_document(line_count: usize) -> String {
 }
 
 fn measure(input: &str, options: &Options) -> Result<Stats, Error> {
-    let region = Region::new(GLOBAL);
+    let region = Region::new(ALLOCATOR);
     let parsed = parse(black_box(input), black_box(options))?;
     black_box(&parsed);
     let stats = region.change();
@@ -157,7 +156,7 @@ fn measure_steady_state(input: &str, options: &Options) -> Result<Stats, Error> 
 }
 
 fn measure_file(path: &Path, options: &Options) -> Result<Stats, Error> {
-    let region = Region::new(GLOBAL);
+    let region = Region::new(ALLOCATOR);
     let parsed = parse_file(black_box(path), black_box(options))?;
     black_box(&parsed);
     let stats = region.change();
@@ -228,7 +227,6 @@ fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Bud
     );
 }
 
-#[test]
 fn conditional_allocation_work_stays_within_budget() -> Result<(), Box<dyn std::error::Error>> {
     let active_options = Options::builder()
         .with_attribute("bench-active", true)
@@ -273,4 +271,10 @@ fn conditional_allocation_work_stays_within_budget() -> Result<(), Box<dyn std::
         );
     }
     conditional_file_paths_have_constant_allocation_overhead()
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [conditional_allocation_work_stays_within_budget],
+    }
 }

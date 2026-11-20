@@ -1,6 +1,6 @@
 //! Prepared table edits preserve row groups, source lifetimes and cell snapshots.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     Block, ColumnFormat, ColumnStyle, ColumnWidth, CompatibilityMode, DelimitedBlock,
@@ -9,10 +9,9 @@ use acdc_parser::{
     ast::{BlockKind, BlockRef, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -47,9 +46,8 @@ fn read<'a>(block: &'a DelimitedBlock<'a>) -> Result<TableRef<'a>, Error> {
     Ok(table)
 }
 
-#[rstest::rstest]
 fn selected_copies_preserve_rows_formats_presentation_and_initial_scopes(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -95,9 +93,8 @@ fn selected_copies_preserve_rows_formats_presentation_and_initial_scopes(
     Ok(())
 }
 
-#[rstest::rstest]
 fn table_parts_outlive_the_previous_owner_and_round_trip_without_layout_repairs(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -148,7 +145,6 @@ fn table_parts_outlive_the_previous_owner_and_round_trip_without_layout_repairs(
     Ok(())
 }
 
-#[test]
 fn present_empty_header_and_footer_are_independent_from_body_rows() -> Result<(), Error> {
     let mut table = Table::new(Vec::new(), Location::default());
     table.set_header(Some(TableRow::new(Vec::new())));
@@ -168,10 +164,7 @@ fn present_empty_header_and_footer_are_independent_from_body_rows() -> Result<()
     Ok(())
 }
 
-#[rstest::rstest]
-fn row_cell_transfers_outlive_the_previous_row(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-) -> Result<(), Error> {
+fn row_cell_transfers_outlive_the_previous_row(mode: CompatibilityMode) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
@@ -192,9 +185,8 @@ fn row_cell_transfers_outlive_the_previous_row(
     Ok(())
 }
 
-#[rstest::rstest]
 fn cell_content_transfers_keep_the_initial_scope_and_formatting(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -242,7 +234,6 @@ fn cell_content_transfers_keep_the_initial_scope_and_formatting(
     Ok(())
 }
 
-#[test]
 fn constructed_cells_keep_explicit_spans_and_optional_format_overrides() {
     let mut cell = TableCell::new(Vec::new());
     cell.set_colspan(0);
@@ -269,7 +260,6 @@ fn constructed_cells_keep_explicit_spans_and_optional_format_overrides() {
     assert!(read.style().is_none());
 }
 
-#[test]
 fn column_format_copies_preserve_all_prepared_values_without_allocating() {
     let original = ColumnFormat::new()
         .with_halign(HorizontalAlignment::Right)
@@ -284,7 +274,6 @@ fn column_format_copies_preserve_all_prepared_values_without_allocating() {
     assert_eq!(copy, original);
 }
 
-#[test]
 fn selected_row_and_cell_copy_cost_does_not_grow_with_unrelated_table_size() -> Result<(), Error> {
     fn cost<T>(copy: impl FnOnce() -> T) -> (usize, usize) {
         let region = Region::new(ALLOCATOR);
@@ -322,4 +311,11 @@ fn selected_row_and_cell_copy_cost_does_not_grow_with_unrelated_table_size() -> 
     }
     assert_eq!(wide_cells.first(), wide_cells.last());
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [present_empty_header_and_footer_are_independent_from_body_rows, constructed_cells_keep_explicit_spans_and_optional_format_overrides, column_format_copies_preserve_all_prepared_values_without_allocating, selected_row_and_cell_copy_cost_does_not_grow_with_unrelated_table_size],
+        modes: [selected_copies_preserve_rows_formats_presentation_and_initial_scopes, table_parts_outlive_the_previous_owner_and_round_trip_without_layout_repairs, row_cell_transfers_outlive_the_previous_row, cell_content_transfers_keep_the_initial_scope_and_formatting],
+    }
 }

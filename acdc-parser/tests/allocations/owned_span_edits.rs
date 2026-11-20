@@ -1,6 +1,6 @@
 //! Concrete formatting owners transfer prepared content and retain identity presence.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     Bold, DoubleQuotedSpan, ElementId, FormattingForm, Highlight, InlineNode, Italic, Location,
@@ -10,10 +10,9 @@ use acdc_parser::{
         MonospaceRef, SingleQuotedSpanRef, SubscriptRef, SuperscriptRef,
     },
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -46,7 +45,6 @@ fn text(content: ContentRef<'_>) -> Result<&str, Error> {
     Ok(plain.text())
 }
 
-#[test]
 fn all_concrete_span_copies_keep_both_forms_and_every_prepared_value() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
@@ -79,7 +77,6 @@ fn all_concrete_span_copies_keep_both_forms_and_every_prepared_value() -> Result
     Ok(())
 }
 
-#[test]
 fn span_content_transfers_keep_buffers_and_original_source_lifetimes() {
     let source = String::from("*original*");
     let replacement = String::from("footnote:[unregistered]");
@@ -106,7 +103,6 @@ fn span_content_transfers_keep_buffers_and_original_source_lifetimes() {
     all_spans!(check);
 }
 
-#[test]
 fn span_role_transfers_keep_whitespace_duplicates_and_empty_presence() {
     let source = String::from("\tone\u{2003}two one\n");
     macro_rules! check {
@@ -133,7 +129,6 @@ fn span_role_transfers_keep_whitespace_duplicates_and_empty_presence() {
     all_spans!(check);
 }
 
-#[test]
 fn span_id_transfers_keep_their_own_locations_and_source_lifetimes() {
     let source = String::from("λ-span");
     let span_location = Location::point(Position::new(3, 4));
@@ -164,7 +159,6 @@ fn span_id_transfers_keep_their_own_locations_and_source_lifetimes() {
     all_spans!(check);
 }
 
-#[test]
 fn span_copy_edits_do_not_change_original_children_identity_or_form() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
@@ -198,7 +192,6 @@ fn span_copy_edits_do_not_change_original_children_identity_or_form() -> Result<
     Ok(())
 }
 
-#[test]
 fn highlight_marking_depends_on_identity_presence_even_when_empty() {
     let mut span = Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
     assert!(HighlightRef::from(&span).is_marked());
@@ -212,7 +205,6 @@ fn highlight_marking_depends_on_identity_presence_even_when_empty() {
     assert!(HighlightRef::from(&span).is_marked());
 }
 
-#[test]
 fn empty_span_copies_do_not_allocate() {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
@@ -232,7 +224,6 @@ fn empty_span_copies_do_not_allocate() {
     all_spans!(check);
 }
 
-#[test]
 fn selected_span_copies_keep_native_json() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
@@ -252,4 +243,10 @@ fn selected_span_copies_keep_native_json() -> Result<(), Error> {
     }
     all_spans!(check);
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [all_concrete_span_copies_keep_both_forms_and_every_prepared_value, span_content_transfers_keep_buffers_and_original_source_lifetimes, span_role_transfers_keep_whitespace_duplicates_and_empty_presence, span_id_transfers_keep_their_own_locations_and_source_lifetimes, span_copy_edits_do_not_change_original_children_identity_or_form, highlight_marking_depends_on_identity_presence_even_when_empty, empty_span_copies_do_not_allocate, selected_span_copies_keep_native_json],
+    }
 }

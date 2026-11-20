@@ -1,4 +1,4 @@
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     Anchor, BlockMetadata, CompatibilityMode, Location, Options, Paragraph, SafeMode, Section,
@@ -9,16 +9,14 @@ use acdc_parser::{
     },
     parse, parse_file,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
-#[rstest::rstest]
 fn blocks_select_the_same_primary_id_as_reference_resolution(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = "[[header-first]]\n[[header-last]]\n= Document\n\n\
         [[section-first]]\n[[section-last]]\n== Section\n\n\
@@ -102,9 +100,8 @@ fn blocks_select_the_same_primary_id_as_reference_resolution(
     Ok(())
 }
 
-#[rstest::rstest]
 fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         "== Repeated\n\nOne.\n\n== Repeated\n\nTwo.\n",
@@ -138,34 +135,36 @@ fn generated_section_ids_are_retained_collision_checked_and_not_authored_anchors
     Ok(())
 }
 
-#[rstest::rstest]
-#[case("Text.")]
-#[case("== Heading\n\nText.")]
-#[case("====\nBody.\n====")]
-#[case("----\nCode.\n----")]
-#[case("....\nLiteral.\n....")]
-#[case("--\nBody.\n--")]
-#[case("****\nBody.\n****")]
-#[case("++++\nRaw.\n++++")]
-#[case("____\nWords.\n____")]
-#[case("[verse]\n____\nWords.\n____")]
-#[case("[stem]\n++++\nx\n++++")]
-#[case("NOTE: Words.")]
-#[case("* Item")]
-#[case(". Item")]
-#[case("<1> Callout")]
-#[case("Term:: Description")]
-#[case("image::bird.png[Alt]")]
-#[case("audio::sound.ogg[]")]
-#[case("video::movie.mp4[]")]
-#[case("[discrete]\n== Heading")]
-#[case("toc::[]")]
-#[case("<<<\n\nAfter.")]
-#[case("[comment]\n--\nComment\n--")]
-#[case("|===\n|Cell\n|===")]
+const COMMON_BLOCK_BODIES: [&str; 24] = [
+    "Text.",
+    "== Heading\n\nText.",
+    "====\nBody.\n====",
+    "----\nCode.\n----",
+    "....\nLiteral.\n....",
+    "--\nBody.\n--",
+    "****\nBody.\n****",
+    "++++\nRaw.\n++++",
+    "____\nWords.\n____",
+    "[verse]\n____\nWords.\n____",
+    "[stem]\n++++\nx\n++++",
+    "NOTE: Words.",
+    "* Item",
+    ". Item",
+    "<1> Callout",
+    "Term:: Description",
+    "image::bird.png[Alt]",
+    "audio::sound.ogg[]",
+    "video::movie.mp4[]",
+    "[discrete]\n== Heading",
+    "toc::[]",
+    "<<<\n\nAfter.",
+    "[comment]\n--\nComment\n--",
+    "|===\n|Cell\n|===",
+];
+
 fn common_block_reads_cover_all_metadata_owners(
-    #[case] body: &str,
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    body: &str,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = format!(".Caption\n[[alias]]\n[id=primary]\n{body}\n");
     let parsed = parse(
@@ -194,7 +193,6 @@ fn common_block_reads_cover_all_metadata_owners(
     Ok(())
 }
 
-#[test]
 fn restricted_and_absent_owners_do_not_synthesize_metadata() -> Result<(), Error> {
     let parsed = parse(
         ".Rule\n[[first]]\n[[second]]\n'''\n\n// Comment\n\n:attribute: value\n",
@@ -222,9 +220,8 @@ fn restricted_and_absent_owners_do_not_synthesize_metadata() -> Result<(), Error
     Ok(())
 }
 
-#[rstest::rstest]
 fn inline_identity_is_separate_from_reference_targets_and_footnote_keys(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         "Text image:bird.png[Alt,id=image] icon:heart[id=icon] [#span]*bold* anchor:anchor[Label] link:https://example.org[Link,id=link] https://example.org[URL,id=url] mailto:a@example.org[Mail,id=mail] xref:span[Label,id=xref] indexterm2:[Term,id=index] footnote:key[Note.] footnote:key[]",
@@ -281,7 +278,6 @@ fn inline_identity_is_separate_from_reference_targets_and_footnote_keys(
     Ok(())
 }
 
-#[test]
 fn caller_built_empty_and_duplicate_ids_remain_explicit_without_generation() -> Result<(), Error> {
     let mut metadata = BlockMetadata::default();
     metadata.id = Some(Anchor::new("", Location::default()));
@@ -306,9 +302,8 @@ fn caller_built_empty_and_duplicate_ids_remain_explicit_without_generation() -> 
     Ok(())
 }
 
-#[rstest::rstest]
 fn expanded_unicode_ids_keep_include_and_table_source_provenance(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let dir = tempfile::tempdir()?;
     let child = ":target: café\n\n[[{target}]]\n== Included\n\n[cols=\"a\"]\n|===\n|[[table-id]]\nText [#span]*Ω*.\n|===\n";
@@ -387,7 +382,6 @@ fn expanded_unicode_ids_keep_include_and_table_source_provenance(
     Ok(())
 }
 
-#[test]
 fn identity_and_title_reads_do_not_allocate_or_rebuild_catalogs() -> Result<(), Error> {
     let parsed = parse(
         "[[alias]]\n[id=primary]\n== Heading\n\nText [#span]*bold*.\n\n== Generated\n",
@@ -411,7 +405,6 @@ fn identity_and_title_reads_do_not_allocate_or_rebuild_catalogs() -> Result<(), 
     Ok(())
 }
 
-#[test]
 fn explicit_underscore_ids_are_not_mistaken_for_generated_ids() -> Result<(), Error> {
     let parsed = parse("[id=_same]\n== Same\n\n== Same\n", &Options::default())?;
     let mut blocks = parsed.document().blocks();
@@ -434,4 +427,22 @@ fn explicit_underscore_ids_are_not_mistaken_for_generated_ids() -> Result<(), Er
         ("_same_2", IdOrigin::Generated)
     );
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    let mut trials = trials! {
+        tests: [restricted_and_absent_owners_do_not_synthesize_metadata, caller_built_empty_and_duplicate_ids_remain_explicit_without_generation, identity_and_title_reads_do_not_allocate_or_rebuild_catalogs, explicit_underscore_ids_are_not_mistaken_for_generated_ids],
+        modes: [blocks_select_the_same_primary_id_as_reference_resolution, generated_section_ids_are_retained_collision_checked_and_not_authored_anchors, inline_identity_is_separate_from_reference_targets_and_footnote_keys, expanded_unicode_ids_keep_include_and_table_source_provenance],
+    };
+    let module = crate::module_name(module_path!());
+    for (index, body) in COMMON_BLOCK_BODIES.into_iter().enumerate() {
+        let name = format!(
+            "{module}::common_block_reads_cover_all_metadata_owners::case_{:02}",
+            index + 1
+        );
+        trials.extend(crate::mode_trials(&name, move |mode| {
+            common_block_reads_cover_all_metadata_owners(body, mode)
+        }));
+    }
+    trials
 }

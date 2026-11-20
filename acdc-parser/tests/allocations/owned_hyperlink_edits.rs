@@ -1,6 +1,6 @@
 //! Prepared hyperlink edits preserve labels, raw query values and declaration snapshots.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     AttributeValue, Autolink, ContentAttribute, ElementAttributes, ElementId, InlineMacro,
@@ -11,10 +11,9 @@ use acdc_parser::{
     },
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -30,7 +29,6 @@ fn plain(text: &str) -> InlineNode<'_> {
     InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
 }
 
-#[test]
 fn hyperlink_labels_transfer_prepared_buffers_without_parsing_or_registration() {
     let source = String::from("original");
     let replacement = String::from("footnote:new[{unexpanded} *literal*]");
@@ -60,7 +58,6 @@ fn hyperlink_labels_transfer_prepared_buffers_without_parsing_or_registration() 
     all_links!(check);
 }
 
-#[test]
 fn hyperlink_tooltips_keep_absence_empty_presence_and_original_source_lifetimes()
 -> Result<(), Error> {
     let source = String::from("Tooltip");
@@ -89,7 +86,6 @@ fn hyperlink_tooltips_keep_absence_empty_presence_and_original_source_lifetimes(
     Ok(())
 }
 
-#[test]
 fn hyperlink_scalar_replacement_rejects_reserved_aliases_atomically() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident) => {
@@ -149,7 +145,6 @@ fn hyperlink_scalar_replacement_rejects_reserved_aliases_atomically() -> Result<
     Ok(())
 }
 
-#[test]
 fn hyperlink_metadata_options_and_scalar_transfers_outlive_the_previous_owner() -> Result<(), Error>
 {
     let source = String::from("original");
@@ -201,7 +196,6 @@ fn hyperlink_metadata_options_and_scalar_transfers_outlive_the_previous_owner() 
     Ok(())
 }
 
-#[test]
 fn hyperlink_target_and_location_edits_preserve_other_prepared_values() -> Result<(), Error> {
     let source = String::from("HTTPS://example.invalid/path?key=Value#part");
     let target = Source::Url(acdc_parser::SourceUrl::new(&source)?);
@@ -245,7 +239,6 @@ fn hyperlink_target_and_location_edits_preserve_other_prepared_values() -> Resul
     Ok(())
 }
 
-#[test]
 fn mail_query_edits_keep_absence_empty_and_unencoded_values() -> Result<(), Error> {
     let source = String::from("a&b=%20+λ\nnext");
     for initial in [None, Some(""), Some(source.as_str())] {
@@ -267,7 +260,6 @@ fn mail_query_edits_keep_absence_empty_and_unencoded_values() -> Result<(), Erro
     Ok(())
 }
 
-#[test]
 fn prepared_autolink_edits_keep_source_flags_and_location() {
     let source = String::from("target");
     let location = Location::point(Position::new(4, 7));
@@ -296,12 +288,7 @@ fn prepared_autolink_edits_keep_source_flags_and_location() {
     assert_eq!(taken, Source::Name(source.as_str()));
 }
 
-#[rstest::rstest]
 fn selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots(
-    #[values(
-        acdc_parser::CompatibilityMode::Asciidoctor,
-        acdc_parser::CompatibilityMode::Draft
-    )]
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
     let source = ":hide-uri-scheme:\n\nlink:https://example.org[Link,title=Tip,id=link,role=one,opts=first,extension=value] https://example.org/path[URL,title=Tip,id=url] mailto:reader@example.org[Email,Subject,Body,title=Tip] https://example.org/plain\n\n:!hide-uri-scheme:\n\nlink:https://example.org[Link] https://example.org/path[URL] https://example.org/plain\n";
@@ -392,7 +379,6 @@ fn selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots(
     Ok(())
 }
 
-#[test]
 fn selected_empty_named_hyperlink_copies_allocate_nothing() {
     let link = Link::new(Source::Name("link"), Location::default());
     let url = UrlMacro::new(Source::Name("url"), Location::default());
@@ -411,4 +397,11 @@ fn selected_empty_named_hyperlink_copies_allocate_nothing() {
     assert_eq!(copies.1, url);
     assert_eq!(copies.2, mail);
     assert_eq!(copies.3, auto);
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [hyperlink_labels_transfer_prepared_buffers_without_parsing_or_registration, hyperlink_tooltips_keep_absence_empty_presence_and_original_source_lifetimes, hyperlink_scalar_replacement_rejects_reserved_aliases_atomically, hyperlink_metadata_options_and_scalar_transfers_outlive_the_previous_owner, hyperlink_target_and_location_edits_preserve_other_prepared_values, mail_query_edits_keep_absence_empty_and_unencoded_values, prepared_autolink_edits_keep_source_flags_and_location, selected_empty_named_hyperlink_copies_allocate_nothing],
+        modes: [selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots],
+    }
 }

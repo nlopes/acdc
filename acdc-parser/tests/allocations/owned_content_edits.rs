@@ -1,24 +1,22 @@
 //! Content copies and consuming transfers preserve inline values and title presence.
 
-use std::{alloc::System, fmt::Write, hint::black_box};
+use std::{fmt::Write, hint::black_box};
 
 use acdc_parser::{
     CompatibilityMode, ContentAttribute, InlineNode, Location, Options, Plain, Title,
     ast::{BlockKind, ContentRef, InlineKind},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
 const SOURCE: &str = "= Doc\n\n.Title *bold*\n[#target,reftext='Ref _label_']\nimage:bird.svg[Alt *bold*,title='Tip _text_',id=pic] link:https://example.org[label] <<target>> footnote:[Note] ((term)).\n";
 
-#[rstest::rstest]
 fn selected_copies_preserve_inline_content_identity_and_locations(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -55,7 +53,6 @@ fn selected_copies_preserve_inline_content_identity_and_locations(
     Ok(())
 }
 
-#[test]
 fn empty_content_copies_remain_present_titles() {
     let empty = ContentAttribute::default();
     let content = ContentRef::from(&empty);
@@ -70,7 +67,6 @@ fn empty_content_copies_remain_present_titles() {
     assert!(Title::default().content().is_none());
 }
 
-#[test]
 fn optional_title_copies_keep_absence_separate_from_empty() {
     for title in [Title::default(), Title::new(Vec::new())] {
         let copied = title.content().map(Title::from).unwrap_or_default();
@@ -83,7 +79,6 @@ fn text(source: &str) -> InlineNode<'_> {
     InlineNode::PlainText(Plain::new(source, Location::default()).with_escaped(true))
 }
 
-#[test]
 fn consuming_transfers_outlive_the_previous_content_owner() -> Result<(), Error> {
     let source = String::from("λ *literal*");
     let (content, title) = {
@@ -104,7 +99,6 @@ fn consuming_transfers_outlive_the_previous_content_owner() -> Result<(), Error>
     Ok(())
 }
 
-#[test]
 fn consuming_transfers_move_the_existing_node_allocation() {
     let nodes = vec![text("content")];
     let original = nodes.as_ptr();
@@ -120,7 +114,6 @@ fn consuming_transfers_move_the_existing_node_allocation() {
     assert_eq!(stats.deallocations, 0);
 }
 
-#[test]
 fn typed_content_reads_do_not_allocate() {
     let content = ContentAttribute::new(vec![text("content")]);
     let title = Title::new(vec![text("title")]);
@@ -147,7 +140,6 @@ fn cost<T>(copy: impl FnOnce() -> T) -> (usize, usize) {
     (stats.allocations, stats.bytes_allocated)
 }
 
-#[test]
 fn selected_content_copy_cost_ignores_unrelated_blocks() -> Result<(), Error> {
     let mut contents = Vec::new();
     let mut titles = Vec::new();
@@ -171,10 +163,16 @@ fn selected_content_copy_cost_ignores_unrelated_blocks() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn copying_empty_content_and_titles_does_not_allocate() {
     let content = ContentAttribute::default();
     let view = ContentRef::from(&content);
     assert_eq!(cost(|| ContentAttribute::from(view)), (0, 0));
     assert_eq!(cost(|| Title::from(view)), (0, 0));
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [empty_content_copies_remain_present_titles, optional_title_copies_keep_absence_separate_from_empty, consuming_transfers_outlive_the_previous_content_owner, consuming_transfers_move_the_existing_node_allocation, typed_content_reads_do_not_allocate, selected_content_copy_cost_ignores_unrelated_blocks, copying_empty_content_and_titles_does_not_allocate],
+        modes: [selected_copies_preserve_inline_content_identity_and_locations],
+    }
 }

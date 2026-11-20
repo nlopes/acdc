@@ -1,23 +1,26 @@
-use std::{alloc::System, hint::black_box, process::Command};
+use std::{hint::black_box, process::Command};
 
 use acdc_parser::{Options, parse};
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
-#[test]
 fn stem_preprocessing_allocation_budgets() -> Result<(), Box<dyn std::error::Error>> {
     // Pin time in a child process so timestamp-cache refreshes cannot enter
     // the measured region, without changing this process's environment.
     if std::env::var("SOURCE_DATE_EPOCH").as_deref() != Ok("0") {
-        let status = Command::new(std::env::current_exe()?)
-            .arg("--exact")
-            .arg("stem_preprocessing_allocation_budgets")
-            .arg("--nocapture")
+        let name = format!(
+            "{}::stem_preprocessing_allocation_budgets",
+            crate::module_name(module_path!())
+        );
+        let output = Command::new(std::env::current_exe()?)
+            .args(["--exact", &name, "--nocapture"])
             .env("SOURCE_DATE_EPOCH", "0")
-            .status()?;
-        assert!(status.success());
+            .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success(), "{stdout}");
+        // A filter that matches nothing also exits successfully.
+        assert!(stdout.contains("1 passed"), "child ran no test:\n{stdout}");
         return Ok(());
     }
 
@@ -36,7 +39,7 @@ fn stem_preprocessing_allocation_budgets() -> Result<(), Box<dyn std::error::Err
         ),
     ] {
         let _ = black_box(parse(source, &options)?);
-        let region = Region::new(GLOBAL);
+        let region = Region::new(ALLOCATOR);
         let parsed = parse(source, &options)?;
         let stats = region.change();
         assert!(stats.allocations <= allocations, "{name}: {stats:?}");
@@ -45,4 +48,10 @@ fn stem_preprocessing_allocation_budgets() -> Result<(), Box<dyn std::error::Err
         let _ = black_box(parsed);
     }
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [stem_preprocessing_allocation_budgets],
+    }
 }

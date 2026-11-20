@@ -1,11 +1,10 @@
 //! Selected item copies and transfers preserve prepared content and source state.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -41,10 +40,7 @@ macro_rules! item_contract {
                 }
                 Err("list".into())
             }
-
-            #[rstest::rstest]
             fn selected_copies_and_content_round_trips_keep_all_prepared_values(
-                #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)]
                 mode: CompatibilityMode,
             ) -> Result<(), Error> {
                 let parsed = parse(
@@ -68,10 +64,7 @@ macro_rules! item_contract {
                 );
                 Ok(())
             }
-
-            #[rstest::rstest]
             fn principal_and_attached_blocks_outlive_the_old_owner(
-                #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)]
                 mode: CompatibilityMode,
             ) -> Result<(), Error> {
                 let parsed = parse(
@@ -109,6 +102,15 @@ macro_rules! item_contract {
                 assert_eq!($read::from(&rebuilt).blocks().count(), 2);
                 assert_eq!(serde_json::to_value(parsed.document())?, original_document);
                 Ok(())
+            }
+
+            pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+                trials! {
+                    modes: [
+                        selected_copies_and_content_round_trips_keep_all_prepared_values,
+                        principal_and_attached_blocks_outlive_the_old_owner,
+                    ],
+                }
             }
         }
     };
@@ -152,10 +154,8 @@ mod description {
             .definition()
             .ok_or("definition")?)
     }
-
-    #[rstest::rstest]
     fn selected_copies_and_content_round_trips_keep_all_prepared_values(
-        #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+        mode: CompatibilityMode,
     ) -> Result<(), Error> {
         let parsed = parse(
             "*Term*:: Principal footnote:[Note].\n+\nAttached paragraph.\n",
@@ -192,10 +192,8 @@ mod description {
         );
         Ok(())
     }
-
-    #[rstest::rstest]
     fn principal_and_attached_blocks_outlive_the_old_owner(
-        #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+        mode: CompatibilityMode,
     ) -> Result<(), Error> {
         let parsed = parse(
             "*Term*:: Principal footnote:[Note].\n+\nAttached paragraph.\n",
@@ -230,6 +228,15 @@ mod description {
         assert_eq!(serde_json::to_value(parsed.document())?, before);
         Ok(())
     }
+
+    pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+        trials! {
+            modes: [
+                selected_copies_and_content_round_trips_keep_all_prepared_values,
+                principal_and_attached_blocks_outlive_the_old_owner,
+            ],
+        }
+    }
 }
 
 item_contract!(
@@ -245,7 +252,6 @@ item_contract!(
     )
 );
 
-#[test]
 fn ordinary_item_scalars_and_checklist_presence_are_independent() {
     use acdc_parser::{ListItem, ListItemCheckedStatus, Location, ast::ListItemRef};
     let marker = String::from("**");
@@ -271,7 +277,6 @@ fn ordinary_item_scalars_and_checklist_presence_are_independent() {
     assert_eq!(previous, "**");
 }
 
-#[test]
 fn callout_replacement_keeps_the_supplied_kind_number_and_span() {
     use acdc_parser::{
         CalloutListItem, CalloutMarker, CalloutMarkerKind, Location, ast::CalloutListItemRef,
@@ -293,12 +298,7 @@ fn callout_replacement_keeps_the_supplied_kind_number_and_span() {
     assert_eq!(Location::from(read.location()), Location::default());
 }
 
-#[rstest::rstest]
 fn description_terms_anchors_and_delimiter_spans_transfer_independently(
-    #[values(
-        acdc_parser::CompatibilityMode::Asciidoctor,
-        acdc_parser::CompatibilityMode::Draft
-    )]
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
@@ -369,7 +369,6 @@ fn description_terms_anchors_and_delimiter_spans_transfer_independently(
     Ok(())
 }
 
-#[test]
 fn description_anchor_transfers_outlive_the_previous_item() -> Result<(), Error> {
     use acdc_parser::{Anchor, DescriptionListTerm, Location, ast::DescriptionListTermRef};
 
@@ -389,7 +388,6 @@ fn description_anchor_transfers_outlive_the_previous_item() -> Result<(), Error>
     Ok(())
 }
 
-#[test]
 fn selected_item_copy_cost_does_not_grow_with_sibling_count() -> Result<(), Error> {
     use acdc_parser::{
         CalloutListItem, DescriptionListItem, ListItem, Options, ast::BlockKind, parse,
@@ -431,4 +429,17 @@ fn selected_item_copy_cost_does_not_grow_with_sibling_count() -> Result<(), Erro
         assert_eq!(costs.first(), costs.last(), "{source}");
     }
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [ordinary_item_scalars_and_checklist_presence_are_independent, callout_replacement_keeps_the_supplied_kind_number_and_span, description_anchor_transfers_outlive_the_previous_item, selected_item_copy_cost_does_not_grow_with_sibling_count],
+        modes: [description_terms_anchors_and_delimiter_spans_transfer_independently],
+    }
+    .into_iter()
+    .chain(ordinary::trials())
+    .chain(ordered::trials())
+    .chain(description::trials())
+    .chain(callout::trials())
+    .collect()
 }

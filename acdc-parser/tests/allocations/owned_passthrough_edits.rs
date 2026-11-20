@@ -1,16 +1,15 @@
 //! Passthrough transfers keep prepared text, substitution order and optional values.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     ElementId, InlineMacro, InlineMetadata, InlineNode, Location, Passthrough, PassthroughKind,
     Raw, Substitution,
     ast::{ElementIdRef, InlinePassthroughRef, RawRef},
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -22,7 +21,6 @@ fn profile() -> Vec<Substitution> {
     ]
 }
 
-#[test]
 fn raw_copies_keep_identity_roles_text_and_ordered_substitutions() {
     let mut raw = Raw::new("λ *literal*", profile(), Location::default());
     let mut metadata = InlineMetadata::default();
@@ -39,7 +37,6 @@ fn raw_copies_keep_identity_roles_text_and_ordered_substitutions() {
     assert_eq!(copy.clone_metadata(), raw.clone_metadata());
 }
 
-#[test]
 fn raw_metadata_keeps_absence_distinct_from_present_empty() -> Result<(), Error> {
     let mut raw = Raw::new("", Vec::new(), Location::default());
     assert_eq!(raw.clone_metadata(), None);
@@ -55,7 +52,6 @@ fn raw_metadata_keeps_absence_distinct_from_present_empty() -> Result<(), Error>
     Ok(())
 }
 
-#[test]
 fn raw_metadata_transfers_keep_original_source_lifetimes() {
     let source = String::from("id");
     let metadata = {
@@ -78,7 +74,6 @@ fn raw_metadata_transfers_keep_original_source_lifetimes() {
     );
 }
 
-#[test]
 fn raw_text_transfers_leave_interpretation_and_identity_unchanged() {
     let source = String::from("*original*");
     let replacement = String::from("footnote:[unregistered] {unexpanded}");
@@ -97,7 +92,6 @@ fn raw_text_transfers_leave_interpretation_and_identity_unchanged() {
     assert!(std::ptr::eq(old, source.as_str()));
 }
 
-#[test]
 fn raw_substitution_transfers_keep_vector_storage_order_and_duplicates() {
     let initial = profile();
     let original_pointer = initial.as_ptr();
@@ -117,7 +111,6 @@ fn raw_substitution_transfers_keep_vector_storage_order_and_duplicates() {
     assert_eq!(RawRef::from(&raw).text(), "<x>");
 }
 
-#[test]
 fn raw_location_edits_preserve_all_prepared_values() {
     let mut raw = Raw::new("text", profile(), Location::default());
     let span = Location::point(acdc_parser::Position::new(3, 4));
@@ -130,7 +123,6 @@ fn raw_location_edits_preserve_all_prepared_values() {
     );
 }
 
-#[test]
 fn pass_copies_keep_optional_text_kind_and_substitutions() {
     for text in [None, Some(""), Some("λ *literal*")] {
         for kind in [
@@ -155,7 +147,6 @@ fn pass_copies_keep_optional_text_kind_and_substitutions() {
     }
 }
 
-#[test]
 fn pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct() {
     let source = String::from("*original*");
     let replacement = String::from("image:literal[]");
@@ -186,7 +177,6 @@ fn pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct() {
     assert_eq!(old, Some(source.as_str()));
 }
 
-#[test]
 fn pass_substitution_transfers_keep_vector_storage_order_and_duplicates() {
     let initial = profile();
     let original_pointer = initial.as_ptr();
@@ -211,7 +201,6 @@ fn pass_substitution_transfers_keep_vector_storage_order_and_duplicates() {
     assert_eq!(InlinePassthroughRef::from(&pass).text(), Some("<x>"));
 }
 
-#[test]
 fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
     let mut pass = Passthrough::new(
         Some("*{literal}*"),
@@ -242,7 +231,6 @@ fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
     );
 }
 
-#[test]
 fn undecorated_passthrough_copies_do_not_allocate() {
     let raw = Raw::new("raw", Vec::new(), Location::default());
     let pass = Passthrough::new(
@@ -261,7 +249,6 @@ fn undecorated_passthrough_copies_do_not_allocate() {
     assert_eq!(pass_copy, pass);
 }
 
-#[test]
 fn selected_passthrough_copies_keep_native_json() -> Result<(), Error> {
     let mut raw = Raw::new("λ <b>", profile(), Location::default());
     raw.set_metadata(Some(InlineMetadata::default()));
@@ -277,4 +264,10 @@ fn selected_passthrough_copies_keep_native_json() -> Result<(), Error> {
         serde_json::to_value(InlineNode::Macro(InlineMacro::Passthrough(pass)))?
     );
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [raw_copies_keep_identity_roles_text_and_ordered_substitutions, raw_metadata_keeps_absence_distinct_from_present_empty, raw_metadata_transfers_keep_original_source_lifetimes, raw_text_transfers_leave_interpretation_and_identity_unchanged, raw_substitution_transfers_keep_vector_storage_order_and_duplicates, raw_location_edits_preserve_all_prepared_values, pass_copies_keep_optional_text_kind_and_substitutions, pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct, pass_substitution_transfers_keep_vector_storage_order_and_duplicates, pass_form_and_location_edits_do_not_process_or_reconstruct_text, undecorated_passthrough_copies_do_not_allocate, selected_passthrough_copies_keep_native_json],
+    }
 }

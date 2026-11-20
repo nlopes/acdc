@@ -4,6 +4,7 @@ mod native_json_projection;
 mod native_json_values;
 mod read_ast;
 mod read_ast_admonition_body;
+mod read_ast_attribute_value_text;
 mod read_ast_attributes;
 mod read_ast_block_attributes;
 mod read_ast_blocks;

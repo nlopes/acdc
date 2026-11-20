@@ -1,57 +1,17 @@
 //! Inline selection copies only the selected value; typed content exports native JSON.
 
-use std::{alloc::System, hint::black_box, process::ExitCode};
+use std::hint::black_box;
 
 use acdc_parser::{
     self as parser, ContentAttribute, FormattingForm, InlineMacro, InlineNode, Location, Options,
     Plain,
     ast::{ContentRef, InlineKind, InlineRef},
 };
-use libtest_mimic::{Arguments, Trial};
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
-
-fn main() -> ExitCode {
-    let mut args = Arguments::from_args();
-    // Run on the main thread so harness allocations cannot race measured regions.
-    args.test_threads = Some(1);
-    let mut tests = vec![
-        Trial::test(
-            "generic_selected_copy_preserves_every_concrete_kind",
-            || generic_selected_copy_preserves_every_concrete_kind().map_err(Into::into),
-        ),
-        Trial::test("selecting_an_atom_does_not_copy_unrelated_siblings", || {
-            selecting_an_atom_does_not_copy_unrelated_siblings().map_err(Into::into)
-        }),
-        Trial::test(
-            "native_content_serialization_does_not_clone_the_tree",
-            || native_content_serialization_does_not_clone_the_tree().map_err(Into::into),
-        ),
-    ];
-    for (suffix, mode) in [
-        (
-            "mode_1_parser__CompatibilityMode__Asciidoctor",
-            parser::CompatibilityMode::Asciidoctor,
-        ),
-        (
-            "mode_2_parser__CompatibilityMode__Draft",
-            parser::CompatibilityMode::Draft,
-        ),
-    ] {
-        tests.push(Trial::test(
-            format!("inline_parse_content_keeps_native_shape_and_selected_lifetimes::{suffix}"),
-            move || {
-                inline_parse_content_keeps_native_shape_and_selected_lifetimes(mode)
-                    .map_err(Into::into)
-            },
-        ));
-    }
-    libtest_mimic::run(&args, tests).exit_code()
-}
 
 fn plain(text: &str) -> InlineNode<'_> {
     InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
@@ -258,4 +218,15 @@ fn inline_parse_content_keeps_native_shape_and_selected_lifetimes(
         );
     }
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [
+            generic_selected_copy_preserves_every_concrete_kind,
+            selecting_an_atom_does_not_copy_unrelated_siblings,
+            native_content_serialization_does_not_clone_the_tree,
+        ],
+        modes: [inline_parse_content_keeps_native_shape_and_selected_lifetimes],
+    }
 }

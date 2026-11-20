@@ -1,6 +1,6 @@
 //! Detached catalog edits retain presence, derived snapshots and source lifetimes.
 
-use std::{alloc::System, fmt::Write, hint::black_box};
+use std::{fmt::Write, hint::black_box};
 
 use acdc_parser::{
     Block, Caption, Comment, CommentKind, CompatibilityMode, ContentAttribute, Location, Options,
@@ -8,18 +8,16 @@ use acdc_parser::{
     ast::{BlockKind, BlockRef, ReferenceTargetRef, TocEntryRef},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
 const SOURCE: &str = "= Book\n:sectnums:\n\n[[first,First label]]\n== *First*\n\nBody.\n\n[#picture,reftext='Picture *label*']\n.Caption\nimage::bird.svg[Bird]\n\n[bibliography]\n== Sources\n\n* [[[book]]] A book.\n\nSee <<book>>.\n";
 
-#[rstest::rstest]
 fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -83,7 +81,6 @@ fn selected_copies_and_part_round_trips_preserve_all_catalog_snapshots(
     Ok(())
 }
 
-#[test]
 fn reference_presence_keeps_empty_titles_labels_and_captions() {
     let mut reference = ReferenceTarget::new("target", Location::default());
     for (title, present) in [
@@ -127,9 +124,8 @@ fn reference_presence_keeps_empty_titles_labels_and_captions() {
     }
 }
 
-#[rstest::rstest]
 fn reference_content_transfers_outlive_the_previous_record(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -157,7 +153,6 @@ fn reference_content_transfers_outlive_the_previous_record(
     Ok(())
 }
 
-#[test]
 fn constructed_toc_entry_preserves_empty_content_and_source_lifetime() -> Result<(), Error> {
     let id = String::from("original");
     let previous = {
@@ -181,9 +176,8 @@ fn constructed_toc_entry_preserves_empty_content_and_source_lifetime() -> Result
     Ok(())
 }
 
-#[rstest::rstest]
 fn toc_content_transfers_and_scalar_edits_do_not_rename_or_renumber_the_document(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         SOURCE,
@@ -224,7 +218,6 @@ fn cost<T>(copy: impl FnOnce() -> T) -> (usize, usize) {
     (stats.allocations, stats.bytes_allocated)
 }
 
-#[test]
 fn selected_catalog_copy_cost_does_not_grow_with_unrelated_headings() -> Result<(), Error> {
     let mut references = Vec::new();
     let mut entries = Vec::new();
@@ -249,7 +242,6 @@ fn selected_catalog_copy_cost_does_not_grow_with_unrelated_headings() -> Result<
     Ok(())
 }
 
-#[test]
 fn common_metadata_copy_cost_does_not_grow_with_block_content() -> Result<(), Error> {
     let mut costs = Vec::new();
     for words in [1, 1000] {
@@ -274,4 +266,11 @@ fn common_metadata_copy_cost_does_not_grow_with_block_content() -> Result<(), Er
     ));
     assert!(comment.clone_metadata().is_none());
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [reference_presence_keeps_empty_titles_labels_and_captions, constructed_toc_entry_preserves_empty_content_and_source_lifetime, selected_catalog_copy_cost_does_not_grow_with_unrelated_headings, common_metadata_copy_cost_does_not_grow_with_block_content],
+        modes: [selected_copies_and_part_round_trips_preserve_all_catalog_snapshots, reference_content_transfers_outlive_the_previous_record, toc_content_transfers_and_scalar_edits_do_not_rename_or_renumber_the_document],
+    }
 }

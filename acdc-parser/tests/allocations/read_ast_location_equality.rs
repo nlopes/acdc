@@ -1,15 +1,13 @@
-use std::{alloc::System, hint::black_box, sync::Arc};
+use std::{hint::black_box, sync::Arc};
 
 use acdc_parser::{
     Location, Position,
     ast::{LocationRef, PositionRef},
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
-#[test]
 fn source_span_equality_retains_offsets_endpoints_and_include_chains_without_copying() {
     let make_span = || {
         let mut span = Location::point(Position::new(3, 5));
@@ -58,7 +56,6 @@ fn source_span_equality_retains_offsets_endpoints_and_include_chains_without_cop
     assert_eq!(stats.deallocations, 0);
 }
 
-#[test]
 fn source_position_equality_keeps_coordinates_and_include_chains_without_copying() {
     let make_position = || {
         let mut position = Position::new(3, 5);
@@ -100,4 +97,10 @@ fn source_position_equality_keeps_coordinates_and_include_chains_without_copying
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);
     assert_eq!(stats.deallocations, 0);
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [source_span_equality_retains_offsets_endpoints_and_include_chains_without_copying, source_position_equality_keeps_coordinates_and_include_chains_without_copying],
+    }
 }

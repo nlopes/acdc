@@ -1,16 +1,14 @@
-use std::{alloc::System, error::Error, hint::black_box};
+use std::{error::Error, hint::black_box};
 
 use acdc_parser::{
     Block, Bold, Document, FormattingForm, InlineNode, Location, Options, Paragraph,
     ast::{BlockKind, BlockRef, DocumentRef, StructuralRef},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
+use stats_alloc::{Region, Stats};
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
-#[test]
 fn direct_field_reads_do_not_allocate() -> Result<(), Box<dyn Error>> {
     let parsed = parse(
         ":experimental:\n\n.Title\n[attribution='Credit',citetitle='Cite',caption='Prefix',reftext='Reference']\nimage:bird[Alt,title=Tip] kbd:[Ctrl+A] menu:File[Open > Recent] indexterm:[One,Two,Three,see-also=\"Four,Five\"]\n\n[[anchor,Label]]\nParagraph.\n",
@@ -68,7 +66,6 @@ fn measure(doc: &Document<'_>) -> (usize, Stats) {
     (count, region.change())
 }
 
-#[test]
 fn traversal_storage_does_not_grow_with_sibling_count() {
     let narrow = flat_document(1);
     let wide = flat_document(4096);
@@ -81,7 +78,6 @@ fn traversal_storage_does_not_grow_with_sibling_count() {
     assert_eq!(narrow_stats.bytes_allocated, wide_stats.bytes_allocated);
 }
 
-#[test]
 fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> {
     let result = std::thread::Builder::new()
         .stack_size(128 * 1024)
@@ -120,4 +116,10 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
         .join();
     assert!(result.is_ok());
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [direct_field_reads_do_not_allocate, traversal_storage_does_not_grow_with_sibling_count, deep_inline_walk_and_skipping_do_not_recurse],
+    }
 }

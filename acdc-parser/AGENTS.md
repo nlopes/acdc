@@ -71,9 +71,16 @@ suite registered automatically through its `main.rs`. Select a suite with
 or `--test asg`. Original filenames remain module names, so a stable nextest
 filter such as `-E 'test(/^typography_arrows::/)'` selects a regression family.
 
-Keep allocation-sensitive tests, tracing tests, and custom harnesses as separate
-top-level test targets. Put other new tests in the appropriate suite and register
-their module in that suite's `main.rs`. Do not disable Cargo test discovery.
+Put allocation-sensitive tests in `tests/allocations/` (`--test allocations`).
+`stats_alloc` counts process-wide, so that suite uses a custom harness that runs
+one test at a time on the main thread under both `cargo test` and nextest. Its
+test functions have no `#[test]`: register each one in the module's `trials()`.
+`deny(dead_code)` rejects an unregistered test. Never install a
+`#[global_allocator]` in another test target.
+
+Keep tracing tests and other custom harnesses as separate top-level test targets.
+Put other new tests in the appropriate suite and register their module in that
+suite's `main.rs`. Do not disable Cargo test discovery.
 
 ## Fixtures
 

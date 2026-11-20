@@ -1,12 +1,13 @@
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     Bold, ContentAttribute, FormattingForm, Icon, InlineImage, InlineNode, Location, Plain, Source,
     ast::{AttributeValueRef, BoldRef, IconRef, InlineImageRef},
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[test]
+use super::ALLOCATOR;
+
 fn block_content_and_substitution_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>>
 {
     let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
@@ -47,10 +48,6 @@ fn block_content_and_substitution_reads_do_not_allocate() -> Result<(), Box<dyn 
     Ok(())
 }
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
-
-#[test]
 fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut image = InlineImage::new(Source::Name("bird"), Location::default());
@@ -90,7 +87,6 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
     Ok(())
 }
 
-#[test]
 fn span_attribute_reads_split_role_text_without_allocating() {
     let bold = {
         let mut prepared_span = Bold::new(
@@ -133,7 +129,6 @@ fn span_attribute_reads_split_role_text_without_allocating() {
     assert_eq!(stats.deallocations, 0);
 }
 
-#[test]
 fn icon_reads_borrow_content_and_controls_without_allocating()
 -> Result<(), Box<dyn std::error::Error>> {
     let mut icon = Icon::new(Source::Name("star"), Location::default());
@@ -167,7 +162,6 @@ fn icon_reads_borrow_content_and_controls_without_allocating()
     Ok(())
 }
 
-#[test]
 fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut link = acdc_parser::Link::new(Source::Name("guide.adoc"), Location::default());
     link.set_attribute(
@@ -209,7 +203,6 @@ fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[test]
 fn cross_reference_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
     let mut owner = acdc_parser::CrossReference::new("target", Location::default());
     owner.set_xrefstyle(acdc_parser::XrefStyle::Short);
@@ -240,4 +233,10 @@ fn cross_reference_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Err
     assert_eq!(stats.reallocations, 0);
     assert_eq!(stats.deallocations, 0);
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [block_content_and_substitution_reads_do_not_allocate, direct_attribute_reads_do_not_allocate_for_owned_text_or_content, span_attribute_reads_split_role_text_without_allocating, icon_reads_borrow_content_and_controls_without_allocating, hyperlink_reads_do_not_allocate, cross_reference_reads_do_not_allocate],
+    }
 }

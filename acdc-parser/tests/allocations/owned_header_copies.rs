@@ -1,24 +1,22 @@
 //! Selected header copies do not materialize unrelated document content.
 
-use std::{alloc::System, hint::black_box, ptr};
+use std::{hint::black_box, ptr};
 
 use acdc_parser::{
     Author, CompatibilityMode, Document, Header, Options, Title,
     ast::{AuthorRef, HeaderRef},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
 const HEADER: &str = "[#heading.hero%featured,extension=kept]\n= *Heading*: Subtitle\nÉlodie Marie Durand <elodie@example.org>\n\n";
 
-#[rstest::rstest]
 fn selected_copies_keep_values_and_edits_leave_the_parse_unchanged(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = format!("{HEADER}Body.\n");
     let parsed = parse(
@@ -50,9 +48,8 @@ fn selected_copies_keep_values_and_edits_leave_the_parse_unchanged(
     Ok(())
 }
 
-#[rstest::rstest]
 fn author_copies_allocate_nothing_and_retain_source_text(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = format!("{HEADER}Body.\n");
     let parsed = parse(
@@ -112,9 +109,8 @@ fn copy_cost(body: &str, mode: CompatibilityMode) -> Result<(usize, usize, usize
     ))
 }
 
-#[rstest::rstest]
 fn header_copy_cost_does_not_grow_with_the_document_body(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let small = copy_cost("Body.\n", mode)?;
     let large = copy_cost(&"Unrelated paragraph.\n\n".repeat(1000), mode)?;
@@ -123,9 +119,8 @@ fn header_copy_cost_does_not_grow_with_the_document_body(
     Ok(())
 }
 
-#[rstest::rstest]
 fn copies_preserve_legacy_title_and_subtitle_presence(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let source = format!("{HEADER}Body.\n");
     let parsed = parse(
@@ -147,4 +142,10 @@ fn copies_preserve_legacy_title_and_subtitle_presence(
         }
     }
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        modes: [selected_copies_keep_values_and_edits_leave_the_parse_unchanged, author_copies_allocate_nothing_and_retain_source_text, header_copy_cost_does_not_grow_with_the_document_body, copies_preserve_legacy_title_and_subtitle_presence],
+    }
 }

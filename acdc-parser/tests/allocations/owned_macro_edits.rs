@@ -1,16 +1,13 @@
 //! Prepared UI and reference edits preserve content and registration snapshots.
 
-use std::alloc::System;
-
 use acdc_parser::{
     Button, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, KeyboardShortcut,
     Location, MenuPath, Options, Plain,
     ast::{ButtonRef, ContentRef, InlineKind, KeyboardShortcutRef, MenuPathRef},
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -34,7 +31,6 @@ fn text(content: ContentRef<'_>) -> Result<String, Error> {
         .collect()
 }
 
-#[test]
 fn button_transfers_prepared_label_without_parsing() -> Result<(), Error> {
     let authored = String::from("*Save* {entry} footnote:[literal]");
     let mut inlines = Vec::with_capacity(2);
@@ -61,7 +57,6 @@ fn button_transfers_prepared_label_without_parsing() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn menu_target_and_item_transfers_preserve_empty_positions() -> Result<(), Error> {
     let mut items = Vec::with_capacity(4);
     items.extend([label("Open"), ContentAttribute::default(), label("Close")]);
@@ -95,7 +90,6 @@ fn menu_target_and_item_transfers_preserve_empty_positions() -> Result<(), Error
     Ok(())
 }
 
-#[test]
 fn keyboard_transfers_prepared_keys_without_splitting() -> Result<(), Error> {
     let mut keys = Vec::with_capacity(4);
     keys.extend([label("Ctrl+Alt"), ContentAttribute::default(), label("É")]);
@@ -116,7 +110,6 @@ fn keyboard_transfers_prepared_keys_without_splitting() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn selected_ui_copies_keep_originals_and_source_lifetimes() -> Result<(), Error> {
     let input = String::from("Shared *literal*");
     {
@@ -181,7 +174,6 @@ fn selected_ui_copies_keep_originals_and_source_lifetimes() -> Result<(), Error>
     Ok(())
 }
 
-#[test]
 fn ui_span_edits_leave_child_locations_independent() -> Result<(), Error> {
     let source = "label";
     let child_location = Location::default();
@@ -244,9 +236,8 @@ fn ui_span_edits_leave_child_locations_independent() -> Result<(), Error> {
     Ok(())
 }
 
-#[rstest::rstest]
 fn parsed_ui_copies_preserve_native_output_and_nested_content(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let options = Options::builder()
         .with_compatibility_mode(mode)
@@ -283,7 +274,6 @@ fn parsed_ui_copies_preserve_native_output_and_nested_content(
     Ok(())
 }
 
-#[test]
 fn copying_empty_macro_owners_allocates_nothing() {
     let button = Button::new(ContentAttribute::default(), Location::default());
     let menu = MenuPath::new(ContentAttribute::default(), Vec::new(), Location::default());
@@ -310,7 +300,6 @@ fn copying_empty_macro_owners_allocates_nothing() {
     assert_eq!(copies.4, index);
 }
 
-#[test]
 fn remaining_control_replacement_is_checked_and_atomic() -> Result<(), Error> {
     use acdc_parser::{
         AttributeValue, CrossReference, ElementAttributes, IndexTerm, IndexTermKind, InlineMetadata,
@@ -397,7 +386,6 @@ fn remaining_control_replacement_is_checked_and_atomic() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots() -> Result<(), Error> {
     use acdc_parser::{CrossReference, XrefCaptionLabel, XrefStyle, ast::CrossReferenceRef};
     let authored = String::from("*label* {entry} footnote:[literal]");
@@ -449,7 +437,6 @@ fn xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots() -> Resul
     Ok(())
 }
 
-#[test]
 fn index_transfers_keep_empty_hierarchy_relationship_and_source_values() -> Result<(), Error> {
     use acdc_parser::{IndexTerm, IndexTermKind, IndexTermRelationship, ast::IndexTermRef};
     let authored = String::from("*Term* {entry}");
@@ -516,16 +503,15 @@ fn index_transfers_keep_empty_hierarchy_relationship_and_source_values() -> Resu
     Ok(())
 }
 
-#[rstest::rstest]
 fn selected_index_copies_keep_registered_labels_after_display_edits(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
         IndexTerm, IndexTermKind,
         ast::{BlockKind, IndexTermRef},
     };
     let parsed = acdc_parser::parse(
-        include_str!("../fixtures/tests/subs_index_control_snapshots.adoc"),
+        include_str!("../../fixtures/tests/subs_index_control_snapshots.adoc"),
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let before = serde_json::to_value(parsed.document())?;
@@ -564,4 +550,11 @@ fn selected_index_copies_keep_registered_labels_after_display_edits(
     assert!(snapshots > 0);
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [button_transfers_prepared_label_without_parsing, menu_target_and_item_transfers_preserve_empty_positions, keyboard_transfers_prepared_keys_without_splitting, selected_ui_copies_keep_originals_and_source_lifetimes, ui_span_edits_leave_child_locations_independent, copying_empty_macro_owners_allocates_nothing, remaining_control_replacement_is_checked_and_atomic, xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots, index_transfers_keep_empty_hierarchy_relationship_and_source_values],
+        modes: [parsed_ui_copies_preserve_native_output_and_nested_content, selected_index_copies_keep_registered_labels_after_display_edits],
+    }
 }

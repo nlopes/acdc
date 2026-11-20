@@ -1,6 +1,6 @@
 //! Prepared atom edits retain text, interpretation flags, source spans and lifetimes.
 
-use std::{alloc::System, hint::black_box, sync::Arc};
+use std::{hint::black_box, sync::Arc};
 
 use acdc_parser::{
     CharacterReference, CharacterReferenceKind, CompatibilityMode, LineBreak, Location, Options,
@@ -12,10 +12,9 @@ use acdc_parser::{
     },
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -42,7 +41,6 @@ macro_rules! copied {
     }};
 }
 
-#[test]
 fn selected_atom_copies_retain_every_value_and_include_location() -> Result<(), Error> {
     copied!(
         Plain::new("λ x", location()).with_escaped(true),
@@ -75,7 +73,6 @@ fn selected_atom_copies_retain_every_value_and_include_location() -> Result<(), 
     Ok(())
 }
 
-#[test]
 fn plain_text_transfers_keep_the_escape_decision_and_source_lifetime() {
     let source = String::from("λ *literal*");
     let replacement = String::from("_prepared_");
@@ -94,7 +91,6 @@ fn plain_text_transfers_keep_the_escape_decision_and_source_lifetime() {
     assert_eq!(transferred.as_ptr(), source.as_ptr());
 }
 
-#[test]
 fn verbatim_transfers_keep_empty_prepared_text_and_source_lifetime() {
     let source = String::from("λ\tcode\n");
     let old = {
@@ -107,7 +103,6 @@ fn verbatim_transfers_keep_empty_prepared_text_and_source_lifetime() {
     assert_eq!(old.as_ptr(), source.as_ptr());
 }
 
-#[test]
 fn empty_plain_and_formula_values_stay_present_atoms() {
     let plain = Plain::new("", location());
     assert_eq!(PlainRef::from(&plain).text(), "");
@@ -120,7 +115,6 @@ fn empty_plain_and_formula_values_stay_present_atoms() {
     assert_eq!(content.notation(), StemNotation::Latexmath);
 }
 
-#[test]
 fn formula_edits_do_not_translate_or_reparse_the_formula() {
     let source = String::from("λ *x*");
     let (inline_text, block_text) = {
@@ -144,7 +138,6 @@ fn formula_edits_do_not_translate_or_reparse_the_formula() {
     assert_eq!(block_text.as_ptr(), source.as_ptr());
 }
 
-#[test]
 fn changing_a_symbol_keeps_its_source_span() {
     let mut symbol = Symbol::new(SymbolKind::Copyright, location());
     let before = Location::from(SymbolRef::from(&symbol).location());
@@ -157,7 +150,6 @@ fn changing_a_symbol_keeps_its_source_span() {
     assert_eq!(Location::from(SymbolRef::from(&symbol).location()), before);
 }
 
-#[test]
 fn character_reference_construction_keeps_validation_and_recovered_values() -> Result<(), Error> {
     for name in ["", "bad name", "1bad"] {
         assert!(CharacterReference::new(CharacterReferenceKind::Named(name), location()).is_none());
@@ -191,7 +183,6 @@ macro_rules! moved {
     }};
 }
 
-#[test]
 fn source_span_edits_leave_all_other_atom_values_unchanged() {
     moved!(
         Plain::new("λ x", location()).with_escaped(true),
@@ -240,7 +231,6 @@ macro_rules! free_copy {
     }};
 }
 
-#[test]
 fn selected_atom_copies_do_not_allocate_even_with_include_locations() -> Result<(), Error> {
     free_copy!(Plain::new("λ x", location()), Plain, PlainRef);
     free_copy!(Verbatim::new("λ x", location()), Verbatim, VerbatimRef);
@@ -269,9 +259,8 @@ fn selected_atom_copies_do_not_allocate_even_with_include_locations() -> Result<
     Ok(())
 }
 
-#[rstest::rstest]
 fn selected_block_formulas_keep_prepared_text_and_notation(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         "= Math\n\n[latexmath]\n++++\nx^2 + y\n++++\n",
@@ -287,4 +276,11 @@ fn selected_block_formulas_keep_prepared_text_and_notation(
     assert_eq!(copy.notation(), stem.notation());
     assert_eq!(cost(|| StemContent::from(stem)), (0, 0));
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [selected_atom_copies_retain_every_value_and_include_location, plain_text_transfers_keep_the_escape_decision_and_source_lifetime, verbatim_transfers_keep_empty_prepared_text_and_source_lifetime, empty_plain_and_formula_values_stay_present_atoms, formula_edits_do_not_translate_or_reparse_the_formula, changing_a_symbol_keeps_its_source_span, character_reference_construction_keeps_validation_and_recovered_values, source_span_edits_leave_all_other_atom_values_unchanged, selected_atom_copies_do_not_allocate_even_with_include_locations],
+        modes: [selected_block_formulas_keep_prepared_text_and_notation],
+    }
 }

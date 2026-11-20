@@ -1,35 +1,18 @@
-//! Exact attribute text does not render content or coerce other value kinds.
+//! `AttributeValueRef::as_str` does not allocate for any value kind.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     ContentAttribute, IndexTerm, IndexTermKind, InlineImage, InlineNode, Location, Paragraph,
     Plain, Source, SubstitutionSpec,
     ast::{AttributeValueRef, ContentRef, IndexTermRef, InlineImageRef, ParagraphRef},
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
-fn exact_text(value: AttributeValueRef<'_>) -> Option<&str> {
-    value.as_str()
-}
-
-#[rstest::rstest]
-fn exact_text_keeps_empty_quotes_spelling_and_unicode(
-    #[values("", "plain", "false", "001", "\"quoted\"", " café 😀 ")] source: &str,
-) -> Result<(), Error> {
-    let owned = source.to_owned();
-    let text = exact_text(AttributeValueRef::Text(&owned)).ok_or("text")?;
-    assert_eq!(text, source);
-    assert_eq!(text.as_ptr(), owned.as_ptr());
-    Ok(())
-}
-
-#[test]
 fn all_value_kinds_keep_their_semantics_without_allocating() -> Result<(), Error> {
     let empty = ContentAttribute::default();
     let content = ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
@@ -98,10 +81,8 @@ fn all_value_kinds_keep_their_semantics_without_allocating() -> Result<(), Error
     Ok(())
 }
 
-#[test]
-fn exact_text_is_available_in_constant_contexts() {
-    const EMPTY: Option<&str> = AttributeValueRef::Text("").as_str();
-    const BOOLEAN: Option<&str> = AttributeValueRef::Bool(false).as_str();
-    assert_eq!(EMPTY, Some(""));
-    assert_eq!(BOOLEAN, None);
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [all_value_kinds_keep_their_semantics_without_allocating],
+    }
 }

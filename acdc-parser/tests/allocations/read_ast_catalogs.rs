@@ -1,14 +1,13 @@
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     ContentAttribute, Document, Options, ReferenceTarget, SafeMode,
     ast::{ContentRef, DocumentRef, InlineKind, ReferenceTargetRef, ReferencesRef, TocEntryRef},
     parse, parse_file,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -27,7 +26,6 @@ fn text(content: ContentRef<'_>) -> String {
         .collect()
 }
 
-#[test]
 fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
     let parsed = parse(
         "[#plain]\n== Title\n\n[#label,reftext='*Chosen*']\n== Other\n\n[#empty,reftext='']\n== Empty\n\n[#untitled]\nBody.\n",
@@ -61,7 +59,6 @@ fn catalog_labels_keep_absent_and_empty_values_separate() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn catalog_handles_are_shared_and_do_not_allocate_on_reads() -> Result<(), Error> {
     fn shared<T: Copy + Send + Sync>() {}
     shared::<ReferencesRef<'_>>();
@@ -103,7 +100,6 @@ fn catalog_handles_are_shared_and_do_not_allocate_on_reads() -> Result<(), Error
     Ok(())
 }
 
-#[test]
 fn empty_document_has_no_fabricated_catalog_entries() {
     let document = Document::default();
     let doc = DocumentRef::from(&document);
@@ -112,7 +108,6 @@ fn empty_document_has_no_fabricated_catalog_entries() {
     assert_eq!(doc.toc_entries().len(), 0);
 }
 
-#[test]
 fn catalog_locations_resolve_to_the_included_source() -> Result<(), Error> {
     let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/tests");
     let parsed = parse_file(
@@ -150,7 +145,6 @@ fn catalog_locations_resolve_to_the_included_source() -> Result<(), Error> {
     Ok(())
 }
 
-#[test]
 fn caller_constructed_catalog_reads_do_not_allocate_or_copy_entries() -> Result<(), Error> {
     let parsed = parse(
         "[#target,reftext='*Chosen*']\n== Title\n",
@@ -171,4 +165,10 @@ fn caller_constructed_catalog_reads_do_not_allocate_or_copy_entries() -> Result<
     assert_eq!(references.len(), catalog.len());
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [catalog_labels_keep_absent_and_empty_values_separate, catalog_handles_are_shared_and_do_not_allocate_on_reads, empty_document_has_no_fabricated_catalog_entries, catalog_locations_resolve_to_the_included_source, caller_constructed_catalog_reads_do_not_allocate_or_copy_entries],
+    }
 }

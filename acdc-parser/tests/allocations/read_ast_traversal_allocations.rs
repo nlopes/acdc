@@ -1,13 +1,12 @@
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     Block, DelimitedBlock, DelimitedBlockType, Document, Location, Paragraph,
     ast::{BlockRef, DocumentRef},
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
+use stats_alloc::{Region, Stats};
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 fn paragraph() -> Block<'static> {
     Block::Paragraph(Paragraph::new(Vec::new(), Location::default()))
@@ -29,7 +28,6 @@ fn tree(width: usize, depth: usize) -> Block<'static> {
     block
 }
 
-#[test]
 fn direct_children_and_flat_walks_do_not_allocate() {
     let mut document = Document::default();
     document.set_blocks((0..4096).map(|_| paragraph()));
@@ -62,7 +60,6 @@ fn measure(block: &Block<'_>) -> (usize, Stats) {
     (count, region.change())
 }
 
-#[test]
 fn nested_walk_scratch_depends_on_depth_not_width() {
     let narrow = tree(1, 40);
     let wide = tree(4096, 40);
@@ -76,7 +73,6 @@ fn nested_walk_scratch_depends_on_depth_not_width() {
     assert_eq!(narrow_stats.bytes_reallocated, wide_stats.bytes_reallocated);
 }
 
-#[test]
 fn stopping_before_descent_does_not_allocate_pending_stack_frames() {
     let owner = tree(4096, 40);
     let region = Region::new(ALLOCATOR);
@@ -86,4 +82,10 @@ fn stopping_before_descent_does_not_allocate_pending_stack_frames() {
     assert_eq!(stats.allocations, 0);
     assert_eq!(stats.reallocations, 0);
     assert_eq!(stats.deallocations, 0);
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [direct_children_and_flat_walks_do_not_allocate, nested_walk_scratch_depends_on_depth_not_width, stopping_before_descent_does_not_allocate_pending_stack_frames],
+    }
 }

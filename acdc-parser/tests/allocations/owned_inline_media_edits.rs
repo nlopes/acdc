@@ -1,6 +1,6 @@
 //! Prepared image and icon edits keep content separate from checked macro controls.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     AttributeValue, CompatibilityMode, ContentAttribute, ElementAttributes, ElementId, Icon,
@@ -11,10 +11,9 @@ use acdc_parser::{
     },
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -29,7 +28,6 @@ fn plain(text: &str) -> InlineNode<'_> {
     InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
 }
 
-#[test]
 fn media_labels_transfer_without_formatting_or_losing_empty_presence() -> Result<(), Error> {
     let source = String::from("{unexpanded} *prepared*");
     macro_rules! check {
@@ -59,7 +57,6 @@ fn media_labels_transfer_without_formatting_or_losing_empty_presence() -> Result
     Ok(())
 }
 
-#[test]
 fn media_bulk_controls_are_checked_atomically_with_all_reserved_aliases() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident, $replace:ident, $source:ident) => {
@@ -125,7 +122,6 @@ fn media_bulk_controls_are_checked_atomically_with_all_reserved_aliases() -> Res
     Ok(())
 }
 
-#[test]
 fn media_option_and_metadata_transfers_keep_buffers_and_source_lifetimes() {
     let source = String::from("original");
     let replacement = String::from("replacement");
@@ -168,7 +164,6 @@ fn media_option_and_metadata_transfers_keep_buffers_and_source_lifetimes() {
     all_media!(check);
 }
 
-#[test]
 fn media_target_replacement_keeps_original_url_spelling_and_does_not_fetch() -> Result<(), Error> {
     let source = String::from("HTTPS://example.invalid/a?key=Value#part");
     // SourceUrl accepts the original spelling; prepared replacement does not classify it again.
@@ -192,7 +187,6 @@ fn media_target_replacement_keeps_original_url_spelling_and_does_not_fetch() -> 
     Ok(())
 }
 
-#[test]
 fn media_location_edits_keep_id_and_content_locations() -> Result<(), Error> {
     let original = Location::point(Position::new(2, 3));
     let id_location = Location::point(Position::new(1, 4));
@@ -230,9 +224,8 @@ fn media_location_edits_keep_id_and_content_locations() -> Result<(), Error> {
     Ok(())
 }
 
-#[rstest::rstest]
 fn selected_media_copies_keep_native_json_and_do_not_register_edits(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         "image:bird.svg[Bird,title=Tip,width=12,id=bird,role=one,opts=first,extension=value] icon:heart[2x,alt=Heart,title=Tip,id=heart,role=two,opts=second,extension=icon]",
@@ -278,7 +271,6 @@ fn selected_media_copies_keep_native_json_and_do_not_register_edits(
     Ok(())
 }
 
-#[test]
 fn selected_empty_named_media_copies_allocate_nothing() {
     let image = InlineImage::new(Source::Name("image"), Location::default());
     let icon = Icon::new(Source::Name("icon"), Location::default());
@@ -293,7 +285,6 @@ fn selected_empty_named_media_copies_allocate_nothing() {
     assert_eq!(copies.1, icon);
 }
 
-#[test]
 fn scalar_control_transfers_keep_the_original_name_and_value_lifetimes() -> Result<(), Error> {
     let name = String::from("extension");
     let source = String::from("{unexpanded} *literal*");
@@ -319,4 +310,11 @@ fn scalar_control_transfers_keep_the_original_name_and_value_lifetimes() -> Resu
     }
     all_media!(check);
     Ok(())
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [media_labels_transfer_without_formatting_or_losing_empty_presence, media_bulk_controls_are_checked_atomically_with_all_reserved_aliases, media_option_and_metadata_transfers_keep_buffers_and_source_lifetimes, media_target_replacement_keeps_original_url_spelling_and_does_not_fetch, media_location_edits_keep_id_and_content_locations, selected_empty_named_media_copies_allocate_nothing, scalar_control_transfers_keep_the_original_name_and_value_lifetimes],
+        modes: [selected_media_copies_keep_native_json_and_do_not_register_edits],
+    }
 }

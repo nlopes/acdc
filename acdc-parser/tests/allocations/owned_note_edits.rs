@@ -1,6 +1,6 @@
 //! Prepared anchor, note and callout edits retain labels and registration snapshots.
 
-use std::{alloc::System, hint::black_box};
+use std::hint::black_box;
 
 use acdc_parser::{
     Anchor, CalloutMarker, CalloutMarkerKind, CompatibilityMode, ContentAttribute, Footnote,
@@ -8,10 +8,9 @@ use acdc_parser::{
     ast::{AnchorRef, BlockKind, ContentRef, FootnoteRef, InlineKind},
     parse,
 };
-use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
+use stats_alloc::Region;
 
-#[global_allocator]
-static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
+use super::ALLOCATOR;
 
 type Error = Box<dyn std::error::Error>;
 
@@ -36,7 +35,6 @@ fn text(content: ContentRef<'_>) -> Result<String, Error> {
         .collect()
 }
 
-#[test]
 fn anchor_prepared_labels_keep_citation_separate_from_bibliography_display() -> Result<(), Error> {
     let mut anchor = Anchor::new("book", Location::default());
     anchor.set_reftext(Some(ContentAttribute::new(vec![plain("Citation")])));
@@ -63,7 +61,6 @@ fn anchor_prepared_labels_keep_citation_separate_from_bibliography_display() -> 
     Ok(())
 }
 
-#[test]
 fn anchor_labels_preserve_absence_empty_presence_and_owned_buffers() -> Result<(), Error> {
     let source = String::from("{prepared} *literal*");
     let body = vec![plain(&source)];
@@ -93,7 +90,6 @@ fn anchor_labels_preserve_absence_empty_presence_and_owned_buffers() -> Result<(
     Ok(())
 }
 
-#[test]
 fn bibliography_label_transfer_reuses_its_prepared_inline_buffer() -> Result<(), Error> {
     let source = String::from("Display");
     let body = vec![plain(&source)];
@@ -111,7 +107,6 @@ fn bibliography_label_transfer_reuses_its_prepared_inline_buffer() -> Result<(),
     Ok(())
 }
 
-#[test]
 fn anchor_identity_and_reftext_transfers_outlive_the_previous_record() {
     let source = String::from("original-id");
     let replacement = String::from("new-id");
@@ -127,9 +122,8 @@ fn anchor_identity_and_reftext_transfers_outlive_the_previous_record() {
     assert_eq!(old, source);
 }
 
-#[rstest::rstest]
 fn selected_anchor_copies_keep_bibliography_labels_and_native_json(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         "[bibliography]\n* [[[book,*Bold*]]] Entry.\n* [[[fallback]]] Entry.\n",
@@ -170,7 +164,6 @@ fn selected_anchor_copies_keep_bibliography_labels_and_native_json(
     Ok(())
 }
 
-#[test]
 fn footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers()
 -> Result<(), Error> {
     let source = String::from("first");
@@ -216,9 +209,8 @@ fn footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers
     Ok(())
 }
 
-#[rstest::rstest]
 fn editing_copied_notes_does_not_reregister_or_renumber_document_snapshots(
-    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+    mode: CompatibilityMode,
 ) -> Result<(), Error> {
     let parsed = parse(
         "footnote:n[*First*] footnote:n[] footnote:n[Other] footnote:[Anonymous]",
@@ -265,7 +257,6 @@ fn editing_copied_notes_does_not_reregister_or_renumber_document_snapshots(
     Ok(())
 }
 
-#[test]
 fn note_and_anchor_location_edits_keep_prepared_child_spans() -> Result<(), Error> {
     let original = Location::point(Position::new(2, 3));
     let replacement = Location::point(Position::new(7, 11));
@@ -307,7 +298,6 @@ fn note_and_anchor_location_edits_keep_prepared_child_spans() -> Result<(), Erro
     Ok(())
 }
 
-#[test]
 fn callout_edits_keep_explicit_auto_and_zero_without_sequence_renumbering() -> Result<(), Error> {
     for mut callout in [
         CalloutMarker::explicit(0, Location::default()),
@@ -335,7 +325,6 @@ fn callout_edits_keep_explicit_auto_and_zero_without_sequence_renumbering() -> R
     Ok(())
 }
 
-#[test]
 fn empty_selected_note_anchor_and_callout_copies_allocate_nothing() {
     let anchor = Anchor::new("entry", Location::default());
     let note = Footnote::new(Vec::new(), 0, Location::default());
@@ -351,4 +340,11 @@ fn empty_selected_note_anchor_and_callout_copies_allocate_nothing() {
     assert_eq!(copies.0, anchor);
     assert_eq!(copies.1, note);
     assert_eq!(copies.2, callout);
+}
+
+pub(super) fn trials() -> Vec<libtest_mimic::Trial> {
+    trials! {
+        tests: [anchor_prepared_labels_keep_citation_separate_from_bibliography_display, anchor_labels_preserve_absence_empty_presence_and_owned_buffers, bibliography_label_transfer_reuses_its_prepared_inline_buffer, anchor_identity_and_reftext_transfers_outlive_the_previous_record, footnote_content_transfers_keep_buffers_source_lifetimes_and_assigned_numbers, note_and_anchor_location_edits_keep_prepared_child_spans, callout_edits_keep_explicit_auto_and_zero_without_sequence_renumbering, empty_selected_note_anchor_and_callout_copies_allocate_nothing],
+        modes: [selected_anchor_copies_keep_bibliography_labels_and_native_json, editing_copied_notes_does_not_reregister_or_renumber_document_snapshots],
+    }
 }
