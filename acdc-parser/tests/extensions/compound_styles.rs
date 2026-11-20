@@ -1,11 +1,15 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{
+    Arc, Mutex,
+    atomic::{AtomicUsize, Ordering},
+};
 
 use acdc_parser::{
-    CompatibilityMode, Error, Options, SafeMode,
-    ast::{BlockKind, BlockRef},
+    CompatibilityMode, Error, Options, SafeMode, WarningKind,
+    ast::{BlockKind, BlockRef, InlineKind, InlineRef},
     extensions::{
-        BlockBuilder, BlockMacro, BlockStyle, BlockStyleOutput, MAX_STYLE_NESTING,
-        MacroExecutionContext, MacroInvocation, RawBlockContext, RawBlockInput, Registry,
+        BlockBuilder, BlockContext, BlockMacro, BlockStyle, BlockStyleOutput, DocumentEditor,
+        MAX_STYLE_NESTING, MacroExecutionContext, MacroInvocation, RawBlockContext, RawBlockInput,
+        Registry, TreeProcessor, TreeProcessorRegistration,
     },
 };
 
@@ -94,6 +98,86 @@ fn same_style_reenters_after_return_and_child_macros_keep_their_source() -> Test
         );
         assert!(top.any(|block| matches!(block.kind(), BlockKind::Paragraph(_))));
         assert_eq!(parsed.warnings(), []);
+    }
+    Ok(())
+}
+
+struct RewriteParagraph;
+
+impl TreeProcessor for RewriteParagraph {
+    fn process(&mut self, editor: &mut DocumentEditor<'_>) -> Result<(), Error> {
+        let targets: Vec<_> = editor
+            .query()
+            .select(BlockContext::Paragraph)
+            .map(|view| view.target().clone())
+            .collect();
+        assert_eq!(targets.len(), 1);
+        for target in targets {
+            editor.replace_source(&target, "*{label}*")?;
+        }
+        Ok(())
+    }
+}
+
+#[test]
+fn tree_edit_of_compound_child_uses_local_attributes_and_clears_stale_warning() -> TestResult {
+    let source = "= Document\n:label: Header\n\n:label: Early\n\n[panel]\n----\n<<missing>>\n----\n\n:label: Late";
+    let calls = Arc::new(AtomicUsize::new(0));
+    let panel_calls = Arc::clone(&calls);
+    let mut builder = Registry::builder();
+    builder.register_block_style(BlockStyle::compound(
+        "panel",
+        [RawBlockContext::Listing],
+        move || {
+            let calls = Arc::clone(&panel_calls);
+            move |_: RawBlockInput<'_>| {
+                calls.fetch_add(1, Ordering::Relaxed);
+                Ok(BlockStyleOutput::ParseChildren)
+            }
+        },
+    ))?;
+    let panel = builder.build();
+    let mut builder = Registry::builder();
+    builder.extend(&panel)?;
+    builder.register_tree_processor(TreeProcessorRegistration::new("rewrite", || {
+        RewriteParagraph
+    }))?;
+    let with_edit = builder.build();
+
+    for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let original = panel.parse(source, &options)?.finish()?;
+        assert_eq!(calls.swap(0, Ordering::Relaxed), 1);
+        assert!(original.warnings().iter().any(|warning| matches!(
+            &warning.kind, WarningKind::UnresolvedReference { target } if target == "missing"
+        )));
+
+        let edited = with_edit.parse(source, &options)?.finish()?;
+        assert_eq!(calls.swap(0, Ordering::Relaxed), 1);
+        assert_eq!(edited.warnings(), []);
+        let open = edited
+            .document()
+            .blocks()
+            .find_map(|block| {
+                if let BlockKind::Open(open) = block.kind() {
+                    Some(open)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing panel")?;
+        let Some(BlockKind::Paragraph(paragraph)) = open.blocks().next().map(BlockRef::kind) else {
+            return Err("missing panel paragraph".into());
+        };
+        assert_eq!(paragraph.source_text(), Some("*{label}*"));
+        let mut inlines = paragraph.content().inlines().map(InlineRef::kind);
+        let Some(InlineKind::Bold(bold)) = inlines.next() else {
+            return Err("expected bold replacement".into());
+        };
+        assert_eq!(inlines.len(), 0);
+        let mut content = bold.content().inlines().map(InlineRef::kind);
+        assert!(matches!(content.next(), Some(InlineKind::Plain(text)) if text.text() == "Early"));
+        assert_eq!(content.len(), 0);
     }
     Ok(())
 }
