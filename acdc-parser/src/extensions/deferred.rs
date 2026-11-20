@@ -30,6 +30,7 @@ pub(crate) enum Invocation<'a> {
     Macro(MacroInvocation<'a>),
     Style {
         context: RawBlockContext,
+        parse_children: bool,
         body: &'a str,
         body_location: SourceLocation,
         location: SourceLocation,

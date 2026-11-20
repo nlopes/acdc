@@ -1,7 +1,8 @@
 //! Ordered construction at accepted block boundaries.
 
 use crate::{
-    Block, Document, DocumentAttributes, Error,
+    Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttributes, Error,
+    extensions::{Invocation, MAX_STYLE_NESTING},
     grammar::{ParserState, helpers::PositionWithOffset},
     model::{SectionKind, SectionLevel},
 };
@@ -29,6 +30,7 @@ pub(super) struct Execution<'handler, F> {
     callback: &'handler mut F,
     failed: bool,
     block_callbacks: usize,
+    style_depth: usize,
 }
 
 impl<'handler, F> Execution<'handler, F> {
@@ -37,6 +39,7 @@ impl<'handler, F> Execution<'handler, F> {
             callback,
             failed: false,
             block_callbacks: 0,
+            style_depth: 0,
         }
     }
     #[inline]
@@ -302,7 +305,8 @@ impl BlockCursor {
             Err(error) => return Ok(Err(error)),
         };
         // Extension output resolves its own caption at the invocation.
-        let needs_caption = needs_caption && !matches!(block, Block::Extension(_));
+        let style = matches!(block, Block::Extension(_));
+        let needs_caption = needs_caption && !style;
         let child = if let Block::Section(section) = &block
             && self.mode == ConstructionMode::Ordered
         {
@@ -325,10 +329,15 @@ impl BlockCursor {
             section.location = state.create_block_location(section.location.absolute_start, end, 0);
             state.finish_section_warnings(section.heading_location.absolute_start);
         }
-        if let Some(request) = request
-            && let Err(error) = construct_requested_content(&mut block, state, request, accepted)
-        {
-            return Ok(Err(error));
+        if let Some(request) = request {
+            let result = if style {
+                construct_style_content(&mut block, state, request, accepted)
+            } else {
+                construct_requested_content(&mut block, state, request, accepted)
+            };
+            if let Err(error) = result {
+                return Ok(Err(error));
+            }
         }
         if needs_caption {
             if let Some(content) = table_content
@@ -376,6 +385,49 @@ fn start_block<'a>(
         request,
         table_content,
     })
+}
+
+fn construct_style_content<'a, F>(
+    block: &mut Block<'a>,
+    state: &mut ParserState<'a>,
+    request: ContentRequest<'a>,
+    accepted: &mut Execution<'_, F>,
+) -> Result<(), Error>
+where
+    F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
+{
+    let Block::Extension(extension) = block else {
+        return Ok(());
+    };
+    let Invocation::Style {
+        parse_children: true,
+        location,
+        ..
+    } = &extension.invocation
+    else {
+        return Ok(());
+    };
+    if accepted.style_depth >= MAX_STYLE_NESTING {
+        accepted.failed = true;
+        return Err(Error::Extension(
+            Box::new(location.clone()),
+            format!("block style child parsing exceeds the nesting limit of {MAX_STYLE_NESTING}"),
+        ));
+    }
+    let mut parent = DelimitedBlock::new(
+        DelimitedBlockType::DelimitedOpen(Vec::new()),
+        "--",
+        extension.location.clone(),
+    );
+    parent.title = std::mem::take(&mut extension.title);
+    parent.metadata = std::mem::take(&mut extension.metadata);
+    parent.source_text = Some(request.source);
+    *block = Block::DelimitedBlock(parent);
+
+    accepted.style_depth += 1;
+    let result = construct_requested_content(block, state, request, accepted);
+    accepted.style_depth -= 1;
+    result
 }
 
 fn construct_requested_content<'a, F>(
