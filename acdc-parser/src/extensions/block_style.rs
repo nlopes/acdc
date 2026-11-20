@@ -42,20 +42,35 @@ impl RawBlockInput<'_> {
     }
 }
 
+/// Result of a style callback registered with [`BlockStyle::compound`].
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum BlockStyleOutput {
+    /// Parse this invocation's body as child blocks of an ordinary open block.
+    ParseChildren,
+    /// Emit the builder at the invocation's source location.
+    Block(BlockBuilder),
+    /// Consume the invocation and its body.
+    None,
+}
+
+/// Maximum number of simultaneously active style-requested child parses.
+pub const MAX_STYLE_NESTING: usize = 8;
+
 /// A document-local handler for a registered raw block style.
-pub trait RawBlockProcessor {
-    /// Return an ordinary block, or `None` to consume this invocation.
+pub trait RawBlockProcessor<Output = Option<BlockBuilder>> {
+    /// Select the output of the registered style.
     ///
     /// # Errors
     /// An error stops parsing at the styled block's source location.
-    fn process(&mut self, block: RawBlockInput<'_>) -> Result<Option<BlockBuilder>, String>;
+    fn process(&mut self, block: RawBlockInput<'_>) -> Result<Output, String>;
 }
 
-impl<F> RawBlockProcessor for F
+impl<F, Output> RawBlockProcessor<Output> for F
 where
-    F: FnMut(RawBlockInput<'_>) -> Result<Option<BlockBuilder>, String>,
+    F: FnMut(RawBlockInput<'_>) -> Result<Output, String>,
 {
-    fn process(&mut self, block: RawBlockInput<'_>) -> Result<Option<BlockBuilder>, String> {
+    fn process(&mut self, block: RawBlockInput<'_>) -> Result<Output, String> {
         self(block)
     }
 }
@@ -63,7 +78,7 @@ where
 /// A named block style, its supported source forms, and its per-document factory.
 #[derive(Clone, Debug)]
 pub struct BlockStyle {
-    pub(super) handler: SourceRegistration<dyn RawBlockProcessor>,
+    pub(super) handler: SourceRegistration<dyn RawBlockProcessor<BlockStyleOutput>>,
     pub(super) contexts: Vec<RawBlockContext>,
     positional: Vec<String>,
     defaults: ElementAttributes<'static>,
@@ -84,6 +99,39 @@ impl BlockStyle {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn raw<P: RawBlockProcessor + 'static>(
+        name: impl Into<String>,
+        contexts: impl IntoIterator<Item = RawBlockContext>,
+        factory: impl Fn() -> P + Send + Sync + 'static,
+    ) -> Self {
+        Self::compound(name, contexts, move || {
+            let mut handler = factory();
+            move |input: RawBlockInput<'_>| {
+                handler
+                    .process(input)
+                    .map(|block| block.map_or(BlockStyleOutput::None, BlockStyleOutput::Block))
+            }
+        })
+    }
+
+    /// Register a processor that may ask the host to parse this body's blocks.
+    /// Like [`Self::raw`], the processor receives the complete preprocessed body.
+    /// Child callbacks run in source order after this callback returns.
+    ///
+    /// ```
+    /// use acdc_parser::{Options, ast::BlockKind, extensions::{
+    ///     BlockStyle, BlockStyleOutput, RawBlockContext, RawBlockInput, Registry,
+    /// }};
+    ///
+    /// let mut registry = Registry::builder();
+    /// registry.register_block_style(BlockStyle::compound("panel", [RawBlockContext::Listing], || {
+    ///     |_: RawBlockInput<'_>| Ok(BlockStyleOutput::ParseChildren)
+    /// }))?;
+    /// let parsed = registry.build().parse("[panel]\n----\nA paragraph.\n----", &Options::default())?.finish()?;
+    /// let block = parsed.document().blocks().next().unwrap();
+    /// assert!(matches!(block.kind(), BlockKind::Open(panel) if panel.blocks().count() == 1));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn compound<P: RawBlockProcessor<BlockStyleOutput> + 'static>(
         name: impl Into<String>,
         contexts: impl IntoIterator<Item = RawBlockContext>,
         factory: impl Fn() -> P + Send + Sync + 'static,

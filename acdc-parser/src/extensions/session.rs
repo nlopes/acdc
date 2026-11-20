@@ -3,14 +3,14 @@ use std::{cell::OnceCell, fmt};
 use crate::{Block, Error, ParseResult, grammar::ParserState};
 
 use super::{
-    BlockBuilder, BlockMacroOutput, BlockMacroProcessor, DeferredBlock, DocumentQuery, Invocation,
-    PlaceholderId, RawBlockInput, RawBlockProcessor, TargetId, TreeProcessor, query::TargetIndex,
-    target::DocumentIdentity,
+    BlockBuilder, BlockMacroOutput, BlockMacroProcessor, BlockStyleOutput, DeferredBlock,
+    DocumentQuery, Invocation, PlaceholderId, RawBlockInput, RawBlockProcessor, TargetId,
+    TreeProcessor, query::TargetIndex, target::DocumentIdentity,
 };
 
 pub(crate) struct Session {
     processors: Vec<Box<dyn BlockMacroProcessor>>,
-    styles: Box<[Box<dyn RawBlockProcessor>]>,
+    styles: Box<[Box<dyn RawBlockProcessor<BlockStyleOutput>>]>,
     pub(super) tree_processors: Vec<Box<dyn TreeProcessor>>,
     pub(super) deferred: Vec<DeferredBlock>,
     pub(super) processed_blocks: bool,
@@ -112,7 +112,7 @@ impl ExtensionParseResult {
 impl Session {
     pub(super) fn new(
         processors: Vec<Box<dyn BlockMacroProcessor>>,
-        styles: Box<[Box<dyn RawBlockProcessor>]>,
+        styles: Box<[Box<dyn RawBlockProcessor<BlockStyleOutput>>]>,
         tree_processors: Vec<Box<dyn TreeProcessor>>,
     ) -> Self {
         Self {
@@ -137,15 +137,16 @@ impl Session {
     ) -> Result<bool, Error> {
         if let Block::Extension(extension) = block {
             self.processed_blocks = true;
-            let origin = extension.invocation.location();
-            let fail = |message| Error::Extension(Box::new(origin.clone()), message);
-            let builder = match &extension.invocation {
+
+            let builder = match &mut extension.invocation {
                 Invocation::Style {
                     context,
                     body,
                     body_location,
-                    ..
+                    location: origin,
+                    parse_children,
                 } => {
+                    let fail = |message| Error::Extension(Box::new(origin.clone()), message);
                     let processor = self.styles.get_mut(extension.processor).ok_or_else(|| {
                         fail("style processor is absent from the document session".into())
                     })?;
@@ -158,14 +159,19 @@ impl Session {
                         metadata: &extension.metadata,
                         title: extension.title.source(),
                     };
-                    let Some(builder) = processor.process(raw).map_err(fail)? else {
-                        return Ok(false);
-                    };
-                    // The handler consumes the input style.
+                    let output = processor.process(raw).map_err(fail)?;
                     extension.metadata.style = None;
-                    builder
+                    match output {
+                        BlockStyleOutput::ParseChildren => {
+                            *parse_children = true;
+                            return Ok(true);
+                        }
+                        BlockStyleOutput::None => return Ok(false),
+                        BlockStyleOutput::Block(builder) => builder,
+                    }
                 }
                 Invocation::Macro(call) => {
+                    let fail = |message| Error::Extension(Box::new(call.location.clone()), message);
                     let output = self
                         .processors
                         .get_mut(extension.processor)

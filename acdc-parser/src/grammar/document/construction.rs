@@ -9,7 +9,8 @@ use crate::{
 use super::{
     coordinator::BlockStepKind,
     delimited::{
-        ContentParser, ContentRequest, DelimitedParams, build_delimited_block_with_parser,
+        ContentKind, ContentParser, ContentRequest, DelimitedParams,
+        build_delimited_block_with_parser,
     },
     metadata::assign_block_caption,
     quotes::{QuoteParams, build_quote_with_parser},
@@ -123,6 +124,7 @@ impl<'a> DelimitedConstruction<'a> {
                     processor,
                     invocation: Invocation::Style {
                         context,
+                        parse_children: false,
                         body: p.source_text,
                         body_location: state.create_error_source_location(body_location),
                         location: state.create_error_source_location(location.clone()),
@@ -132,7 +134,14 @@ impl<'a> DelimitedConstruction<'a> {
                     location,
                     placeholder: None,
                 })),
-                None,
+                Some(ContentRequest {
+                    source: p.source_text,
+                    offset: body_start,
+                    parent_section_level: self.metadata.parent_section_level,
+                    kind: ContentKind::Compound,
+                    context: crate::grammar::state::BlockContext::Compound,
+                    error_context: "Error parsing a block style's children",
+                }),
             ));
         }
         let mut content = CaptureContent::default();

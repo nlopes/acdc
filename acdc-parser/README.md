@@ -1727,6 +1727,16 @@ Return `Ok(Some(builder))` to emit an ordinary block or `Ok(None)` to consume
 the invocation. The output inherits the title, ID, and roles. The input style
 has been consumed. Other delimiters keep their ordinary behavior.
 
+Use `BlockStyle::compound` for a listing or literal style that can choose how
+to handle its body. Returning `BlockStyleOutput::ParseChildren` creates an open
+block with the invocation's title and metadata. Once the handler returns,
+the parser reads the preprocessed body as AsciiDoc blocks and invokes nested
+handlers in source order. Preprocessing runs once. A child macro can affect
+directives the reader encounters after the enclosing body. Returning
+`BlockStyleOutput::Block(builder)` or `BlockStyleOutput::None` skips child parsing.
+Up to eight requested child parses can be active at once (`MAX_STYLE_NESTING`).
+A further request reports an extension error at that invocation.
+
 `Registry::parse`, `parse_file`, and `parse_from_reader` share these stages.
 Reader input preserves ordinary reader attributes and include-origin policy.
 `RegistryBuilder::extend` composes immutable registries in order and rejects
