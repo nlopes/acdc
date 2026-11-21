@@ -162,6 +162,7 @@ dependencies = [
  "acdc-converters-html",
  "acdc-parser",
  "base64 0.23.1",
+ "image",
  "lopdf",
  "png",
  "roxmltree 0.21.1",

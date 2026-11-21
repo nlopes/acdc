@@ -9,6 +9,7 @@ publish = false
 
 [dependencies]
 acdc-parser.workspace = true
+image.workspace = true
 png = "0.18"
 roxmltree = "0.21"
 base64.workspace = true

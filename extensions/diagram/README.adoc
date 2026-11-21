@@ -201,6 +201,10 @@ Render `[diagrams]` blocks and `diagrams::chart.py[]` files with `--diagrams-pyt
 
 Render `[ditaa]` blocks and `ditaa::chart.ditaa[]` files with `--ditaa PATH`. Choose PNG (default), SVG, or literal text. Set `round-corners=true`, `shadows=false`, or `scale` to change the drawing. Enable the package with `--extension diagram`.
 
+== tape
+
+Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. Use `format=svg` for an SVG recording. Tape scripts run in unsafe mode. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

@@ -46,6 +46,7 @@ impl ImageSize {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Format {
     Txt,
+    Gif,
     Svg,
     Png,
     Pdf,
@@ -55,6 +56,7 @@ impl Format {
     pub(super) fn extension(self) -> &'static str {
         match self {
             Self::Txt => "txt",
+            Self::Gif => "gif",
             Self::Svg => "svg",
             Self::Png => "png",
             Self::Pdf => "pdf",
@@ -71,6 +73,7 @@ impl Format {
         let mut file = fs::File::open(path)?;
         match self {
             Self::Txt => Err(io::Error::other("text output requires a literal block")),
+            Self::Gif => validate_raster(file, image::ImageFormat::Gif).map(Some),
             Self::Svg => {
                 let mut svg = String::new();
                 file.take(MAX_BYTES + 1).read_to_string(&mut svg)?;
@@ -124,6 +127,18 @@ fn declares_standard_svg(svg: &str) -> bool {
 }
 
 // Check the raster and its end marker before publishing, without storing a full frame.
+fn validate_raster(file: fs::File, format: image::ImageFormat) -> io::Result<ImageSize> {
+    let mut reader = image::ImageReader::with_format(BufReader::new(file), format);
+    let mut limits = image::Limits::default();
+    limits.max_alloc = Some(64 * 1024 * 1024);
+    reader.limits(limits);
+    let raster = reader.decode().map_err(io::Error::other)?;
+    Ok(ImageSize {
+        width: f64::from(raster.width()),
+        height: f64::from(raster.height()),
+    })
+}
+
 fn validate_png(file: fs::File) -> io::Result<ImageSize> {
     let invalid = |e: png::DecodingError| {
         io::Error::new(

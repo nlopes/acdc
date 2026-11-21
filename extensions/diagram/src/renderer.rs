@@ -585,3 +585,17 @@ pub const DITAA: Renderer = Renderer {
     ],
     generate: ditaa,
 };
+
+fn tape(job: &Job<'_>) -> io::Result<()> {
+    let input = job.source_file("tape")?;
+    job.run(Command::new(job.tool).arg(input).arg("-o").arg(job.output))
+}
+
+/// Render `tape` diagrams using `vhs`.
+pub const TAPE: Renderer = Renderer {
+    name: "tape",
+    tool: "vhs",
+    formats: &[Format::Gif, Format::Svg],
+    attributes: &[],
+    generate: tape,
+};

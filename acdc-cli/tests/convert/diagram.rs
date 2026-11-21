@@ -364,6 +364,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn tape_block_and_file() -> TestResult {
+        tool_sample(
+            "tape",
+            "--vhs",
+            "Type \"hello\"\nSleep 50ms",
+            "svg",
+            r#"test "$2" = "-o"
+test "$(cat "$1")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$3""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

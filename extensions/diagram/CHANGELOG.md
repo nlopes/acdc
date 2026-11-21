@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. Use `format=svg` for an SVG recording. Tape scripts run in unsafe mode.
+
 - Render `[ditaa]` blocks and `ditaa::chart.ditaa[]` files with `--ditaa PATH`. Choose PNG (default), SVG, or literal text. Set `round-corners=true`, `shadows=false`, or `scale` to change the drawing.
 
 - Render `[diagrams]` blocks and `diagrams::chart.py[]` files with `--diagrams-python PATH`. Render Python diagrams as PNG (default), SVG, or PDF with an interpreter that has the diagrams package installed.
