@@ -29,12 +29,16 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         #[cfg(feature = "images")]
         let rendered_protocol_image = if let SourceKind::Path(path) = image.source().kind() {
             let config = image_config(image, self.converter.terminal_width);
-            let path = resolve_target(&path.to_string_lossy(), traversal);
+            let path = if path.is_absolute() {
+                std::borrow::Cow::Borrowed(path)
+            } else {
+                std::borrow::Cow::Owned(resolve_target(&path.to_string_lossy(), traversal).into())
+            };
             self.writer_mut().flush()?;
             let displayed = viuer::print_from_file(&path, &config).is_ok();
             if !displayed {
                 self.diagnostics.warn_with_advice(
-                    format!("failed to display image `{path}`"),
+                    format!("failed to display image `{}`", path.display()),
                     "Verify the image path is relative to the input document and that the terminal image feature can load it.",
                 );
             }
