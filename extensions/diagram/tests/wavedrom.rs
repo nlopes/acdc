@@ -143,6 +143,11 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
         ("[wavedrom,boards//clock,svg]", "target"),
         ("[wavedrom,boards/,svg]", "target"),
         ("[wavedrom,,pdf]", "format"),
+        (
+            ":diagram-svg-type: unknown\n\n[wavedrom]",
+            "unsupported SVG type",
+        ),
+        ("[wavedrom,chart,svg,svg-type=]", "unsupported SVG type"),
         (":wavedrom: other-tool\n\n[wavedrom]", "executable"),
         (":imagesoutdir: ../outside\n\n[wavedrom]", "imagesoutdir"),
         (":imagesoutdir: /outside\n\n[wavedrom]", "imagesoutdir"),
@@ -362,6 +367,7 @@ cp "$(dirname "$0")/result.png" "$4"
         ":wavedrom-format: png\n\n[wavedrom,register]",
         ":wavedrom-format: svg\n\n[wavedrom,register,png]",
         "[wavedrom,register,svg,format=png]",
+        ":diagram-svg-type: unknown\n\n[wavedrom,register,png]",
     ] {
         let source = format!("{header}\n....\nbody\n....");
         let (path, html) = render_asset(

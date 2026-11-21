@@ -186,15 +186,16 @@ fn diagram_source<'a>(input: &RawBlockInput<'a>) -> Cow<'a, str> {
     }
 }
 
-fn requested_format<'a>(
+fn diagram_attribute<'a>(
     input: &RawBlockInput<'a>,
-    adapter_attribute: &str,
+    renderer: &str,
+    key: &str,
 ) -> Option<Cow<'a, str>> {
     let attrs = input.document_attributes;
-    input.metadata.attributes.get_string("format").or_else(|| {
+    input.metadata.attributes.get_string(key).or_else(|| {
         attrs
-            .get(adapter_attribute)
-            .or_else(|| attrs.get("diagram-format"))
+            .get(&format!("{renderer}-{key}"))
+            .or_else(|| attrs.get(&format!("diagram-{key}")))
             .map(|value| Cow::Borrowed(value.text().unwrap_or_default()))
     })
 }
@@ -209,7 +210,7 @@ fn render(
     if args.get("wavedrom").is_some() || attrs.get("wavedrom").is_some() {
         return Err("set the WaveDrom executable when registering the style".into());
     }
-    let format = match requested_format(input, "wavedrom-format").as_deref() {
+    let format = match diagram_attribute(input, "wavedrom", "format").as_deref() {
         Some("png") => Format::Png,
         None | Some("svg") => Format::Svg,
         Some(other) => {
@@ -227,6 +228,32 @@ fn render(
         &source,
         |scratch, output| wavedrom_cli::render(tool, &source, format, scratch, output),
     )
+}
+
+fn svg_option(
+    renderer: &str,
+    input: &RawBlockInput<'_>,
+    format: Format,
+) -> Result<Option<&'static str>, String> {
+    if format != Format::Svg {
+        return Ok(None);
+    }
+    for option in ["inline", "interactive"] {
+        if (&input.metadata.options)
+            .into_iter()
+            .any(|opt| *opt == option)
+        {
+            return Ok(Some(option));
+        }
+    }
+    match diagram_attribute(input, renderer, "svg-type").as_deref() {
+        None | Some("static") => Ok(None),
+        Some("inline") => Ok(Some("inline")),
+        Some("interactive") => Ok(Some("interactive")),
+        Some(other) => Err(format!(
+            "{renderer} unsupported SVG type '{other}' (expected static, inline or interactive)"
+        )),
+    }
 }
 
 fn image(
@@ -264,12 +291,9 @@ fn image(
         .get("backend")
         .and_then(DocumentAttributeValue::text)
         .unwrap_or_default();
+    let option = svg_option(name, input, format)?;
     let embedded = backend.starts_with("html")
-        && (attrs.get("data-uri").is_some()
-            || (format == Format::Svg
-                && (&input.metadata.options)
-                    .into_iter()
-                    .any(|opt| *opt == "inline")));
+        && (attrs.get("data-uri").is_some() || option == Some("inline"));
     let staging = attrs.get("imagesoutdir");
     let (root, attr_name, relative) = if let Some(value) = staging {
         (roots.imagesoutdir_base, "imagesoutdir", value.text())
@@ -305,7 +329,14 @@ fn image(
     };
     let size =
         asset::publish(&dir, filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
-    let image = BlockBuilder::image(physical_target.unwrap_or(image_target));
+    let mut image = BlockBuilder::image(physical_target.unwrap_or(image_target));
+    if let Some(option) = option
+        && !(&input.metadata.options)
+            .into_iter()
+            .any(|opt| *opt == option)
+    {
+        image = image.with_attributes(format!("opts={option}"));
+    }
     let mut defaults = Vec::new();
     if target.is_empty() {
         defaults.push("alt=Diagram".to_owned());

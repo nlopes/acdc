@@ -43,6 +43,9 @@ Set `:imagesoutdir: staging` to write diagrams under `staging` while keeping `im
 Embedding reads the staged file directly. Unset the attribute with `:imagesoutdir!:` to resume writing under `imagesdir`.
 The CLI resolves `imagesoutdir` from its working directory. Library callers can set its base with `OutputDirectories::with_imagesoutdir_base`.
 Directories used for writing must be relative and cannot contain symlinks, parent traversal, URI escapes, query strings, or fragments.
+In HTML, the default `static` SVG type produces an `<img>`. Set `:diagram-svg-type: inline` to embed SVG markup or `:diagram-svg-type: interactive` to use an `<object>`.
+The `wavedrom-svg-type` and `tikz-svg-type` attributes override the shared setting. Each block can override either with `svg-type=static`, `inline`, or `interactive`.
+Explicit `opts=inline` or `opts=interactive` takes precedence over `svg-type`. If both options are present, inline wins.
 For HTML, SVG diagrams supply default image dimensions from their absolute width and height, or from the `viewBox` when either dimension is unavailable.
 WaveDrom PNG diagrams use the pixel width and height of the generated raster.
 Use `scale=0.5` to halve those defaults. Explicit `width` and `height` each override the corresponding default.

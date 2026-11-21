@@ -88,6 +88,69 @@ mod active {
     }
 
     #[test]
+    fn svg_type_follows_block_options_and_scoped_document_defaults() -> TestResult {
+        use std::fmt::Write as _;
+
+        let blocks = [
+            ("", "shared,svg,opts=other"),
+            (":wavedrom-svg-type: interactive", "renderer,svg"),
+            ("", "local,svg,svg-type=static"),
+            ("", "explicit,svg,svg-type=unknown,opts=inline"),
+            (":wavedrom-svg-type!:", "inherited,svg"),
+            ("", "object,svg,opts=interactive"),
+            ("", r#"both,svg,opts="interactive,inline""#),
+            (":diagram-svg-type!:", "plain,svg"),
+        ];
+        let mut doc = String::from("= Guide\n:diagram-svg-type: inline\n");
+        for (attrs, block) in blocks {
+            writeln!(doc, "\n{attrs}\n\n[wavedrom,{block}]\n....\nclock\n....")?;
+        }
+        for mode in ["asciidoctor", "draft"] {
+            let dir = tempfile::tempdir()?;
+            let root = dir.path();
+            setup(root)?;
+            fs::create_dir(root.join("source"))?;
+            fs::create_dir(root.join("out"))?;
+            fs::write(root.join("source/doc.adoc"), &doc)?;
+            let result = convert(
+                root,
+                &[
+                    "--embedded",
+                    "--compatibility-mode",
+                    mode,
+                    "source/doc.adoc",
+                    "-o",
+                    "out/doc.html",
+                ],
+                None,
+            )?;
+            assert!(result.status.success(), "{}", output_text(&result.stderr));
+            let html = fs::read_to_string(root.join("out/doc.html"))?;
+            assert_eq!(html.matches("<svg ").count(), 4, "{html}");
+            for name in ["shared", "explicit", "inherited", "both"] {
+                assert!(root.join(format!("source/{name}.svg")).is_file());
+            }
+            for name in ["renderer", "object"] {
+                assert!(
+                    html.contains(&format!(
+                        r#"<object type="image/svg+xml" data="{name}.svg""#
+                    )),
+                    "{html}"
+                );
+                assert!(root.join(format!("out/{name}.svg")).is_file());
+            }
+            for name in ["local", "plain"] {
+                assert!(
+                    html.contains(&format!(r#"<img src="{name}.svg""#)),
+                    "{html}"
+                );
+                assert!(root.join(format!("out/{name}.svg")).is_file());
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     fn svg_dimensions_supply_independent_html_defaults() -> TestResult {
         let dir = tempfile::tempdir()?;
         setup(dir.path())?;
