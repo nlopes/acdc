@@ -226,7 +226,7 @@ fn image(
         ));
     }
     let target = args.get_string("target").unwrap_or_default();
-    let filename = if target.is_empty() {
+    let image_target = if target.is_empty() {
         let digest = Sha256::digest(source.as_bytes());
         format!(
             "{name}-{}.{}",
@@ -234,12 +234,14 @@ fn image(
             format.extension()
         )
     } else {
-        if !target
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
-        {
+        if !target.split('/').all(|part| {
+            !part.is_empty()
+                && part
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+        }) {
             return Err(format!(
-                "{name} target must use letters, digits, hyphens, or underscores"
+                "{name} target must be a relative path with nonempty segments containing only ASCII letters, digits, hyphens, or underscores"
             ));
         }
         format!("{target}.{}", format.extension())
@@ -262,9 +264,12 @@ fn image(
     } else {
         roots.linked
     };
-    let dir = image_directory(root, images).map_err(|e| format!("{name} imagesdir: {e}"))?;
-    asset::publish(&dir, &filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
-    let image = BlockBuilder::image(filename);
+    let dir =
+        image_directory(root.to_owned(), images).map_err(|e| format!("{name} imagesdir: {e}"))?;
+    let (parent, filename) = image_target.rsplit_once('/').unwrap_or(("", &image_target));
+    let dir = image_directory(dir, parent).map_err(|e| format!("{name} target: {e}"))?;
+    asset::publish(&dir, filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
+    let image = BlockBuilder::image(image_target);
     Ok(if target.is_empty() {
         image.with_default_attributes("alt=Diagram")
     } else {
@@ -274,12 +279,11 @@ fn image(
 
 // The HTML image reference already includes the source-position imagesdir.
 // Keep the builder target relative to it and place the asset beneath the output root.
-fn image_directory(root: &Path, images: &str) -> io::Result<PathBuf> {
-    let mut dir = root.to_owned();
-    if images.contains([':', '\\', '#', '?', '%']) {
+fn image_directory(mut dir: PathBuf, relative: &str) -> io::Result<PathBuf> {
+    if relative.contains([':', '\\', '#', '?', '%']) {
         return Err(io::Error::other("expected a local relative directory"));
     }
-    let path = Path::new(images);
+    let path = Path::new(relative);
     for component in path.components() {
         match component {
             Component::CurDir => continue,
@@ -292,9 +296,7 @@ fn image_directory(root: &Path, images: &str) -> io::Result<PathBuf> {
             Ok(()) => {}
             Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
                 if !fs::symlink_metadata(&dir)?.file_type().is_dir() {
-                    return Err(io::Error::other(
-                        "imagesdir must contain only real directories",
-                    ));
+                    return Err(io::Error::other("path must contain only real directories"));
                 }
             }
             Err(e) => return Err(e),

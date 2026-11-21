@@ -33,8 +33,9 @@ With expansion enabled, `\{signal-label}` passes a literal `{signal-label}` to t
 Only the attribute step of a `subs` setting affects diagram source. Formatting, escaping, and callout processing are left to the renderer.
 
 The first positional argument names the output, e.g. `[wavedrom,clock,svg]` produces `clock.svg`.
-Target names accept ASCII letters, digits, hyphens, and underscores.
-WaveDrom and TikZ use the target name as the default alternative text, with hyphens and underscores displayed as spaces.
+Use a relative target such as `boards/rev-a/clock_signal` to write `boards/rev-a/clock_signal.svg` under the current image directory.
+Each slash-separated segment accepts ASCII letters, digits, hyphens, and underscores.
+WaveDrom and TikZ use the final segment as the default alternative text, with hyphens and underscores displayed as spaces.
 An unnamed diagram defaults to `Diagram`. Set `alt="Clock and reset"` to supply a label or `alt=""` for a decorative image.
 An empty target uses a SHA-256 digest of the source sent to the renderer. Named `target=` and `format=` take precedence.
 The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.

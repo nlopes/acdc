@@ -124,10 +124,18 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
         std::os::unix::fs::symlink(outside.path(), output.path().join("linked"))?;
         let result = registry.parse(&format!(":imagesdir: linked\n\n{ACE}"), &options);
         assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains("imagesdir")));
+        let result = registry.parse("[wavedrom,linked/chart,svg]\n....\nbody\n....", &options);
+        assert!(
+            matches!(result, Err(Error::Extension(_, msg)) if msg.contains("target") && msg.contains("real directories"))
+        );
         assert_eq!(fs::read_dir(outside.path())?.count(), 0);
     }
     for (header, fragment) in [
         ("[wavedrom,../outside,svg]", "target"),
+        ("[wavedrom,boards/../clock,svg]", "target"),
+        ("[wavedrom,/boards/clock,svg]", "target"),
+        ("[wavedrom,boards//clock,svg]", "target"),
+        ("[wavedrom,boards/,svg]", "target"),
         ("[wavedrom,,pdf]", "format"),
         (":wavedrom: other-tool\n\n[wavedrom]", "executable"),
         (":imagesdir: ../outside\n\n[wavedrom]", "imagesdir"),
@@ -199,6 +207,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
             .ok_or("closing delimiter")?,
     )?;
     let listing = ACE.replace("\n....\n", "\n----\n");
+    let nested = ACE.replacen(", ,", ",boards/rev-a/clock_signal,", 1);
+    let path = render_asset(
+        &tool,
+        root.path(),
+        CompatibilityMode::Draft,
+        &nested,
+        "clock signal",
+    )?;
+    assert_eq!(
+        path,
+        root.path().join("images/boards/rev-a/clock_signal.svg")
+    );
+    assert!(path.is_file());
     let named = ACE.replacen(", ,", ",clock-signal_v2,", 1);
     let labeled = named.replacen("svg]", "svg,alt=\"Clock & reset\"]", 1);
     let decorative = ACE.replacen("svg]", "svg,alt=\"\"]", 1);
