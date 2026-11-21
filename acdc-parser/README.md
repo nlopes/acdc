@@ -1724,7 +1724,8 @@ can be named with `with_positional_attributes`. Named values take precedence,
 and `with_defaults` fills missing values.
 
 Return `Ok(Some(builder))` to emit an ordinary block or `Ok(None)` to consume
-the invocation. The output inherits the title, ID, and roles. The input style
+the invocation. The output inherits the title, ID, and roles. An image also
+inherits a named `alt` value, including `alt=""`, ahead of builder defaults. The input style
 has been consumed. Other delimiters keep their ordinary behavior.
 
 Both raw and compound handlers can call `input.warn(message)` and return their

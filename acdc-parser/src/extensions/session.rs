@@ -169,6 +169,9 @@ impl Session {
                         ));
                     }
                     extension.metadata.style = None;
+                    if !matches!(&output, BlockStyleOutput::Block(builder) if builder.is_image()) {
+                        extension.metadata.alt_source = None;
+                    }
                     match output {
                         BlockStyleOutput::ParseChildren => {
                             *parse_children = true;

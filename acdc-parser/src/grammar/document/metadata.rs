@@ -118,6 +118,25 @@ impl<'a> QuoteSources<'a> {
 }
 
 impl<'a> ParsedAttributeList<'a> {
+    /// A registered style chooses its output after the prefix has been parsed.
+    /// Keep the authored alt input until we know whether it produced an image.
+    pub(super) fn take_style_alt(
+        &mut self,
+        state: &ParserState<'a>,
+        form: AttributeBlockForm<'_>,
+    ) -> Option<Box<crate::model::content_attribute::PendingContentAttribute<'a>>> {
+        self.metadata.alt_source.as_ref()?;
+        let AttributeBlockForm::Delimited(kind, _) = form else {
+            return None;
+        };
+        state
+            .options
+            .extensions
+            .as_ref()?
+            .raw_style(self.metadata.style?, kind.raw_context()?)?;
+        self.metadata.alt_source.take()
+    }
+
     pub(super) fn overlay_prepared(
         &mut self,
         metadata: BlockMetadata<'a>,

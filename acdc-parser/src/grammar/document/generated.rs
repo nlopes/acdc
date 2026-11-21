@@ -56,7 +56,10 @@ impl<'a> ParserState<'a> {
         let metadata = std::mem::take(&mut extension.metadata);
         let title = std::mem::take(&mut extension.title);
         // The invocation's metadata has already been interpreted in source order.
-        if builder.defaults.is_none() && builder.attributes.is_empty() && builder.unsets.is_empty()
+        if builder.defaults.is_none()
+            && builder.attributes.is_empty()
+            && builder.unsets.is_empty()
+            && !(builder.is_image() && metadata.alt_source.is_some())
         {
             return Ok(Prepared {
                 metadata,
@@ -116,6 +119,10 @@ pub(crate) fn prepare<'a>(
     }
     if title.is_present() {
         attributes.title = None;
+    }
+    if builder.is_image() && inherited.alt_source.is_some() {
+        // An authored alt also overrides the first positional image default.
+        attributes.metadata.first_source = None;
     }
     // Attribute positions and pending reftext belong to the parsed source.
     // Generated lists have their own input and positions.

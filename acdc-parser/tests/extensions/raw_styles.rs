@@ -1,6 +1,6 @@
 use acdc_parser::{
     CompatibilityMode, ElementAttributes, Error, Options, SafeMode, Substitution, WarningKind,
-    ast::{BlockKind, BlockRef},
+    ast::{BlockKind, BlockRef, InlineKind},
     extensions::{
         BlockBuilder, BlockContext, BlockStyle, BlockStyleOutput, RawBlockContext, RawBlockInput,
         RegistrationError, Registry, TreeProcessorRegistration,
@@ -162,6 +162,68 @@ fn style_warnings_keep_the_included_invocation_location_and_allow_fallback() -> 
         assert!(matches!(panel.blocks().next().map(BlockRef::kind),
             Some(BlockKind::Literal(literal)) if literal.source_text() == Some("{x} *raw*\n")));
         assert!(matches!(blocks.next(), Some(BlockKind::Paragraph(_))));
+    }
+    Ok(())
+}
+
+#[test]
+fn image_styles_resolve_authored_alt_before_builder_defaults() -> TestResult {
+    let mut builder = Registry::builder();
+    builder.register_block_style(BlockStyle::raw(
+        "picture",
+        [RawBlockContext::Literal],
+        || {
+            |input: RawBlockInput<'_>| {
+                let image = BlockBuilder::image("clock.svg");
+                Ok(Some(match input.body.trim() {
+                    "default" => image.with_default_attributes("alt=Default"),
+                    "positional" => image.with_default_attributes("Default"),
+                    "override" => image.with_attributes("alt=Override"),
+                    "position-override" => image.with_attributes("Override"),
+                    _ => image,
+                }))
+            }
+        },
+    ))?;
+    let registry = builder.build();
+    for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for (attribute, body, expected) in [
+            ("", "plain", None),
+            ("", "default", Some("Default")),
+            (",alt={label}", "plain", Some("Clock")),
+            (",alt={label}", "default", Some("Clock")),
+            (",alt={label}", "positional", Some("Clock")),
+            (",alt=\"\"", "default", Some("")),
+            (",alt=Clock", "override", Some("Override")),
+            (",alt=Clock", "position-override", Some("Override")),
+        ] {
+            let source = format!(":label: Clock\n\n[picture{attribute}]\n....\n{body}\n....");
+            let parsed = registry.parse(&source, &options)?.finish()?;
+            let Some(BlockKind::Image(image)) =
+                parsed.document().blocks().last().map(BlockRef::kind)
+            else {
+                return Err("expected generated image".into());
+            };
+            let alt = image
+                .alt()
+                .map(|content| {
+                    content
+                        .inlines()
+                        .map(|inline| {
+                            if let InlineKind::Plain(value) = inline.kind() {
+                                Ok(value.text())
+                            } else if let InlineKind::Raw(value) = inline.kind() {
+                                Ok(value.text())
+                            } else {
+                                Err("unexpected alt content")
+                            }
+                        })
+                        .collect::<Result<String, _>>()
+                })
+                .transpose()?;
+            assert_eq!(alt.as_deref(), expected, "{mode:?} {source}");
+        }
     }
     Ok(())
 }

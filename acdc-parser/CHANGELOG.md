@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input. A style registered with `BlockStyle::compound` can also request that its body be parsed as children of an open block.
 - Block styles can report a warning at the styled block's source location and continue parsing with fallback content.
+- Images returned by block styles inherit the block's named `alt` text, including an explicitly empty value. An authored alternative overrides the extension's default.
 
 - Block macro handlers can return a `BlockBuilder` directly with `.into()`. Tree processors see the resulting block with the invocation’s title, ID, roles, and source location.
 
