@@ -836,3 +836,32 @@ pub const ERD: Renderer = Renderer {
     attributes: &[],
     generate: erd,
 };
+
+fn penrose(job: &Job<'_>) -> io::Result<()> {
+    let domain = job
+        .option("domain_file")
+        .ok_or_else(|| io::Error::other("penrose requires domain_file"))?;
+    let style = job
+        .option("style_file")
+        .ok_or_else(|| io::Error::other("penrose requires style_file"))?;
+    let input = job.source_file("substance")?;
+    let mut cmd = Command::new(job.tool);
+    cmd.args(["trio", "-o"]).arg(job.output);
+    job.flags(&mut cmd, &[("variation", "-v")]);
+    job.run(
+        cmd.args(["--path", "/", "--trio"])
+            .arg(input)
+            .arg(job.dir.join(domain))
+            .arg(job.dir.join(style))
+            .arg("--"),
+    )
+}
+
+/// Render `penrose` diagrams using `roger`.
+pub const PENROSE: Renderer = Renderer {
+    name: "penrose",
+    tool: "roger",
+    formats: &[Format::Svg],
+    attributes: &["domain_file", "style_file", "variation"],
+    generate: penrose,
+};

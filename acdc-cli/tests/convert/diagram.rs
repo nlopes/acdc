@@ -479,6 +479,21 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn penrose_block_and_file() -> TestResult {
+        tool_sample_with(
+            "penrose",
+            "--roger",
+            "Set A",
+            "svg",
+            r#"test "$1:$2:$4:$5:$6" = "trio:-o:--path:/:--trio"
+test "$(cat "$7")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$3""#,
+            ":penrose-domain_file: types.domain\n:penrose-style_file: layout.style\n",
+            &[],
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,
