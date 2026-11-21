@@ -113,7 +113,15 @@ Use `--extension diagram --pikchr /usr/bin/pikchr` to render a listing or litera
 Library callers register the style returned by `acdc_diagram::pikchr` and the macro returned by `acdc_diagram::pikchr_file`. The caller selects the executable, and rendering requires unsafe mode.
 A syntax error produces a located diagnostic. With the default error policy, the listing shows the failed source and the previous image is preserved.
 
+== GoAT
+
+Use `--extension diagram --goat /usr/bin/goat` to render ASCII art from a `[goat]` listing or literal block, or from a file with `goat::chart.txt[]`.
+Both forms produce SVG. Set `goat-svg-color-dark-scheme` and `goat-svg-color-light-scheme` on the document to select colors. A block or macro can override either with `svg-color-dark-scheme` or `svg-color-light-scheme`.
+Library callers register `acdc_diagram::goat` and `acdc_diagram::goat_file` with a trusted executable. Rendering requires unsafe mode.
+
 == Verification
+
+With GoAT 0.5.1, acdc and Asciidoctor Diagram 3.2.1 rendered ASCII routes from a block and a local file as 152 × 58 SVGs. The shapes, light and dark colors, image targets, alternative text, and numbered captions matched.
 
 With Pikchr 1.0 (20250319161943), acdc and Asciidoctor Diagram 3.2.1 rendered a two-box exchange as 292 × 76 SVGs from both a block and a local file macro. Image targets, labels, and figure captions matched. Both reported the renderer’s unrecognized-token diagnostic for malformed input.
 

@@ -92,7 +92,7 @@ fn render(
             if let Some(layout) = layout {
                 cmd.arg(format!("-K{layout}"));
             }
-            asset::run_with_source(&mut cmd, working_dir, "dot", scratch, &source)
+            asset::run_with_source(&mut cmd, working_dir, "dot", scratch, &source, None)
         },
     )
 }

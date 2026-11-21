@@ -38,6 +38,7 @@ fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     let dir = tempfile::tempdir()?;
     for (args, expected) in [
         (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
+        (vec!["--goat", "missing"], "require --extension diagram"),
         (vec!["--pikchr", "missing"], "require --extension diagram"),
         (vec!["--dpic", "missing"], "require --extension diagram"),
         (vec!["--mscgen", "missing"], "require --extension diagram"),
@@ -92,6 +93,95 @@ mod active {
         ];
         command.extend(args);
         run_acdc_in(root, &command, stdin)
+    }
+
+    #[test]
+    fn goat_streams_ascii_and_applies_color_schemes_to_blocks_and_files() -> TestResult {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        fs::create_dir(root.join("charts"))?;
+        fs::write(root.join("charts/flow.txt"), "  A -> B\n")?;
+        fs::write(
+            root.join("doc.adoc"),
+            "= GoAT
+:goat-svg-color-dark-scheme: white
+:goat-svg-color-light-scheme: navy
+
+[goat]
+----
+  A -> B
+----
+
+[goat,svg-color-dark-scheme=gray]
+....
+  A -> B
+....
+
+.External
+goat::charts/flow.txt[svg,alt=Route,svg-color-light-scheme=maroon]
+",
+        )?;
+        fs::write(
+            root.join("goat"),
+            r#"#!/bin/sh
+set -eu
+test "$#" -eq 4
+test "$1" = -sds
+test "$3" = -sls
+if test -f flow.txt; then
+    cmp - flow.txt
+    test "$2:$4" = white:maroon
+else
+    cmp - charts/flow.txt
+    test "$4" = navy
+fi
+printf '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="16"><desc>%s:%s</desc></svg>' "$2" "$4"
+"#,
+        )?;
+        fs::set_permissions(root.join("goat"), fs::Permissions::from_mode(0o700))?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--goat",
+            "./goat",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        assert!(html.contains("Figure 1. External"));
+        assert!(html.contains(r#"src="flow.svg" alt="Route" width="32" height="16""#));
+        let mut images = Vec::new();
+        for entry in fs::read_dir(root)? {
+            let entry = entry?;
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("goat-") && name.ends_with(".svg") {
+                assert!(html.contains(&format!(r#"src="{name}""#)));
+                images.push(fs::read_to_string(entry.path())?);
+            }
+        }
+        assert_eq!(images.len(), 2);
+        for palette in ["gray:navy", "white:navy"] {
+            assert!(images.iter().any(|svg| svg.contains(palette)));
+        }
+        let previous = fs::read(root.join("flow.svg"))?;
+        for (source, expected) in [
+            ("goat::charts/flow.txt[png]", "unsupported goat format"),
+            (
+                "goat::charts/flow.txt[goat=other]",
+                "set the goat executable",
+            ),
+        ] {
+            fs::write(root.join("doc.adoc"), source)?;
+            let run = run_acdc_in(root, &args, None)?;
+            assert!(!run.status.success());
+            assert!(output_text(&run.stderr).contains(expected));
+            assert_eq!(fs::read(root.join("flow.svg"))?, previous);
+        }
+        Ok(())
     }
 
     #[test]

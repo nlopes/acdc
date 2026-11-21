@@ -48,7 +48,7 @@ fn render(
     roots: OutputDirectories<'_>,
     input: &DiagramInput<'_>,
 ) -> Result<BlockBuilder, String> {
-    render_svg("pikchr", roots, input, |source, scratch, output| {
+    render_svg("pikchr", roots, input, &[], |source, scratch, output| {
         let path = scratch.join("input.pikchr");
         fs::write(&path, source)?;
         let result = asset::run_to_file(

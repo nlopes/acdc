@@ -181,10 +181,11 @@ pub(super) fn run_with_source(
     tool: &str,
     scratch: &Path,
     source: &str,
+    stdout: Option<&Path>,
 ) -> io::Result<()> {
     let path = scratch.join("stdin");
     fs::write(&path, source.as_bytes())?;
-    run_redirected(command, dir, tool, fs::File::open(path)?.into(), None)
+    run_redirected(command, dir, tool, fs::File::open(path)?.into(), stdout)
 }
 
 /// Stream renderer stdout directly to the unpublished asset.
@@ -194,8 +195,7 @@ pub(super) fn run_to_file(
     tool: &str,
     output: &Path,
 ) -> io::Result<()> {
-    let file = fs::File::create_new(output)?;
-    run_redirected(command, dir, tool, Stdio::null(), Some(&file))
+    run_redirected(command, dir, tool, Stdio::null(), Some(output))
 }
 
 fn run_redirected(
@@ -203,9 +203,10 @@ fn run_redirected(
     dir: &Path,
     tool: &str,
     stdin: Stdio,
-    output: Option<&fs::File>,
+    output: Option<&Path>,
 ) -> io::Result<()> {
-    let stdout = match output {
+    let output = output.map(fs::File::create_new).transpose()?;
+    let stdout = match &output {
         Some(file) => Stdio::from(file.try_clone()?),
         None => Stdio::null(),
     };
@@ -225,7 +226,7 @@ fn run_redirected(
             Err(error) => break error,
             Ok(None) => {}
         }
-        if let Some(file) = output {
+        if let Some(file) = &output {
             match file.metadata() {
                 Ok(meta) if meta.len() > MAX_BYTES => {
                     break io::Error::other(format!("{tool} output exceeds 16 MiB"));

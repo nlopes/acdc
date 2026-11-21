@@ -84,7 +84,7 @@ fn render(
             if let Some(font) = font {
                 cmd.arg("-F").arg(font);
             }
-            asset::run_with_source(cmd.arg("-"), dir, "mscgen", scratch, &source)
+            asset::run_with_source(cmd.arg("-"), dir, "mscgen", scratch, &source, None)
         },
     )
 }

@@ -17,6 +17,7 @@ use sha2::{Digest, Sha256};
 mod asset;
 mod dpic;
 mod file_macro;
+mod goat;
 mod graphviz;
 mod msc;
 mod pikchr;
@@ -26,6 +27,7 @@ mod wavedrom_cli;
 use asset::Format;
 pub use dpic::{dpic, dpic_file};
 use file_macro::file_macro;
+pub use goat::{goat, goat_file};
 pub use graphviz::{graphviz, graphviz_file};
 pub use msc::{msc, msc_file};
 pub use pikchr::{pikchr, pikchr_file};
@@ -317,6 +319,7 @@ fn render_svg(
     name: &str,
     roots: OutputDirectories<'_>,
     input: &DiagramInput<'_>,
+    arguments: &[&str],
     generate: impl FnOnce(&str, &Path, &Path) -> io::Result<()>,
 ) -> Result<BlockBuilder, String> {
     if input.metadata.attributes.get(name).is_some()
@@ -339,7 +342,10 @@ fn render_svg(
         roots,
         input,
         Format::Svg,
-        [source.as_ref()],
+        arguments
+            .iter()
+            .flat_map(|arg| [*arg, "\0"])
+            .chain([source.as_ref()]),
         |scratch, output| generate(&source, scratch, output),
     )
 }
