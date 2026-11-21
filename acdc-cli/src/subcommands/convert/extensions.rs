@@ -200,6 +200,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::VEGALITE, self.vl2vg.as_deref()),
             (acdc_diagram::renderer::VEGA, self.vg2svg.as_deref()),
             (acdc_diagram::renderer::SALT, self.plantuml.as_deref()),
             (acdc_diagram::renderer::PLANTUML, self.plantuml.as_deref()),
@@ -254,6 +255,7 @@ impl DiagramArgs {
         output: OutputDirectories<'_>,
     ) -> Result<()> {
         let companions: Vec<_> = [
+            ("vg2svg", self.vg2svg.as_deref()),
             ("vg2png", self.vg2png.as_deref()),
             ("vl2vg", self.vl2vg.as_deref()),
             ("dot", self.graphviz_dot.as_deref()),

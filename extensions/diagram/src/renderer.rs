@@ -917,16 +917,29 @@ pub const SALT: Renderer = Renderer {
 };
 
 fn vega(job: &Job<'_>) -> io::Result<()> {
-    let is_lite = job.source.contains("/schema/vega-lite/") || job.option("vegalite").is_some();
+    let is_lite = job.language == "vegalite"
+        || job.source.contains("/schema/vega-lite/")
+        || job.option("vegalite").is_some();
     let spec = if is_lite {
         let path = job.scratch.join("spec.json");
-        job.stdin(&mut Command::new(job.companion("vl2vg")?), Some(&path))?;
+        job.stdin(
+            &mut Command::new(if job.language == "vegalite" {
+                job.tool
+            } else {
+                job.companion("vl2vg")?
+            }),
+            Some(&path),
+        )?;
         std::borrow::Cow::Owned(asset::read_text(&path)?)
     } else {
         std::borrow::Cow::Borrowed(job.source)
     };
     let tool = if job.format == Format::Svg {
-        job.tool
+        if job.language == "vegalite" {
+            job.companion("vg2svg")?
+        } else {
+            job.tool
+        }
     } else {
         job.companion("vg2png")?
     };
@@ -949,6 +962,15 @@ fn vega(job: &Job<'_>) -> io::Result<()> {
 pub const VEGA: Renderer = Renderer {
     name: "vega",
     tool: "vg2svg",
+    formats: &[Format::Svg, Format::Png],
+    attributes: &["vegalite"],
+    generate: vega,
+};
+
+/// Render `vegalite` diagrams using `vl2vg`.
+pub const VEGALITE: Renderer = Renderer {
+    name: "vegalite",
+    tool: "vl2vg",
     formats: &[Format::Svg, Format::Png],
     attributes: &["vegalite"],
     generate: vega,

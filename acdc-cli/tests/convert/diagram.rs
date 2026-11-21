@@ -531,6 +531,26 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#
         )
     }
 
+    #[test]
+    fn vegalite_block_and_file() -> TestResult {
+        tool_sample_with(
+            "vegalite",
+            "--vl2vg",
+            "{\"mark\":\"point\",\"data\":{\"values\":[{\"x\":1}]}}",
+            "svg",
+            r#"test "$#" = 0
+cat"#,
+            "",
+            &[(
+                "--vg2svg",
+                "./vg2svg",
+                r#"test "$1:$3" = "--base:--header"
+cat >/dev/null
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#,
+            )],
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

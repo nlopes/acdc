@@ -249,6 +249,10 @@ Render `[salt]` blocks and `salt::chart.salt[]` files with `--plantuml PATH`. Su
 
 Render `[vega]` blocks and `vega::chart.json[]` files with `--vg2svg PATH`. SVG uses `--vg2svg`. Supply `--vg2png PATH` for PNG and `--vl2vg PATH` for Vega-Lite specifications. Enable the package with `--extension diagram`.
 
+== vegalite
+
+Render `[vegalite]` blocks and `vegalite::chart.json[]` files with `--vl2vg PATH`. Supply the Vega SVG renderer with `--vg2svg PATH`. The compiler feeds its Vega specification to the selected SVG or PNG renderer. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.
