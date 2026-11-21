@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[graphviz_py]` blocks and `graphviz_py::chart.dot[]` files with `--graphviz-py PATH`. Choose PNG (default), PDF, or SVG. Set `layout` and `argument` to pass a layout engine and a preprocessor argument.
+
 - Render `[dbml]` blocks and `dbml::chart.dbml[]` files with `--dbml-renderer PATH`. Output is SVG.
 
 - Render `[smcat]` blocks and `smcat::chart.smcat[]` files with `--smcat PATH`. Set `direction` or `engine` to choose the SVG layout.

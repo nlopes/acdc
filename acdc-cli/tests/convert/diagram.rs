@@ -234,6 +234,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#
         )
     }
 
+    #[test]
+    fn graphviz_py_block_and_file() -> TestResult {
+        tool_sample(
+            "graphviz_py",
+            "--graphviz-py",
+            "digraph { A -> B }",
+            "svg",
+            r#"test "$2" = -Tsvg
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "${1#-o}""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

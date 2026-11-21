@@ -263,3 +263,24 @@ pub const DBML: Renderer = Renderer {
     attributes: &[],
     generate: dbml,
 };
+
+fn graphviz_py(job: &Job<'_>) -> io::Result<()> {
+    let mut out = std::ffi::OsString::from("-o");
+    out.push(job.output);
+    let mut cmd = Command::new(job.tool);
+    cmd.arg(out).arg(format!("-T{}", job.format.extension()));
+    if let Some(layout) = job.option("layout") {
+        cmd.arg(format!("-K{layout}"));
+    }
+    job.flags(&mut cmd, &[("argument", "-a")]);
+    job.stdin(&mut cmd, None)
+}
+
+/// Render `graphviz_py` diagrams using `graphviz-py`.
+pub const GRAPHVIZ_PY: Renderer = Renderer {
+    name: "graphviz_py",
+    tool: "graphviz-py",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &["layout", "argument"],
+    generate: graphviz_py,
+};
