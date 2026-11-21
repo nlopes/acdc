@@ -12,6 +12,14 @@ fn extensions_invocations_preserve_source_before_target_expansion() -> TestResul
         builder.register(BlockMacro::new("source", || {
             |invocation: &MacroInvocation<'_>, _: &mut MacroExecutionContext| {
                 assert_eq!(invocation.source, CALL);
+                assert_eq!(
+                    invocation.named_arguments_source(|name| matches!(name, "path" | "custom")),
+                    r#"custom="x,y",path='a\b'"#
+                );
+                assert_eq!(
+                    invocation.named_arguments_source(|name| name == "first"),
+                    ""
+                );
                 assert_eq!(invocation.target, "expanded");
                 assert_eq!(
                     invocation

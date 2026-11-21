@@ -486,6 +486,32 @@ pub(super) fn decode_anchor_shorthand_reftext(value: &str) -> String {
     decode_attribute_escapes(value, ']', CompatibilityMode::Draft, true).0
 }
 
+/// Copy selected named arguments to a new macro attribute list, preserving
+/// quote choice, escapes and authored references for native output processing.
+pub(crate) fn named_arguments_source(
+    source: &str,
+    mode: CompatibilityMode,
+    mut keep: impl FnMut(&str) -> bool,
+) -> String {
+    let mut result = String::new();
+    for slot in scan_block_attribute_list(source, mode, BlockAttributeMode::Macro) {
+        let Some(name) = slot.name.as_deref() else {
+            continue;
+        };
+        if !keep(name) || slot.is_ignored(mode) {
+            continue;
+        }
+        let quote = usize::from(slot.quote != AttributeQuote::Unquoted);
+        if !result.is_empty() {
+            result.push(',');
+        }
+        result.push_str(name);
+        result.push('=');
+        result.push_str(&source[slot.value_start - quote..slot.value_end + quote]);
+    }
+    result
+}
+
 pub(crate) fn extension_attributes(
     state: &crate::grammar::ParserState<'_>,
     arguments: &str,

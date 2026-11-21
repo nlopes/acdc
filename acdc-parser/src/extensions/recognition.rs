@@ -81,6 +81,7 @@ pub(crate) fn recognize<'a>(
         metadata,
         title,
         invocation: super::Invocation::Macro(MacroInvocation {
+            mode: state.options.compatibility_mode,
             name: Cow::Borrowed(name),
             source: Cow::Owned(source),
             target: Cow::Borrowed(target),

@@ -109,6 +109,7 @@ impl BlockMacro {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct MacroInvocation<'a> {
+    pub(super) mode: crate::CompatibilityMode,
     pub name: Cow<'a, str>,
     /// The accepted call from its name through the closing bracket, before
     /// target expansion and argument interpretation. Table-cell escapes follow
@@ -276,8 +277,22 @@ impl From<super::BlockBuilder> for BlockMacroOutput {
 }
 
 impl MacroInvocation<'_> {
+    /// Select authored named arguments to pass to [`super::BlockBuilder::with_attributes`].
+    /// Preserves quoting, escapes, and source order. Positional bindings and
+    /// defaults are omitted.
+    #[must_use]
+    pub fn named_arguments_source(&self, keep: impl FnMut(&str) -> bool) -> String {
+        let arguments = self
+            .source
+            .split_once('[')
+            .and_then(|(_, tail)| tail.strip_suffix(']'))
+            .unwrap_or_default();
+        crate::grammar::attributes::named_arguments_source(arguments, self.mode, keep)
+    }
+
     pub(super) fn to_owned_invocation(&self) -> MacroInvocation<'static> {
         MacroInvocation {
+            mode: self.mode,
             name: Cow::Owned(self.name.to_string()),
             source: Cow::Owned(self.source.to_string()),
             target: Cow::Owned(self.target.to_string()),
