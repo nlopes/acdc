@@ -260,6 +260,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn shaape_block_and_file() -> TestResult {
+        tool_sample(
+            "shaape",
+            "--shaape",
+            "+---+\n| A |\n+---+",
+            "svg",
+            r#"test "$1:$3:$4:$5" = "-o:-t:svg:-"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$2""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

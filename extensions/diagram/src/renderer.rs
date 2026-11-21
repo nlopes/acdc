@@ -326,3 +326,22 @@ pub const D2: Renderer = Renderer {
     ],
     generate: d2,
 };
+
+fn shaape(job: &Job<'_>) -> io::Result<()> {
+    job.stdin(
+        Command::new(job.tool)
+            .arg("-o")
+            .arg(job.output)
+            .args(["-t", job.format.extension(), "-"]),
+        None,
+    )
+}
+
+/// Render `shaape` diagrams using `shaape`.
+pub const SHAAPE: Renderer = Renderer {
+    name: "shaape",
+    tool: "shaape",
+    formats: &[Format::Png, Format::Svg],
+    attributes: &[],
+    generate: shaape,
+};

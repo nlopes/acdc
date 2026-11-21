@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[shaape]` blocks and `shaape::chart.shaape[]` files with `--shaape PATH`. PNG is the default. Select SVG with `format=svg`.
+
 - Render `[d2]` blocks and `d2::chart.d2[]` files with `--d2 PATH`. SVG is the default. PNG and PDF require the corresponding D2 browser support. Set `theme`, `layout`, or `sketch` to change the drawing.
 
 - Render `[graphviz_py]` blocks and `graphviz_py::chart.dot[]` files with `--graphviz-py PATH`. Choose PNG (default), PDF, or SVG. Set `layout` and `argument` to pass a layout engine and a preprocessor argument.

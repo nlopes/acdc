@@ -102,6 +102,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted d2 renderer
     #[arg(long, value_name = "PATH")]
     d2: Option<std::path::PathBuf>,
+    /// Path to the trusted shaape renderer
+    #[arg(long, value_name = "PATH")]
+    shaape: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -137,6 +140,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::SHAAPE, self.shaape.as_deref()),
             (acdc_diagram::renderer::D2, self.d2.as_deref()),
             (
                 acdc_diagram::renderer::GRAPHVIZ_PY,
