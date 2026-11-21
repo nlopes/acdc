@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   WaveDrom or `--lualatex PATH` for TikZ. Add `--pdf2svg PATH` for TikZ SVG.
   Diagrams can appear in list continuations, sidebars, and AsciiDoc table cells.
   Setting `imagesoutdir` inside a cell stages only that cell’s diagrams there.
+  In HTML, SVG diagrams use their intrinsic dimensions by default. Set `scale=0.5` to display them at half size, or set `width` and `height` independently.
   Rendering requires unsafe mode and a caller-selected executable. Add
   `subs=attributes` to a diagram block to expand document attributes in its source.
   Failed diagrams show the error and source in the output. Use `--fail-on-warnings` to

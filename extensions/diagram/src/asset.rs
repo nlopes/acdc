@@ -6,6 +6,41 @@ use std::{
     time::{Duration, Instant},
 };
 
+use svgtypes::{Length, LengthUnit, ViewBox};
+
+pub(super) struct SvgSize {
+    pub(super) width: f64,
+    pub(super) height: f64,
+}
+
+impl SvgSize {
+    fn from_root(root: roxmltree::Node<'_, '_>) -> Option<Self> {
+        let pixels = |name| {
+            let length: Length = root.attribute(name)?.trim().parse().ok()?;
+            let factor = match length.unit {
+                LengthUnit::None | LengthUnit::Px => 1.0,
+                // Match Asciidoctor Diagram's conversion of pdf2svg's TeX points.
+                LengthUnit::Pt => 1.33,
+                LengthUnit::In => 96.0,
+                LengthUnit::Cm => 96.0 / 2.54,
+                LengthUnit::Mm => 96.0 / 25.4,
+                LengthUnit::Pc => 16.0,
+                LengthUnit::Em | LengthUnit::Ex | LengthUnit::Percent => return None,
+            };
+            let value = length.number * factor;
+            (value.is_finite() && value >= 0.0).then_some(value)
+        };
+        if let (Some(width), Some(height)) = (pixels("width"), pixels("height")) {
+            return Some(Self { width, height });
+        }
+        let view_box: ViewBox = root.attribute("viewBox")?.parse().ok()?;
+        Some(Self {
+            width: view_box.w,
+            height: view_box.h,
+        })
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Format {
     Svg,
@@ -22,7 +57,7 @@ impl Format {
         }
     }
 
-    pub(super) fn validate(self, path: &Path) -> io::Result<()> {
+    pub(super) fn validate(self, path: &Path) -> io::Result<Option<SvgSize>> {
         const MAX_BYTES: u64 = 16 * 1024 * 1024;
         let meta = fs::symlink_metadata(path)?;
         if !meta.is_file() || meta.len() > MAX_BYTES {
@@ -35,14 +70,15 @@ impl Format {
             Self::Svg => {
                 let mut svg = String::new();
                 file.take(MAX_BYTES + 1).read_to_string(&mut svg)?;
-                if svg.len() as u64 > MAX_BYTES
-                    || !roxmltree::Document::parse(&svg)
-                        .map_err(io::Error::other)?
-                        .root_element()
-                        .has_tag_name(("http://www.w3.org/2000/svg", "svg"))
-                {
+                if svg.len() as u64 > MAX_BYTES {
                     return Err(io::Error::other("invalid SVG output"));
                 }
+                let document = roxmltree::Document::parse(&svg).map_err(io::Error::other)?;
+                let root = document.root_element();
+                if !root.has_tag_name(("http://www.w3.org/2000/svg", "svg")) {
+                    return Err(io::Error::other("invalid SVG output"));
+                }
+                return Ok(SvgSize::from_root(root));
             }
             Self::Png => validate_png(file)?,
             Self::Pdf => {
@@ -56,7 +92,7 @@ impl Format {
                 }
             }
         }
-        Ok(())
+        Ok(None)
     }
 }
 
@@ -88,7 +124,7 @@ pub(super) fn publish(
     filename: &str,
     format: Format,
     generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
-) -> io::Result<()> {
+) -> io::Result<Option<SvgSize>> {
     let scratch = tempfile::Builder::new()
         .prefix(".acdc-diagram-")
         .tempdir_in(dir)?;
@@ -96,8 +132,9 @@ pub(super) fn publish(
         .path()
         .join(format!("output.{}", format.extension()));
     generate(scratch.path(), &output)?;
-    format.validate(&output)?;
-    fs::rename(output, dir.join(filename))
+    let size = format.validate(&output)?;
+    fs::rename(output, dir.join(filename))?;
+    Ok(size)
 }
 
 pub(super) fn run(command: &mut Command, dir: &Path, tool: &str) -> io::Result<()> {

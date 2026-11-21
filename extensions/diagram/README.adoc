@@ -43,6 +43,10 @@ Set `:imagesoutdir: staging` to write diagrams under `staging` while keeping `im
 Embedding reads the staged file directly. Unset the attribute with `:imagesoutdir!:` to resume writing under `imagesdir`.
 The CLI resolves `imagesoutdir` from its working directory. Library callers can set its base with `OutputDirectories::with_imagesoutdir_base`.
 Directories used for writing must be relative and cannot contain symlinks, parent traversal, URI escapes, query strings, or fragments.
+For HTML, SVG diagrams supply default image dimensions from their absolute width and height, or from the `viewBox` when either dimension is unavailable.
+Use `scale=0.5` to halve those defaults. Explicit `width` and `height` each override the corresponding default.
+acdc uses Asciidoctor Diagram’s factor of 1.33 for TeX points and truncates fractional pixels after scaling.
+For other physical units acdc uses 96 pixels per inch. A `viewBox` offset does not change its width or height.
 Use `[wavedrom,clock,png]` to generate `clock.png`. SVG is the default.
 Set `:diagram-format: svg` to select a common format for WaveDrom and TikZ.
 A block's positional or named format overrides `wavedrom-format` or `tikz-format`, which in turn override `diagram-format`.

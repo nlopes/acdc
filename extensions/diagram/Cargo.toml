@@ -13,6 +13,7 @@ png = "0.18"
 roxmltree = "0.21"
 base64.workspace = true
 sha2.workspace = true
+svgtypes = "0.16"
 tempfile.workspace = true
 url.workspace = true
 

@@ -88,6 +88,53 @@ mod active {
     }
 
     #[test]
+    fn svg_dimensions_supply_independent_html_defaults() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        setup(dir.path())?;
+        fs::write(dir.path().join("renderer"), "#!/bin/sh\ncp \"$2\" \"$4\"\n")?;
+        let pixels = r#"width="240px" height="30" viewBox="0 0 1 1""#;
+        let cases = [
+            (",svg", pixels, r#"alt="Diagram" width="240" height="30">"#),
+            (
+                "clock,svg,width=50%,scale=0.5",
+                pixels,
+                r#"alt="clock" width="50%" height="15">"#,
+            ),
+            (
+                "reset,svg,height=7",
+                pixels,
+                r#"alt="reset" width="240" height="7">"#,
+            ),
+            (
+                "both,svg,width=12,height=23",
+                pixels,
+                r#"alt="both" width="12" height="23">"#,
+            ),
+            (
+                "points,svg",
+                r#"width="383.212pt" height="250.908pt""#,
+                r#"alt="points" width="509" height="333">"#,
+            ),
+            (
+                "box,svg",
+                r#"width="100%" viewBox="4 6 80 24""#,
+                r#"alt="box" width="80" height="24">"#,
+            ),
+            ("unknown,svg", r#"width="100%""#, r#"alt="unknown">"#),
+        ];
+        let source = cases.map(|(attributes, geometry, _)| {
+            format!("[wavedrom,{attributes}]\n....\n<svg xmlns=\"http://www.w3.org/2000/svg\" {geometry}/>\n....")
+        }).join("\n\n");
+        let output = convert(dir.path(), &["--stdin", "--embedded"], Some(&source))?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let html = output_text(&output.stdout);
+        for (_, _, expected) in cases {
+            assert!(html.contains(expected), "missing {expected} in {html}");
+        }
+        Ok(())
+    }
+
+    #[test]
     fn titled_diagram_listing_shares_the_figure_counter_with_authored_images() -> TestResult {
         let dir = tempfile::tempdir()?;
         setup(dir.path())?;

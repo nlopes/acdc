@@ -166,6 +166,7 @@ dependencies = [
  "png",
  "roxmltree 0.21.1",
  "sha2",
+ "svgtypes",
  "tempfile",
  "url",
 ]

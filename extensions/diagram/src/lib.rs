@@ -303,12 +303,31 @@ fn image(
     } else {
         None
     };
-    asset::publish(&dir, filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
+    let size =
+        asset::publish(&dir, filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
     let image = BlockBuilder::image(physical_target.unwrap_or(image_target));
-    Ok(if target.is_empty() {
-        image.with_default_attributes("alt=Diagram")
-    } else {
+    let mut defaults = Vec::new();
+    if target.is_empty() {
+        defaults.push("alt=Diagram".to_owned());
+    }
+    if backend.starts_with("html")
+        && let Some(size) = size
+    {
+        let scale = args
+            .get_string("scale")
+            .and_then(|value| value.parse::<f64>().ok())
+            .filter(|scale| scale.is_finite() && *scale >= 0.0)
+            .unwrap_or(1.0);
+        let width = (size.width * scale).trunc();
+        let height = (size.height * scale).trunc();
+        if width.is_finite() && height.is_finite() {
+            defaults.push(format!("width={width},height={height}"));
+        }
+    }
+    Ok(if defaults.is_empty() {
         image
+    } else {
+        image.with_default_attributes(defaults.join(","))
     })
 }
 
