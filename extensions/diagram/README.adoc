@@ -102,3 +102,12 @@ To verify both formats with the real tools:
 ----
 ACDC_LUALATEX=/absolute/path/to/lualatex ACDC_PDF2SVG=/absolute/path/to/pdf2svg cargo nextest run -p acdc-diagram --all-features --run-ignored only -E 'test(=ace_state_diagram_with_real_lualatex)'
 ----
+
+=== PDF conversion
+
+The November 2026 comparison used acdc CLI 0.3.0 and Asciidoctor PDF 2.3.19 with Asciidoctor 2.0.26 and Asciidoctor Diagram 3.2.1.
+Both backends rendered the ACE register and state machine from the fixtures above in a single document, using wavedrom-cli 3.2.0, LuaHBTeX 1.24.0 with shell escape disabled, and pdf2svg 0.2.4.
+
+With SVG for both figures, each PDF had one page. The register labels (including `ace.load`, `context`, and `immed12`) were selectable text.
+Both PDFs retained the state machine as vector paths and numbered the captions _Figure 1. ACE register_ and _Figure 2. ACE state machine_.
+Switching just the register to PNG embedded an 800 × 84 image with an alpha mask in each PDF. The page layouts gave the raster different displayed widths (127 ppi in acdc and 115 ppi in Asciidoctor PDF).
