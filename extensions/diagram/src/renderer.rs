@@ -699,3 +699,28 @@ pub const BPMN: Renderer = Renderer {
     attributes: &["width", "height"],
     generate: bpmn,
 };
+
+mod mermaid;
+
+/// Render `mermaid` diagrams using `mmdc`.
+pub const MERMAID: Renderer = Renderer {
+    name: "mermaid",
+    tool: "mmdc",
+    formats: &[Format::Png, Format::Svg],
+    attributes: &[
+        "css",
+        "ganttconfig",
+        "gantt-config",
+        "sequenceconfig",
+        "sequence-config",
+        "width",
+        "height",
+        "theme",
+        "background",
+        "config",
+        "puppeteerconfig",
+        "puppeteer-config",
+        "scale",
+    ],
+    generate: mermaid::render,
+};

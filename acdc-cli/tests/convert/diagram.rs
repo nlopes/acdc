@@ -416,6 +416,19 @@ printf '%s' '<!-- modeler --><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "htt
         )
     }
 
+    #[test]
+    fn mermaid_block_and_file() -> TestResult {
+        tool_sample(
+            "mermaid",
+            "--mmdc",
+            "graph TD\n  A --> B",
+            "svg",
+            r#"test "$1:$3" = "-i:-o"
+test "$(cat "$2")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$4""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,
