@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render Pikchr source from `[pikchr]` blocks and `pikchr::chart.pikchr[]` file macros as SVG with `--extension diagram --pikchr PATH`. Syntax errors report the renderer’s diagnostic and preserve the previous image.
+
 - Render PIC source from `[dpic]` blocks or `dpic::chart.pic[]` file macros as SVG with `--extension diagram --dpic PATH`. acdc accepts both bare source and pictures already enclosed in `.PS` and `.PE`. Asciidoctor Diagram 3.2.1 can append a duplicate closing delimiter to a complete picture.
 
 - Render message sequence charts from `[msc]` blocks or `msc::chart.msc[svg]` with `--extension diagram --mscgen PATH`. PNG is the default. Use `font=` or `msc-font` to select a PNG font.

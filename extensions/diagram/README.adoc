@@ -107,7 +107,15 @@ In a library, register the block style returned by `acdc_diagram::dpic` and the 
 acdc adds missing `.PS` and `.PE` delimiters. Existing delimiters, including a size on the opening line, are preserved.
 The acdc conversion requires unsafe mode to launch the configured executable. acdc always passes dpic's own `-z` flag, which disables external file access inside PIC source.
 
+== Pikchr
+
+Use `--extension diagram --pikchr /usr/bin/pikchr` to render a listing or literal block styled `[pikchr,flow]` as `flow.svg`. Use `pikchr::charts/flow.pikchr[]` to render a local source file. Both forms support SVG.
+Library callers register the style returned by `acdc_diagram::pikchr` and the macro returned by `acdc_diagram::pikchr_file`. The caller selects the executable, and rendering requires unsafe mode.
+A syntax error produces a located diagnostic. With the default error policy, the listing shows the failed source and the previous image is preserved.
+
 == Verification
+
+With Pikchr 1.0 (20250319161943), acdc and Asciidoctor Diagram 3.2.1 rendered a two-box exchange as 292 × 76 SVGs from both a block and a local file macro. Image targets, labels, and figure captions matched. Both reported the renderer’s unrecognized-token diagnostic for malformed input.
 
 With dpic 2023.06.01, acdc and Asciidoctor Diagram 3.2.1 rendered a two-box picture as a 195 × 51 SVG from both a bare block and a file macro. Image targets, labels, and figure captions matched. For a file already ending in `.PE`, acdc rendered the same picture. Asciidoctor Diagram 3.2.1 appended a second `.PE` and dpic reported a syntax error.
 

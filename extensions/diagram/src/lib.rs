@@ -19,6 +19,7 @@ mod dpic;
 mod file_macro;
 mod graphviz;
 mod msc;
+mod pikchr;
 mod tikz;
 mod wavedrom_cli;
 
@@ -27,6 +28,7 @@ pub use dpic::{dpic, dpic_file};
 use file_macro::file_macro;
 pub use graphviz::{graphviz, graphviz_file};
 pub use msc::{msc, msc_file};
+pub use pikchr::{pikchr, pikchr_file};
 pub use tikz::tikz;
 
 /// Directories used by a converter to resolve relative image references.
@@ -308,6 +310,38 @@ fn svg_option(
             "{renderer} unsupported SVG type '{other}' (expected static, inline or interactive)"
         )),
     }
+}
+
+/// SVG-only tools whose executable attribute has the same name as the style.
+fn render_svg(
+    name: &str,
+    roots: OutputDirectories<'_>,
+    input: &DiagramInput<'_>,
+    generate: impl FnOnce(&str, &Path, &Path) -> io::Result<()>,
+) -> Result<BlockBuilder, String> {
+    if input.metadata.attributes.get(name).is_some()
+        || input.document_attributes.get(name).is_some()
+    {
+        return Err(format!(
+            "set the {name} executable when registering the diagram"
+        ));
+    }
+    if let Some(format) = diagram_attribute(input, name, "format").as_deref()
+        && format != "svg"
+    {
+        return Err(format!(
+            "unsupported {name} format '{format}' (expected svg)"
+        ));
+    }
+    let source = diagram_source(input);
+    image(
+        name,
+        roots,
+        input,
+        Format::Svg,
+        [source.as_ref()],
+        |scratch, output| generate(&source, scratch, output),
+    )
 }
 
 fn image_filename<'a>(

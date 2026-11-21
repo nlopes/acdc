@@ -9,11 +9,7 @@ use std::{
 
 use acdc_parser::extensions::{BlockBuilder, BlockMacro, BlockStyle};
 
-use super::{
-    DiagramInput, OutputDirectories,
-    asset::{self, Format},
-    diagram_attribute, diagram_source, executable, file_macro, image, style,
-};
+use super::{DiagramInput, OutputDirectories, asset, executable, file_macro, render_svg, style};
 
 /// Register the `dpic` listing and literal block style with a caller-selected executable.
 ///
@@ -52,34 +48,16 @@ fn render(
     roots: OutputDirectories<'_>,
     input: &DiagramInput<'_>,
 ) -> Result<BlockBuilder, String> {
-    if input.metadata.attributes.get("dpic").is_some()
-        || input.document_attributes.get("dpic").is_some()
-    {
-        return Err("set the dpic executable when registering the diagram".into());
-    }
-    if let Some(format) = diagram_attribute(input, "dpic", "format").as_deref()
-        && format != "svg"
-    {
-        return Err(format!("unsupported dpic format '{format}' (expected svg)"));
-    }
-    let source = diagram_source(input);
-    image(
-        "dpic",
-        roots,
-        input,
-        Format::Svg,
-        [source.as_ref()],
-        |scratch, output| {
-            let path = scratch.join("input.pic");
-            write_picture(&path, &source)?;
-            asset::run_to_file(
-                Command::new(tool).args(["-v", "-z"]).arg(path),
-                dir,
-                "dpic",
-                output,
-            )
-        },
-    )
+    render_svg("dpic", roots, input, |source, scratch, output| {
+        let path = scratch.join("input.pic");
+        write_picture(&path, source)?;
+        asset::run_to_file(
+            Command::new(tool).args(["-v", "-z"]).arg(path),
+            dir,
+            "dpic",
+            output,
+        )
+    })
 }
 
 fn write_picture(path: &Path, source: &str) -> io::Result<()> {

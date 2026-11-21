@@ -69,6 +69,9 @@ fn parent(file: Option<&Path>) -> &Path {
 #[cfg(feature = "diagram")]
 #[derive(clap::Args, Debug)]
 pub(super) struct DiagramArgs {
+    /// Path to the trusted Pikchr executable
+    #[arg(long, value_name = "PATH")]
+    pikchr: Option<std::path::PathBuf>,
     /// Path to the trusted dpic executable for PIC diagrams
     #[arg(long, value_name = "PATH")]
     dpic: Option<std::path::PathBuf>,
@@ -97,6 +100,7 @@ impl DiagramArgs {
             || self.graphviz_dot.is_some()
             || self.mscgen.is_some()
             || self.dpic.is_some()
+            || self.pikchr.is_some()
     }
 
     fn select(
@@ -108,7 +112,7 @@ impl DiagramArgs {
         use std::collections::{HashMap, hash_map::Entry};
         if !self.has_renderer() {
             return Err(miette::miette!(
-                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, --mscgen PATH, or --dpic PATH"
+                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, --mscgen PATH, --dpic PATH, or --pikchr PATH"
             ));
         }
         // The terminal backend displays files from the working directory, including in a pager.
@@ -190,6 +194,16 @@ impl DiagramArgs {
                 output,
                 acdc_diagram::dpic,
                 acdc_diagram::dpic_file,
+            )?;
+        }
+        if let Some(tool) = &self.pikchr {
+            register_file_renderer(
+                &mut registry,
+                "pikchr",
+                tool,
+                output,
+                acdc_diagram::pikchr,
+                acdc_diagram::pikchr_file,
             )?;
         }
         if let Some(tool) = &self.wavedrom_cli {

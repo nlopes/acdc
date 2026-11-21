@@ -38,6 +38,7 @@ fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     let dir = tempfile::tempdir()?;
     for (args, expected) in [
         (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
+        (vec!["--pikchr", "missing"], "require --extension diagram"),
         (vec!["--dpic", "missing"], "require --extension diagram"),
         (vec!["--mscgen", "missing"], "require --extension diagram"),
         (
@@ -91,6 +92,126 @@ mod active {
         ];
         command.extend(args);
         run_acdc_in(root, &command, stdin)
+    }
+
+    #[test]
+    fn pikchr_renders_verbatim_blocks_and_file_macros_with_svg_only() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::create_dir(root.join("charts"))?;
+        fs::write(root.join("charts/flow.pikchr"), "box \"File\"")?;
+        fs::write(
+            root.join("doc.adoc"),
+            "= Charts\n:imagesdir: images\n\n[pikchr,diagram]\n....\nbox \"Block\"\n....\n\n.External\npikchr::charts/flow.pikchr[svg,alt=Flow]",
+        )?;
+        fs::write(
+            root.join("pikchr"),
+            r#"#!/bin/sh
+set -eu
+test "$#" = 2
+test "$1" = --svg-only
+if test -f flow.pikchr; then
+    cmp "$2" flow.pikchr
+else
+    printf '%s\n' 'box "Block"' | cmp - "$2"
+fi
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 42 18"/>'
+"#,
+        )?;
+        fs::set_permissions(root.join("pikchr"), fs::Permissions::from_mode(0o700))?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--pikchr",
+            "./pikchr",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        assert!(html.contains("Figure 1. External"));
+        for (name, alt) in [("diagram", "diagram"), ("flow", "Flow")] {
+            assert!(root.join(format!("images/{name}.svg")).is_file());
+            assert!(html.contains(&format!(
+                r#"src="images/{name}.svg" alt="{alt}" width="42" height="18""#
+            )));
+        }
+        let mut secure = args.to_vec();
+        secure.extend(["--safe-mode", "secure"]);
+        let denied = run_acdc_in(root, &secure, None)?;
+        assert!(!denied.status.success());
+        assert!(output_text(&denied.stderr).contains("pikchr requires unsafe mode"));
+        for (source, message) in [
+            (
+                "pikchr::charts/flow.pikchr[png]",
+                "unsupported pikchr format",
+            ),
+            (
+                ":pikchr: other\n\n[pikchr]\n----\nbox\n----",
+                "set the pikchr executable",
+            ),
+            (
+                "pikchr::charts/flow.pikchr[pikchr=other]",
+                "set the pikchr executable",
+            ),
+        ] {
+            fs::write(root.join("doc.adoc"), source)?;
+            let run = run_acdc_in(root, &args, None)?;
+            assert!(!run.status.success());
+            assert!(output_text(&run.stderr).contains(message));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pikchr_reports_plain_and_html_errors_and_preserves_previous_image() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::write(
+            root.join("doc.adoc"),
+            "[pikchr,example]\n----\nbox with ???\n----",
+        )?;
+        fs::write(root.join("example.svg"), "previous image")?;
+        for (command, message) in [
+            (
+                "printf '%05000d\\nERROR: unrecognized token\\n' 0; exit 1",
+                "ERROR: unrecognized token",
+            ),
+            (
+                "printf '%s' '<div><pre><b>ERROR:</b> expected &amp; here</pre></div>'",
+                "ERROR: expected & here",
+            ),
+        ] {
+            fs::write(root.join("pikchr"), format!("#!/bin/sh\n{command}\n"))?;
+            fs::set_permissions(root.join("pikchr"), fs::Permissions::from_mode(0o700))?;
+            let run = run_acdc_in(
+                root,
+                &[
+                    "convert",
+                    "--extension",
+                    "diagram",
+                    "--pikchr",
+                    "./pikchr",
+                    "--fail-on-warnings",
+                    "doc.adoc",
+                ],
+                None,
+            )?;
+            assert!(!run.status.success());
+            assert!(
+                output_text(&run.stderr).contains(message),
+                "{}",
+                output_text(&run.stderr)
+            );
+            assert!(fs::read_to_string(root.join("doc.html"))?.contains("box with ???"));
+            assert_eq!(
+                fs::read_to_string(root.join("example.svg"))?,
+                "previous image"
+            );
+        }
+        Ok(())
     }
 
     #[test]
