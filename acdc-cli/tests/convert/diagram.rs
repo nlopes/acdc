@@ -92,6 +92,104 @@ mod active {
     }
 
     #[test]
+    fn graphviz_file_macro_preserves_image_semantics_and_reads_relative_to_the_invocation()
+    -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::create_dir_all(root.join("source/parts/graphs"))?;
+        fs::create_dir(root.join("out"))?;
+        fs::write(
+            root.join("source/parts/graphs/chart.dot"),
+            "digraph { input -> output }",
+        )?;
+        fs::write(
+            root.join("source/parts/part.adoc"),
+            ".Flow\ngraphviz::graphs/chart.dot[svg,alt=\"*Graph*\"]",
+        )?;
+        fs::write(
+            root.join("source/doc.adoc"),
+            "= Document\n\n:imagesdir: images\n\ninclude::parts/part.adoc[]\n\ngraphviz::parts/graphs/chart.dot[svg]\n\n.Next\nimage::next.png[]",
+        )?;
+        fs::write(
+            root.join("dot"),
+            r#"#!/bin/sh
+set -eu
+test -f chart.dot
+test "$(cat)" = 'digraph { input -> output }'
+test "$1" = -o
+test "$3" = -Tsvg
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="20"/>' > "$2"
+"#,
+        )?;
+        fs::set_permissions(root.join("dot"), fs::Permissions::from_mode(0o700))?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--graphviz-dot",
+            "./dot",
+            "--fail-on-warnings",
+            "source/doc.adoc",
+            "-o",
+            "out/doc.html",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("out/doc.html"))?;
+        assert!(
+            html.contains(r#"src="images/chart.svg" alt="*Graph*" width="10" height="20""#),
+            "{html}"
+        );
+        assert!(html.contains(r#"src="images/chart.svg" alt="Diagram""#));
+        assert!(html.contains("Figure 1. Flow") && html.contains("Figure 2. Next"));
+        assert!(root.join("out/images/chart.svg").is_file());
+
+        fs::write(root.join("source/doc.adoc"), "graphviz::missing.dot[svg]")?;
+        let mut safe_args = args.to_vec();
+        safe_args.extend(["--safe-mode", "secure"]);
+        let denied = run_acdc_in(root, &safe_args, None)?;
+        assert!(!denied.status.success());
+        assert!(output_text(&denied.stderr).contains("Graphviz requires unsafe mode"));
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(!run.status.success());
+        let html = fs::read_to_string(root.join("out/doc.html"))?;
+        assert!(
+            html.contains("Failed to generate image")
+                && html.contains("graphviz::missing.dot[svg]")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn graphviz_file_macro_preserves_its_input_on_an_output_collision() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        setup(root)?;
+        fs::write(root.join("chart.svg"), "digraph { keep }")?;
+        fs::write(root.join("doc.adoc"), "graphviz::chart.svg[svg]")?;
+        let result = run_acdc_in(
+            root,
+            &[
+                "convert",
+                "--extension",
+                "diagram",
+                "--graphviz-dot",
+                "./renderer",
+                "--fail-on-warnings",
+                "doc.adoc",
+            ],
+            None,
+        )?;
+        assert!(!result.status.success());
+        assert!(output_text(&result.stderr).contains("overwrite its source file"));
+        assert_eq!(
+            fs::read_to_string(root.join("chart.svg"))?,
+            "digraph { keep }"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn graphviz_uses_the_configured_dot_and_source_position_layout() -> TestResult {
         let dir = tempfile::tempdir()?;
         let root = dir.path();

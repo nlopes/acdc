@@ -155,6 +155,12 @@ impl DiagramArgs {
             registry
                 .register_block_style(style)
                 .map_err(|e| error::display(&e))?;
+            let file_macro = acdc_diagram::graphviz_file(tool, output).map_err(|e| {
+                miette::miette!("cannot configure Graphviz with {}: {e}", tool.display())
+            })?;
+            registry
+                .register(file_macro)
+                .map_err(|e| error::display(&e))?;
         }
         if let Some(tool) = &self.wavedrom_cli {
             let style = acdc_diagram::wavedrom(tool, output).map_err(|e| {

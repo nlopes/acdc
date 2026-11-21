@@ -130,7 +130,7 @@ activate it. Unknown or unavailable names fail before input is read or parsed.
 
 Build with `cargo build -p acdc-cli --features diagram` to make the `diagram` package available.
 Select it for trusted documents and pass the paths to the tools you want to run.
-Graphviz accepts PNG (default), SVG, or PDF. WaveDrom accepts SVG (default) or PNG. TikZ uses LuaLaTeX for PDF and can use pdf2svg for SVG.
+Use `graphviz::graphs/chart.dot[svg]` to render an external DOT file as `chart.svg`. Graphviz accepts PNG (default), SVG, or PDF. WaveDrom accepts SVG (default) or PNG. TikZ uses LuaLaTeX for PDF and can use pdf2svg for SVG.
 
 [source,console]
 ....

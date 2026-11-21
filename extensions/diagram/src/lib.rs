@@ -7,7 +7,8 @@ use std::{
 };
 
 use acdc_parser::{
-    DocumentAttributeValue, SafeMode, Substitution, VERBATIM,
+    BlockMetadata, DocumentAttributeValue, SafeMode, Substitution, VERBATIM,
+    ast::DocumentAttributesRef,
     extensions::{BlockBuilder, BlockStyle, RawBlockContext, RawBlockInput},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -19,7 +20,7 @@ mod tikz;
 mod wavedrom_cli;
 
 use asset::Format;
-pub use graphviz::graphviz;
+pub use graphviz::{graphviz, graphviz_file};
 pub use tikz::tikz;
 
 /// Directories used by a converter to resolve relative image references.
@@ -84,79 +85,124 @@ fn executable(tool: PathBuf) -> io::Result<PathBuf> {
     Ok(tool)
 }
 
+struct DiagramInput<'a> {
+    source_file: Option<&'a Path>,
+    body: &'a str,
+    metadata: &'a BlockMetadata<'a>,
+    document_attributes: DocumentAttributesRef<'a>,
+}
+
+#[derive(Clone)]
+struct Directories {
+    linked: PathBuf,
+    embedded: Option<PathBuf>,
+    staging: Option<PathBuf>,
+}
+
+impl Directories {
+    fn resolve(output_dir: OutputDirectories<'_>) -> io::Result<Self> {
+        let directory = |path: &Path| {
+            let root = path.canonicalize()?;
+            if root.is_dir() {
+                Ok(root)
+            } else {
+                Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    format!("expected an output directory at {}", path.display()),
+                ))
+            }
+        };
+        let linked = directory(output_dir.linked)?;
+        let alternate_root = |path: &Path| {
+            (path != output_dir.linked)
+                .then(|| directory(path))
+                .transpose()
+        };
+        let embedded = alternate_root(output_dir.embedded)?;
+        let staging = alternate_root(output_dir.imagesoutdir_base)?;
+        Ok(Self {
+            linked,
+            embedded,
+            staging,
+        })
+    }
+    fn roots(&self) -> OutputDirectories<'_> {
+        OutputDirectories::new(
+            &self.linked,
+            self.embedded.as_deref().unwrap_or(&self.linked),
+        )
+        .with_imagesoutdir_base(self.staging.as_deref().unwrap_or(&self.linked))
+    }
+}
+
 fn style<F>(
     label: &'static str,
     output_dir: OutputDirectories<'_>,
     render: F,
 ) -> io::Result<BlockStyle>
 where
-    F: Fn(OutputDirectories<'_>, &RawBlockInput<'_>) -> Result<BlockBuilder, String>
+    F: Fn(OutputDirectories<'_>, &DiagramInput<'_>) -> Result<BlockBuilder, String>
         + Clone
         + Send
         + Sync
         + 'static,
 {
-    let directory = |path: &Path| {
-        let root = path.canonicalize()?;
-        if root.is_dir() {
-            Ok(root)
-        } else {
-            Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("expected an output directory at {}", path.display()),
-            ))
-        }
-    };
-    let linked = directory(output_dir.linked)?;
-    let alternate_root = |path: &Path| {
-        (path != output_dir.linked)
-            .then(|| directory(path))
-            .transpose()
-    };
-    let embedded = alternate_root(output_dir.embedded)?;
-    let staging = alternate_root(output_dir.imagesoutdir_base)?;
+    let dirs = Directories::resolve(output_dir)?;
     Ok(BlockStyle::raw(
         label.to_ascii_lowercase(),
         [RawBlockContext::Listing, RawBlockContext::Literal],
         move || {
-            let linked = linked.clone();
-            let embedded = embedded.clone();
-            let staging = staging.clone();
+            let dirs = dirs.clone();
             let render = render.clone();
-            move |mut input: RawBlockInput<'_>| {
-                if input
-                    .document_attributes
-                    .get("safe-mode-name")
-                    .and_then(DocumentAttributeValue::text)
-                    != Some(SafeMode::Unsafe.name())
-                {
-                    return Err(format!(
-                        "{label} requires unsafe mode to run the configured executable"
-                    ));
-                }
-                let roots = OutputDirectories::new(&linked, embedded.as_deref().unwrap_or(&linked))
-                    .with_imagesoutdir_base(staging.as_deref().unwrap_or(&linked));
-                match render(roots, &input) {
-                    Ok(image) => Ok(Some(image)),
-                    Err(error) if abort_on_error(&input, label) => Err(error),
-                    Err(error) => {
-                        let message = format!("Failed to generate image: {error}");
-                        // The renderer already received its requested substitutions.
-                        // Display that source with ordinary listing escaping.
-                        let listing =
-                            BlockBuilder::listing(format!("{message}\n{}", diagram_source(&input)))
-                                .without_attribute("subs");
-                        input.warn(message);
-                        Ok(Some(listing))
-                    }
-                }
+            move |mut raw: RawBlockInput<'_>| {
+                let input = DiagramInput {
+                    source_file: None,
+                    body: raw.body,
+                    metadata: raw.metadata,
+                    document_attributes: raw.document_attributes,
+                };
+                require_unsafe(label, input.document_attributes)?;
+                let result = render(dirs.roots(), &input);
+                recover(result, label, &input, |msg| raw.warn(msg)).map(Some)
             }
         },
     )
     .with_positional_attributes(["target", "format"]))
 }
 
-fn abort_on_error(input: &RawBlockInput<'_>, label: &str) -> bool {
+fn require_unsafe(label: &str, attrs: DocumentAttributesRef<'_>) -> Result<(), String> {
+    if attrs
+        .get("safe-mode-name")
+        .and_then(DocumentAttributeValue::text)
+        == Some(SafeMode::Unsafe.name())
+    {
+        Ok(())
+    } else {
+        Err(format!(
+            "{label} requires unsafe mode to run the configured executable"
+        ))
+    }
+}
+
+fn recover(
+    result: Result<BlockBuilder, String>,
+    label: &str,
+    input: &DiagramInput<'_>,
+    warn: impl FnOnce(String),
+) -> Result<BlockBuilder, String> {
+    match result {
+        Err(error) if !abort_on_error(input, label) => {
+            let message = format!("Failed to generate image: {error}");
+            let listing = BlockBuilder::listing(format!("{message}\n{}", diagram_source(input)))
+                .without_attribute("subs");
+            warn(message);
+            Ok(listing)
+        }
+        other => other,
+    }
+}
+
+fn abort_on_error(input: &DiagramInput<'_>, label: &str) -> bool {
     let attrs = input.document_attributes;
     input
         .metadata
@@ -176,7 +222,7 @@ fn abort_on_error(input: &RawBlockInput<'_>, label: &str) -> bool {
         == Some("abort")
 }
 
-fn diagram_source<'a>(input: &RawBlockInput<'a>) -> Cow<'a, str> {
+fn diagram_source<'a>(input: &DiagramInput<'a>) -> Cow<'a, str> {
     if input
         .metadata
         .uses_substitution(&Substitution::Attributes, VERBATIM)
@@ -189,7 +235,7 @@ fn diagram_source<'a>(input: &RawBlockInput<'a>) -> Cow<'a, str> {
 }
 
 fn diagram_attribute<'a>(
-    input: &RawBlockInput<'a>,
+    input: &DiagramInput<'a>,
     renderer: &str,
     key: &str,
 ) -> Option<Cow<'a, str>> {
@@ -205,7 +251,7 @@ fn diagram_attribute<'a>(
 fn render(
     tool: &Path,
     root: OutputDirectories<'_>,
-    input: &RawBlockInput<'_>,
+    input: &DiagramInput<'_>,
 ) -> Result<BlockBuilder, String> {
     let attrs = input.document_attributes;
     let args = &input.metadata.attributes;
@@ -234,7 +280,7 @@ fn render(
 
 fn svg_option(
     renderer: &str,
-    input: &RawBlockInput<'_>,
+    input: &DiagramInput<'_>,
     format: Format,
 ) -> Result<Option<&'static str>, String> {
     if format != Format::Svg {
@@ -258,27 +304,22 @@ fn svg_option(
     }
 }
 
-fn image<'a>(
+fn image_filename<'a>(
     name: &str,
-    roots: OutputDirectories<'_>,
-    input: &RawBlockInput<'_>,
+    target: &str,
     format: Format,
     identity: impl IntoIterator<Item = &'a str>,
-    generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
-) -> Result<BlockBuilder, String> {
-    let attrs = input.document_attributes;
-    let args = &input.metadata.attributes;
-    let target = args.get_string("target").unwrap_or_default();
-    let image_target = if target.is_empty() {
+) -> Result<String, String> {
+    if target.is_empty() {
         let mut digest = Sha256::new();
         for part in identity {
             digest.update(part);
         }
-        format!(
+        Ok(format!(
             "{name}-{}.{}",
             URL_SAFE_NO_PAD.encode(digest.finalize()),
             format.extension()
-        )
+        ))
     } else {
         if !target.split('/').all(|part| {
             !part.is_empty()
@@ -290,8 +331,26 @@ fn image<'a>(
                 "{name} target must be a relative path with nonempty segments containing only ASCII letters, digits, hyphens, or underscores"
             ));
         }
-        format!("{target}.{}", format.extension())
-    };
+        Ok(format!("{target}.{}", format.extension()))
+    }
+}
+
+fn image<'a>(
+    name: &str,
+    roots: OutputDirectories<'_>,
+    input: &DiagramInput<'_>,
+    format: Format,
+    identity: impl IntoIterator<Item = &'a str>,
+    generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> Result<BlockBuilder, String> {
+    let attrs = input.document_attributes;
+    let args = &input.metadata.attributes;
+    let authored_target = args.get_string("target");
+    let target = authored_target
+        .as_deref()
+        .or_else(|| input.source_file?.file_stem()?.to_str())
+        .unwrap_or_default();
+    let image_target = image_filename(name, target, format, identity)?;
     let backend = attrs
         .get("backend")
         .and_then(DocumentAttributeValue::text)
@@ -320,6 +379,12 @@ fn image<'a>(
         .map_err(|e| format!("{name} {attr_name}: {e}"))?;
     let (parent, filename) = image_target.rsplit_once('/').unwrap_or(("", &image_target));
     let dir = image_directory(dir, parent).map_err(|e| format!("{name} target: {e}"))?;
+    if let Some(source) = input.source_file {
+        let destination = dir.join(filename);
+        if destination == source || source.canonicalize().is_ok_and(|path| path == destination) {
+            return Err(format!("{name} output would overwrite its source file"));
+        }
+    }
     let physical_target = if staging.is_some() && (embedded || backend == "pdf") {
         Some(staged_file_url(&dir.join(filename))?)
     } else if staging.is_some() && backend == "terminal" {
@@ -343,7 +408,7 @@ fn image<'a>(
         image = image.with_attributes(format!("opts={option}"));
     }
     let mut defaults = Vec::new();
-    if target.is_empty() {
+    if authored_target.as_deref().unwrap_or_default().is_empty() {
         defaults.push("alt=Diagram".to_owned());
     }
     if backend.starts_with("html")

@@ -88,11 +88,14 @@ Register `acdc_diagram::graphviz(&dot, &output_dir)` or pass `--extension diagra
 Use `[graphviz,flow,svg]` on a listing or literal block containing DOT source. Graphviz defaults to PNG and also supports PDF.
 Set `:graphviz-layout: dot` for subsequent blocks or select an installed layout per block with `layout=neato`.
 Graphviz reads the diagram on standard input. Relative resources resolve from the caller's source directory for file conversion.
+The CLI also registers `graphviz::graphs/chart.dot[svg,alt="*Graph*"]`. In a library, register `acdc_diagram::graphviz_file(&dot, &output_dir)?` with the registry's `register` method.
+The macro reads DOT through the parser's include loader. It accepts UTF-8 and Unicode files with a byte order mark. The target resolves like a local include and its bytes count toward the same document limit. Graphviz resolves resources inside the graph relative to the DOT file. The example writes `chart.svg`. Without an explicit `target` or `alt`, the alternative text is `Diagram`. The file stem follows the same output-name rules as a diagram block. Use `target=other-name` to override it.
 Only the caller selects the executable. Rendering requires unsafe mode.
 
 == Verification
 
 Graphviz 14.1.2 rendered the same DOT graph with the `dot` layout through acdc and Asciidoctor Diagram 3.2.1. The HTML image paths, alternative text, and dimensions matched for PNG, SVG, and PDF.
+For `graphviz::graphs/chart.dot[svg,alt="*Graph*"]`, both CLIs linked `chart.svg`, preserved the literal asterisks in the alternative text, and numbered the titled image as a figure.
 
 The WaveDrom adapter uses the file-to-file protocol from https://github.com/nlopes/acdc/pull/451[acdc-diagram].
 The acceptance fixture reproduces the https://github.com/riscv/riscv-high-assurance-cryptography/blob/6b82dbaf0096747c8acee1749a1e1c188474f478/src/ace-ISA-unpriv.adoc#L1184-L1193[RISC-V ACE register diagram for ace.load], licensed under https://creativecommons.org/licenses/by/4.0/[CC BY 4.0].
