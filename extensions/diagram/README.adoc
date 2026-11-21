@@ -209,6 +209,10 @@ Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is 
 
 Render `[gnuplot]` blocks and `gnuplot::chart.gp[]` files with `--gnuplot PATH`. Choose PNG, SVG, GIF, or a literal text plot. Set `width` and `height` together to select a terminal size. Enable the package with `--extension diagram`.
 
+== umlet
+
+Render `[umlet]` blocks and `umlet::chart.uxf[]` files with `--umlet PATH`. Choose SVG (default), PNG, PDF, or GIF using a UMLet command-line launcher. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[umlet]` blocks and `umlet::chart.uxf[]` files with `--umlet PATH`. Choose SVG (default), PNG, PDF, or GIF using a UMLet command-line launcher.
+
 - Render `[gnuplot]` blocks and `gnuplot::chart.gp[]` files with `--gnuplot PATH`. Choose PNG, SVG, GIF, or a literal text plot. Set `width` and `height` together to select a terminal size.
 
 - Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. Use `format=svg` for an SVG recording. Tape scripts run in unsafe mode.

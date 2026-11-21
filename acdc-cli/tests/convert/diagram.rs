@@ -390,6 +390,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#
         )
     }
 
+    #[test]
+    fn umlet_block_and_file() -> TestResult {
+        tool_sample(
+            "umlet",
+            "--umlet",
+            "<diagram program=\"umlet\" version=\"15.1\"><zoom_level>10</zoom_level></diagram>",
+            "svg",
+            r#"test "$1:$2" = "-action=convert:-format=svg"
+test "$(cat "${3#-filename=}")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "${4#-output=}""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

@@ -655,3 +655,27 @@ pub const GNUPLOT: Renderer = Renderer {
     ],
     generate: gnuplot,
 };
+
+fn umlet(job: &Job<'_>) -> io::Result<()> {
+    let path = job.source_file("uxf")?;
+    let mut input = std::ffi::OsString::from("-filename=");
+    input.push(path);
+    let mut output = std::ffi::OsString::from("-output=");
+    output.push(job.output);
+    job.run(
+        Command::new(job.tool)
+            .arg("-action=convert")
+            .arg(format!("-format={}", job.format.extension()))
+            .arg(input)
+            .arg(output),
+    )
+}
+
+/// Render `umlet` diagrams using `umlet`.
+pub const UMLET: Renderer = Renderer {
+    name: "umlet",
+    tool: "umlet",
+    formats: &[Format::Svg, Format::Png, Format::Pdf, Format::Gif],
+    attributes: &[],
+    generate: umlet,
+};
