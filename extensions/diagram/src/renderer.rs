@@ -915,3 +915,41 @@ pub const SALT: Renderer = Renderer {
     ],
     generate: plantuml::render,
 };
+
+fn vega(job: &Job<'_>) -> io::Result<()> {
+    let is_lite = job.source.contains("/schema/vega-lite/") || job.option("vegalite").is_some();
+    let spec = if is_lite {
+        let path = job.scratch.join("spec.json");
+        job.stdin(&mut Command::new(job.companion("vl2vg")?), Some(&path))?;
+        std::borrow::Cow::Owned(asset::read_text(&path)?)
+    } else {
+        std::borrow::Cow::Borrowed(job.source)
+    };
+    let tool = if job.format == Format::Svg {
+        job.tool
+    } else {
+        job.companion("vg2png")?
+    };
+    let mut cmd = Command::new(tool);
+    cmd.arg("--base").arg(job.dir);
+    if job.format == Format::Svg {
+        cmd.arg("--header");
+    }
+    asset::run_with_source(
+        &mut cmd,
+        job.dir,
+        job.name,
+        job.scratch,
+        &spec,
+        Some(job.output),
+    )
+}
+
+/// Render `vega` diagrams using `vg2svg`.
+pub const VEGA: Renderer = Renderer {
+    name: "vega",
+    tool: "vg2svg",
+    formats: &[Format::Svg, Format::Png],
+    attributes: &["vegalite"],
+    generate: vega,
+};

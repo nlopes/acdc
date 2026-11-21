@@ -245,6 +245,10 @@ Render `[plantuml]` blocks and `plantuml::chart.puml[]` files with `--plantuml P
 
 Render `[salt]` blocks and `salt::chart.salt[]` files with `--plantuml PATH`. Supply the PlantUML executable to render Salt wireframes as PNG, SVG, or text. Enable the package with `--extension diagram`.
 
+== vega
+
+Render `[vega]` blocks and `vega::chart.json[]` files with `--vg2svg PATH`. SVG uses `--vg2svg`. Supply `--vg2png PATH` for PNG and `--vl2vg PATH` for Vega-Lite specifications. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

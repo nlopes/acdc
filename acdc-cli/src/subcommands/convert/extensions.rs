@@ -156,6 +156,15 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted plantuml renderer
     #[arg(long, value_name = "PATH")]
     plantuml: Option<std::path::PathBuf>,
+    /// Vega PNG renderer
+    #[arg(long, value_name = "PATH", requires = "vg2svg")]
+    vg2png: Option<std::path::PathBuf>,
+    /// Vega-Lite compiler
+    #[arg(long, value_name = "PATH", requires = "vg2svg")]
+    vl2vg: Option<std::path::PathBuf>,
+    /// Path to the trusted vg2svg renderer
+    #[arg(long, value_name = "PATH")]
+    vg2svg: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -191,6 +200,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::VEGA, self.vg2svg.as_deref()),
             (acdc_diagram::renderer::SALT, self.plantuml.as_deref()),
             (acdc_diagram::renderer::PLANTUML, self.plantuml.as_deref()),
             (acdc_diagram::renderer::PENROSE, self.roger.as_deref()),
@@ -236,6 +246,31 @@ impl DiagramArgs {
         ]
         .into_iter()
         .filter_map(|(renderer, path): (_, Option<&Path>)| path.map(|p| (renderer, p)))
+    }
+
+    fn register_configured(
+        &self,
+        registry: &mut RegistryBuilder,
+        output: OutputDirectories<'_>,
+    ) -> Result<()> {
+        let companions: Vec<_> = [
+            ("vg2png", self.vg2png.as_deref()),
+            ("vl2vg", self.vl2vg.as_deref()),
+            ("dot", self.graphviz_dot.as_deref()),
+        ]
+        .into_iter()
+        .filter_map(|(name, path)| path.map(|p| (name, p)))
+        .collect();
+        for (renderer, tool) in self.configured_renderers() {
+            let (style, file) = renderer
+                .processors_with_tools(tool, output, &companions)
+                .map_err(|e| miette::miette!("cannot configure {}: {e}", tool.display()))?;
+            registry
+                .register_block_style(style)
+                .map_err(|e| error::display(&e))?;
+            registry.register(file).map_err(|e| error::display(&e))?;
+        }
+        Ok(())
     }
 
     fn has_renderer(&self) -> bool {
@@ -389,19 +424,7 @@ impl DiagramArgs {
                 .register_block_style(style)
                 .map_err(|e| error::display(&e))?;
         }
-        let companions: Vec<_> = [("dot", self.graphviz_dot.as_deref())]
-            .into_iter()
-            .filter_map(|(name, path)| path.map(|p| (name, p)))
-            .collect();
-        for (renderer, tool) in self.configured_renderers() {
-            let (style, file) = renderer
-                .processors_with_tools(tool, output, &companions)
-                .map_err(|e| miette::miette!("cannot configure {}: {e}", tool.display()))?;
-            registry
-                .register_block_style(style)
-                .map_err(|e| error::display(&e))?;
-            registry.register(file).map_err(|e| error::display(&e))?;
-        }
+        self.register_configured(&mut registry, output)?;
         let mut catalog = available.clone();
         catalog
             .register("diagram", registry.build())

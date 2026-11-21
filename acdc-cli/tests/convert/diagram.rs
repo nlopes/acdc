@@ -518,6 +518,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#
         )
     }
 
+    #[test]
+    fn vega_block_and_file() -> TestResult {
+        tool_sample(
+            "vega",
+            "--vg2svg",
+            "{\"width\":64,\"height\":32,\"marks\":[]}",
+            "svg",
+            r#"test "$1:$3" = "--base:--header"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

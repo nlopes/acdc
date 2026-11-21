@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[vega]` blocks and `vega::chart.json[]` files with `--vg2svg PATH`. SVG uses `--vg2svg`. Supply `--vg2png PATH` for PNG and `--vl2vg PATH` for Vega-Lite specifications.
+
 - Render `[salt]` blocks and `salt::chart.salt[]` files with `--plantuml PATH`. Supply the PlantUML executable to render Salt wireframes as PNG, SVG, or text.
 
 - Render `[plantuml]` blocks and `plantuml::chart.puml[]` files with `--plantuml PATH`. Choose PNG, SVG, ASCII `atxt`, or Unicode `txt` and `utxt`. Local includes resolve from the diagram directory. Configure Graphviz with `--graphviz-dot` or use the built-in Smetana layout.
