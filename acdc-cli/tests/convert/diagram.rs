@@ -338,6 +338,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn diagrams_block_and_file() -> TestResult {
+        tool_sample(
+            "diagrams",
+            "--diagrams-python",
+            "from diagrams import Diagram, Node\nwith Diagram(\"Pipeline\", show=False):\n    Node(\"Input\") >> Node(\"Output\")",
+            "svg",
+            r#"test "$1:$4" = "-c:svg"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$3.svg""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

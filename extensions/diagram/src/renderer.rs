@@ -496,3 +496,36 @@ pub const SYNTRAX: Renderer = Renderer {
     attributes: &["heading", "scale", "transparent", "style-file"],
     generate: syntrax,
 };
+
+fn diagrams(job: &Job<'_>) -> io::Result<()> {
+    // Pass paths as arguments. Let Python bind the constructor arguments so that
+    // multiline calls and explicitly supplied output settings work consistently.
+    const WRAPPER: &str = r"import inspect, sys
+from diagrams import Diagram
+original = Diagram.__init__
+signature = inspect.signature(original)
+def configure(*args, **kwargs):
+    bound = signature.bind(*args, **kwargs)
+    bound.arguments.update(filename=sys.argv[1], outformat=sys.argv[2], show=False)
+    return original(*bound.args, **bound.kwargs)
+Diagram.__init__ = configure
+exec(compile(sys.stdin.read(), '<diagram>', 'exec'), {'__name__': '__main__'})
+";
+    job.stdin(
+        Command::new(job.tool)
+            .arg("-c")
+            .arg(WRAPPER)
+            .arg(job.output.with_extension(""))
+            .arg(job.format.extension()),
+        None,
+    )
+}
+
+/// Render `diagrams` diagrams using `diagrams-python`.
+pub const DIAGRAMS: Renderer = Renderer {
+    name: "diagrams",
+    tool: "diagrams-python",
+    formats: &[Format::Png, Format::Svg, Format::Pdf],
+    attributes: &[],
+    generate: diagrams,
+};

@@ -120,6 +120,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted syntrax renderer
     #[arg(long, value_name = "PATH")]
     syntrax: Option<std::path::PathBuf>,
+    /// Path to the trusted diagrams-python renderer
+    #[arg(long, value_name = "PATH")]
+    diagrams_python: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -155,6 +158,10 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (
+                acdc_diagram::renderer::DIAGRAMS,
+                self.diagrams_python.as_deref(),
+            ),
             (acdc_diagram::renderer::SYNTRAX, self.syntrax.as_deref()),
             (acdc_diagram::renderer::SVGBOB, self.svgbob.as_deref()),
             (acdc_diagram::renderer::A2S, self.a2s.as_deref()),

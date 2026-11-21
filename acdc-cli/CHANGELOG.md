@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[diagrams]` blocks and `diagrams::chart.py[]` files with `--diagrams-python PATH`. Render Python diagrams as PNG (default), SVG, or PDF with an interpreter that has the diagrams package installed.
+
 - Render `[syntrax]` blocks and `syntrax::chart.spec[]` files with `--syntrax PATH`. Choose PNG or SVG. Use `heading`, `scale`, `style-file`, and `transparent=true` to customize a railroad diagram.
 
 - Render `[svgbob]` blocks and `svgbob::chart.bob[]` files with `--svgbob PATH`. Choose SVG or literal text. The SVG renderer accepts `font-family`, `font-size`, `stroke-width`, and `scale`.
