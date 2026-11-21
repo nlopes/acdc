@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Registered block macros follow asciidoctor's line rules: the target has no
+  whitespace and only whitespace may follow the closing bracket. Other lines
+  stay paragraphs or description-list items. With extensions active, a
+  caller-supplied `leveloffset` and out-of-sequence section warnings behave as
+  in an ordinary parse, and an unquoted `None` macro argument is dropped only in
+  Asciidoctor mode.
+
 - Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input. A style registered with `BlockStyle::compound` can also request that its body be parsed as children of an open block.
 
 - Block macro handlers can return a `BlockBuilder` directly with `.into()`. Tree processors see the resulting block with the invocation’s title, ID, roles, and source location.

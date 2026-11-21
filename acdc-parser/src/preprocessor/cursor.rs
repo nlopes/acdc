@@ -152,6 +152,12 @@ impl Emission<'_> {
 }
 
 impl<'input> InputCursor<'input> {
+    /// Ranges recorded so far. Before the first advance this is only the
+    /// caller-supplied `leveloffset`, which no emission carries.
+    pub(super) fn leveloffset_ranges(&self) -> &[crate::model::LeveloffsetRange] {
+        &self.out.leveloffset_ranges
+    }
+
     pub(super) fn table_header_lookahead(&self) -> Vec<&'input str> {
         if let Some(include) = &self.include {
             include.cursor.table_header_lookahead()

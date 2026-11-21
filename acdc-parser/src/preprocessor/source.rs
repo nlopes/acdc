@@ -36,6 +36,9 @@ pub(crate) struct SourceReader<'a> {
     unchanged: Option<&'a str>,
     result: Option<PreprocessorResult<'a>>,
     pending: VecDeque<Emission<'a>>,
+    /// Caller-supplied `leveloffset`, recorded before any line is read. The
+    /// first chunk carries it so the parser sees it while blocks commit.
+    initial_leveloffset_ranges: Vec<LeveloffsetRange>,
     pub(crate) options: Rc<Options<'static>>,
 }
 
@@ -128,15 +131,14 @@ impl<'a> SourceReader<'a> {
                 &options,
             )
         {
+            let initial_leveloffset_ranges =
+                Preprocessor::initial_leveloffset_ranges(normalized.len(), &options);
             return Ok(Self {
                 cursor: None,
                 unchanged: Some(normalized),
                 result: Some(PreprocessorResult {
                     text: Cow::Borrowed(normalized),
-                    leveloffset_ranges: Preprocessor::initial_leveloffset_ranges(
-                        normalized.len(),
-                        &options,
-                    ),
+                    leveloffset_ranges: initial_leveloffset_ranges.clone(),
                     leveloffset_scopes: Vec::new(),
                     source_ranges: Vec::new(),
                     included_files: HashSet::default(),
@@ -145,6 +147,7 @@ impl<'a> SourceReader<'a> {
                     comment_context: scanner.block_context(),
                 }),
                 pending: VecDeque::new(),
+                initial_leveloffset_ranges,
                 options,
             });
         }
@@ -158,6 +161,7 @@ impl<'a> SourceReader<'a> {
             arena,
         );
         Ok(Self {
+            initial_leveloffset_ranges: cursor.leveloffset_ranges().to_vec(),
             cursor: Some(cursor),
             unchanged: None,
             result: None,
@@ -193,17 +197,20 @@ impl<'a> SourceReader<'a> {
                 start: 0,
                 text,
                 source_ranges: Vec::new(),
-                leveloffset_ranges: Vec::new(),
+                leveloffset_ranges: std::mem::take(&mut self.initial_leveloffset_ranges),
                 leveloffset_scopes: Vec::new(),
             }));
         }
         loop {
             if let Some(emission) = self.pending.pop_front() {
+                // Later ranges take precedence, so the caller's value comes first.
+                let mut leveloffset_ranges = std::mem::take(&mut self.initial_leveloffset_ranges);
+                leveloffset_ranges.extend(emission.leveloffset_ranges);
                 return Ok(Some(SourceChunk {
                     start: emission.start,
                     text: emission.text,
                     source_ranges: emission.source_ranges,
-                    leveloffset_ranges: emission.leveloffset_ranges,
+                    leveloffset_ranges,
                     leveloffset_scopes: emission.leveloffset_scopes,
                 }));
             }
