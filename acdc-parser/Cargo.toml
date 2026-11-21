@@ -31,7 +31,7 @@ bumpalo = { version = "3", features = ["collections"] }
 chrono.workspace = true
 csv = "1.4"
 encoding_rs = "0.8"
-jsonschema = { version = "0.59", optional = true, default-features = false }
+jsonschema = { version = "0.61", optional = true, default-features = false }
 peg = "0.8.6"
 regex-syntax = { version = "0.8", default-features = false, features = ["unicode-perl"] }
 rustc-hash.workspace = true
@@ -47,7 +47,7 @@ url = "2.5"
 ureq = { version = "3.1", optional = true }
 
 [dev-dependencies]
-jsonschema = { version = "0.59", default-features = false }
+jsonschema = { version = "0.61", default-features = false }
 sha2.workspace = true
 syn = { version = "3", features = ["full"] }
 criterion = { version = "0.8", features = ["html_reports"] }
