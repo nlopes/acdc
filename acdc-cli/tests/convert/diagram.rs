@@ -351,6 +351,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn ditaa_block_and_file() -> TestResult {
+        tool_sample(
+            "ditaa",
+            "--ditaa",
+            "+---+\n| A |\n+---+",
+            "svg",
+            r#"test "$3" = "--svg"
+test "$(cat "$1")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$2""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

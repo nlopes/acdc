@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[ditaa]` blocks and `ditaa::chart.ditaa[]` files with `--ditaa PATH`. Choose PNG (default), SVG, or literal text. Set `round-corners=true`, `shadows=false`, or `scale` to change the drawing.
+
 - Render `[diagrams]` blocks and `diagrams::chart.py[]` files with `--diagrams-python PATH`. Render Python diagrams as PNG (default), SVG, or PDF with an interpreter that has the diagrams package installed.
 
 - Render `[syntrax]` blocks and `syntrax::chart.spec[]` files with `--syntrax PATH`. Choose PNG or SVG. Use `heading`, `scale`, `style-file`, and `transparent=true` to customize a railroad diagram.

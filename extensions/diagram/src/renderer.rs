@@ -529,3 +529,59 @@ pub const DIAGRAMS: Renderer = Renderer {
     attributes: &[],
     generate: diagrams,
 };
+
+fn ditaa(job: &Job<'_>) -> io::Result<()> {
+    if job.format == Format::Txt {
+        return std::fs::write(job.output, job.source);
+    }
+    let path = job.source_file("ditaa")?;
+    let mut cmd = Command::new(job.tool);
+    cmd.arg(path).arg(job.output);
+    if job.format == Format::Svg {
+        cmd.arg("--svg");
+    }
+    job.flags(
+        &mut cmd,
+        &[
+            ("scale", "--scale"),
+            ("tabs", "--tabs"),
+            ("background", "--background"),
+            ("bullet-characters", "--bullet-characters"),
+        ],
+    );
+    for (key, trigger, flag) in [
+        ("antialias", "false", "--no-antialias"),
+        ("separation", "false", "--no-separation"),
+        ("shadows", "false", "--no-shadows"),
+        ("round-corners", "true", "--round-corners"),
+        ("debug", "true", "--debug"),
+        ("fixed-slope", "true", "--fixed-slope"),
+        ("transparent", "true", "--transparent"),
+    ] {
+        if job.option(key) == Some(trigger) {
+            cmd.arg(flag);
+        }
+    }
+    job.run(&mut cmd)
+}
+
+/// Render `ditaa` diagrams using `ditaa`.
+pub const DITAA: Renderer = Renderer {
+    name: "ditaa",
+    tool: "ditaa",
+    formats: &[Format::Png, Format::Svg, Format::Txt],
+    attributes: &[
+        "scale",
+        "tabs",
+        "background",
+        "bullet-characters",
+        "antialias",
+        "separation",
+        "shadows",
+        "round-corners",
+        "debug",
+        "fixed-slope",
+        "transparent",
+    ],
+    generate: ditaa,
+};
