@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in an ordinary parse, and an unquoted `None` macro argument is dropped only in
   Asciidoctor mode.
 
+- When native recovery would drop a quote body, Markdown blockquote, or list
+  attachment after a registered block macro or style in it already ran, parsing
+  now fails with an extension error at that invocation. Previously the content
+  was silently dropped while the macro's attribute changes and deferred request
+  survived, so `finish()` or a tree processor failed at a location no longer in
+  the document. Content without executed extensions still recovers with a
+  warning.
+
 - Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input. A style registered with `BlockStyle::compound` can also request that its body be parsed as children of an open block.
 
 - Block macro handlers can return a `BlockBuilder` directly with `.into()`. Tree processors see the resulting block with the invocation’s title, ID, roles, and source location.

@@ -184,6 +184,7 @@ impl BlockCursor {
             let Some(child) = step.child else {
                 return Ok(Ok(children));
             };
+            let callbacks = accepted.block_callbacks();
             let child = match child {
                 Ok(BlockStepKind::List(entry)) => self.construct_list_into(
                     input,
@@ -200,8 +201,17 @@ impl BlockCursor {
             };
             match child {
                 Err(error) if accepted.failed() || input.failed() => return Ok(Err(error)),
-                Err(error) if step.warn_on_error => children.errors.push(error),
-                Ok(()) | Err(_) => {}
+                Err(error) => {
+                    if let Some(error) =
+                        accepted.discarded_callback(callbacks, "Description list attachment")
+                    {
+                        return Ok(Err(error));
+                    }
+                    if step.warn_on_error {
+                        children.errors.push(error);
+                    }
+                }
+                Ok(()) => {}
             }
         }
     }

@@ -214,6 +214,7 @@ impl BlockCursor {
                 phase,
             )?;
             self.offset = step.end;
+            let callbacks = accepted.block_callbacks();
             let child = match step.kind {
                 ListStepKind::List(entry) => {
                     self.construct_list_into(input, state, &entry, metadata, &mut blocks, accepted)?
@@ -233,7 +234,12 @@ impl BlockCursor {
                 Err(_)
                     if !accepted.failed()
                         && !input.failed()
-                        && matches!(kind, ListKind::Unordered(_) | ListKind::Ordered(_)) => {}
+                        && matches!(kind, ListKind::Unordered(_) | ListKind::Ordered(_)) =>
+                {
+                    if let Some(error) = accepted.discarded_callback(callbacks, "List attachment") {
+                        return Ok(Err(error));
+                    }
+                }
                 Err(error) => return Ok(Err(error)),
             }
             phase = ListPhase::Attachments;

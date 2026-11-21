@@ -543,3 +543,6 @@ mod compound_styles;
 
 #[path = "extensions/parity.rs"]
 mod parity;
+
+#[path = "extensions/recovery.rs"]
+mod recovery;
