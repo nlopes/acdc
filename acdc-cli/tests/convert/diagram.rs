@@ -88,6 +88,50 @@ mod active {
     }
 
     #[test]
+    fn renderer_scratch_is_private_with_a_permissive_umask() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        setup(root)?;
+        fs::write(root.join("source.adoc"), SOURCE)?;
+        fs::write(
+            root.join("renderer"),
+            r#"#!/bin/sh
+set -eu
+pwd > ../scratch-path
+ls -ld . > ../scratch-mode
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"/>' > "$4"
+"#,
+        )?;
+        let output = std::process::Command::new("sh")
+            .args([
+                "-c",
+                r#"umask 000; exec "$@""#,
+                "sh",
+                env!("CARGO_BIN_EXE_acdc"),
+                "convert",
+                "--extension",
+                "diagram",
+                "--wavedrom-cli",
+                "./renderer",
+                "--fail-on-warnings",
+                "source.adoc",
+            ])
+            .current_dir(root)
+            .output()?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let mode = fs::read_to_string(root.join("images/scratch-mode"))?;
+        // The parent filesystem may propagate setgid without granting group access.
+        assert!(
+            mode.starts_with("drwx------") || mode.starts_with("drwx--S---"),
+            "{mode}"
+        );
+        let scratch = fs::read_to_string(root.join("images/scratch-path"))?;
+        assert!(!Path::new(scratch.trim_end()).exists());
+        assert!(root.join("images/clock.svg").is_file());
+        Ok(())
+    }
+
+    #[test]
     fn svg_type_follows_block_options_and_scoped_document_defaults() -> TestResult {
         use std::fmt::Write as _;
 

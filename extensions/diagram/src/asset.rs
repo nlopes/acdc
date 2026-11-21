@@ -130,9 +130,14 @@ pub(super) fn publish(
     format: Format,
     generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
 ) -> io::Result<Option<ImageSize>> {
-    let scratch = tempfile::Builder::new()
-        .prefix(".acdc-diagram-")
-        .tempdir_in(dir)?;
+    let mut scratch = tempfile::Builder::new();
+    scratch.prefix(".acdc-diagram-");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        scratch.permissions(fs::Permissions::from_mode(0o700));
+    }
+    let scratch = scratch.tempdir_in(dir)?;
     let output = scratch
         .path()
         .join(format!("output.{}", format.extension()));

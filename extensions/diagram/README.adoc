@@ -60,6 +60,8 @@ If WaveDrom or TikZ fails to generate an image, the default `diagram-on-error=lo
 The output contains a listing with the error and the diagram source, including any requested attribute expansion. A previous image file is preserved.
 Set `:diagram-on-error: abort` to stop at the first failure. The block's `on-error` attribute overrides `wavedrom-on-error` or `tikz-on-error`, which override `diagram-on-error` in effect at the block.
 Restricted safe modes still stop before running any tool.
+Each render uses a temporary directory under the image output directory. On Unix, acdc creates it with owner-only access. On Windows, it inherits the output directory’s access controls.
+After success or a renderer error, acdc removes the temporary directory.
 
 == TikZ
 
