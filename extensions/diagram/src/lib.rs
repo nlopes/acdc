@@ -15,6 +15,7 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 
 mod asset;
+mod bytefield;
 mod dpic;
 mod file_macro;
 mod goat;
@@ -25,6 +26,7 @@ mod tikz;
 mod wavedrom_cli;
 
 use asset::Format;
+pub use bytefield::{bytefield, bytefield_file};
 pub use dpic::{dpic, dpic_file};
 use file_macro::file_macro;
 pub use goat::{goat, goat_file};
@@ -314,19 +316,19 @@ fn svg_option(
     }
 }
 
-/// SVG-only tools whose executable attribute has the same name as the style.
 fn render_svg(
     name: &str,
+    tool_attribute: &str,
     roots: OutputDirectories<'_>,
     input: &DiagramInput<'_>,
     arguments: &[&str],
     generate: impl FnOnce(&str, &Path, &Path) -> io::Result<()>,
 ) -> Result<BlockBuilder, String> {
-    if input.metadata.attributes.get(name).is_some()
-        || input.document_attributes.get(name).is_some()
+    if input.metadata.attributes.get(tool_attribute).is_some()
+        || input.document_attributes.get(tool_attribute).is_some()
     {
         return Err(format!(
-            "set the {name} executable when registering the diagram"
+            "set the {tool_attribute} executable when registering the diagram"
         ));
     }
     if let Some(format) = diagram_attribute(input, name, "format").as_deref()

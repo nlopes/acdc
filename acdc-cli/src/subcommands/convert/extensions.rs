@@ -69,6 +69,9 @@ fn parent(file: Option<&Path>) -> &Path {
 #[cfg(feature = "diagram")]
 #[derive(clap::Args, Debug)]
 pub(super) struct DiagramArgs {
+    /// Path to the trusted bytefield-svg executable
+    #[arg(long, value_name = "PATH")]
+    bytefield_svg: Option<std::path::PathBuf>,
     /// Path to the trusted `GoAT` ASCII diagram renderer
     #[arg(long, value_name = "PATH")]
     goat: Option<std::path::PathBuf>,
@@ -105,6 +108,7 @@ impl DiagramArgs {
             || self.dpic.is_some()
             || self.pikchr.is_some()
             || self.goat.is_some()
+            || self.bytefield_svg.is_some()
     }
 
     fn select(
@@ -116,7 +120,7 @@ impl DiagramArgs {
         use std::collections::{HashMap, hash_map::Entry};
         if !self.has_renderer() {
             return Err(miette::miette!(
-                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, --mscgen PATH, --dpic PATH, --pikchr PATH, or --goat PATH"
+                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, --mscgen PATH, --dpic PATH, --pikchr PATH, --goat PATH, or --bytefield-svg PATH"
             ));
         }
         // The terminal backend displays files from the working directory, including in a pager.
@@ -218,6 +222,16 @@ impl DiagramArgs {
                 output,
                 acdc_diagram::goat,
                 acdc_diagram::goat_file,
+            )?;
+        }
+        if let Some(tool) = &self.bytefield_svg {
+            register_file_renderer(
+                &mut registry,
+                "bytefield-svg",
+                tool,
+                output,
+                acdc_diagram::bytefield,
+                acdc_diagram::bytefield_file,
             )?;
         }
         if let Some(tool) = &self.wavedrom_cli {

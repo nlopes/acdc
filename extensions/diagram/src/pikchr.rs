@@ -48,23 +48,30 @@ fn render(
     roots: OutputDirectories<'_>,
     input: &DiagramInput<'_>,
 ) -> Result<BlockBuilder, String> {
-    render_svg("pikchr", roots, input, &[], |source, scratch, output| {
-        let path = scratch.join("input.pikchr");
-        fs::write(&path, source)?;
-        let result = asset::run_to_file(
-            Command::new(tool).arg("--svg-only").arg(path),
-            dir,
-            "pikchr",
-            output,
-        );
-        match (result, output_diagnostic(output)) {
-            (Ok(()), Some(message)) => Err(io::Error::other(message)),
-            (Err(err), Some(message)) => {
-                Err(io::Error::new(err.kind(), format!("{err}: {message}")))
+    render_svg(
+        "pikchr",
+        "pikchr",
+        roots,
+        input,
+        &[],
+        |source, scratch, output| {
+            let path = scratch.join("input.pikchr");
+            fs::write(&path, source)?;
+            let result = asset::run_to_file(
+                Command::new(tool).arg("--svg-only").arg(path),
+                dir,
+                "pikchr",
+                output,
+            );
+            match (result, output_diagnostic(output)) {
+                (Ok(()), Some(message)) => Err(io::Error::other(message)),
+                (Err(err), Some(message)) => {
+                    Err(io::Error::new(err.kind(), format!("{err}: {message}")))
+                }
+                (result, _) => result,
             }
-            (result, _) => result,
-        }
-    })
+        },
+    )
 }
 
 // Pikchr writes parser diagnostics to stdout. Older CLIs return an HTML fragment

@@ -38,6 +38,10 @@ fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     let dir = tempfile::tempdir()?;
     for (args, expected) in [
         (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
+        (
+            vec!["--bytefield-svg", "missing"],
+            "require --extension diagram",
+        ),
         (vec!["--goat", "missing"], "require --extension diagram"),
         (vec!["--pikchr", "missing"], "require --extension diagram"),
         (vec!["--dpic", "missing"], "require --extension diagram"),
@@ -93,6 +97,105 @@ mod active {
         ];
         command.extend(args);
         run_acdc_in(root, &command, stdin)
+    }
+
+    #[test]
+    fn bytefield_sends_block_and_file_source_to_stdin_and_publishes_svg() -> TestResult {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        fs::create_dir(root.join("fields"))?;
+        fs::write(root.join("expected-block.edn"), "(draw-box \"Header\")\n")?;
+        fs::write(root.join("fields/payload.edn"), "(draw-box \"Payload\")")?;
+        fs::write(
+            root.join("doc.adoc"),
+            "= Packet\n:imagesdir: images\n\n[bytefield,header]\n....\n(draw-box \"Header\")\n....\n\n.Payload layout\nbytefield::fields/payload.edn[svg,alt=Bytes]",
+        )?;
+        fs::write(
+            root.join("renderer"),
+            r#"#!/bin/sh
+set -eu
+test "$#" = 2
+test "$1" = --output
+if test -f payload.edn; then
+    cmp - payload.edn
+else
+    cmp - expected-block.edn
+fi
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="24"/>' > "$2"
+"#,
+        )?;
+        fs::set_permissions(root.join("renderer"), fs::Permissions::from_mode(0o700))?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--bytefield-svg",
+            "./renderer",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        for (target, alt) in [("header", "header"), ("payload", "Bytes")] {
+            assert!(html.contains(&format!(
+                r#"src="images/{target}.svg" alt="{alt}" width="80" height="24""#
+            )));
+            assert!(root.join(format!("images/{target}.svg")).is_file());
+        }
+        assert!(html.contains("Figure 1. Payload layout"));
+        Ok(())
+    }
+
+    #[test]
+    fn bytefield_rejects_renderer_overrides_and_recovers_from_failure() -> TestResult {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        fs::write(root.join("layout.edn"), "(draw-box \"Type\")")?;
+        fs::write(
+            root.join("renderer"),
+            "#!/bin/sh\nprintf '%s' partial > \"$2\"\nexit 7\n",
+        )?;
+        fs::set_permissions(root.join("renderer"), fs::Permissions::from_mode(0o700))?;
+        fs::write(root.join("layout.svg"), "previous image")?;
+        for (source, expected) in [
+            ("bytefield::layout.edn[png]", "unsupported bytefield format"),
+            (
+                "bytefield::layout.edn[bytefield-svg=other]",
+                "set the bytefield-svg executable",
+            ),
+            (
+                ":bytefield-svg: other\n\n[bytefield]\n----\n(draw-box)\n----",
+                "set the bytefield-svg executable",
+            ),
+            ("bytefield::layout.edn[]", "bytefield-svg exited"),
+        ] {
+            fs::write(root.join("doc.adoc"), source)?;
+            let run = run_acdc_in(
+                root,
+                &[
+                    "convert",
+                    "--extension",
+                    "diagram",
+                    "--bytefield-svg",
+                    "./renderer",
+                    "--fail-on-warnings",
+                    "doc.adoc",
+                ],
+                None,
+            )?;
+            assert!(!run.status.success());
+            assert!(
+                output_text(&run.stderr).contains(expected),
+                "{}",
+                output_text(&run.stderr)
+            );
+            assert_eq!(
+                fs::read_to_string(root.join("layout.svg"))?,
+                "previous image"
+            );
+        }
+        Ok(())
     }
 
     #[test]

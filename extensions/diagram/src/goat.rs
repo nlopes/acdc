@@ -55,14 +55,21 @@ fn render(
     if let Some(color) = light.as_deref() {
         args.extend(["-sls", color]);
     }
-    render_svg("goat", roots, input, &args, |source, scratch, output| {
-        asset::run_with_source(
-            Command::new(tool).args(&args),
-            dir,
-            "goat",
-            scratch,
-            source,
-            Some(output),
-        )
-    })
+    render_svg(
+        "goat",
+        "goat",
+        roots,
+        input,
+        &args,
+        |source, scratch, output| {
+            asset::run_with_source(
+                Command::new(tool).args(&args),
+                dir,
+                "goat",
+                scratch,
+                source,
+                Some(output),
+            )
+        },
+    )
 }

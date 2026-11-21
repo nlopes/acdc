@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render packet and binary layouts as SVG from `[bytefield]` blocks or `bytefield::layout.edn[]` file macros with `--extension diagram --bytefield-svg PATH`.
+
 - Render GoAT ASCII diagrams from `[goat]` blocks and `goat::chart.txt[]` file macros as SVG with `--extension diagram --goat PATH`. Set `svg-color-dark-scheme` and `svg-color-light-scheme` to choose the colors.
 
 - Render Pikchr source from `[pikchr]` blocks and `pikchr::chart.pikchr[]` file macros as SVG with `--extension diagram --pikchr PATH`. Syntax errors report the renderer’s diagnostic and preserve the previous image.

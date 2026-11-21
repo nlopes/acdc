@@ -48,16 +48,23 @@ fn render(
     roots: OutputDirectories<'_>,
     input: &DiagramInput<'_>,
 ) -> Result<BlockBuilder, String> {
-    render_svg("dpic", roots, input, &[], |source, scratch, output| {
-        let path = scratch.join("input.pic");
-        write_picture(&path, source)?;
-        asset::run_to_file(
-            Command::new(tool).args(["-v", "-z"]).arg(path),
-            dir,
-            "dpic",
-            output,
-        )
-    })
+    render_svg(
+        "dpic",
+        "dpic",
+        roots,
+        input,
+        &[],
+        |source, scratch, output| {
+            let path = scratch.join("input.pic");
+            write_picture(&path, source)?;
+            asset::run_to_file(
+                Command::new(tool).args(["-v", "-z"]).arg(path),
+                dir,
+                "dpic",
+                output,
+            )
+        },
+    )
 }
 
 fn write_picture(path: &Path, source: &str) -> io::Result<()> {

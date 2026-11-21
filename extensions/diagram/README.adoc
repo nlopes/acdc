@@ -119,7 +119,15 @@ Use `--extension diagram --goat /usr/bin/goat` to render ASCII art from a `[goat
 Both forms produce SVG. Set `goat-svg-color-dark-scheme` and `goat-svg-color-light-scheme` on the document to select colors. A block or macro can override either with `svg-color-dark-scheme` or `svg-color-light-scheme`.
 Library callers register `acdc_diagram::goat` and `acdc_diagram::goat_file` with a trusted executable. Rendering requires unsafe mode.
 
+== Bytefield
+
+Use `--extension diagram --bytefield-svg /usr/bin/bytefield-svg` to render packet and binary layouts as SVG.
+Place the diagram source in a `[bytefield]` listing or literal block, or load a local file with `bytefield::layout.edn[]`.
+Library callers register `acdc_diagram::bytefield` and `acdc_diagram::bytefield_file` with a trusted executable. Rendering requires unsafe mode.
+
 == Verification
+
+With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.
 
 With GoAT 0.5.1, acdc and Asciidoctor Diagram 3.2.1 rendered ASCII routes from a block and a local file as 152 × 58 SVGs. The shapes, light and dark colors, image targets, alternative text, and numbered captions matched.
 
