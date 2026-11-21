@@ -1,0 +1,43 @@
+= WaveDrom diagrams for acdc
+
+Applications can register the `wavedrom` literal-block style in the parser registry.
+Supply the path to a trusted `wavedrom-cli` executable and the directory containing the converted document.
+The extension runs the executable only for an explicitly registered style in `SafeMode::Unsafe`.
+Use this mode for trusted input. The acdc CLI does not yet expose this registration.
+
+[source,rust]
+----
+let mut builder = acdc_parser::extensions::Registry::builder();
+builder.register_block_style(acdc_diagram::wavedrom(&tool, &output_dir)?)?;
+let options = acdc_parser::Options::builder()
+    .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+    .build()?;
+let parsed = builder.build().parse(source, &options)?.finish()?;
+----
+
+[source,asciidoc]
+----
+[wavedrom, ,svg]
+....
+{signal: [{name: 'clock', wave: 'p...'}]}
+....
+----
+
+The renderer reads the preprocessed literal body before inline substitutions.
+The first positional argument names the output, e.g. `[wavedrom,clock,svg]` produces `clock.svg`.
+Target names accept ASCII letters, digits, hyphens, and underscores.
+An empty target uses a SHA-256 digest of the body. Named `target=` and `format=` take precedence.
+The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
+Use local relative image directories without URI escapes, query strings, or fragments. Symlinks in the directory path, parent traversal, and `imagesoutdir` overrides are rejected.
+SVG is the supported format in this port. A failed render stops parsing at the block and preserves any previous asset.
+
+== Verification
+
+The adapter uses the file-to-file protocol from https://github.com/nlopes/acdc/pull/451[acdc-diagram].
+The acceptance fixture reproduces the https://github.com/riscv/riscv-high-assurance-cryptography/blob/6b82dbaf0096747c8acee1749a1e1c188474f478/src/ace-ISA-unpriv.adoc#L1184-L1193[RISC-V ACE register diagram for ace.load], licensed under https://creativecommons.org/licenses/by/4.0/[CC BY 4.0].
+It was verified with `wavedrom-cli` 3.2.0. To run the real-renderer test:
+
+[source,console]
+----
+ACDC_WAVEDROM_CLI=/absolute/path/to/wavedrom-cli cargo nextest run -p acdc-diagram --all-features --run-ignored only -E 'test(=ace_register_diagram_with_real_wavedrom_cli)'
+----

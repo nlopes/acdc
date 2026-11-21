@@ -154,6 +154,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "acdc-diagram"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-parser",
+ "base64 0.23.1",
+ "roxmltree 0.21.1",
+ "sha2",
+ "tempfile",
+ "wait-timeout",
+]
+
+[[package]]
 name = "acdc-editor-wasm"
 version = "0.6.0"
 dependencies = [

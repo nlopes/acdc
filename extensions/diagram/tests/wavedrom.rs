@@ -1,0 +1,168 @@
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
+
+use acdc_converters_core::{
+    Converter as _, Diagnostics, Options as ConverterOptions, pipeline::Pipeline,
+};
+use acdc_converters_html::{Converter, HtmlVariant};
+use acdc_parser::{
+    CompatibilityMode, Error, Options, SafeMode, ast::BlockKind, extensions::Registry,
+};
+
+type TestResult = Result<(), Box<dyn std::error::Error>>;
+const ACE: &str = include_str!("fixtures/ace-load.adoc");
+
+fn registry(tool: &Path, root: &Path) -> Result<Registry, Box<dyn std::error::Error>> {
+    let mut builder = Registry::builder();
+    builder.register_block_style(acdc_diagram::wavedrom(tool, root)?)?;
+    Ok(builder.build())
+}
+
+fn render_ace(
+    tool: &Path,
+    root: &Path,
+    mode: CompatibilityMode,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let pipeline = Pipeline::new(Converter::new_with_variant(
+        ConverterOptions::builder().embedded(true).build(),
+        Options::builder()
+            .with_compatibility_mode(mode)
+            .with_safe_mode(SafeMode::Unsafe),
+        HtmlVariant::Standard,
+    )?)
+    .with_extensions(registry(tool, root)?);
+    let parsed = pipeline.parse(&format!("Intro.\n\n:imagesdir: images\n\n{ACE}"))?;
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    let target = parsed
+        .document()
+        .blocks()
+        .find_map(|block| {
+            if let BlockKind::Image(image) = block.kind() {
+                Some(image.source().to_string())
+            } else {
+                None
+            }
+        })
+        .ok_or("expected an ordinary image block")?;
+    let mut html = Vec::new();
+    let mut warnings = Vec::new();
+    let source = pipeline.converter().warning_source();
+    pipeline.write_to(
+        parsed.document(),
+        &mut html,
+        None,
+        None,
+        &mut Diagnostics::new(&source, &mut warnings),
+    )?;
+    let reference = format!("images/{target}");
+    let html = String::from_utf8(html)?;
+    assert!(html.contains(&format!("src=\"{reference}\"")));
+    assert!(html.contains("alt=\"Diagram\""), "{html}");
+    assert_eq!(warnings, []);
+    Ok(fs::read_to_string(root.join(reference))?)
+}
+
+#[test]
+#[ignore = "requires the real wavedrom-cli; set ACDC_WAVEDROM_CLI to its path"]
+fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
+    let tool = PathBuf::from(env::var_os("ACDC_WAVEDROM_CLI").ok_or("set ACDC_WAVEDROM_CLI")?);
+    for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
+        let output = tempfile::tempdir()?;
+        let svg = render_ace(&tool, output.path(), mode)?;
+        let document = roxmltree::Document::parse(&svg)?;
+        let root = document.root_element();
+        assert!(root.has_tag_name(("http://www.w3.org/2000/svg", "svg")));
+        assert_eq!(root.attribute("viewBox"), Some("0 0 800 84"));
+        for label in ["ace.load", "context", "immed12", "K{Xd}"] {
+            assert!(
+                root.descendants()
+                    .any(|node| node.is_text() && node.text() == Some(label)),
+                "missing {label}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
+    let output = tempfile::tempdir()?;
+    let dummy = output.path().join("not-an-executable");
+    fs::write(&dummy, "")?;
+    let registry = registry(&dummy, output.path())?;
+    for mode in [SafeMode::Safe, SafeMode::Server, SafeMode::Secure] {
+        let options = Options::builder().with_safe_mode(mode).build()?;
+        let result = registry.parse(&format!(":safe-mode-name: unsafe\n\n{ACE}"), &options);
+        assert!(
+            matches!(result, Err(Error::Extension(_, msg)) if msg.contains("requires unsafe mode"))
+        );
+    }
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .build()?;
+    #[cfg(unix)]
+    {
+        let outside = tempfile::tempdir()?;
+        std::os::unix::fs::symlink(outside.path(), output.path().join("linked"))?;
+        let result = registry.parse(&format!(":imagesdir: linked\n\n{ACE}"), &options);
+        assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains("imagesdir")));
+        assert_eq!(fs::read_dir(outside.path())?.count(), 0);
+    }
+    for (header, fragment) in [
+        ("[wavedrom,../outside,svg]", "target"),
+        ("[wavedrom,,png]", "format"),
+        (":wavedrom: other-tool\n\n[wavedrom]", "executable"),
+        (":imagesdir: ../outside\n\n[wavedrom]", "imagesdir"),
+    ] {
+        let result = registry.parse(&format!("{header}\n....\nbody\n...."), &options);
+        assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains(fragment)));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn exact_raw_body_is_passed_to_the_renderer_and_its_svg_is_published() -> TestResult {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let root = tempfile::tempdir()?;
+    let tool = root.path().join("renderer");
+    fs::write(
+        &tool,
+        r#"#!/bin/sh
+set -eu
+test "$1" = --input
+test "$3" = --svg
+cmp "$2" "$(dirname "$0")/expected.wvd"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > "$4"
+"#,
+    )?;
+    fs::set_permissions(&tool, fs::Permissions::from_mode(0o700))?;
+    let (_, delimited) = ACE.split_once("....\n").ok_or("opening delimiter")?;
+    fs::write(
+        root.path().join("expected.wvd"),
+        delimited
+            .strip_suffix("....\n")
+            .ok_or("closing delimiter")?,
+    )?;
+    let svg = render_ace(&tool, root.path(), CompatibilityMode::Draft)?;
+    assert!(svg.contains("<desc>test</desc>"));
+
+    // A failed rerender must preserve an existing named asset.
+    let registry = registry(&tool, root.path())?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .build()?;
+    fs::write(root.path().join("existing.svg"), "old asset")?;
+    let result = registry.parse("[wavedrom,existing,svg]\n....\nbad input\n....", &options);
+    assert!(
+        matches!(result, Err(Error::Extension(origin, msg)) if origin.location.start.line == 1 && msg.contains("renderer exited"))
+    );
+    assert_eq!(
+        fs::read_to_string(root.path().join("existing.svg"))?,
+        "old asset"
+    );
+    Ok(())
+}

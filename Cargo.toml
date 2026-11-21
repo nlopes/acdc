@@ -15,6 +15,7 @@ members = [
   "converters/pdf",
   "converters/pdf/crates/*",
   "converters/terminal",
+  "extensions/diagram",
 ]
 default-members = [
   "acdc-cli",
@@ -31,6 +32,7 @@ default-members = [
   "converters/pdf",
   "converters/pdf/crates/*",
   "converters/terminal",
+  "extensions/diagram",
 ]
 resolver = "2"
 
