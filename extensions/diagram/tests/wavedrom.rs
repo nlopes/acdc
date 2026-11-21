@@ -188,6 +188,73 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
 
 #[cfg(unix)]
 #[test]
+fn attribute_substitutions_use_local_values_for_renderer_input_and_asset_names() -> TestResult {
+    use std::{collections::HashSet, fmt::Write as _, os::unix::fs::PermissionsExt as _};
+
+    let dir = tempfile::tempdir()?;
+    let tool = dir.path().join("renderer");
+    fs::write(
+        &tool,
+        r#"#!/bin/sh
+set -eu
+{
+    printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc><![CDATA['
+    cat "$2"
+    printf '%s' ']]></desc></svg>'
+} > "$4"
+"#,
+    )?;
+    fs::set_permissions(&tool, fs::Permissions::from_mode(0o700))?;
+    let registry = registry(&tool, dir.path())?;
+    let raw = r"{label} \{label} {unknown} *raw* <1>";
+    let first = "Early {label} {unknown} *raw* <1>";
+    let second = "Late {label} {unknown} *raw* <1>";
+    let unset = "{label} {label} {unknown} *raw* <1>";
+    let mut source = String::from("= Signals\n:label: Early\n\n");
+    for (attribute, style) in [
+        ("", "wavedrom,subs=attributes"),
+        (":label: Late\n\n", "wavedrom,subs=+attributes"),
+        ("", "wavedrom,subs=normal"),
+        ("", "wavedrom"),
+        ("", "wavedrom,subs=none"),
+        ("", "wavedrom,subs=-attributes"),
+        (":label!:\n\n", "wavedrom,subs=attributes"),
+    ] {
+        writeln!(source, "{attribute}[{style}]\n----\n{raw}\n----\n")?;
+    }
+
+    for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .with_compatibility_mode(mode)
+            .build()?;
+        let result = registry.parse(&source, &opts)?.finish()?;
+        let targets: Vec<_> = result
+            .document()
+            .blocks()
+            .filter_map(|block| {
+                if let BlockKind::Image(image) = block.kind() {
+                    Some(image.source().to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(targets.len(), 7);
+        for (name, expected) in targets
+            .iter()
+            .zip([first, second, second, raw, raw, raw, unset])
+        {
+            let svg = fs::read_to_string(dir.path().join(name))?;
+            assert!(svg.contains(&format!("<![CDATA[{expected}\n]]>")), "{svg}");
+        }
+        assert_eq!(targets.iter().collect::<HashSet<_>>().len(), 4);
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
 fn png_selection_and_failed_publication() -> TestResult {
     use std::os::unix::fs::PermissionsExt as _;
 

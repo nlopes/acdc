@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- WaveDrom and TikZ blocks accept `subs=attributes` to expand document attributes before rendering. With the default settings, braces and backslashes pass through verbatim. Unnamed images use the expanded source for their filenames. Only the attribute step of a substitution group is applied to diagram source.
+
 - WaveDrom and TikZ also render listing blocks delimited by `----`. They accept the same source, attributes, and output formats as literal blocks delimited by `....`.
 
 - Applications can supply separate directories for linked and embedded HTML diagrams

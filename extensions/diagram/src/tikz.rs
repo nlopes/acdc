@@ -7,7 +7,7 @@ use acdc_parser::{DocumentAttributeValue, extensions::BlockStyle};
 use super::{
     OutputDirectories,
     asset::{self, Format},
-    executable, image, style,
+    diagram_source, executable, image, style,
 };
 
 /// Register the `tikz` style for listing and literal blocks in trusted documents.
@@ -88,7 +88,7 @@ pub fn tikz<'a>(
             || (&input.metadata.options)
                 .into_iter()
                 .any(|opt| *opt == "preamble");
-        let document = latex_document(input.body, preamble);
+        let document = latex_document(&diagram_source(input), preamble);
         image("tikz", root, input, format, &document, |scratch, output| {
             fs::write(scratch.join("input.tex"), &document)?;
             asset::run(

@@ -1,12 +1,13 @@
 //! Render explicitly registered diagram styles into ordinary acdc image blocks.
 
 use std::{
+    borrow::Cow,
     fs, io,
     path::{Component, Path, PathBuf},
 };
 
 use acdc_parser::{
-    DocumentAttributeValue, SafeMode,
+    DocumentAttributeValue, SafeMode, Substitution, VERBATIM,
     extensions::{BlockBuilder, BlockStyle, RawBlockContext, RawBlockInput},
 };
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -44,7 +45,7 @@ impl<'a, P: AsRef<Path> + ?Sized> From<&'a P> for OutputDirectories<'a> {
 /// Register the `wavedrom` style for listing and literal blocks with a trusted renderer and an
 /// existing output directory (the directory containing the converted document).
 /// The caller installs the returned style in its registry. Rendering requires
-/// [`SafeMode::Unsafe`]. The body is passed verbatim to the executable.
+/// [`SafeMode::Unsafe`]. The body is verbatim unless its `subs` setting enables attributes.
 ///
 /// # Errors
 /// Returns an error if either path cannot be resolved or has the wrong file type.
@@ -124,6 +125,18 @@ where
     .with_positional_attributes(["target", "format"]))
 }
 
+fn diagram_source<'a>(input: &RawBlockInput<'a>) -> Cow<'a, str> {
+    if input
+        .metadata
+        .uses_substitution(&Substitution::Attributes, VERBATIM)
+    {
+        let attrs = input.document_attributes;
+        attrs.substitute_attributes(input.body, |name| attrs.get(name))
+    } else {
+        Cow::Borrowed(input.body)
+    }
+}
+
 fn render(
     tool: &Path,
     root: OutputDirectories<'_>,
@@ -148,13 +161,14 @@ fn render(
             ));
         }
     };
+    let source = diagram_source(input);
     image(
         "wavedrom",
         root,
         input,
         format,
-        input.body,
-        |scratch, output| wavedrom_cli::render(tool, input.body, format, scratch, output),
+        &source,
+        |scratch, output| wavedrom_cli::render(tool, &source, format, scratch, output),
     )
 }
 

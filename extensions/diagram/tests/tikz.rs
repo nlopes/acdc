@@ -77,7 +77,14 @@ printf '%%PDF-1.4\n%%%%EOF\n' > input.pdf
         .build()?;
     let source = "[tikz,figure,pdf,preamble=true]\n....\n% preamble\n~~~~\npicture body\n....";
     let listing = source.replace("....", "----");
-    for input in [source, listing.as_str()] {
+    let substituted = format!(
+        ":header-text: preamble\n:node-text: picture body\n\n{}",
+        source
+            .replace("preamble=true]", "preamble=true,subs=attributes]")
+            .replace("% preamble", "% {header-text}")
+            .replace("picture body", "{node-text}")
+    );
+    for input in [source, listing.as_str(), substituted.as_str()] {
         let parsed = registry.parse(input, &options)?.finish()?;
         assert!(parsed.document().blocks().any(
             |b| matches!(b.kind(), BlockKind::Image(i) if i.source().to_string()=="figure.pdf")

@@ -27,10 +27,14 @@ let parsed = builder.build().parse(source, &options)?.finish()?;
 ....
 ----
 
-The renderer reads the preprocessed block body before inline substitutions.
+WaveDrom and TikZ receive the preprocessed body verbatim by default.
+Use `subs=attributes` to expand references such as `{signal-label}` with the value in effect at the block.
+With expansion enabled, `\{signal-label}` passes a literal `{signal-label}` to the tool. Unknown references stay in the source.
+Only the attribute step of a `subs` setting affects diagram source. Formatting, escaping, and callout processing are left to the renderer.
+
 The first positional argument names the output, e.g. `[wavedrom,clock,svg]` produces `clock.svg`.
 Target names accept ASCII letters, digits, hyphens, and underscores.
-An empty target uses a SHA-256 digest of the body. Named `target=` and `format=` take precedence.
+An empty target uses a SHA-256 digest of the source sent to the renderer. Named `target=` and `format=` take precedence.
 The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
 Use local relative image directories without URI escapes, query strings, or fragments. Symlinks in the directory path, parent traversal, and `imagesoutdir` overrides are rejected.
 Use `[wavedrom,clock,png]` to generate `clock.png`. SVG is the default.

@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Builds with the optional `diagram` feature can convert WaveDrom and TikZ listing
   and literal blocks with `convert --extension diagram`. Supply `--wavedrom-cli PATH` for
   WaveDrom or `--lualatex PATH` for TikZ. Add `--pdf2svg PATH` for TikZ SVG.
-  Rendering requires unsafe mode and a caller-selected executable.
+  Rendering requires unsafe mode and a caller-selected executable. Add
+  `subs=attributes` to a diagram block to expand document attributes in its source.
 
 - Statically linked converter registrations now supply the available backend names, aliases, and variants for CLI help and conversion.
 
