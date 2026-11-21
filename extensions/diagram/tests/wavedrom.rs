@@ -26,6 +26,7 @@ fn render_asset(
     root: &Path,
     mode: CompatibilityMode,
     source_text: &str,
+    expected_html_alt: &str,
 ) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let pipeline = Pipeline::new(Converter::new_with_variant(
         ConverterOptions::builder().embedded(true).build(),
@@ -61,7 +62,10 @@ fn render_asset(
     let reference = format!("images/{target}");
     let html = String::from_utf8(html)?;
     assert!(html.contains(&format!("src=\"{reference}\"")));
-    assert!(html.contains("alt=\"Diagram\""), "{html}");
+    assert!(
+        html.contains(&format!("alt=\"{expected_html_alt}\"")),
+        "{html}"
+    );
     assert_eq!(warnings, []);
     Ok(root.join(reference))
 }
@@ -72,7 +76,7 @@ fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
     let tool = PathBuf::from(env::var_os("ACDC_WAVEDROM_CLI").ok_or("set ACDC_WAVEDROM_CLI")?);
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let output = tempfile::tempdir()?;
-        let svg = fs::read_to_string(render_asset(&tool, output.path(), mode, ACE)?)?;
+        let svg = fs::read_to_string(render_asset(&tool, output.path(), mode, ACE, "Diagram")?)?;
         let document = roxmltree::Document::parse(&svg)?;
         let root = document.root_element();
         assert!(root.has_tag_name(("http://www.w3.org/2000/svg", "svg")));
@@ -86,7 +90,7 @@ fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
         }
 
         let png_source = ACE.replacen(", svg]", ", png]", 1);
-        let path = render_asset(&tool, output.path(), mode, &png_source)?;
+        let path = render_asset(&tool, output.path(), mode, &png_source, "Diagram")?;
         assert_eq!(path.extension().and_then(|ext| ext.to_str()), Some("png"));
         let mut reader = png::Decoder::new(BufReader::new(fs::File::open(path)?)).read_info()?;
         assert_eq!(reader.info().size(), (800, 84));
@@ -195,12 +199,22 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
             .ok_or("closing delimiter")?,
     )?;
     let listing = ACE.replace("\n....\n", "\n----\n");
-    for source in [ACE, listing.as_str()] {
+    let named = ACE.replacen(", ,", ",clock-signal_v2,", 1);
+    let labeled = named.replacen("svg]", "svg,alt=\"Clock & reset\"]", 1);
+    let decorative = ACE.replacen("svg]", "svg,alt=\"\"]", 1);
+    for (source, alt) in [
+        (ACE, "Diagram"),
+        (listing.as_str(), "Diagram"),
+        (&named, "clock signal v2"),
+        (&labeled, "Clock &amp; reset"),
+        (&decorative, ""),
+    ] {
         let svg = fs::read_to_string(render_asset(
             &tool,
             root.path(),
             CompatibilityMode::Draft,
             source,
+            alt,
         )?)?;
         assert!(svg.contains("<desc>test</desc>"));
     }
@@ -326,7 +340,13 @@ cp "$(dirname "$0")/result.png" "$4"
         "[wavedrom,register,svg,format=png]",
     ] {
         let source = format!("{header}\n....\nbody\n....");
-        let path = render_asset(&tool, dir.path(), CompatibilityMode::Draft, &source)?;
+        let path = render_asset(
+            &tool,
+            dir.path(),
+            CompatibilityMode::Draft,
+            &source,
+            "register",
+        )?;
         assert_eq!(path, dir.path().join("images/register.png"));
         assert_eq!(fs::read(path)?, png);
     }

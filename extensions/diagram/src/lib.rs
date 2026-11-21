@@ -264,7 +264,12 @@ fn image(
     };
     let dir = image_directory(root, images).map_err(|e| format!("{name} imagesdir: {e}"))?;
     asset::publish(&dir, &filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
-    Ok(BlockBuilder::image(filename).with_default_attributes("alt=Diagram"))
+    let image = BlockBuilder::image(filename);
+    Ok(if target.is_empty() {
+        image.with_default_attributes("alt=Diagram")
+    } else {
+        image
+    })
 }
 
 // The HTML image reference already includes the source-position imagesdir.
