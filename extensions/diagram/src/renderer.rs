@@ -599,3 +599,59 @@ pub const TAPE: Renderer = Renderer {
     attributes: &[],
     generate: tape,
 };
+
+fn gnuplot(job: &Job<'_>) -> io::Result<()> {
+    use std::fmt::Write as _;
+    let mut code = format!(
+        "set term {}",
+        if job.format == Format::Txt {
+            "dumb"
+        } else {
+            job.format.extension()
+        }
+    );
+    if let Some((w, h)) = job.option("width").zip(job.option("height")) {
+        let _ = write!(code, " size {w},{h}");
+    }
+    for key in ["transparent", "crop"] {
+        if let Some(v) = job.option(key) {
+            let prefix = if v == "false" { "no" } else { "" };
+            let _ = write!(code, " {prefix}{key}");
+        }
+    }
+    for key in ["font", "fontscale", "background"] {
+        if let Some(v) = job.option(key) {
+            if key == "fontscale" {
+                let _ = write!(code, " {key} {v}");
+            } else {
+                let _ = write!(code, " {key} \"{v}\"");
+            }
+        }
+    }
+    let _ = writeln!(code, "\n{}", job.source);
+    asset::run_with_source(
+        &mut Command::new(job.tool),
+        job.dir,
+        job.name,
+        job.scratch,
+        &code,
+        Some(job.output),
+    )
+}
+
+/// Render `gnuplot` diagrams using `gnuplot`.
+pub const GNUPLOT: Renderer = Renderer {
+    name: "gnuplot",
+    tool: "gnuplot",
+    formats: &[Format::Png, Format::Svg, Format::Gif, Format::Txt],
+    attributes: &[
+        "width",
+        "height",
+        "transparent",
+        "crop",
+        "font",
+        "fontscale",
+        "background",
+    ],
+    generate: gnuplot,
+};

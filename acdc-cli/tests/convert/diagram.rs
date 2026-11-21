@@ -377,6 +377,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn gnuplot_block_and_file() -> TestResult {
+        tool_sample(
+            "gnuplot",
+            "--gnuplot",
+            "plot sin(x)",
+            "svg",
+            r#"test "$#" = 0
+grep -Fx "set term svg" >/dev/null
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

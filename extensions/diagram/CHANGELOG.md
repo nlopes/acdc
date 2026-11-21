@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[gnuplot]` blocks and `gnuplot::chart.gp[]` files with `--gnuplot PATH`. Choose PNG, SVG, GIF, or a literal text plot. Set `width` and `height` together to select a terminal size.
+
 - Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. Use `format=svg` for an SVG recording. Tape scripts run in unsafe mode.
 
 - Render `[ditaa]` blocks and `ditaa::chart.ditaa[]` files with `--ditaa PATH`. Choose PNG (default), SVG, or literal text. Set `round-corners=true`, `shadows=false`, or `scale` to change the drawing.
