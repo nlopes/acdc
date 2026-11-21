@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[packetdiag]` blocks and `packetdiag::chart.diag[]` files with `--packetdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
+
 - Render `[nwdiag]` blocks and `nwdiag::chart.diag[]` files with `--nwdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
 
 - Render `[actdiag]` blocks and `actdiag::chart.diag[]` files with `--actdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.

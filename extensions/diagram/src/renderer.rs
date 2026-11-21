@@ -183,3 +183,12 @@ pub const NWDIAG: Renderer = Renderer {
     attributes: &["fontpath"],
     generate: blockdiag_family,
 };
+
+/// Render `packetdiag` diagrams using `packetdiag`.
+pub const PACKETDIAG: Renderer = Renderer {
+    name: "packetdiag",
+    tool: "packetdiag",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &["fontpath"],
+    generate: blockdiag_family,
+};
