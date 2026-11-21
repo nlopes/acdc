@@ -201,6 +201,7 @@ mod display;
 mod editor;
 pub(crate) mod finalization;
 mod inline;
+pub(crate) mod late_inline;
 mod query;
 mod recognition;
 mod registry;
@@ -228,6 +229,10 @@ pub use display::{
 pub(crate) use display::{DisplayState, GeneratedDisplay};
 pub use editor::DocumentEditor;
 pub use inline::InlineSpec;
+pub use late_inline::{
+    InlineConversionContext, InlineInvocation, InlineMacroOutput, InlineMacroProcessor,
+    InlineMatcher, RetainedInline,
+};
 pub use query::{BlockContext, BlockView, DocumentQuery};
 pub(crate) use registry::ReferenceNormalizer;
 pub use registry::{RegistrationError, Registry, RegistryBuilder};

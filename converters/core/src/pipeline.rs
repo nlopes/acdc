@@ -28,6 +28,12 @@
 //! stay on the parse result; conversion warnings stay in [`Diagnostics`] or
 //! [`ConversionResult`]. The application decides how to present them.
 //!
+//! Selected inline macros run after tree edits, at document preparation for the
+//! selected backend. A factory runs on its first surviving invocation. Copied
+//! title and catalog labels share that invocation's output. Attribute substitution
+//! uses conversion overrides and the source-position attributes. Processor failures
+//! precede backend output. Returning typed text leaves escaping to the backend.
+//!
 //! Each conversion resolves a fresh display overlay and uses fresh backend counters
 //! and traversal state. Shared parsed storage is never mutated. Custom backends
 //! must honor this same per-conversion state contract in [`Converter::write_to`].
@@ -117,6 +123,31 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         }
     }
 
+    fn prepare<'doc>(
+        &self,
+        document: DocumentRef<'doc>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<acdc_parser::extensions::PreparedDocument<'doc>, Error> {
+        if let Some(registry) = self.extensions.parser_registry()
+            && document.has_inline_macros()
+        {
+            acdc_parser::extensions::PreparedDocument::with_inline_macros(
+                document,
+                display::resolve,
+                registry,
+                self.converter.name(),
+                self.converter.parser_options().document_attributes(),
+                |location, message| {
+                    diagnostics.emit(
+                        crate::Warning::new(diagnostics.source().clone(), message).at(location),
+                    );
+                },
+            )
+        } else {
+            display::prepare(document)
+        }
+    }
+
     /// Resolve display content and write one conversion with structured diagnostics.
     ///
     /// # Errors
@@ -129,7 +160,7 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), C::Error> {
-        let prepared = display::prepare(document)?;
+        let prepared = self.prepare(document, diagnostics)?;
         self.converter.write_to_with_extensions(
             prepared.document(),
             writer,
@@ -151,8 +182,17 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, C::Error> {
         if self.extensions.renderers.is_empty() {
-            let prepared = display::prepare(document)?;
-            self.converter.convert(prepared.document(), source_file)
+            let mut warnings = Vec::new();
+            let prepared = self.prepare(
+                document,
+                &mut Diagnostics::new(&self.converter.warning_source(), &mut warnings),
+            )?;
+            let mut result = self.converter.convert(prepared.document(), source_file)?;
+            if !warnings.is_empty() {
+                warnings.append(&mut result.warnings);
+                result.warnings = warnings;
+            }
+            Ok(result)
         } else {
             <Self as Converter<'options>>::convert(self, document, source_file)
         }

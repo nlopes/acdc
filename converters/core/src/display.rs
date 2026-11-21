@@ -19,7 +19,7 @@ pub fn prepare(document: DocumentRef<'_>) -> Result<PreparedDocument<'_>, Error>
     PreparedDocument::new(document, resolve)
 }
 
-fn resolve(request: GeneratedDisplayRef<'_>) -> DisplayLabel {
+pub(crate) fn resolve(request: GeneratedDisplayRef<'_>) -> DisplayLabel {
     if request.intent() == DisplayIntent::Title {
         return DisplayLabel::Title;
     }

@@ -46,6 +46,7 @@ pub(super) fn finish<'a>(
         natural_targets: HashMap::new(),
     };
     let mut document = Document {
+        has_inline_macros: state.retained_inline.as_ref().is_some_and(|v| v.get()),
         generated_displays: crate::extensions::DisplayState::default(),
         header,
         untitled_header_location,

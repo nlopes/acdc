@@ -90,6 +90,8 @@ pub(crate) struct ParserState<'a> {
     /// Original references for index labels and code boundaries checked before attributes.
     pub(super) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
     /// Boundary left by the last completed inline node in this parse.
+    pub(super) inline_candidates: Option<Box<super::inlines::extensions::Candidates<'a>>>,
+    pub(super) retained_inline: Option<Rc<Cell<bool>>>,
     pub(super) last_url_boundary: Option<InlineUrlBoundary>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
@@ -861,12 +863,18 @@ impl<'a> ParserState<'a> {
             body_reftext_source: None,
             untitled_header_entries: None,
             document_attributes: Rc::new(options.document_attributes.clone()),
+            retained_inline: options
+                .extensions
+                .as_ref()
+                .filter(|r| !r.inline_macros().is_empty())
+                .map(|_| Rc::default()),
             options,
             nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            inline_candidates: None,
             last_url_boundary: None,
             line_map,
             input,
@@ -916,6 +924,7 @@ impl<'a> ParserState<'a> {
             ..Options::default()
         });
         Self {
+            retained_inline: None,
             options: Rc::new(EMPTY_OPTIONS.clone()),
             attribute_sources: Rc::default(),
             reference_text_sources: Rc::default(),
@@ -929,6 +938,7 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            inline_candidates: None,
             last_url_boundary: None,
             line_map: Rc::new(LineMap::new(input)),
             input,
@@ -974,6 +984,7 @@ impl<'a> ParserState<'a> {
         inline_ctx: InlineContext,
     ) -> Self {
         Self {
+            retained_inline: parent.retained_inline.clone(),
             options: parent.options.clone(),
             attribute_sources: Rc::clone(&parent.attribute_sources),
             reference_text_sources: Rc::clone(&parent.reference_text_sources),
@@ -987,6 +998,7 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            inline_candidates: None,
             last_url_boundary: None,
             line_map: if std::ptr::eq(input, parent.input) {
                 Rc::clone(&parent.line_map)

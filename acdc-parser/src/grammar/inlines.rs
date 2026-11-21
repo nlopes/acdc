@@ -1,6 +1,7 @@
 //! Inline grammar and its supporting modules.
 
 mod attributes;
+pub(super) mod extensions;
 mod index_terms;
 mod links;
 mod peg;

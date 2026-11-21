@@ -30,6 +30,8 @@ use crate::{Anchor, InlineImage, Location};
 pub enum InlineNode<'a> {
     /// Ordinary text that inherits substitutions from its enclosing block.
     PlainText(Plain<'a>),
+    /// Authored macro spelling retained for conversion.
+    Extension(Box<crate::extensions::RetainedInline<'a>>),
     /// Resolved typography that requires no further language interpretation.
     Symbol(Symbol),
     CharacterReference(CharacterReference<'a>),
@@ -59,6 +61,7 @@ impl InlineNode<'_> {
     pub fn location(&self) -> &Location {
         match self {
             InlineNode::PlainText(t) => &t.location,
+            Self::Extension(call) => &call.literal.location,
             InlineNode::Symbol(t) => &t.location,
             InlineNode::CharacterReference(t) => &t.location,
             InlineNode::RawText(t) => &t.location,
@@ -86,6 +89,7 @@ impl InlineNode<'_> {
     pub(crate) fn location_mut(&mut self) -> &mut Location {
         match self {
             InlineNode::PlainText(t) => &mut t.location,
+            Self::Extension(call) => &mut call.literal.location,
             InlineNode::Symbol(t) => &mut t.location,
             InlineNode::CharacterReference(t) => &mut t.location,
             InlineNode::RawText(t) => &mut t.location,
@@ -259,6 +263,12 @@ impl Serialize for InlineNode<'_> {
         let mut map = serializer.serialize_map(None)?;
 
         match self {
+            InlineNode::Extension(call) => {
+                map.serialize_entry("name", "text")?;
+                map.serialize_entry("type", "string")?;
+                map.serialize_entry("value", &call.literal.content)?;
+                map.serialize_entry("location", &call.literal.location)?;
+            }
             InlineNode::PlainText(plain) => {
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;

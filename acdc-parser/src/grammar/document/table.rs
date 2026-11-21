@@ -658,7 +658,8 @@ fn simple_cell_nodes(nodes: &[InlineNode<'_>]) -> bool {
         InlineNode::BoldText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
         InlineNode::ItalicText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
         InlineNode::MonospaceText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
-        InlineNode::Symbol(_)
+        InlineNode::Extension(_)
+        | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)

@@ -78,6 +78,26 @@ peg::parser! {
             node
         }
 
+        pub(in crate::grammar) rule extension_inlines(verbatim: bool) -> Vec<InlineNode<'input>>
+        = check_attribute_profiles() chunks:(profiled_attribute() / nodes:registered_inline(verbatim)+ { nodes })+ {? expand_escaped_index_terms(chunks.into_iter().flatten().collect(), state) }
+        / nodes:registered_inline(verbatim)+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule registered_inline(verbatim: bool) -> InlineNode<'input>
+        = node:extension_inline() {
+            record_url_boundary(state, &node, span_end, &Substitution::Quotes);
+            node
+        }
+        / start:position!() node:(({? verbatim.then_some(()).ok_or("prose") }) n:verbatim_inline() { n } / normal_inline()) clipped:clip_extension(start, node) {
+            record_url_boundary(state, &clipped, span_end, &Substitution::Quotes);
+            clipped
+        }
+
+        rule extension_inline() -> InlineNode<'input>
+        = #{|_, pos| crate::grammar::inlines::extensions::recognize(state, pos)}
+
+        rule clip_extension(start: usize, node: InlineNode<'input>) -> InlineNode<'input>
+        = #{|_, end| crate::grammar::inlines::extensions::clip(state, start, end, node)}
+
         rule check_passthrough_attributes()
         = {? (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor && !state.attribute_passthroughs.is_empty()).then_some(()).ok_or("literal passthrough prefix") }
         rule attributed_passthrough_index(start: usize) -> usize

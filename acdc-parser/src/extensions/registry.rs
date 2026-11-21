@@ -4,7 +4,8 @@ use crate::{Error, Options, ParseResult};
 
 use super::{
     BlockMacro, BlockStyle, DocumentEditor, ExtensionParseResult, IncludeProcessor,
-    IncludeProcessors, RawBlockContext, Session, SourcePreprocessor, TreeProcessorRegistration,
+    IncludeProcessors, InlineMacroProcessor, InlineMatcher, RawBlockContext, Session,
+    SourcePreprocessor, TreeProcessorRegistration, late_inline::Registration,
 };
 
 pub(super) struct ProcessorFactory<P: ?Sized> {
@@ -50,6 +51,10 @@ pub enum RegistrationError {
     DuplicatePreprocessor(String),
     #[error("reference normalizer is already registered: {0}")]
     DuplicateReferenceNormalizer(String),
+    #[error("inline macro is already registered: {0}")]
+    DuplicateInlineMacro(String),
+    #[error("inline macro delimiters must be nonempty")]
+    EmptyInlineDelimiter,
     #[error("include processor is already registered: {0}")]
     DuplicateIncludeProcessor(String),
     #[error("deferred processor already registered for block macro: {0}")]
@@ -66,6 +71,7 @@ pub struct RegistryBuilder {
     preprocessors: Vec<ProcessorFactory<dyn SourcePreprocessor>>,
     includes: Vec<ProcessorFactory<dyn IncludeProcessor>>,
     normalizers: Vec<ProcessorFactory<ReferenceNormalizer>>,
+    inlines: Vec<Registration>,
 }
 
 impl RegistryBuilder {
@@ -106,6 +112,10 @@ impl RegistryBuilder {
                 RegistrationError::DuplicateReferenceNormalizer,
             )?;
         }
+        for registration in &registry.0.inlines {
+            self.check_inline_name(&registration.handler.name)?;
+        }
+        self.inlines.extend_from_slice(&registry.0.inlines);
         self.normalizers.extend_from_slice(&registry.0.normalizers);
         self.preprocessors
             .extend_from_slice(&registry.0.preprocessors);
@@ -122,6 +132,64 @@ impl RegistryBuilder {
         );
         self.macros.extend(registry.0.macros.iter().cloned());
         self.trees.extend(registry.0.trees.iter().cloned());
+        Ok(self)
+    }
+
+    fn check_inline_name(&self, name: &str) -> Result<(), RegistrationError> {
+        validate_identifier(name)?;
+        if self.inlines.iter().any(|r| r.handler.name == name) {
+            return Err(RegistrationError::DuplicateInlineMacro(name.to_owned()));
+        }
+        Ok(())
+    }
+
+    /// Register a conversion-time inline macro and its instance factory.
+    /// The parser retains matching calls in macro-enabled spans. Conversion
+    /// creates the processor after tree edits, on its first surviving call.
+    /// For overlapping custom delimiters, the first matching registration wins.
+    ///
+    /// ```
+    /// use acdc_parser::extensions::{
+    ///     InlineConversionContext, InlineInvocation, InlineMacroOutput, InlineMatcher, Registry,
+    /// };
+    ///
+    /// let mut builder = Registry::builder();
+    /// builder.register_inline_macro("step", InlineMatcher::Short, || {
+    ///     |call: &InlineInvocation<'_>, ctx: &mut InlineConversionContext<'_>| {
+    ///         let number = ctx.increment("steps");
+    ///         Ok(InlineMacroOutput::Strong(format!("{number}. {}", call.body)))
+    ///     }
+    /// })?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    /// Rejects duplicate or invalid names and empty custom delimiters.
+    pub fn register_inline_macro<P: InlineMacroProcessor + 'static>(
+        &mut self,
+        name: impl Into<String>,
+        matcher: InlineMatcher,
+        factory: impl Fn() -> P + Send + Sync + 'static,
+    ) -> Result<&mut Self, RegistrationError> {
+        let name = name.into();
+        self.check_inline_name(&name)?;
+        let prefix = match &matcher {
+            InlineMatcher::Full | InlineMatcher::Short => format!("{name}:"),
+            InlineMatcher::Delimited { open, close } => {
+                if open.is_empty() || close.is_empty() {
+                    return Err(RegistrationError::EmptyInlineDelimiter);
+                }
+                open.clone()
+            }
+        };
+        self.inlines.push(Registration {
+            matcher,
+            prefix,
+            handler: ProcessorFactory {
+                name,
+                factory: Arc::new(move || Box::new(factory())),
+            },
+        });
         Ok(self)
     }
 
@@ -307,7 +375,17 @@ impl RegistryBuilder {
 
     #[must_use]
     pub fn build(self) -> Registry {
+        let mut inline_names = HashMap::new();
+        let mut custom_inlines = Vec::new();
+        for (index, entry) in self.inlines.iter().enumerate() {
+            if matches!(entry.matcher, InlineMatcher::Delimited { .. }) {
+                custom_inlines.push(index);
+            }
+            inline_names.insert(entry.name().to_owned(), index);
+        }
         Registry(Arc::new(RegistryData {
+            inline_names,
+            custom_inlines,
             styles: self.styles,
             macros: self.macros,
             names: self.names,
@@ -315,6 +393,7 @@ impl RegistryBuilder {
             preprocessors: self.preprocessors,
             includes: self.includes,
             normalizers: self.normalizers,
+            inlines: self.inlines,
         }))
     }
 }
@@ -354,6 +433,8 @@ fn validate_identifier(name: &str) -> Result<(), RegistrationError> {
 
 #[derive(Debug, Default)]
 struct RegistryData {
+    inline_names: HashMap<String, usize>,
+    custom_inlines: Vec<usize>,
     styles: Vec<BlockStyle>,
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
@@ -361,6 +442,7 @@ struct RegistryData {
     preprocessors: Vec<ProcessorFactory<dyn SourcePreprocessor>>,
     includes: Vec<ProcessorFactory<dyn IncludeProcessor>>,
     normalizers: Vec<ProcessorFactory<ReferenceNormalizer>>,
+    inlines: Vec<Registration>,
 }
 
 /// A cheap-to-clone, immutable collection of extension factories.
@@ -375,7 +457,32 @@ impl Registry {
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        !self.has_input_processors() && self.0.trees.is_empty() && self.0.normalizers.is_empty()
+        !self.has_input_processors()
+            && self.0.trees.is_empty()
+            && self.0.normalizers.is_empty()
+            && self.0.inlines.is_empty()
+    }
+
+    pub(crate) fn inline_macros(&self) -> &[Registration] {
+        &self.0.inlines
+    }
+
+    pub(crate) fn named_inline(&self, name: &str) -> Option<usize> {
+        self.inline_registration(name).and_then(|(index, entry)| {
+            (!matches!(entry.matcher, InlineMatcher::Delimited { .. })).then_some(index)
+        })
+    }
+
+    pub(crate) fn inline_registration(&self, name: &str) -> Option<(usize, &Registration)> {
+        let index = *self.0.inline_names.get(name)?;
+        Some((index, self.0.inlines.get(index)?))
+    }
+
+    pub(crate) fn custom_inlines(&self) -> impl Iterator<Item = (usize, &Registration)> {
+        self.0
+            .custom_inlines
+            .iter()
+            .filter_map(|&i| self.0.inlines.get(i).map(|r| (i, r)))
     }
 
     fn has_input_processors(&self) -> bool {

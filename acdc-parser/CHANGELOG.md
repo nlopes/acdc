@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Extensions can register full and short inline macros or a pair of custom
+  delimiters. Registered calls in macro-enabled text retain their source span
+  and arguments for conversion. A short macro receives its bracket content as
+  its target. The ordinary parser continues to produce eager inline content.
+
 - Registered extensions can rewrite cross-reference targets before resolution in both xref syntaxes, with access to the original source location.
 
 - Block macros can forward selected named arguments to generated blocks while preserving attribute quoting and escaping.

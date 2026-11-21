@@ -2094,6 +2094,9 @@
           "MonospaceText": [
             "0"
           ],
+          "Extension": [
+            "0"
+          ],
           "PlainText": [
             "0"
           ],
@@ -2201,6 +2204,12 @@
         "MonospaceText.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
+        },
+        "variant:Extension": {
+          "policy": "unsupported"
+        },
+        "Extension.0": {
+          "policy": "unsupported"
         },
         "variant:PlainText": {
           "policy": "candidate",
@@ -4448,6 +4457,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "has_inline_macros",
           "generated_displays",
           "header",
           "untitled_header_location",
@@ -4492,6 +4502,9 @@
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
+        },
+        "has_inline_macros": {
+          "policy": "source-state"
         },
         "generated_displays": {
           "policy": "source-state"

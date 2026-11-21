@@ -411,7 +411,8 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
             }
         }
         // Leaf inlines: no children to recurse into
-        InlineNode::PlainText(_)
+        InlineNode::Extension(_)
+        | InlineNode::PlainText(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)

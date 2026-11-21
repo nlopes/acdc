@@ -1071,6 +1071,7 @@ impl<'a> Section<'a> {
     fn append_id_from_inlines(inlines: &[InlineNode<'a>], append: &mut impl FnMut(&str)) {
         for node in inlines {
             match node {
+                InlineNode::Extension(call) => append(call.literal.content),
                 InlineNode::PlainText(text) => {
                     append(text.content);
                 }

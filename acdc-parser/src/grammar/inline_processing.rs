@@ -406,6 +406,11 @@ fn parse_processed_inlines<'a>(
             byte.is_ascii_alphanumeric() || matches!(byte, b' ' | b',' | b';' | b'.' | b'!' | b'?')
         })
         && !text.contains("...")
+        && !state
+            .options
+            .extensions
+            .as_ref()
+            .is_some_and(|r| r.custom_inlines().any(|(_, m)| text.contains(&m.prefix)))
     {
         return Ok(vec![InlineNode::PlainText(Plain {
             content: text,
@@ -496,15 +501,7 @@ fn parse_inline_syntax<'a>(
         inline_peg_state.late_attribute_sources =
             late_attribute_sources(processed, state, location);
     }
-    let inlines = if verbatim {
-        inline_parser::verbatim_inlines(text, &mut inline_peg_state)
-    } else if !autolinks {
-        inline_parser::inlines_no_autolinks(text, &mut inline_peg_state)
-    } else if inline_peg_state.quotes_only {
-        inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
-    } else {
-        inline_parser::inlines(text, &mut inline_peg_state)
-    };
+    let inlines = parse_inline_nodes(&mut inline_peg_state, text, verbatim, autolinks);
 
     let warnings = inline_peg_state.take_inline_warnings();
     let mut inlines = inlines
@@ -542,6 +539,29 @@ fn parse_inline_syntax<'a>(
     }
     labels?;
     Ok(inlines)
+}
+
+fn parse_inline_nodes<'a>(
+    inline_peg_state: &mut ParserState<'a>,
+    text: &'a str,
+    verbatim: bool,
+    autolinks: bool,
+) -> Result<Vec<InlineNode<'a>>, peg::error::ParseError<peg::str::LineCol>> {
+    if inline_peg_state.retained_inline.is_some() {
+        inline_peg_state.inline_candidates =
+            super::inlines::extensions::candidates(inline_peg_state);
+    }
+    if inline_peg_state.inline_candidates.is_some() {
+        inline_parser::extension_inlines(text, inline_peg_state, verbatim)
+    } else if verbatim {
+        inline_parser::verbatim_inlines(text, inline_peg_state)
+    } else if !autolinks {
+        inline_parser::inlines_no_autolinks(text, inline_peg_state)
+    } else if inline_peg_state.quotes_only {
+        inline_parser::quotes_only_inlines(text, inline_peg_state)
+    } else {
+        inline_parser::inlines(text, inline_peg_state)
+    }
 }
 
 fn late_attribute_sources<'a>(

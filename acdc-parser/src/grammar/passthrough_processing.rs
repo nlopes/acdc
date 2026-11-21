@@ -1007,7 +1007,8 @@ fn process_inline_children<'a>(
                 | InlineMacro::Stem(_) => {}
             }
         }
-        InlineNode::PlainText(_)
+        InlineNode::Extension(_)
+        | InlineNode::PlainText(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
@@ -1536,7 +1537,8 @@ fn for_each_inline_children<'a>(
                 | InlineMacro::Stem(_) => {}
             }
         }
-        InlineNode::PlainText(_)
+        InlineNode::Extension(_)
+        | InlineNode::PlainText(_)
         | InlineNode::RawText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::StandaloneCurvedApostrophe(_)

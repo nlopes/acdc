@@ -406,6 +406,7 @@ impl Document<'_> {
     }
 
     pub(crate) fn commit_repair(&mut self, mut candidate: Self) {
+        candidate.has_inline_macros = self.has_inline_macros;
         candidate.generated_displays = std::mem::take(&mut self.generated_displays);
         *self = candidate;
     }

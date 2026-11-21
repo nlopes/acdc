@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- A pipeline can render registered inline macros against its selected backend
+  and attributes after tree edits. Each conversion starts fresh processors and
+  counters and reports warnings at the authored invocation.
+
 - Native block renderers can read the attributes in effect at the block,
   including accepted body assignments and local table-cell settings.
   Implementations of `RenderHost::document_attributes` now return a reference

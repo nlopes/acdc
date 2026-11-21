@@ -32,6 +32,7 @@ impl Error {
 
 pub(super) fn inline_construct(value: &InlineNode<'_>) -> &'static str {
     match value {
+        InlineNode::Extension(_) => "pending inline macro",
         InlineNode::PlainText(_) => "plain text",
         InlineNode::RawText(_) => "raw text",
         InlineNode::VerbatimText(_) => "verbatim text",

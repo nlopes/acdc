@@ -433,7 +433,8 @@ fn display_copy<'a>(nodes: &[InlineNode<'a>]) -> Vec<InlineNode<'a>> {
                 }
                 InlineNode::RawText(raw)
             }
-            InlineNode::PlainText(_)
+            InlineNode::Extension(_)
+            | InlineNode::PlainText(_)
             | InlineNode::Symbol(_)
             | InlineNode::CharacterReference(_)
             | InlineNode::VerbatimText(_)

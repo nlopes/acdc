@@ -74,6 +74,9 @@ impl Edge {
 
 fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
     match node {
+        InlineNode::Extension(call) => {
+            text_edge(call.literal.content, &call.literal.location, first, state)
+        }
         InlineNode::PlainText(text) => text_edge(text.content, &text.location, first, state),
         InlineNode::RawText(raw) => text_edge(raw.content, &raw.location, first, state),
         InlineNode::Symbol(symbol) => {

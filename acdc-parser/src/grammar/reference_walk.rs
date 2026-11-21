@@ -291,7 +291,8 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
                     visitor.untitled(id.id, &node.location)?;
                 }
             }
-            InlineNode::PlainText(_)
+            InlineNode::Extension(_)
+            | InlineNode::PlainText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::Symbol(_)

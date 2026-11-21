@@ -61,6 +61,30 @@ impl<'a> LocationMappingContext<'_, 'a> {
         })
     }
 
+    fn map_extension(&self, call: &mut crate::extensions::RetainedInline<'a>) -> Result<(), Error> {
+        let location = self.map_location(&call.literal.location)?;
+        let args = std::sync::Arc::make_mut(&mut call.args);
+        args.file = self
+            .state
+            .create_error_source_location(location.clone())
+            .file;
+        if let Some(entry) = self
+            .state
+            .options
+            .extensions
+            .as_ref()
+            .and_then(|r| r.inline_registration(&args.name).map(|(_, entry)| entry))
+            && let Some(source) = self.state.source_tail(location.absolute_start)
+            && let Some((target, body, len)) = super::inlines::extensions::arguments(entry, source)
+        {
+            args.target = target;
+            args.body = body;
+            call.literal.content = &source[..len];
+        }
+        call.literal.location = location;
+        Ok(())
+    }
+
     fn map_symbol_location(&self, loc: &Location) -> Result<Location, Error> {
         let mapped = self.map_location(loc)?;
         let start = self
@@ -159,6 +183,9 @@ pub(super) fn map_inner_content_locations<'a>(
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let mapped = map_nodes(content, |node| {
         match node {
+            InlineNode::Extension(call) => {
+                ctx.map_extension(call)?;
+            }
             InlineNode::PlainText(plain) => {
                 let expanded = map_plain_text_inline_locations(plain, ctx)?;
                 if expanded.is_none() {
@@ -292,6 +319,9 @@ fn map_locations<'a>(
 
     let mapped = map_nodes(content, |inline| {
         match inline {
+            InlineNode::Extension(call) => {
+                ctx.map_extension(call)?;
+            }
             InlineNode::PlainText(plain) => {
                 return map_plain_text_inline_locations(plain, &ctx);
             }

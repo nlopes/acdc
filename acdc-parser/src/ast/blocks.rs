@@ -222,7 +222,13 @@ impl<'doc> BlockRef<'doc> {
 }
 
 impl<'doc> DocumentRef<'doc> {
-    /// Whether conversion must lower symbolic display requests first.
+    /// Whether the parser retained an authored conversion-time inline macro.
+    #[must_use]
+    pub fn has_inline_macros(self) -> bool {
+        self.node.has_inline_macros
+    }
+
+    /// Whether the document contains deferred display requests.
     #[must_use]
     pub fn has_deferred_displays(self) -> bool {
         self.node.generated_displays.is_active()
@@ -528,6 +534,7 @@ impl<'doc> From<DocumentRef<'doc>> for Document<'doc> {
                 location: header.location.clone(),
             }),
             untitled_header_location: document.untitled_header_location.clone(),
+            has_inline_macros: document.has_inline_macros,
             generated_displays: document.generated_displays.clone(),
             attributes: document.attributes.clone(),
             blocks: document.blocks.clone(),

@@ -2,7 +2,11 @@ use std::{fmt::Write as _, fs, hint::black_box, time::Duration};
 
 use acdc_parser::{
     Options, Parser,
-    extensions::{BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroInvocation, Registry},
+    extensions::{
+        BlockMacro, BlockMacroOutput, BlockMacroProcessor, InlineConversionContext,
+        InlineInvocation, InlineMacroOutput, InlineMacroProcessor, InlineMatcher, MacroInvocation,
+        Registry,
+    },
     parse, parse_file,
 };
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
@@ -218,6 +222,16 @@ impl BlockMacroProcessor for CheapMacro {
     }
 }
 
+impl InlineMacroProcessor for CheapMacro {
+    fn process(
+        &mut self,
+        _: &InlineInvocation<'_>,
+        _: &mut InlineConversionContext<'_>,
+    ) -> Result<InlineMacroOutput, String> {
+        Ok(InlineMacroOutput::LineBreak)
+    }
+}
+
 #[allow(clippy::expect_used)]
 fn extension_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("extensions");
@@ -236,6 +250,16 @@ fn extension_benchmark(c: &mut Criterion) {
     });
     group.bench_function("unused_registrations_100", |b| {
         b.iter(|| black_box(registered.parse(black_box(ordinary), &options)));
+    });
+    let mut inlines = Registry::builder();
+    for index in 0..100 {
+        inlines
+            .register_inline_macro(format!("cheap{index}"), InlineMatcher::Full, || CheapMacro)
+            .expect("valid inline registration");
+    }
+    let inlines = inlines.build();
+    group.bench_function("unused_inline_registrations_100", |b| {
+        b.iter(|| black_box(inlines.parse(black_box(ordinary), &options)));
     });
     let macros = "cheap0::target[]\n\n".repeat(1000);
     assert!(registered.parse(&macros, &options).is_ok());

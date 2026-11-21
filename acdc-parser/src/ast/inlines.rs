@@ -141,7 +141,13 @@ node_ref!(IndexTermRef<'doc>, crate::IndexTerm<'doc>, "An index term.");
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct InlineRef<'doc> {
-    kind: InlineKind<'doc>,
+    source: InlineSource<'doc>,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum InlineSource<'doc> {
+    Node(&'doc InlineNode<'doc>),
+    Macro(&'doc InlineMacro<'doc>),
 }
 
 /// The semantic kind of an inline, including macros.
@@ -185,55 +191,38 @@ impl<'doc> InlineRef<'doc> {
     /// Match the semantic kind while retaining a concrete typed handle.
     #[must_use]
     pub fn kind(self) -> InlineKind<'doc> {
-        self.kind
+        match self.source {
+            InlineSource::Node(node) => InlineKind::from(node),
+            InlineSource::Macro(node) => InlineKind::from(node),
+        }
     }
 
     /// The source span of this inline node.
     #[must_use]
     pub fn location(self) -> LocationRef<'doc> {
-        match self.kind {
-            InlineKind::Plain(node) => node.location(),
-            InlineKind::Symbol(node) => node.location(),
-            InlineKind::CharacterReference(node) => node.location(),
-            InlineKind::Raw(node) => node.location(),
-            InlineKind::Verbatim(node) => node.location(),
-            InlineKind::Bold(node) => node.location(),
-            InlineKind::Italic(node) => node.location(),
-            InlineKind::Monospace(node) => node.location(),
-            InlineKind::Highlight(node) => node.location(),
-            InlineKind::Subscript(node) => node.location(),
-            InlineKind::Superscript(node) => node.location(),
-            InlineKind::DoubleQuotedSpan(node) => node.location(),
-            InlineKind::SingleQuotedSpan(node) => node.location(),
-            InlineKind::StandaloneCurvedApostrophe(node) => node.location(),
-            InlineKind::LineBreak(node) => node.location(),
-            InlineKind::Anchor(node) => node.location(),
-            InlineKind::Callout(node) => node.location(),
-            InlineKind::Footnote(node) => node.location(),
-            InlineKind::Icon(node) => node.location(),
-            InlineKind::Image(node) => node.location(),
-            InlineKind::KeyboardShortcut(node) => node.location(),
-            InlineKind::Button(node) => node.location(),
-            InlineKind::MenuPath(node) => node.location(),
-            InlineKind::UrlMacro(node) => node.location(),
-            InlineKind::Link(node) => node.location(),
-            InlineKind::Mailto(node) => node.location(),
-            InlineKind::Autolink(node) => node.location(),
-            InlineKind::CrossReference(node) => node.location(),
-            InlineKind::Passthrough(node) => node.location(),
-            InlineKind::Stem(node) => node.location(),
-            InlineKind::IndexTerm(node) => node.location(),
+        match self.source {
+            InlineSource::Node(node) => LocationRef::from(node.location()),
+            InlineSource::Macro(node) => LocationRef::from(node.location()),
         }
     }
 }
 
 impl<'doc> From<&'doc InlineNode<'doc>> for InlineRef<'doc> {
     fn from(inline: &'doc InlineNode<'doc>) -> Self {
-        let kind = match inline {
+        Self {
+            source: InlineSource::Node(inline),
+        }
+    }
+}
+
+impl<'doc> From<&'doc InlineNode<'doc>> for InlineKind<'doc> {
+    fn from(inline: &'doc InlineNode<'doc>) -> Self {
+        match inline {
             InlineNode::Symbol(node) => InlineKind::Symbol(SymbolRef::new(node)),
             InlineNode::CharacterReference(node) => {
                 InlineKind::CharacterReference(CharacterReferenceRef::new(node))
             }
+            InlineNode::Extension(call) => InlineKind::Plain(PlainRef::new(&call.literal)),
             InlineNode::PlainText(node) => InlineKind::Plain(PlainRef::new(node)),
             InlineNode::RawText(node) => InlineKind::Raw(RawRef::new(node)),
             InlineNode::VerbatimText(node) => InlineKind::Verbatim(VerbatimRef::new(node)),
@@ -255,15 +244,22 @@ impl<'doc> From<&'doc InlineNode<'doc>> for InlineRef<'doc> {
             InlineNode::LineBreak(node) => InlineKind::LineBreak(LineBreakRef::new(node)),
             InlineNode::InlineAnchor(node) => InlineKind::Anchor(AnchorRef::new(node)),
             InlineNode::CalloutMarker(node) => InlineKind::Callout(CalloutMarkerRef::new(node)),
-            InlineNode::Macro(node) => return Self::from(node),
-        };
-        Self { kind }
+            InlineNode::Macro(node) => Self::from(node),
+        }
     }
 }
 
 impl<'doc> From<&'doc InlineMacro<'doc>> for InlineRef<'doc> {
     fn from(inline: &'doc InlineMacro<'doc>) -> Self {
-        let kind = match inline {
+        Self {
+            source: InlineSource::Macro(inline),
+        }
+    }
+}
+
+impl<'doc> From<&'doc InlineMacro<'doc>> for InlineKind<'doc> {
+    fn from(inline: &'doc InlineMacro<'doc>) -> Self {
+        match inline {
             InlineMacro::Footnote(node) => InlineKind::Footnote(FootnoteRef::new(node)),
             InlineMacro::Icon(node) => InlineKind::Icon(IconRef::new(node)),
             InlineMacro::Image(node) => InlineKind::Image(InlineImageRef::new(node)),
@@ -284,8 +280,7 @@ impl<'doc> From<&'doc InlineMacro<'doc>> for InlineRef<'doc> {
             }
             InlineMacro::Stem(node) => InlineKind::Stem(StemRef::new(node)),
             InlineMacro::IndexTerm(node) => InlineKind::IndexTerm(IndexTermRef::new(node)),
-        };
-        Self { kind }
+        }
     }
 }
 
@@ -356,76 +351,9 @@ impl From<CalloutMarkerRef<'_>> for crate::CalloutMarker {
 
 impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
     fn from(read: InlineRef<'doc>) -> Self {
-        match read.kind() {
-            InlineKind::Plain(node) => InlineNode::PlainText(crate::Plain::from(node)),
-            InlineKind::Symbol(node) => InlineNode::Symbol(crate::Symbol::from(node)),
-            InlineKind::CharacterReference(node) => {
-                InlineNode::CharacterReference(crate::CharacterReference::from(node))
-            }
-            InlineKind::Raw(node) => InlineNode::RawText(crate::Raw::from(node)),
-            InlineKind::Verbatim(node) => InlineNode::VerbatimText(crate::Verbatim::from(node)),
-            InlineKind::Bold(node) => InlineNode::BoldText(crate::Bold::from(node)),
-            InlineKind::Italic(node) => InlineNode::ItalicText(crate::Italic::from(node)),
-            InlineKind::Monospace(node) => InlineNode::MonospaceText(crate::Monospace::from(node)),
-            InlineKind::Highlight(node) => InlineNode::HighlightText(crate::Highlight::from(node)),
-            InlineKind::Subscript(node) => InlineNode::SubscriptText(crate::Subscript::from(node)),
-            InlineKind::Superscript(node) => {
-                InlineNode::SuperscriptText(crate::Superscript::from(node))
-            }
-            InlineKind::DoubleQuotedSpan(node) => {
-                InlineNode::DoubleQuotedSpan(crate::DoubleQuotedSpan::from(node))
-            }
-            InlineKind::SingleQuotedSpan(node) => {
-                InlineNode::SingleQuotedSpan(crate::SingleQuotedSpan::from(node))
-            }
-            InlineKind::StandaloneCurvedApostrophe(node) => InlineNode::StandaloneCurvedApostrophe(
-                crate::StandaloneCurvedApostrophe::from(node),
-            ),
-            InlineKind::LineBreak(node) => InlineNode::LineBreak(crate::LineBreak::from(node)),
-            InlineKind::Anchor(node) => InlineNode::InlineAnchor(crate::Anchor::from(node)),
-            InlineKind::Callout(node) => {
-                InlineNode::CalloutMarker(crate::CalloutMarker::from(node))
-            }
-            InlineKind::Footnote(node) => {
-                InlineNode::Macro(InlineMacro::Footnote(crate::Footnote::from(node)))
-            }
-            InlineKind::Icon(node) => {
-                InlineNode::Macro(InlineMacro::Icon(Box::new(crate::Icon::from(node))))
-            }
-            InlineKind::Image(node) => {
-                InlineNode::Macro(InlineMacro::Image(Box::new(crate::InlineImage::from(node))))
-            }
-            InlineKind::KeyboardShortcut(node) => InlineNode::Macro(InlineMacro::KeyboardShortcut(
-                crate::KeyboardShortcut::from(node),
-            )),
-            InlineKind::Button(node) => {
-                InlineNode::Macro(InlineMacro::Button(crate::Button::from(node)))
-            }
-            InlineKind::MenuPath(node) => {
-                InlineNode::Macro(InlineMacro::MenuPath(crate::MenuPath::from(node)))
-            }
-            InlineKind::UrlMacro(node) => {
-                InlineNode::Macro(InlineMacro::UrlMacro(Box::new(crate::UrlMacro::from(node))))
-            }
-            InlineKind::Link(node) => {
-                InlineNode::Macro(InlineMacro::Link(Box::new(crate::Link::from(node))))
-            }
-            InlineKind::Mailto(node) => {
-                InlineNode::Macro(InlineMacro::Mailto(Box::new(crate::Mailto::from(node))))
-            }
-            InlineKind::Autolink(node) => {
-                InlineNode::Macro(InlineMacro::Autolink(crate::Autolink::from(node)))
-            }
-            InlineKind::CrossReference(node) => InlineNode::Macro(InlineMacro::CrossReference(
-                Box::new(crate::CrossReference::from(node)),
-            )),
-            InlineKind::Passthrough(node) => {
-                InlineNode::Macro(InlineMacro::Passthrough(crate::Passthrough::from(node)))
-            }
-            InlineKind::Stem(node) => InlineNode::Macro(InlineMacro::Stem(crate::Stem::from(node))),
-            InlineKind::IndexTerm(node) => InlineNode::Macro(InlineMacro::IndexTerm(Box::new(
-                crate::IndexTerm::from(node),
-            ))),
+        match read.source {
+            InlineSource::Node(node) => node.clone(),
+            InlineSource::Macro(node) => Self::Macro(node.clone()),
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt, sync::Arc};
 
 use bumpalo::Bump;
 
@@ -63,9 +63,37 @@ impl<'doc> PreparedDocument<'doc> {
     /// Rejects unfinalized requests or content that cannot be repaired.
     pub fn new(
         source: DocumentRef<'doc>,
-        mut resolve: impl FnMut(GeneratedDisplayRef<'_>) -> DisplayLabel,
+        resolve: impl FnMut(GeneratedDisplayRef<'_>) -> DisplayLabel,
     ) -> Result<Self, Error> {
-        if !source.has_deferred_displays() {
+        Self::prepare(source, resolve, None, |_, _| {})
+    }
+
+    /// Expand authored inline macros and symbolic references for one backend.
+    /// Instances, counters, warnings, and expanded label copies belong to this call.
+    ///
+    /// # Errors
+    /// Returns a located error if a processor fails or a display cannot be resolved.
+    pub fn with_inline_macros(
+        source: DocumentRef<'doc>,
+        resolve: impl FnMut(GeneratedDisplayRef<'_>) -> DisplayLabel,
+        registry: &crate::extensions::Registry,
+        backend: &str,
+        attributes: &crate::DocumentAttributes<'_>,
+        warn: impl FnMut(crate::SourceLocation, String),
+    ) -> Result<Self, Error> {
+        let session = source.has_inline_macros().then(|| {
+            crate::extensions::late_inline::ConversionSession::new(registry, backend, attributes)
+        });
+        Self::prepare(source, resolve, session, warn)
+    }
+
+    fn prepare(
+        source: DocumentRef<'doc>,
+        mut resolve: impl FnMut(GeneratedDisplayRef<'_>) -> DisplayLabel,
+        mut session: Option<crate::extensions::late_inline::ConversionSession<'_>>,
+        mut warn: impl FnMut(crate::SourceLocation, String),
+    ) -> Result<Self, Error> {
+        if !source.has_deferred_displays() && session.is_none() {
             return Ok(Self {
                 source,
                 prepared: None,
@@ -78,6 +106,7 @@ impl<'doc> PreparedDocument<'doc> {
             },
             |owner| {
                 let mut document = Document::from(owner.source);
+                let mut expanded: HashMap<_, InlineNode<'_>> = HashMap::new();
                 try_walk_document_inline_nodes_mut(&mut document, &mut |node| {
                     if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node
                         && let Some(display) = xref.generated_display.take()
@@ -96,8 +125,30 @@ impl<'doc> PreparedDocument<'doc> {
                             xref.text.push(plain("", &display.origin.location));
                         }
                     }
+                    if let InlineNode::Extension(call) = node
+                        && let Some(session) = &mut session
+                    {
+                        // Catalogs and display labels clone an authored occurrence. Its
+                        // processor and diagnostics run once even when several labels use it.
+                        let key = Arc::as_ptr(&call.args);
+                        let replacement = match expanded.entry(key) {
+                            std::collections::hash_map::Entry::Occupied(saved) => {
+                                saved.get().clone()
+                            }
+                            std::collections::hash_map::Entry::Vacant(slot) => {
+                                let replacement =
+                                    session.expand(&owner.arena, source, call, &mut warn)?;
+                                slot.insert(replacement.clone());
+                                replacement
+                            }
+                        };
+                        *node = replacement;
+                    }
                     Ok::<_, Error>(())
                 })?;
+                if session.is_some() {
+                    document.has_inline_macros = false;
+                }
                 document.generated_displays = DisplayState::default();
                 repair(&mut document)?;
                 Ok::<_, Error>(document)

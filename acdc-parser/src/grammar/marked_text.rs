@@ -119,6 +119,7 @@ pub(super) fn map_marked_text_locations<'a>(
         InlineNode::DoubleQuotedSpan(node) => node.map_locations(ctx),
         InlineNode::SingleQuotedSpan(node) => node.map_locations(ctx),
         InlineNode::RawText(_)
+        | InlineNode::Extension(_)
         | InlineNode::PlainText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::LineBreak(_)

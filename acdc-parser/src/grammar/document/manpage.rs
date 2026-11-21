@@ -136,6 +136,7 @@ fn extract_plain_text(nodes: &[InlineNode]) -> String {
     let mut result = String::new();
     for node in nodes {
         match node {
+            InlineNode::Extension(call) => result.push_str(call.literal.content),
             InlineNode::PlainText(text) => result.push_str(text.content),
             InlineNode::Symbol(symbol) => result.push_str(symbol.kind.text()),
             InlineNode::CharacterReference(reference) => {
