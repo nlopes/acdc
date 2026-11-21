@@ -167,6 +167,7 @@ dependencies = [
  "roxmltree 0.21.1",
  "sha2",
  "tempfile",
+ "url",
 ]
 
 [[package]]

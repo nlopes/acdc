@@ -39,7 +39,10 @@ WaveDrom and TikZ use the final segment as the default alternative text, with hy
 An unnamed diagram defaults to `Diagram`. Set `alt="Clock and reset"` to supply a label or `alt=""` for a decorative image.
 An empty target uses a SHA-256 digest of the source sent to the renderer. Named `target=` and `format=` take precedence.
 The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
-Use local relative image directories without URI escapes, query strings, or fragments. Symlinks in the directory path, parent traversal, and `imagesoutdir` overrides are rejected.
+Set `:imagesoutdir: staging` to write diagrams under `staging` while keeping `imagesdir` in published links.
+Embedding reads the staged file directly. Unset the attribute with `:imagesoutdir!:` to resume writing under `imagesdir`.
+The CLI resolves `imagesoutdir` from its working directory. Library callers can set its base with `OutputDirectories::with_imagesoutdir_base`.
+Directories used for writing must be relative and cannot contain symlinks, parent traversal, URI escapes, query strings, or fragments.
 Use `[wavedrom,clock,png]` to generate `clock.png`. SVG is the default.
 Set `:diagram-format: svg` to select a common format for WaveDrom and TikZ.
 A block's positional or named format overrides `wavedrom-format` or `tikz-format`, which in turn override `diagram-format`.

@@ -145,6 +145,7 @@ Use `--fail-on-warnings` to keep that output and return status 1, or `-a diagram
 A document cannot supply an executable path. See the link:../extensions/diagram/README.adoc[diagram guide] for block syntax.
 
 Linked assets follow the `imagesdir` in effect at the block, relative to the converted file's directory.
+Set `:imagesoutdir: staging` to write diagrams under `staging` relative to the working directory, including with `-o`. Links still use `imagesdir`, and embedding reads the staged files.
 For stdout, relative links resolve from the working directory, including when reading stdin.
 For a PDF document, pass `--pdf2svg` with `--lualatex` so TikZ produces an embeddable SVG.
 Embedded HTML images and PDF image inputs resolve from the source directory (the working directory for stdin).

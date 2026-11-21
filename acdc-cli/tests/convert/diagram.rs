@@ -207,6 +207,51 @@ mod active {
         Ok(())
     }
 
+    #[test]
+    fn imagesoutdir_stages_diagrams_and_preserves_published_links() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path().join("build #1%");
+        fs::create_dir(&root)?;
+        setup(&root)?;
+        for folder in ["source", "out"] {
+            fs::create_dir(root.join(folder))?;
+        }
+        let source = "= Guide\n:imagesdir: public\n:imagesoutdir: staging\n\n[wavedrom,boards/clock,svg]\n....\nfirst\n....\n\n:imagesoutdir!:\n\n[wavedrom,other,svg]\n....\nsecond\n....\n";
+        fs::write(root.join("source/doc.adoc"), source)?;
+        let args = ["source/doc.adoc", "-o", "out/doc.html"];
+        let linked = convert(&root, &args, None)?;
+        assert!(linked.status.success(), "{}", output_text(&linked.stderr));
+        let html = fs::read_to_string(root.join("out/doc.html"))?;
+        assert!(html.contains("src=\"public/boards/clock.svg\""));
+        assert!(html.contains("src=\"public/other.svg\""));
+        assert!(root.join("staging/boards/clock.svg").is_file());
+        assert!(root.join("out/public/other.svg").is_file());
+        assert!(!root.join("out/public/boards").exists());
+
+        let mut embedded_args = args.to_vec();
+        embedded_args.extend(["-a", "data-uri"]);
+        let embedded = convert(&root, &embedded_args, None)?;
+        assert!(
+            embedded.status.success(),
+            "{}",
+            output_text(&embedded.stderr)
+        );
+        let html = fs::read_to_string(root.join("out/doc.html"))?;
+        assert_eq!(html.matches("src=\"data:image/svg+xml;base64,").count(), 2);
+        assert!(root.join("source/public/other.svg").is_file());
+        assert!(!root.join("source/public/boards").exists());
+
+        fs::write(
+            root.join("source/doc.adoc"),
+            source.replace("boards/clock,svg]", "boards/clock,svg,opts=inline]"),
+        )?;
+        let inline = convert(&root, &args, None)?;
+        assert!(inline.status.success(), "{}", output_text(&inline.stderr));
+        let html = fs::read_to_string(root.join("out/doc.html"))?;
+        assert!(html.contains("<rect ") && html.contains("src=\"public/other.svg\""));
+        Ok(())
+    }
+
     #[cfg(feature = "pdf")]
     #[test]
     fn tikz_defaults_to_an_embeddable_asset_for_pdf_output() -> TestResult {
@@ -252,6 +297,11 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rec
         assert!(file.status.success(), "{}", output_text(&file.stderr));
         assert!(root.join("source/figure.svg").is_file());
         assert!(fs::read(root.join("report.pdf"))?.starts_with(b"%PDF-"));
+        configured.extend(["-a", "imagesdir=public", "-a", "imagesoutdir=staged files"]);
+        let staged = run_acdc_in(root, &configured, None)?;
+        assert!(staged.status.success(), "{}", output_text(&staged.stderr));
+        assert!(root.join("staged files/figure.svg").is_file());
+        assert!(!root.join("source/public").exists());
         Ok(())
     }
 

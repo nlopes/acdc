@@ -139,7 +139,8 @@ impl DiagramArgs {
         embedded: &Path,
     ) -> Result<Option<Extensions>> {
         use acdc_parser::extensions::Registry;
-        let output = acdc_diagram::OutputDirectories::new(linked, embedded);
+        let output = acdc_diagram::OutputDirectories::new(linked, embedded)
+            .with_imagesoutdir_base(Path::new("."));
         let mut registry = Registry::builder();
         if let Some(tool) = &self.wavedrom_cli {
             let style = acdc_diagram::wavedrom(tool, output).map_err(|e| {

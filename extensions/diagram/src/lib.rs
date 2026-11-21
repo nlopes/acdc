@@ -25,6 +25,7 @@ pub use tikz::tikz;
 pub struct OutputDirectories<'a> {
     linked: &'a Path,
     embedded: &'a Path,
+    imagesoutdir_base: &'a Path,
 }
 
 impl<'a> OutputDirectories<'a> {
@@ -32,7 +33,19 @@ impl<'a> OutputDirectories<'a> {
     /// are read relative to the input document.
     #[must_use]
     pub const fn new(linked: &'a Path, embedded: &'a Path) -> Self {
-        Self { linked, embedded }
+        Self {
+            linked,
+            embedded,
+            imagesoutdir_base: linked,
+        }
+    }
+
+    /// Resolve a document's relative `imagesoutdir` under this existing directory.
+    /// By default, it resolves under the linked output directory.
+    #[must_use]
+    pub const fn with_imagesoutdir_base(mut self, base: &'a Path) -> Self {
+        self.imagesoutdir_base = base;
+        self
     }
 }
 
@@ -93,15 +106,20 @@ where
         }
     };
     let linked = directory(output_dir.linked)?;
-    let embedded = (output_dir.embedded != output_dir.linked)
-        .then(|| directory(output_dir.embedded))
-        .transpose()?;
+    let alternate_root = |path: &Path| {
+        (path != output_dir.linked)
+            .then(|| directory(path))
+            .transpose()
+    };
+    let embedded = alternate_root(output_dir.embedded)?;
+    let staging = alternate_root(output_dir.imagesoutdir_base)?;
     Ok(BlockStyle::raw(
         label.to_ascii_lowercase(),
         [RawBlockContext::Listing, RawBlockContext::Literal],
         move || {
             let linked = linked.clone();
             let embedded = embedded.clone();
+            let staging = staging.clone();
             let render = render.clone();
             move |mut input: RawBlockInput<'_>| {
                 if input
@@ -114,7 +132,8 @@ where
                         "{label} requires unsafe mode to run the configured executable"
                     ));
                 }
-                let roots = OutputDirectories::new(&linked, embedded.as_deref().unwrap_or(&linked));
+                let roots = OutputDirectories::new(&linked, embedded.as_deref().unwrap_or(&linked))
+                    .with_imagesoutdir_base(staging.as_deref().unwrap_or(&linked));
                 match render(roots, &input) {
                     Ok(image) => Ok(Some(image)),
                     Err(error) if abort_on_error(&input, label) => Err(error),
@@ -220,11 +239,6 @@ fn image(
 ) -> Result<BlockBuilder, String> {
     let attrs = input.document_attributes;
     let args = &input.metadata.attributes;
-    if attrs.get("imagesoutdir").is_some() {
-        return Err(format!(
-            "{name} writes relative to the caller's output directory; imagesoutdir is unsupported"
-        ));
-    }
     let target = args.get_string("target").unwrap_or_default();
     let image_target = if target.is_empty() {
         let digest = Sha256::digest(source.as_bytes());
@@ -246,30 +260,51 @@ fn image(
         }
         format!("{target}.{}", format.extension())
     };
-    let images = attrs
-        .get("imagesdir")
-        .and_then(DocumentAttributeValue::text)
-        .unwrap_or_default();
-    let embedded = attrs
+    let backend = attrs
         .get("backend")
         .and_then(DocumentAttributeValue::text)
-        .is_some_and(|name| name.starts_with("html"))
+        .unwrap_or_default();
+    let embedded = backend.starts_with("html")
         && (attrs.get("data-uri").is_some()
             || (format == Format::Svg
                 && (&input.metadata.options)
                     .into_iter()
                     .any(|opt| *opt == "inline")));
-    let root = if embedded {
-        roots.embedded
+    let staging = attrs.get("imagesoutdir");
+    let (root, attr_name, relative) = if let Some(value) = staging {
+        (roots.imagesoutdir_base, "imagesoutdir", value.text())
     } else {
-        roots.linked
+        let root = if embedded {
+            roots.embedded
+        } else {
+            roots.linked
+        };
+        (
+            root,
+            "imagesdir",
+            attrs
+                .get("imagesdir")
+                .and_then(DocumentAttributeValue::text),
+        )
     };
-    let dir =
-        image_directory(root.to_owned(), images).map_err(|e| format!("{name} imagesdir: {e}"))?;
+    let dir = image_directory(root.to_owned(), relative.unwrap_or_default())
+        .map_err(|e| format!("{name} {attr_name}: {e}"))?;
     let (parent, filename) = image_target.rsplit_once('/').unwrap_or(("", &image_target));
     let dir = image_directory(dir, parent).map_err(|e| format!("{name} target: {e}"))?;
+    let physical_target = if staging.is_some() && (embedded || backend == "pdf") {
+        Some(staged_file_url(&dir.join(filename))?)
+    } else if staging.is_some() && backend == "terminal" {
+        Some(
+            dir.join(filename)
+                .into_os_string()
+                .into_string()
+                .map_err(|_| format!("{name} terminal image path must be UTF-8"))?,
+        )
+    } else {
+        None
+    };
     asset::publish(&dir, filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
-    let image = BlockBuilder::image(image_target);
+    let image = BlockBuilder::image(physical_target.unwrap_or(image_target));
     Ok(if target.is_empty() {
         image.with_default_attributes("alt=Diagram")
     } else {
@@ -277,8 +312,30 @@ fn image(
     })
 }
 
-// The HTML image reference already includes the source-position imagesdir.
-// Keep the builder target relative to it and place the asset beneath the output root.
+#[cfg(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+))]
+fn staged_file_url(path: &Path) -> Result<String, String> {
+    url::Url::from_file_path(path)
+        .map(Into::into)
+        .map_err(|()| format!("cannot construct a file URL for {}", path.display()))
+}
+
+#[cfg(not(any(
+    unix,
+    windows,
+    target_os = "redox",
+    target_os = "wasi",
+    target_os = "hermit"
+)))]
+fn staged_file_url(_: &Path) -> Result<String, String> {
+    Err("local file URLs are not supported on this platform".into())
+}
+
 fn image_directory(mut dir: PathBuf, relative: &str) -> io::Result<PathBuf> {
     if relative.contains([':', '\\', '#', '?', '%']) {
         return Err(io::Error::other("expected a local relative directory"));

@@ -124,6 +124,10 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
         std::os::unix::fs::symlink(outside.path(), output.path().join("linked"))?;
         let result = registry.parse(&format!(":imagesdir: linked\n\n{ACE}"), &options);
         assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains("imagesdir")));
+        let result = registry.parse(&format!(":imagesoutdir: linked\n\n{ACE}"), &options);
+        assert!(
+            matches!(result, Err(Error::Extension(_, msg)) if msg.contains("imagesoutdir") && msg.contains("real directories"))
+        );
         let result = registry.parse("[wavedrom,linked/chart,svg]\n....\nbody\n....", &options);
         assert!(
             matches!(result, Err(Error::Extension(_, msg)) if msg.contains("target") && msg.contains("real directories"))
@@ -138,6 +142,8 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
         ("[wavedrom,boards/,svg]", "target"),
         ("[wavedrom,,pdf]", "format"),
         (":wavedrom: other-tool\n\n[wavedrom]", "executable"),
+        (":imagesoutdir: ../outside\n\n[wavedrom]", "imagesoutdir"),
+        (":imagesoutdir: /outside\n\n[wavedrom]", "imagesoutdir"),
         (":imagesdir: ../outside\n\n[wavedrom]", "imagesdir"),
     ] {
         let result = registry.parse(&format!("{header}\n....\nbody\n...."), &options);

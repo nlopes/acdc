@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Set `imagesoutdir` to stage WaveDrom and TikZ files in a local relative directory. Linked images use `imagesdir`, and embedded images read the staged files. acdc rejects absolute directories and parent traversal.
+
 - WaveDrom and TikZ can write named diagrams into subdirectories of `imagesdir`. For example, `[wavedrom,boards/clock,svg]` produces and links to `boards/clock.svg`.
 
 - WaveDrom and TikZ images use the authored `alt`, including `alt=""` for decorative diagrams. The default label comes from the target name, or `Diagram` for unnamed images.

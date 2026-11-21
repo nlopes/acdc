@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Set `imagesoutdir` to stage WaveDrom and TikZ files in a local relative directory. Linked images use `imagesdir`, and embedded images read the staged files. acdc rejects absolute directories and parent traversal.
+
 - Builds with the optional `diagram` feature can convert WaveDrom and TikZ listing
   and literal blocks with `convert --extension diagram`. Supply `--wavedrom-cli PATH` for
   WaveDrom or `--lualatex PATH` for TikZ. Add `--pdf2svg PATH` for TikZ SVG.
