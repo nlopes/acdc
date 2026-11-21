@@ -399,7 +399,8 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#
             "svg",
             r#"test "$1:$2" = "-action=convert:-format=svg"
 test "$(cat "${3#-filename=}")" = "$(cat chart.source)"
-printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "${4#-output=}""#,
+printf '%s\n' "<!DOCTYPE svg PUBLIC '-//W3C//DTD SVG 1.0//EN' 'http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd'>" > "${4#-output=}"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' >> "${4#-output=}""#,
         )
     }
 

@@ -132,7 +132,7 @@ fn declares_standard_svg(svg: &str) -> bool {
         .is_some_and(|(decl, _)| [
             r#"svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd""#,
             r#"svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd""#,
-        ].iter().any(|known| decl.split_ascii_whitespace().eq(known.split_ascii_whitespace())))
+        ].iter().any(|known| decl.replace('\'', "\"").split_ascii_whitespace().eq(known.split_ascii_whitespace())))
 }
 
 // Check the raster and its end marker before publishing, without storing a full frame.
