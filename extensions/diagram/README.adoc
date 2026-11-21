@@ -5,7 +5,9 @@
 Applications can register the `wavedrom` literal-block style in the parser registry.
 Supply the path to a trusted `wavedrom-cli` executable and the directory containing the converted document.
 The extension runs the executable only for an explicitly registered style in `SafeMode::Unsafe`.
-Use this mode for trusted input. The acdc CLI does not yet expose this registration.
+Use this mode for trusted input. The acdc CLI accepts `--extension diagram --wavedrom-cli PATH` when built with the optional `diagram` feature.
+For TikZ, supply `--lualatex PATH` and optionally `--pdf2svg PATH`.
+The link:../../acdc-cli/README.adoc[CLI guide] describes asset locations for files, streams, and embedded images.
 
 [source,rust]
 ----
@@ -47,7 +49,7 @@ builder.register_block_style(acdc_diagram::tikz(&lualatex, Some(&pdf2svg), &outp
 Use `[tikz,figure,svg,preamble=true,command=lualatex]` over a literal block to produce `figure.svg`.
 Put the TeX preamble before a line containing exactly `~~~~`, then the picture after it.
 With no separator the complete body becomes picture content.
-Use `pdf` for native one-page PDF output. With no explicit format, HTML backends prefer SVG when pdf2svg is configured. Other configurations default to PDF.
+Use `pdf` for native one-page PDF output. With no explicit format, HTML backends prefer SVG when pdf2svg is configured. The PDF backend defaults to SVG and requires pdf2svg to embed the diagram. Other configurations default to PDF.
 
 LuaLaTeX runs only in unsafe mode on trusted documents, with shell escape disabled.
 The block's `command` and document's `tikz-command` can select only `lualatex`.

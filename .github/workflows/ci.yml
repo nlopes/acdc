@@ -203,6 +203,10 @@ jobs:
         run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
       - name: Run execute-only tests
         run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
+      - name: Test diagram availability and activation
+        run: |
+          cargo nextest run -p acdc-cli --no-default-features --features html --test cli -E 'test(diagram::)'
+          cargo nextest run -p acdc-cli --no-default-features --features html,diagram --test cli -E 'test(diagram::)'
       - name: Test execute with the parser network capability
         run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/network -E 'test(substitution_is_independent_of_optional_capabilities)' --verbose
       - name: Smoke-test backend-only CLI builds

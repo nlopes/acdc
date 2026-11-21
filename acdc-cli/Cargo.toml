@@ -17,6 +17,7 @@ doc = false
 
 [dependencies]
 acdc-converters-core.workspace = true
+acdc-diagram = { workspace = true, optional = true }
 acdc-execute = { workspace = true, optional = true }
 acdc-converters-html = { workspace = true, optional = true }
 acdc-lint = { workspace = true, optional = true }
@@ -54,6 +55,7 @@ terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI co
 
 # Document tools
 lint = ["dep:acdc-lint"]                       # AsciiDoc lint command
+diagram = ["dep:acdc-diagram"]                  # WaveDrom and TikZ; activate with --extension diagram
 
 # Syntax highlighting for source blocks in selected HTML and terminal backends.
 highlighting = [

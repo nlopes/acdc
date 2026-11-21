@@ -37,6 +37,9 @@ mod selection;
 
 type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<'a>>;
 
+mod extensions;
+use extensions::Selection;
+
 #[cfg(test)]
 #[path = "convert/pipeline_tests.rs"]
 mod pipeline_tests;
@@ -69,6 +72,10 @@ pub(crate) struct Args {
     /// Enable a compiled extension for each document (repeatable)
     #[arg(long = "extension", value_name = "NAME", action = ArgAction::Append)]
     extensions: Vec<String>,
+
+    #[cfg(feature = "diagram")]
+    #[command(flatten)]
+    diagram: Box<extensions::DiagramArgs>,
 
     /// Backend output format
     ///
@@ -301,9 +308,7 @@ fn run_with_registries(
         .resolve(&args.backend, args.variant.as_deref())
         .map_err(|e| error::display(&e))?;
 
-    let extensions = available
-        .select(&args.extensions)
-        .map_err(|error| error::display(&error))?;
+    let extensions = Selection::new(args, available, backend.asset_base)?;
 
     #[cfg(feature = "pdf")]
     validate_pdf_options(args, backend.pdf_options)?;
@@ -329,7 +334,7 @@ fn run_with_registries(
         .build();
 
     let document_attributes = build_parser_options(args, &options);
-    let summary = (backend.run)(args, &options, document_attributes, extensions.as_ref())?;
+    let summary = (backend.run)(args, &options, document_attributes, &extensions)?;
 
     if args.fail_on_warnings && summary.warning_count > 0 {
         let count = summary.warning_count;
@@ -495,7 +500,7 @@ fn run_converter<P, F>(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
-    extensions: Option<&Extensions>,
+    extensions: &Selection,
     make_converter: F,
 ) -> MietteResult<ConversionSummary>
 where
@@ -508,7 +513,7 @@ where
         let converter = configure_pipeline(
             make_converter(base_options.clone(), document_attributes)
                 .map_err(|e| error::display(&e))?,
-            extensions,
+            extensions.for_input(None),
         );
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
@@ -524,7 +529,7 @@ where
         let converter = configure_pipeline(
             make_converter(base_options.clone(), document_attributes)
                 .map_err(|e| error::display(&e))?,
-            extensions,
+            extensions.for_input(Some(file)),
         );
         let parse_result = if base_options.timings() {
             let now = Instant::now();
@@ -590,7 +595,7 @@ fn run_multi_file<P, F>(
     base_options: &Options,
     document_attributes: &OptionsBuilder<'static>,
     files_to_process: &[PathBuf],
-    extensions: Option<&Extensions>,
+    extensions: &Selection,
     make_converter: F,
 ) -> MietteResult<ConversionSummary>
 where
@@ -625,7 +630,7 @@ where
         .map(|file| -> Result<_, P::Error> {
             let converter = configure_pipeline(
                 make_converter(converter_options.clone(), document_attributes.clone())?,
-                extensions,
+                extensions.for_input(Some(file)),
             );
             let entry = if show_timings {
                 let now = Instant::now();
@@ -1155,7 +1160,7 @@ mod tests {
             &Options::default(),
             &ParserOptions::builder(),
             &files,
-            Some(&extension),
+            &Selection::Shared(Some(extension.clone())),
             acdc_converters_html::Converter::new,
         )?;
         assert_eq!(batch.output_paths.len(), 2);

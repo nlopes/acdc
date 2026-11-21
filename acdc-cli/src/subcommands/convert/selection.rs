@@ -7,32 +7,29 @@ use clap::builder::{
 };
 
 use super::{
-    Args, ConversionSummary, Extensions, MietteResult, Options, OptionsBuilder, error,
-    run_converter,
+    Args, ConversionSummary, MietteResult, Options, OptionsBuilder, Selection, error,
+    extensions::AssetBase, run_converter,
 };
 
-type Run = dyn Fn(
-        &Args,
-        &Options,
-        OptionsBuilder<'static>,
-        Option<&Extensions>,
-    ) -> MietteResult<ConversionSummary>
+type Run = dyn Fn(&Args, &Options, OptionsBuilder<'static>, &Selection) -> MietteResult<ConversionSummary>
     + Send
     + Sync;
 
 pub(super) struct Runner {
     pub(super) run: Box<Run>,
+    pub(super) asset_base: AssetBase,
     #[cfg(feature = "pdf")]
     pub(super) pdf_options: bool,
 }
 
 impl Runner {
     fn new(
+        asset_base: AssetBase,
         run: impl Fn(
             &Args,
             &Options,
             OptionsBuilder<'static>,
-            Option<&Extensions>,
+            &Selection,
         ) -> MietteResult<ConversionSummary>
         + Send
         + Sync
@@ -40,6 +37,7 @@ impl Runner {
     ) -> Self {
         Self {
             run: Box::new(run),
+            asset_base,
             #[cfg(feature = "pdf")]
             pdf_options: false,
         }
@@ -52,7 +50,7 @@ impl Runner {
         P::Error: Send + 'static,
         F: Fn(Options, OptionsBuilder<'static>) -> Result<P, P::Error> + Send + Sync + 'static,
     {
-        Self::new(move |args, opts, parser, extensions| {
+        Self::new(AssetBase::Output, move |args, opts, parser, extensions| {
             run_converter(args, opts, parser, extensions, &factory)
         })
     }
@@ -82,17 +80,20 @@ pub(super) fn builtins() -> Result<ConverterRegistry<Runner>, SelectionError> {
     })?;
     #[cfg(feature = "terminal")]
     backends.register(acdc_converters_terminal::REGISTRATION, |()| {
-        Runner::new(|args, options, parser, extensions| {
-            super::run_terminal_with_pager(args, options, parser, extensions)
-                .map_err(|e| error::display(&e))
-        })
+        Runner::new(
+            AssetBase::WorkingDirectory,
+            |args, options, parser, extensions| {
+                super::run_terminal_with_pager(args, options, parser, extensions.for_input(None))
+                    .map_err(|e| error::display(&e))
+            },
+        )
     })?;
     #[cfg(feature = "pdf")]
     backends.register(acdc_converters_pdf::REGISTRATION, |()| {
         let run = |args: &Args,
                    options: &Options,
                    parser: OptionsBuilder<'static>,
-                   extensions: Option<&Extensions>| {
+                   extensions: &Selection| {
             let pdf_options = super::pdf_options_from_args(args);
             run_converter(args, options, parser, extensions, move |opts, attrs| {
                 acdc_converters_pdf::Converter::new(opts, attrs)
@@ -102,6 +103,7 @@ pub(super) fn builtins() -> Result<ConverterRegistry<Runner>, SelectionError> {
         Runner {
             run: Box::new(run),
             pdf_options: true,
+            asset_base: AssetBase::Source,
         }
     })?;
     Ok(backends)

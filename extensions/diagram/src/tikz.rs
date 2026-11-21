@@ -5,6 +5,7 @@ use std::{fs, io, path::Path, process::Command};
 use acdc_parser::{DocumentAttributeValue, extensions::BlockStyle};
 
 use super::{
+    OutputDirectories,
     asset::{self, Format},
     executable, image, style,
 };
@@ -16,13 +17,17 @@ use super::{
 ///
 /// # Errors
 /// Returns an error if the supplied tools or output directory cannot be resolved.
-pub fn tikz(lualatex: &Path, pdf2svg: Option<&Path>, output_dir: &Path) -> io::Result<BlockStyle> {
+pub fn tikz<'a>(
+    lualatex: &Path,
+    pdf2svg: Option<&Path>,
+    output_dir: impl Into<OutputDirectories<'a>>,
+) -> io::Result<BlockStyle> {
     // TeX selects its format from argv[0]. Preserve the lualatex symlink name.
     let engine = executable(std::path::absolute(lualatex)?)?;
     let converter = pdf2svg
         .map(|tool| executable(tool.canonicalize()?))
         .transpose()?;
-    style("TikZ", output_dir, move |root, input| {
+    style("TikZ", output_dir.into(), move |root, input| {
         let attrs = input.document_attributes;
         let args = &input.metadata.attributes;
         for key in ["lualatex", "pdflatex", "pdf2svg"] {
@@ -59,11 +64,12 @@ pub fn tikz(lualatex: &Path, pdf2svg: Option<&Path>, output_dir: &Path) -> io::R
                     "unsupported TikZ format '{other}' (expected svg or pdf)"
                 ));
             }
-            None if converter.is_some()
-                && attrs
-                    .get("backend")
-                    .and_then(DocumentAttributeValue::text)
-                    .is_some_and(|backend| backend.starts_with("html")) =>
+            None if attrs
+                .get("backend")
+                .and_then(DocumentAttributeValue::text)
+                .is_some_and(|backend| {
+                    backend == "pdf" || (backend.starts_with("html") && converter.is_some())
+                }) =>
             {
                 Format::Svg
             }

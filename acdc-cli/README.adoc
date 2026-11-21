@@ -128,6 +128,26 @@ application. Repeat the option to select multiple packages in execution order;
 duplicate selections count once. Compiling or registering a package does not
 activate it. Unknown or unavailable names fail before input is read or parsed.
 
+Build with `cargo build -p acdc-cli --features diagram` to make the `diagram` package available.
+Select it for trusted documents and pass the paths to the tools you want to run.
+WaveDrom accepts SVG (default) or PNG. TikZ uses LuaLaTeX for PDF and can use pdf2svg for SVG.
+
+[source,console]
+....
+acdc convert --extension diagram --wavedrom-cli /opt/bin/wavedrom-cli manual.adoc
+acdc convert --extension diagram --lualatex /opt/tex/bin/lualatex --pdf2svg /opt/bin/pdf2svg manual.adoc
+....
+
+Both tool sets can be supplied together. Diagram blocks run only in unsafe mode (the CLI default).
+Restricted modes report an error at the block before launching the renderer.
+A document cannot supply an executable path. See the link:../extensions/diagram/README.adoc[diagram guide] for block syntax.
+
+Linked assets follow the `imagesdir` in effect at the block, relative to the converted file's directory.
+For stdout, relative links resolve from the working directory, including when reading stdin.
+For a PDF document, pass `--pdf2svg` with `--lualatex` so TikZ produces an embeddable SVG.
+Embedded HTML images and PDF image inputs resolve from the source directory (the working directory for stdin).
+The terminal backend resolves images from the working directory, including in a pager.
+
 Files, stdin, batches, terminal output, and pager output use the same pipeline.
 The selected backend supplies attributes before preprocessing, and every document
 gets fresh extension handlers. Library callers use
@@ -514,6 +534,10 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | `html-terminal`
 | no
 | HTML terminal previews and session/replay rendering.
+
+| `diagram`
+| no
+| Makes WaveDrom and TikZ available through `--extension diagram` and caller-supplied tool paths.
 
 | `terminal-emulator`
 | no

@@ -19,6 +19,28 @@ mod wavedrom_cli;
 use asset::Format;
 pub use tikz::tikz;
 
+/// Directories used by a converter to resolve relative image references.
+#[derive(Clone, Copy, Debug)]
+pub struct OutputDirectories<'a> {
+    linked: &'a Path,
+    embedded: &'a Path,
+}
+
+impl<'a> OutputDirectories<'a> {
+    /// Linked images resolve from the converted file. Embedded HTML images
+    /// are read relative to the input document.
+    #[must_use]
+    pub const fn new(linked: &'a Path, embedded: &'a Path) -> Self {
+        Self { linked, embedded }
+    }
+}
+
+impl<'a, P: AsRef<Path> + ?Sized> From<&'a P> for OutputDirectories<'a> {
+    fn from(dir: &'a P) -> Self {
+        Self::new(dir.as_ref(), dir.as_ref())
+    }
+}
+
 /// Register the `wavedrom` literal-block style for a trusted renderer and an
 /// existing output directory (the directory containing the converted document).
 /// The caller installs the returned style in its registry. Rendering requires
@@ -26,9 +48,12 @@ pub use tikz::tikz;
 ///
 /// # Errors
 /// Returns an error if either path cannot be resolved or has the wrong file type.
-pub fn wavedrom(tool: &Path, output_dir: &Path) -> io::Result<BlockStyle> {
+pub fn wavedrom<'a>(
+    tool: &Path,
+    output_dir: impl Into<OutputDirectories<'a>>,
+) -> io::Result<BlockStyle> {
     let tool = executable(tool.canonicalize()?)?;
-    style("WaveDrom", output_dir, move |root, input| {
+    style("WaveDrom", output_dir.into(), move |root, input| {
         render(&tool, root, input)
     })
 }
@@ -43,26 +68,39 @@ fn executable(tool: PathBuf) -> io::Result<PathBuf> {
     Ok(tool)
 }
 
-fn style<F>(label: &'static str, output_dir: &Path, render: F) -> io::Result<BlockStyle>
+fn style<F>(
+    label: &'static str,
+    output_dir: OutputDirectories<'_>,
+    render: F,
+) -> io::Result<BlockStyle>
 where
-    F: Fn(&Path, &RawBlockInput<'_>) -> Result<BlockBuilder, String>
+    F: Fn(OutputDirectories<'_>, &RawBlockInput<'_>) -> Result<BlockBuilder, String>
         + Clone
         + Send
         + Sync
         + 'static,
 {
-    let root = output_dir.canonicalize()?;
-    if !root.is_dir() {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "expected an output directory",
-        ));
-    }
+    let directory = |path: &Path| {
+        let root = path.canonicalize()?;
+        if root.is_dir() {
+            Ok(root)
+        } else {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("expected an output directory at {}", path.display()),
+            ))
+        }
+    };
+    let linked = directory(output_dir.linked)?;
+    let embedded = (output_dir.embedded != output_dir.linked)
+        .then(|| directory(output_dir.embedded))
+        .transpose()?;
     Ok(BlockStyle::raw(
         label.to_ascii_lowercase(),
         [RawBlockContext::Literal],
         move || {
-            let root = root.clone();
+            let linked = linked.clone();
+            let embedded = embedded.clone();
             let render = render.clone();
             move |input: RawBlockInput<'_>| {
                 if input
@@ -75,14 +113,22 @@ where
                         "{label} requires unsafe mode to run the configured executable"
                     ));
                 }
-                render(&root, &input).map(Some)
+                render(
+                    OutputDirectories::new(&linked, embedded.as_deref().unwrap_or(&linked)),
+                    &input,
+                )
+                .map(Some)
             }
         },
     )
     .with_positional_attributes(["target", "format"]))
 }
 
-fn render(tool: &Path, root: &Path, input: &RawBlockInput<'_>) -> Result<BlockBuilder, String> {
+fn render(
+    tool: &Path,
+    root: OutputDirectories<'_>,
+    input: &RawBlockInput<'_>,
+) -> Result<BlockBuilder, String> {
     let attrs = input.document_attributes;
     let args = &input.metadata.attributes;
     if args.get("wavedrom").is_some() || attrs.get("wavedrom").is_some() {
@@ -114,7 +160,7 @@ fn render(tool: &Path, root: &Path, input: &RawBlockInput<'_>) -> Result<BlockBu
 
 fn image(
     name: &str,
-    root: &Path,
+    roots: OutputDirectories<'_>,
     input: &RawBlockInput<'_>,
     format: Format,
     source: &str,
@@ -150,6 +196,20 @@ fn image(
         .get("imagesdir")
         .and_then(DocumentAttributeValue::text)
         .unwrap_or_default();
+    let embedded = attrs
+        .get("backend")
+        .and_then(DocumentAttributeValue::text)
+        .is_some_and(|name| name.starts_with("html"))
+        && (attrs.get("data-uri").is_some()
+            || (format == Format::Svg
+                && (&input.metadata.options)
+                    .into_iter()
+                    .any(|opt| *opt == "inline")));
+    let root = if embedded {
+        roots.embedded
+    } else {
+        roots.linked
+    };
     let dir = image_directory(root, images).map_err(|e| format!("{name} imagesdir: {e}"))?;
     asset::publish(&dir, &filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
     Ok(BlockBuilder::image(filename).with_default_attributes("alt=Diagram"))
