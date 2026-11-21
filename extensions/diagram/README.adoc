@@ -189,6 +189,10 @@ Render `[a2s]` blocks and `a2s::chart.txt[]` files with `--a2s PATH`. SVG is the
 
 Render `[svgbob]` blocks and `svgbob::chart.bob[]` files with `--svgbob PATH`. Choose SVG or literal text. The SVG renderer accepts `font-family`, `font-size`, `stroke-width`, and `scale`. Enable the package with `--extension diagram`.
 
+== syntrax
+
+Render `[syntrax]` blocks and `syntrax::chart.spec[]` files with `--syntrax PATH`. Choose PNG or SVG. Use `heading`, `scale`, `style-file`, and `transparent=true` to customize a railroad diagram. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

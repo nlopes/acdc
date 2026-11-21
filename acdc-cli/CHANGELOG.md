@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[syntrax]` blocks and `syntrax::chart.spec[]` files with `--syntrax PATH`. Choose PNG or SVG. Use `heading`, `scale`, `style-file`, and `transparent=true` to customize a railroad diagram.
+
 - Render `[svgbob]` blocks and `svgbob::chart.bob[]` files with `--svgbob PATH`. Choose SVG or literal text. The SVG renderer accepts `font-family`, `font-size`, `stroke-width`, and `scale`.
 
 - Render `[a2s]` blocks and `a2s::chart.txt[]` files with `--a2s PATH`. SVG is the default. Use `format=txt` for the original text, `scalex` and `scaley` for dimensions, or `noblur=true` for crisp edges.

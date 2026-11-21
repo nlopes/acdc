@@ -469,3 +469,30 @@ pub const SVGBOB: Renderer = Renderer {
     attributes: &["font-family", "font-size", "stroke-width", "scale"],
     generate: svgbob,
 };
+
+fn syntrax(job: &Job<'_>) -> io::Result<()> {
+    let input = job.source_file("spec")?;
+    let mut cmd = Command::new(job.tool);
+    cmd.arg("-i").arg(input).arg("-o").arg(job.output);
+    job.flags(
+        &mut cmd,
+        &[
+            ("heading", "--title"),
+            ("scale", "--scale"),
+            ("style-file", "--style"),
+        ],
+    );
+    if job.option("transparent") == Some("true") {
+        cmd.arg("--transparent");
+    }
+    job.run(&mut cmd)
+}
+
+/// Render `syntrax` diagrams using `syntrax`.
+pub const SYNTRAX: Renderer = Renderer {
+    name: "syntrax",
+    tool: "syntrax",
+    formats: &[Format::Png, Format::Svg],
+    attributes: &["heading", "scale", "transparent", "style-file"],
+    generate: syntrax,
+};

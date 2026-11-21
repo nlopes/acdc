@@ -325,6 +325,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn syntrax_block_and_file() -> TestResult {
+        tool_sample(
+            "syntrax",
+            "--syntrax",
+            "line(\"term\", \"operator\", \"term\")",
+            "svg",
+            r#"test "$1:$3" = "-i:-o"
+test "$(cat "$2")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$4""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,
