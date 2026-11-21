@@ -84,7 +84,7 @@ unicode-width = "0.2"
 ureq = "3.3"
 url = "2"
 percent-encoding = "2"
-usvg = "0.48.1"
+usvg = "0.49.0"
 
 [workspace.lints.rust]
 unreachable_pub = "deny"
