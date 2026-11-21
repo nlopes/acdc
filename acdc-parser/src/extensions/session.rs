@@ -1,6 +1,6 @@
 use std::{cell::OnceCell, fmt};
 
-use crate::{Block, Error, ParseResult, grammar::ParserState};
+use crate::{Block, Error, ParseResult, Warning, WarningKind, grammar::ParserState};
 
 use super::{
     BlockBuilder, BlockMacroOutput, BlockMacroProcessor, BlockStyleOutput, DeferredBlock,
@@ -150,6 +150,7 @@ impl Session {
                     let processor = self.styles.get_mut(extension.processor).ok_or_else(|| {
                         fail("style processor is absent from the document session".into())
                     })?;
+                    let mut warnings = Vec::new();
                     let raw = RawBlockInput {
                         context: *context,
                         body,
@@ -158,8 +159,15 @@ impl Session {
                         document_attributes: state.document_attributes.as_ref().into(),
                         metadata: &extension.metadata,
                         title: extension.title.source(),
+                        warnings: &mut warnings,
                     };
                     let output = processor.process(raw).map_err(fail)?;
+                    for message in warnings {
+                        state.add_warning(Warning::new(
+                            WarningKind::Other(message.into()),
+                            Some(origin.clone()),
+                        ));
+                    }
                     extension.metadata.style = None;
                     match output {
                         BlockStyleOutput::ParseChildren => {

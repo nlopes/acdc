@@ -29,9 +29,16 @@ pub struct RawBlockInput<'a> {
     pub title: Option<&'a TitleSource<'a>>,
     pub metadata: &'a BlockMetadata<'a>,
     pub document_attributes: DocumentAttributesRef<'a>,
+    pub(super) warnings: &'a mut Vec<String>,
 }
 
 impl RawBlockInput<'_> {
+    /// Report a nonfatal warning at the invocation's source location.
+    /// The handler can still return any output supported by the style.
+    pub fn warn(&mut self, message: impl Into<String>) {
+        self.warnings.push(message.into());
+    }
+
     /// Ordered substitutions the source block would apply to its body.
     #[must_use]
     pub fn substitutions(&self) -> Vec<Substitution> {

@@ -1,9 +1,9 @@
 use acdc_parser::{
-    CompatibilityMode, ElementAttributes, Error, Options, SafeMode, Substitution,
+    CompatibilityMode, ElementAttributes, Error, Options, SafeMode, Substitution, WarningKind,
     ast::{BlockKind, BlockRef},
     extensions::{
-        BlockBuilder, BlockContext, BlockStyle, RawBlockContext, RawBlockInput, RegistrationError,
-        Registry, TreeProcessorRegistration,
+        BlockBuilder, BlockContext, BlockStyle, BlockStyleOutput, RawBlockContext, RawBlockInput,
+        RegistrationError, Registry, TreeProcessorRegistration,
     },
 };
 
@@ -98,6 +98,70 @@ fn style_builds_an_image_from_raw_included_source_before_tree_processing() -> Te
         let parsed = result.finish()?;
         assert_eq!(parsed.document().footnotes().count(), 0);
         assert_eq!(parsed.warnings(), []);
+    }
+    Ok(())
+}
+
+#[test]
+fn style_warnings_keep_the_included_invocation_location_and_allow_fallback() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let file = dir.path().join("styles.adoc");
+    std::fs::write(
+        &file,
+        "[panel]\n----\n.Fallback\n[sketch]\n....\n{x} *raw*\n....\n----",
+    )?;
+    let mut builder = Registry::builder();
+    builder.register_block_style(BlockStyle::compound(
+        "panel",
+        [RawBlockContext::Listing],
+        || {
+            |mut input: RawBlockInput<'_>| {
+                input.warn("parsing children");
+                Ok(BlockStyleOutput::ParseChildren)
+            }
+        },
+    ))?;
+    builder.register_block_style(BlockStyle::raw(
+        "sketch",
+        [RawBlockContext::Literal],
+        || {
+            |mut input: RawBlockInput<'_>| {
+                input.warn("using source");
+                Ok(Some(BlockBuilder::literal(input.body)))
+            }
+        },
+    ))?;
+    let registry = builder.build();
+    for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+        let options = Options::builder()
+            .with_base_dir(dir.path())
+            .with_safe_mode(SafeMode::Safe)
+            .with_compatibility_mode(mode)
+            .build()?;
+        let result = registry.parse("Before.\n\ninclude::styles.adoc[]\n\nAfter.", &options)?;
+        assert_eq!(result.warnings().len(), 2);
+        let parsed = result.finish()?;
+        let warnings = parsed.warnings();
+        assert_eq!(warnings.len(), 2);
+        for (warning, (message, line)) in warnings
+            .iter()
+            .zip([("parsing children", 1), ("using source", 3)])
+        {
+            assert!(matches!(&warning.kind, WarningKind::Other(text) if text == message));
+            let location = warning
+                .source_location()
+                .ok_or("missing warning location")?;
+            assert_eq!(location.file.as_deref(), Some(file.as_path()));
+            assert_eq!(location.location.start.line, line);
+        }
+        let mut blocks = parsed.document().blocks().map(BlockRef::kind);
+        assert!(matches!(blocks.next(), Some(BlockKind::Paragraph(_))));
+        let Some(BlockKind::Open(panel)) = blocks.next() else {
+            return Err("missing panel".into());
+        };
+        assert!(matches!(panel.blocks().next().map(BlockRef::kind),
+            Some(BlockKind::Literal(literal)) if literal.source_text() == Some("{x} *raw*\n")));
+        assert!(matches!(blocks.next(), Some(BlockKind::Paragraph(_))));
     }
     Ok(())
 }

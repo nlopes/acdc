@@ -2083,6 +2083,10 @@ Return `Ok(Some(builder))` to emit an ordinary block or `Ok(None)` to consume
 the invocation. The output inherits the title, ID, and roles. The input style
 has been consumed. Other delimiters keep their ordinary behavior.
 
+Both raw and compound handlers can call `input.warn(message)` and return their
+usual output. The warning points to the start of the styled block in its
+original file. Return `Err(message)` to stop parsing there.
+
 Use `BlockStyle::compound` for a listing or literal style that can choose how
 to handle its body. Returning `BlockStyleOutput::ParseChildren` creates an open
 block with the invocation's title and metadata. Once the handler returns,
