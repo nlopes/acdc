@@ -366,3 +366,31 @@ pub const SYMBOLATOR: Renderer = Renderer {
     attributes: &[],
     generate: symbolator,
 };
+
+fn pintora(job: &Job<'_>) -> io::Result<()> {
+    let path = job.source_file("pintora")?;
+    let mut cmd = Command::new(job.tool);
+    cmd.args(["render", "-i"])
+        .arg(path)
+        .arg("-o")
+        .arg(job.output);
+    job.flags(
+        &mut cmd,
+        &[
+            ("width", "-w"),
+            ("theme", "-t"),
+            ("pixel-ratio", "-p"),
+            ("background-color", "-b"),
+        ],
+    );
+    job.run(&mut cmd)
+}
+
+/// Render `pintora` diagrams using `pintora`.
+pub const PINTORA: Renderer = Renderer {
+    name: "pintora",
+    tool: "pintora",
+    formats: &[Format::Png, Format::Svg],
+    attributes: &["width", "theme", "background-color", "pixel-ratio"],
+    generate: pintora,
+};

@@ -286,6 +286,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn pintora_block_and_file() -> TestResult {
+        tool_sample(
+            "pintora",
+            "--pintora",
+            "sequenceDiagram\nA->>B: hello",
+            "svg",
+            r#"test "$1:$2:$4" = "render:-i:-o"
+test "$(cat "$3")" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$5""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

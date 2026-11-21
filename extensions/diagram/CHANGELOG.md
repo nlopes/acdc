@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[pintora]` blocks and `pintora::chart.pintora[]` files with `--pintora PATH`. Choose PNG (default) or SVG. Set `theme`, `width`, `background-color`, or `pixel-ratio` to customize the result.
+
 - Render `[symbolator]` blocks and `symbolator::chart.vhd[]` files with `--symbolator PATH`. Choose PNG (default), PDF, or SVG.
 
 - Render `[shaape]` blocks and `shaape::chart.shaape[]` files with `--shaape PATH`. PNG is the default. Select SVG with `format=svg`.
