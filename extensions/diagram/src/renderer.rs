@@ -28,17 +28,35 @@ impl Renderer {
         tool: &Path,
         output: impl Into<OutputDirectories<'a>>,
     ) -> io::Result<(BlockStyle, BlockMacro)> {
+        self.processors_with_tools(tool, output, &[])
+    }
+
+    /// Bind the renderer and its named companion programs to caller-chosen paths.
+    ///
+    /// # Errors
+    /// Returns an error if any executable or output directory cannot be resolved.
+    pub fn processors_with_tools<'a>(
+        self,
+        tool: &Path,
+        output: impl Into<OutputDirectories<'a>>,
+        companions: &[(&'static str, &Path)],
+    ) -> io::Result<(BlockStyle, BlockMacro)> {
+        let companions: std::sync::Arc<[_]> = companions
+            .iter()
+            .map(|&(key, path)| Ok((key, executable(std::path::absolute(path)?)?)))
+            .collect::<io::Result<_>>()?;
+        let block_companions = companions.clone();
         let tool = executable(std::path::absolute(tool)?)?;
         let output = output.into();
         let block_tool = tool.clone();
         let block = style(self.name, output, move |roots, input| {
-            self.render(&block_tool, roots.embedded, roots, input)
+            self.render(&block_tool, &block_companions, roots.embedded, roots, input)
         })?;
         let file = file_macro(
             self.name,
             output,
             self.attributes,
-            move |dir, roots, input| self.render(&tool, dir, roots, input),
+            move |dir, roots, input| self.render(&tool, &companions, dir, roots, input),
         )?;
         Ok((block, file))
     }
@@ -46,6 +64,7 @@ impl Renderer {
     fn render(
         self,
         tool: &Path,
+        companions: &[(&str, std::path::PathBuf)],
         dir: &Path,
         roots: OutputDirectories<'_>,
         input: &DiagramInput<'_>,
@@ -92,6 +111,7 @@ impl Renderer {
             .chain([source.as_ref()]);
         let generate = |scratch: &Path, output: &Path| {
             (self.generate)(&Job {
+                companions,
                 tool,
                 name: self.tool,
                 dir,
@@ -126,6 +146,7 @@ impl Renderer {
 }
 
 struct Job<'a> {
+    companions: &'a [(&'a str, std::path::PathBuf)],
     tool: &'a Path,
     name: &'static str,
     dir: &'a Path,
@@ -137,6 +158,18 @@ struct Job<'a> {
 }
 
 impl Job<'_> {
+    fn companion(&self, name: &str) -> io::Result<&Path> {
+        self.companions
+            .iter()
+            .find(|(key, _)| *key == name)
+            .map(|(_, p)| p.as_path())
+            .ok_or_else(|| {
+                io::Error::other(format!(
+                    "{} requires a caller-configured {name} executable",
+                    self.name
+                ))
+            })
+    }
     fn flags(&self, cmd: &mut Command, flags: &[(&str, &str)]) {
         for &(attribute, flag) in flags {
             if let Some(value) = self.option(attribute) {
@@ -768,4 +801,38 @@ pub const LILYPOND: Renderer = Renderer {
     formats: &[Format::Png, Format::Pdf],
     attributes: &["resolution"],
     generate: lilypond,
+};
+
+fn erd(job: &Job<'_>) -> io::Result<()> {
+    let dot = job.companion("dot")?;
+    let graph = job.scratch.join("layout.dot");
+    job.stdin(
+        Command::new(job.tool)
+            .arg("-o")
+            .arg(&graph)
+            .args(["-f", "dot"]),
+        None,
+    )?;
+    let graph = asset::read_text(&graph)?;
+    let mut target = std::ffi::OsString::from("-o");
+    target.push(job.output);
+    asset::run_with_source(
+        Command::new(dot)
+            .arg(target)
+            .arg(format!("-T{}", job.format.extension())),
+        job.dir,
+        "dot",
+        job.scratch,
+        &graph,
+        None,
+    )
+}
+
+/// Render `erd` diagrams using `erd`.
+pub const ERD: Renderer = Renderer {
+    name: "erd",
+    tool: "erd",
+    formats: &[Format::Png, Format::Svg],
+    attributes: &[],
+    generate: erd,
 };

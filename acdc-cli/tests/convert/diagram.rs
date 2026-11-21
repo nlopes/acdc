@@ -458,6 +458,27 @@ printf '%%PDF-1.7
         )
     }
 
+    #[test]
+    fn erd_block_and_file() -> TestResult {
+        tool_sample_with(
+            "erd",
+            "--erd",
+            "[Person]\nname {label: \"text\"}",
+            "svg",
+            r#"test "$1:$3:$4" = "-o:-f:dot"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' 'digraph { A -> B }' > "$2""#,
+            "",
+            &[(
+                "--graphviz-dot",
+                "./dot",
+                r#"test "$2" = -Tsvg
+grep -F 'digraph' >/dev/null
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "${1#-o}""#,
+            )],
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,
@@ -465,13 +486,25 @@ printf '%%PDF-1.7
         format: &str,
         renderer: &str,
     ) -> TestResult {
+        tool_sample_with(style, flag, body, format, renderer, "", &[])
+    }
+
+    fn tool_sample_with(
+        style: &str,
+        flag: &str,
+        body: &str,
+        format: &str,
+        renderer: &str,
+        header: &str,
+        companions: &[(&str, &str, &str)],
+    ) -> TestResult {
         let temp = tempfile::tempdir()?;
         let root = temp.path();
         fs::write(root.join("chart.source"), body)?;
         fs::write(
             root.join("doc.adoc"),
             format!(
-                "[{style},example,{format}]\n----\n{body}\n----\n\n.File\n{style}::chart.source[{format},alt=Chart]"
+                "{header}\n[{style},example,{format}]\n----\n{body}\n----\n\n.File\n{style}::chart.source[{format},alt=Chart]"
             ),
         )?;
         fs::write(
@@ -479,19 +512,21 @@ printf '%%PDF-1.7
             format!("#!/bin/sh\nset -eu\n{renderer}\n"),
         )?;
         fs::set_permissions(root.join("renderer"), fs::Permissions::from_mode(0o700))?;
-        let run = run_acdc_in(
-            root,
-            &[
-                "convert",
-                "--extension",
-                "diagram",
-                flag,
-                "./renderer",
-                "--fail-on-warnings",
-                "doc.adoc",
-            ],
-            None,
-        )?;
+        let mut args = vec![
+            "convert",
+            "--extension",
+            "diagram",
+            flag,
+            "./renderer",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        for &(flag, path, script) in companions {
+            fs::write(root.join(path), format!("#!/bin/sh\nset -eu\n{script}\n"))?;
+            fs::set_permissions(root.join(path), fs::Permissions::from_mode(0o700))?;
+            args.extend([flag, path]);
+        }
+        let run = run_acdc_in(root, &args, None)?;
         assert!(run.status.success(), "{}", output_text(&run.stderr));
         let html = fs::read_to_string(root.join("doc.html"))?;
         for target in ["example", "chart"] {

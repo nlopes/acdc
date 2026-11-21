@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[erd]` blocks and `erd::chart.erd[]` files with `--erd PATH`. Configure Graphviz with `--graphviz-dot PATH`. The ERD renderer produces DOT and Graphviz writes the final PNG or SVG.
+
 - Render `[lilypond]` blocks and `lilypond::chart.ly[]` files with `--lilypond PATH`. The output is a cropped PNG or PDF score. Set `resolution` to select the raster resolution.
 
 - Render `[oxdraw]` blocks and `oxdraw::chart.mmd[]` files with `--oxdraw PATH`. SVG is the default. Use `background` and `scale` to change the output.
