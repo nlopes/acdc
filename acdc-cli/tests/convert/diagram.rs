@@ -100,6 +100,66 @@ mod active {
     }
 
     #[test]
+    fn blockdiag_block_and_file() -> TestResult {
+        tool_sample(
+            "blockdiag",
+            "--blockdiag",
+            "blockdiag { API -> DB; }",
+            "svg",
+            r#"test "$1" = -a
+test "$2" = -o
+test "$4" = -Tsvg
+test "$5" = -
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$3""#,
+        )
+    }
+
+    fn tool_sample(
+        style: &str,
+        flag: &str,
+        body: &str,
+        format: &str,
+        renderer: &str,
+    ) -> TestResult {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        fs::write(root.join("chart.source"), body)?;
+        fs::write(
+            root.join("doc.adoc"),
+            format!(
+                "[{style},example,{format}]\n----\n{body}\n----\n\n.File\n{style}::chart.source[{format},alt=Chart]"
+            ),
+        )?;
+        fs::write(
+            root.join("renderer"),
+            format!("#!/bin/sh\nset -eu\n{renderer}\n"),
+        )?;
+        fs::set_permissions(root.join("renderer"), fs::Permissions::from_mode(0o700))?;
+        let run = run_acdc_in(
+            root,
+            &[
+                "convert",
+                "--extension",
+                "diagram",
+                flag,
+                "./renderer",
+                "--fail-on-warnings",
+                "doc.adoc",
+            ],
+            None,
+        )?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        for target in ["example", "chart"] {
+            assert!(root.join(format!("{target}.{format}")).is_file());
+            assert!(html.contains(&format!(r#"src="{target}.{format}""#)));
+        }
+        assert!(html.contains("Figure 1. File"));
+        Ok(())
+    }
+
+    #[test]
     fn bytefield_sends_block_and_file_source_to_stdin_and_publishes_svg() -> TestResult {
         let temp = tempfile::tempdir()?;
         let root = temp.path();

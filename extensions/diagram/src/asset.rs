@@ -77,7 +77,7 @@ impl Format {
                 let document = roxmltree::Document::parse_with_options(
                     &svg,
                     roxmltree::ParsingOptions {
-                        allow_dtd: declares_svg_11(&svg),
+                        allow_dtd: declares_standard_svg(&svg),
                         ..Default::default()
                     },
                 )
@@ -104,9 +104,9 @@ impl Format {
     }
 }
 
-// Graphviz emits this external SVG 1.1 declaration. Only enable DTD parsing for
+// Graphviz and blockdiag emit external SVG declarations. Only enable DTD parsing for
 // that exact prolog (without an internal subset), with no external entity resolver.
-fn declares_svg_11(svg: &str) -> bool {
+fn declares_standard_svg(svg: &str) -> bool {
     let svg = svg.trim_start_matches('\u{feff}').trim_start();
     let prolog = svg
         .strip_prefix("<?xml ")
@@ -114,10 +114,10 @@ fn declares_svg_11(svg: &str) -> bool {
         .map_or(svg, |(_, rest)| rest.trim_start());
     prolog.strip_prefix("<!DOCTYPE ")
         .and_then(|decl| decl.split_once('>'))
-        .is_some_and(|(decl, _)| decl.split_ascii_whitespace().eq(
-            r#"svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd""#
-                .split_ascii_whitespace()
-        ))
+        .is_some_and(|(decl, _)| [
+            r#"svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd""#,
+            r#"svg PUBLIC "-//W3C//DTD SVG 1.0//EN" "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd""#,
+        ].iter().any(|known| decl.split_ascii_whitespace().eq(known.split_ascii_whitespace())))
 }
 
 // Check the raster and its end marker before publishing, without storing a full frame.

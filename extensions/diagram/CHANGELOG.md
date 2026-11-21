@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[blockdiag]` blocks and `blockdiag::chart.diag[]` files with `--blockdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
+
 - Render packet and binary layouts as SVG from `[bytefield]` blocks or `bytefield::layout.edn[]` file macros with `--extension diagram --bytefield-svg PATH`.
 
 - Render GoAT ASCII diagrams from `[goat]` blocks and `goat::chart.txt[]` file macros as SVG with `--extension diagram --goat PATH`. Set `svg-color-dark-scheme` and `svg-color-light-scheme` to choose the colors.

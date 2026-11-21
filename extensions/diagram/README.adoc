@@ -125,6 +125,10 @@ Use `--extension diagram --bytefield-svg /usr/bin/bytefield-svg` to render packe
 Place the diagram source in a `[bytefield]` listing or literal block, or load a local file with `bytefield::layout.edn[]`.
 Library callers register `acdc_diagram::bytefield` and `acdc_diagram::bytefield_file` with a trusted executable. Rendering requires unsafe mode.
 
+== blockdiag
+
+Render `[blockdiag]` blocks and `blockdiag::chart.diag[]` files with `--blockdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

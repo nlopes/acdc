@@ -22,6 +22,7 @@ mod goat;
 mod graphviz;
 mod msc;
 mod pikchr;
+pub mod renderer;
 mod tikz;
 mod wavedrom_cli;
 

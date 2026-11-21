@@ -69,6 +69,9 @@ fn parent(file: Option<&Path>) -> &Path {
 #[cfg(feature = "diagram")]
 #[derive(clap::Args, Debug)]
 pub(super) struct DiagramArgs {
+    /// Path to the trusted blockdiag renderer
+    #[arg(long, value_name = "PATH")]
+    blockdiag: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -100,6 +103,14 @@ pub(super) struct DiagramArgs {
 
 #[cfg(feature = "diagram")]
 impl DiagramArgs {
+    fn configured_renderers(
+        &self,
+    ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
+        [(acdc_diagram::renderer::BLOCKDIAG, self.blockdiag.as_deref())]
+            .into_iter()
+            .filter_map(|(renderer, path): (_, Option<&Path>)| path.map(|p| (renderer, p)))
+    }
+
     fn has_renderer(&self) -> bool {
         self.wavedrom_cli.is_some()
             || self.lualatex.is_some()
@@ -109,6 +120,7 @@ impl DiagramArgs {
             || self.pikchr.is_some()
             || self.goat.is_some()
             || self.bytefield_svg.is_some()
+            || self.configured_renderers().next().is_some()
     }
 
     fn select(
@@ -249,6 +261,15 @@ impl DiagramArgs {
             registry
                 .register_block_style(style)
                 .map_err(|e| error::display(&e))?;
+        }
+        for (renderer, tool) in self.configured_renderers() {
+            let (style, file) = renderer
+                .processors(tool, output)
+                .map_err(|e| miette::miette!("cannot configure {}: {e}", tool.display()))?;
+            registry
+                .register_block_style(style)
+                .map_err(|e| error::display(&e))?;
+            registry.register(file).map_err(|e| error::display(&e))?;
         }
         let mut catalog = available.clone();
         catalog

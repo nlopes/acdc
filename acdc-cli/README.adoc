@@ -139,6 +139,7 @@ acdc convert --extension diagram --mscgen /usr/bin/mscgen manual.adoc
 acdc convert --extension diagram --dpic /usr/bin/dpic manual.adoc
 acdc convert --extension diagram --pikchr /usr/bin/pikchr manual.adoc
 acdc convert --extension diagram --goat /usr/bin/goat manual.adoc
+acdc convert --extension diagram --blockdiag /usr/bin/blockdiag manual.adoc
 acdc convert --extension diagram --bytefield-svg /usr/bin/bytefield-svg manual.adoc
 acdc convert --extension diagram --wavedrom-cli /opt/bin/wavedrom-cli manual.adoc
 acdc convert --extension diagram --lualatex /opt/tex/bin/lualatex --pdf2svg /opt/bin/pdf2svg manual.adoc
