@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- WaveDrom and TikZ also render listing blocks delimited by `----`. They accept the same source, attributes, and output formats as literal blocks delimited by `....`.
+
 - Applications can supply separate directories for linked and embedded HTML diagrams
   when the converted file lives outside the source directory. Passing a single
   directory still places all generated assets there. TikZ defaults to SVG for

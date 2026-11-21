@@ -76,12 +76,13 @@ printf '%%PDF-1.4\n%%%%EOF\n' > input.pdf
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
     let source = "[tikz,figure,pdf,preamble=true]\n....\n% preamble\n~~~~\npicture body\n....";
-    let parsed = registry.parse(source, &options)?.finish()?;
-    assert!(
-        parsed.document().blocks().any(
+    let listing = source.replace("....", "----");
+    for input in [source, listing.as_str()] {
+        let parsed = registry.parse(input, &options)?.finish()?;
+        assert!(parsed.document().blocks().any(
             |b| matches!(b.kind(), BlockKind::Image(i) if i.source().to_string()=="figure.pdf")
-        )
-    );
+        ));
+    }
     let result = registry.parse(&source.replace("picture body", "different"), &options);
     assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains("lualatex exited")));
     assert_eq!(

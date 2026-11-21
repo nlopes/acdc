@@ -41,7 +41,7 @@ impl<'a, P: AsRef<Path> + ?Sized> From<&'a P> for OutputDirectories<'a> {
     }
 }
 
-/// Register the `wavedrom` literal-block style for a trusted renderer and an
+/// Register the `wavedrom` style for listing and literal blocks with a trusted renderer and an
 /// existing output directory (the directory containing the converted document).
 /// The caller installs the returned style in its registry. Rendering requires
 /// [`SafeMode::Unsafe`]. The body is passed verbatim to the executable.
@@ -97,7 +97,7 @@ where
         .transpose()?;
     Ok(BlockStyle::raw(
         label.to_ascii_lowercase(),
-        [RawBlockContext::Literal],
+        [RawBlockContext::Listing, RawBlockContext::Literal],
         move || {
             let linked = linked.clone();
             let embedded = embedded.clone();

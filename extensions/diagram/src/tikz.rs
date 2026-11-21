@@ -10,7 +10,7 @@ use super::{
     executable, image, style,
 };
 
-/// Register the `tikz` literal-block style for trusted documents in unsafe mode.
+/// Register the `tikz` style for listing and literal blocks in trusted documents.
 /// The caller chooses the `LuaLaTeX` executable and optionally a PDF-to-SVG
 /// converter implementing the `pdf2svg INPUT OUTPUT` interface. Both run
 /// in a private scratch directory. `TeX` shell escape is disabled.

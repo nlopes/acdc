@@ -88,6 +88,21 @@ mod active {
     }
 
     #[test]
+    fn titled_diagram_listing_shares_the_figure_counter_with_authored_images() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        setup(dir.path())?;
+        let source = ".Timing\n[wavedrom,clock,svg]\n----\nwave body\n----\n\n.Photo\nimage::photo.png[]\n\n----\nordinary listing\n----";
+        let output = convert(dir.path(), &["--stdin", "--embedded"], Some(source))?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        let html = output_text(&output.stdout);
+        assert!(html.contains("src=\"clock.svg\""));
+        assert!(html.contains("Figure 1. Timing") && html.contains("Figure 2. Photo"));
+        assert!(html.contains("<pre>ordinary listing</pre>"));
+        assert!(dir.path().join("clock.svg").is_file());
+        Ok(())
+    }
+
+    #[test]
     fn diagram_assets_follow_files_streams_and_batches() -> TestResult {
         let dir = tempfile::tempdir()?;
         let root = dir.path();

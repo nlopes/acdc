@@ -2,7 +2,7 @@
 
 == WaveDrom
 
-Applications can register the `wavedrom` literal-block style in the parser registry.
+Applications can register the `wavedrom` style for listing blocks (`----`) and literal blocks (`....`).
 Supply the path to a trusted `wavedrom-cli` executable and the directory containing the converted document.
 The extension runs the executable only for an explicitly registered style in `SafeMode::Unsafe`.
 Use this mode for trusted input. The acdc CLI accepts `--extension diagram --wavedrom-cli PATH` when built with the optional `diagram` feature.
@@ -27,7 +27,7 @@ let parsed = builder.build().parse(source, &options)?.finish()?;
 ....
 ----
 
-The renderer reads the preprocessed literal body before inline substitutions.
+The renderer reads the preprocessed block body before inline substitutions.
 The first positional argument names the output, e.g. `[wavedrom,clock,svg]` produces `clock.svg`.
 Target names accept ASCII letters, digits, hyphens, and underscores.
 An empty target uses a SHA-256 digest of the body. Named `target=` and `format=` take precedence.
@@ -39,14 +39,14 @@ A failed render stops parsing at the block and preserves any previous asset.
 
 == TikZ
 
-Register the `tikz` literal-block style with the application's LuaLaTeX executable, an optional pdf2svg executable, and the converted document's output directory.
+Register the `tikz` style for listing and literal blocks with the application's LuaLaTeX executable, an optional pdf2svg executable, and the converted document's output directory.
 
 [source,rust]
 ----
 builder.register_block_style(acdc_diagram::tikz(&lualatex, Some(&pdf2svg), &output_dir)?)?;
 ----
 
-Use `[tikz,figure,svg,preamble=true,command=lualatex]` over a literal block to produce `figure.svg`.
+Use `[tikz,figure,svg,preamble=true,command=lualatex]` on a listing or literal block to produce `figure.svg`.
 Put the TeX preamble before a line containing exactly `~~~~`, then the picture after it.
 With no separator the complete body becomes picture content.
 Use `pdf` for native one-page PDF output. With no explicit format, HTML backends prefer SVG when pdf2svg is configured. The PDF backend defaults to SVG and requires pdf2svg to embed the diagram. Other configurations default to PDF.

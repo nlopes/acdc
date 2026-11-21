@@ -158,13 +158,16 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
             .strip_suffix("....\n")
             .ok_or("closing delimiter")?,
     )?;
-    let svg = fs::read_to_string(render_asset(
-        &tool,
-        root.path(),
-        CompatibilityMode::Draft,
-        ACE,
-    )?)?;
-    assert!(svg.contains("<desc>test</desc>"));
+    let listing = ACE.replace("\n....\n", "\n----\n");
+    for source in [ACE, listing.as_str()] {
+        let svg = fs::read_to_string(render_asset(
+            &tool,
+            root.path(),
+            CompatibilityMode::Draft,
+            source,
+        )?)?;
+        assert!(svg.contains("<desc>test</desc>"));
+    }
 
     // A failed rerender must preserve an existing named asset.
     let registry = registry(&tool, root.path())?;

@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Builds with the optional `diagram` feature can convert WaveDrom and TikZ literal
-  blocks with `convert --extension diagram`. Supply `--wavedrom-cli PATH` for
+- Builds with the optional `diagram` feature can convert WaveDrom and TikZ listing
+  and literal blocks with `convert --extension diagram`. Supply `--wavedrom-cli PATH` for
   WaveDrom or `--lualatex PATH` for TikZ. Add `--pdf2svg PATH` for TikZ SVG.
   Rendering requires unsafe mode and a caller-selected executable.
 
