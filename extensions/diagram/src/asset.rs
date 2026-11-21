@@ -47,6 +47,7 @@ impl ImageSize {
 pub(super) enum Format {
     Txt,
     Gif,
+    Jpeg,
     Svg,
     Png,
     Pdf,
@@ -57,6 +58,7 @@ impl Format {
         match self {
             Self::Txt => "txt",
             Self::Gif => "gif",
+            Self::Jpeg => "jpeg",
             Self::Svg => "svg",
             Self::Png => "png",
             Self::Pdf => "pdf",
@@ -74,6 +76,7 @@ impl Format {
         match self {
             Self::Txt => Err(io::Error::other("text output requires a literal block")),
             Self::Gif => validate_raster(file, image::ImageFormat::Gif).map(Some),
+            Self::Jpeg => validate_raster(file, image::ImageFormat::Jpeg).map(Some),
             Self::Svg => {
                 let mut svg = String::new();
                 file.take(MAX_BYTES + 1).read_to_string(&mut svg)?;
@@ -114,10 +117,16 @@ impl Format {
 // that exact prolog (without an internal subset), with no external entity resolver.
 fn declares_standard_svg(svg: &str) -> bool {
     let svg = svg.trim_start_matches('\u{feff}').trim_start();
-    let prolog = svg
+    let mut prolog = svg
         .strip_prefix("<?xml ")
         .and_then(|s| s.split_once("?>"))
         .map_or(svg, |(_, rest)| rest.trim_start());
+    while let Some(comment) = prolog.strip_prefix("<!--") {
+        let Some((_, rest)) = comment.split_once("-->") else {
+            return false;
+        };
+        prolog = rest.trim_start();
+    }
     prolog.strip_prefix("<!DOCTYPE ")
         .and_then(|decl| decl.split_once('>'))
         .is_some_and(|(decl, _)| [

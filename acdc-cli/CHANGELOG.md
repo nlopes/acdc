@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[bpmn]` blocks and `bpmn::chart.bpmn[]` files with `--bpmn-js PATH`. Choose PNG (default), SVG, PDF, or JPEG. Set `width` and `height` to select the canvas size.
+
 - Render `[umlet]` blocks and `umlet::chart.uxf[]` files with `--umlet PATH`. Choose SVG (default), PNG, PDF, or GIF using a UMLet command-line launcher.
 
 - Render `[gnuplot]` blocks and `gnuplot::chart.gp[]` files with `--gnuplot PATH`. Choose PNG, SVG, GIF, or a literal text plot. Set `width` and `height` together to select a terminal size.

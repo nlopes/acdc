@@ -679,3 +679,23 @@ pub const UMLET: Renderer = Renderer {
     attributes: &[],
     generate: umlet,
 };
+
+fn bpmn(job: &Job<'_>) -> io::Result<()> {
+    let path = job.source_file("bpmn")?;
+    let mut cmd = Command::new(job.tool);
+    cmd.arg(path)
+        .arg("-o")
+        .arg(job.output)
+        .args(["-t", job.format.extension()]);
+    job.flags(&mut cmd, &[("width", "--width"), ("height", "--height")]);
+    job.run(&mut cmd)
+}
+
+/// Render `bpmn` diagrams using `bpmn-js`.
+pub const BPMN: Renderer = Renderer {
+    name: "bpmn",
+    tool: "bpmn-js",
+    formats: &[Format::Png, Format::Svg, Format::Pdf, Format::Jpeg],
+    attributes: &["width", "height"],
+    generate: bpmn,
+};

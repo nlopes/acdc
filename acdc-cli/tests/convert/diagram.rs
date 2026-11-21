@@ -403,6 +403,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn bpmn_block_and_file() -> TestResult {
+        tool_sample(
+            "bpmn",
+            "--bpmn-js",
+            "<definitions/>",
+            "svg",
+            r#"test "$2:$4:$5" = "-o:-t:svg"
+test "$(cat "$1")" = "$(cat chart.source)"
+printf '%s' '<!-- modeler --><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$3""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,
