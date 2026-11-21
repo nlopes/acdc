@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[svgbob]` blocks and `svgbob::chart.bob[]` files with `--svgbob PATH`. Choose SVG or literal text. The SVG renderer accepts `font-family`, `font-size`, `stroke-width`, and `scale`.
+
 - Render `[a2s]` blocks and `a2s::chart.txt[]` files with `--a2s PATH`. SVG is the default. Use `format=txt` for the original text, `scalex` and `scaley` for dimensions, or `noblur=true` for crisp edges.
 
 - Render `[pintora]` blocks and `pintora::chart.pintora[]` files with `--pintora PATH`. Choose PNG (default) or SVG. Set `theme`, `width`, `background-color`, or `pixel-ratio` to customize the result.

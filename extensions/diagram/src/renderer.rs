@@ -442,3 +442,30 @@ pub const A2S: Renderer = Renderer {
     attributes: &["scalex", "scaley", "scale", "noblur", "fontfamily"],
     generate: a2s,
 };
+
+fn svgbob(job: &Job<'_>) -> io::Result<()> {
+    if job.format == Format::Txt {
+        return std::fs::write(job.output, job.source);
+    }
+    let mut cmd = Command::new(job.tool);
+    cmd.arg("-o").arg(job.output);
+    job.flags(
+        &mut cmd,
+        &[
+            ("font-family", "--font-family"),
+            ("font-size", "--font-size"),
+            ("stroke-width", "--stroke-width"),
+            ("scale", "--scale"),
+        ],
+    );
+    job.stdin(&mut cmd, None)
+}
+
+/// Render `svgbob` diagrams using `svgbob`.
+pub const SVGBOB: Renderer = Renderer {
+    name: "svgbob",
+    tool: "svgbob",
+    formats: &[Format::Svg, Format::Txt],
+    attributes: &["font-family", "font-size", "stroke-width", "scale"],
+    generate: svgbob,
+};
