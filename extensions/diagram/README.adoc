@@ -137,6 +137,10 @@ Render `[seqdiag]` blocks and `seqdiag::chart.diag[]` files with `--seqdiag PATH
 
 Render `[actdiag]` blocks and `actdiag::chart.diag[]` files with `--actdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
 
+== nwdiag
+
+Render `[nwdiag]` blocks and `nwdiag::chart.diag[]` files with `--nwdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[nwdiag]` blocks and `nwdiag::chart.diag[]` files with `--nwdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
+
 - Render `[actdiag]` blocks and `actdiag::chart.diag[]` files with `--actdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
 
 - Render `[seqdiag]` blocks and `seqdiag::chart.diag[]` files with `--seqdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.

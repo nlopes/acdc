@@ -174,3 +174,12 @@ pub const ACTDIAG: Renderer = Renderer {
     attributes: &["fontpath"],
     generate: blockdiag_family,
 };
+
+/// Render `nwdiag` diagrams using `nwdiag`.
+pub const NWDIAG: Renderer = Renderer {
+    name: "nwdiag",
+    tool: "nwdiag",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &["fontpath"],
+    generate: blockdiag_family,
+};

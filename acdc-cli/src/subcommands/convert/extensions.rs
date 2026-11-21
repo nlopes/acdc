@@ -78,6 +78,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted actdiag renderer
     #[arg(long, value_name = "PATH")]
     actdiag: Option<std::path::PathBuf>,
+    /// Path to the trusted nwdiag renderer
+    #[arg(long, value_name = "PATH")]
+    nwdiag: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -113,6 +116,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::NWDIAG, self.nwdiag.as_deref()),
             (acdc_diagram::renderer::ACTDIAG, self.actdiag.as_deref()),
             (acdc_diagram::renderer::SEQDIAG, self.seqdiag.as_deref()),
             (acdc_diagram::renderer::BLOCKDIAG, self.blockdiag.as_deref()),

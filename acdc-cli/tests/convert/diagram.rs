@@ -147,6 +147,22 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn nwdiag_block_and_file() -> TestResult {
+        tool_sample(
+            "nwdiag",
+            "--nwdiag",
+            "nwdiag { network lan { API; DB; } }",
+            "svg",
+            r#"test "$1" = -a
+test "$2" = -o
+test "$4" = -Tsvg
+test "$5" = -
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$3""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,
