@@ -1,0 +1,40 @@
+= Timing diagrams
+:imagesdir: public
+
+See <<clock>>.
+
+****
+* Measure the clock
++
+[#clock.timing]
+.Clock trace
+[wavedrom,clock,svg]
+----
+{signal: [{name: 'clock', wave: 'p...'}]}
+----
+****
+
+[cols="a,a"]
+|===
+|Reset trace.
+
+:imagesoutdir: staging
+
+[wavedrom,reset,svg]
+....
+{signal: [{name: 'reset', wave: '01..'}]}
+....
+
+|Enable trace.
+
+[wavedrom,enable,svg]
+....
+{signal: [{name: 'enable', wave: '0.1.'}]}
+....
+|===
+
+.Output trace
+[wavedrom,after,svg]
+....
+{signal: [{name: 'after', wave: '01..'}]}
+....

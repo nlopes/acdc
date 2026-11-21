@@ -103,6 +103,60 @@ mod active {
     }
 
     #[test]
+    fn nested_diagrams_preserve_references_captions_and_cell_local_output() -> TestResult {
+        let source = include_str!("fixtures/nested-diagrams.adoc");
+        for mode in ["asciidoctor", "draft"] {
+            let dir = tempfile::tempdir()?;
+            setup(dir.path())?;
+            let output = convert(
+                dir.path(),
+                &["--stdin", "--embedded", "--compatibility-mode", mode],
+                Some(source),
+            )?;
+            assert!(
+                output.status.success(),
+                "{mode}: {}",
+                output_text(&output.stderr)
+            );
+
+            let html = output_text(&output.stdout);
+            let mut remaining = html.as_str();
+            for fragment in [
+                r##"href="#clock">Clock trace</a>"##,
+                r#"class="sidebarblock""#,
+                "<li>",
+                r#"id="clock" class="imageblock timing""#,
+                r#"src="public/clock.svg""#,
+                "Figure 1. Clock trace",
+                "</li>",
+                "<table ",
+                "<td ",
+                r#"src="public/reset.svg""#,
+                "</td>",
+                "<td ",
+                r#"src="public/enable.svg""#,
+                "</table>",
+                r#"src="public/after.svg""#,
+                "Figure 2. Output trace",
+            ] {
+                (_, remaining) = remaining
+                    .split_once(fragment)
+                    .ok_or_else(|| format!("{mode}: missing or misplaced {fragment}"))?;
+            }
+            for asset in [
+                "public/clock.svg",
+                "staging/reset.svg",
+                "public/enable.svg",
+                "public/after.svg",
+            ] {
+                assert!(dir.path().join(asset).is_file(), "{mode}: missing {asset}");
+            }
+            assert!(!dir.path().join("public/reset.svg").exists());
+        }
+        Ok(())
+    }
+
+    #[test]
     fn failed_diagram_in_an_include_keeps_source_and_reports_a_warning() -> TestResult {
         let dir = tempfile::tempdir()?;
         let root = dir.path();
