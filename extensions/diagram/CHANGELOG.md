@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[oxdraw]` blocks and `oxdraw::chart.mmd[]` files with `--oxdraw PATH`. SVG is the default. Use `background` and `scale` to change the output.
+
 - Render `[mermaid]` blocks and `mermaid::chart.mmd[]` files with `--mmdc PATH`. Choose PNG or SVG and set `theme`, `scale`, or a local `config` file. For SVGs with a nonzero viewBox origin, acdc uses the declared width and height. Asciidoctor Diagram 3.2.1 subtracts the origin from those dimensions.
 
 - Render `[bpmn]` blocks and `bpmn::chart.bpmn[]` files with `--bpmn-js PATH`. Choose PNG (default), SVG, PDF, or JPEG. Set `width` and `height` to select the canvas size.

@@ -429,6 +429,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn oxdraw_block_and_file() -> TestResult {
+        tool_sample(
+            "oxdraw",
+            "--oxdraw",
+            "graph TD\n  A --> B",
+            "svg",
+            r#"test "$1:$2:$3:$5:$6:$7" = "--input:-:--output:--output-format:svg:--quiet"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$4""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

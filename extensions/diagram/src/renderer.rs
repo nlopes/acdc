@@ -724,3 +724,14 @@ pub const MERMAID: Renderer = Renderer {
     ],
     generate: mermaid::render,
 };
+
+mod oxdraw;
+
+/// Render `oxdraw` diagrams using `oxdraw`.
+pub const OXDRAW: Renderer = Renderer {
+    name: "oxdraw",
+    tool: "oxdraw",
+    formats: &[Format::Svg, Format::Png],
+    attributes: &["background", "scale"],
+    generate: oxdraw::render,
+};
