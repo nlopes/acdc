@@ -41,6 +41,19 @@ fn tikz_rejects_document_tool_selection_and_requires_unsafe_mode() -> TestResult
         (":pdf2svg: untrusted\n\n[tikz]", "registering"),
         ("[tikz,,svg]", "configured pdf2svg"),
         ("[tikz,,png]", "unsupported TikZ format"),
+        (":diagram-format:\n\n[tikz]", "unsupported TikZ format ''"),
+        (
+            ":diagram-format: pdf\n:tikz-format:\n\n[tikz]",
+            "unsupported TikZ format ''",
+        ),
+        (
+            ":diagram-format: png\n\n[tikz]",
+            "unsupported TikZ format 'png'",
+        ),
+        (
+            ":diagram-format: png\n:tikz-format: svg\n\n[tikz]",
+            "configured pdf2svg",
+        ),
     ] {
         let result = registry.parse(&format!("{prefix}\n....\nbody\n...."), &unsafe_opts);
         assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains(message)));

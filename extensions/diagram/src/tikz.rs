@@ -7,7 +7,7 @@ use acdc_parser::{DocumentAttributeValue, extensions::BlockStyle};
 use super::{
     OutputDirectories,
     asset::{self, Format},
-    diagram_source, executable, image, style,
+    diagram_source, executable, image, requested_format, style,
 };
 
 /// Register the `tikz` style for listing and literal blocks in trusted documents.
@@ -51,12 +51,7 @@ pub fn tikz<'a>(
                 return Err("TikZ supports only command=lualatex".into());
             }
         }
-        let requested = args.get_string("format");
-        let format = match requested.as_deref().or_else(|| {
-            attrs
-                .get("tikz-format")
-                .and_then(DocumentAttributeValue::text)
-        }) {
+        let format = match requested_format(input, "tikz-format").as_deref() {
             Some("svg") => Format::Svg,
             Some("pdf") => Format::Pdf,
             Some(other) => {

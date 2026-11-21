@@ -38,7 +38,10 @@ An empty target uses a SHA-256 digest of the source sent to the renderer. Named 
 The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
 Use local relative image directories without URI escapes, query strings, or fragments. Symlinks in the directory path, parent traversal, and `imagesoutdir` overrides are rejected.
 Use `[wavedrom,clock,png]` to generate `clock.png`. SVG is the default.
-The block’s format takes precedence over the `wavedrom-format` document attribute in effect at the block.
+Set `:diagram-format: svg` to select a common format for WaveDrom and TikZ.
+A block's positional or named format overrides `wavedrom-format` or `tikz-format`, which in turn override `diagram-format`.
+Each block uses the document attributes in effect at its location. Unsetting a renderer-specific format restores the shared default.
+An empty format reports an unsupported format. Use `:diagram-format!:` to restore automatic selection.
 If WaveDrom or TikZ fails to generate an image, the default `diagram-on-error=log` reports a warning at the block and continues conversion.
 The output contains a listing with the error and the diagram source, including any requested attribute expansion. A previous image file is preserved.
 Set `:diagram-on-error: abort` to stop at the first failure. The block's `on-error` attribute overrides `wavedrom-on-error` or `tikz-on-error`, which override `diagram-on-error` in effect at the block.

@@ -318,6 +318,9 @@ cp "$(dirname "$0")/result.png" "$4"
     let result = dir.path().join("result.png");
     fs::write(&result, &png)?;
     for header in [
+        ":diagram-format: png\n\n[wavedrom,register]",
+        ":diagram-format: svg\n:wavedrom-format: png\n\n[wavedrom,register]",
+        ":diagram-format: png\n:wavedrom-format: svg\n\n:wavedrom-format!:\n\n[wavedrom,register]",
         ":wavedrom-format: png\n\n[wavedrom,register]",
         ":wavedrom-format: svg\n\n[wavedrom,register,png]",
         "[wavedrom,register,svg,format=png]",

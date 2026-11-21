@@ -167,6 +167,19 @@ fn diagram_source<'a>(input: &RawBlockInput<'a>) -> Cow<'a, str> {
     }
 }
 
+fn requested_format<'a>(
+    input: &RawBlockInput<'a>,
+    adapter_attribute: &str,
+) -> Option<Cow<'a, str>> {
+    let attrs = input.document_attributes;
+    input.metadata.attributes.get_string("format").or_else(|| {
+        attrs
+            .get(adapter_attribute)
+            .or_else(|| attrs.get("diagram-format"))
+            .map(|value| Cow::Borrowed(value.text().unwrap_or_default()))
+    })
+}
+
 fn render(
     tool: &Path,
     root: OutputDirectories<'_>,
@@ -177,12 +190,7 @@ fn render(
     if args.get("wavedrom").is_some() || attrs.get("wavedrom").is_some() {
         return Err("set the WaveDrom executable when registering the style".into());
     }
-    let requested = args.get_string("format");
-    let format = match requested.as_deref().or_else(|| {
-        attrs
-            .get("wavedrom-format")
-            .and_then(DocumentAttributeValue::text)
-    }) {
+    let format = match requested_format(input, "wavedrom-format").as_deref() {
         Some("png") => Format::Png,
         None | Some("svg") => Format::Svg,
         Some(other) => {
