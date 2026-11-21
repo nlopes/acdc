@@ -50,13 +50,22 @@ impl BlockCursor {
         );
         input.push_boundary(params.open_delim);
         let mut body = Vec::new();
+        let callbacks = accepted.block_callbacks();
         let result = child.collect(input, state, &mut body, accepted);
         input.pop_boundary();
         state.block_context = previous_context;
         state.source_scope_offset = previous_scope;
-        let mut end = match result? {
-            Ok(end) => end,
-            Err(error) => return Ok(Err(error)),
+        let mut end = match result {
+            Ok(Ok(end)) => end,
+            Ok(Err(error)) => return Ok(Err(error)),
+            // Compound children cannot stop at a section heading, so no known
+            // input reaches this. Still report executed processors first.
+            Err(error) => {
+                return match accepted.discarded_callback(callbacks, "Compound block content") {
+                    Some(error) => Ok(Err(error)),
+                    None => Err(error),
+                };
+            }
         };
         while let Some(line) =
             source_tail(state, end).and_then(|tail| tail.split_inclusive('\n').next())

@@ -1,7 +1,7 @@
 //! Ordered construction at accepted block boundaries.
 
 use crate::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttributes, Error,
+    Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttributes, Error, SourceLocation,
     extensions::{Invocation, MAX_STYLE_NESTING},
     grammar::{ParserState, helpers::PositionWithOffset},
     model::{SectionKind, SectionLevel},
@@ -29,7 +29,8 @@ use super::{
 pub(super) struct Execution<'handler, F> {
     callback: &'handler mut F,
     failed: bool,
-    block_callbacks: usize,
+    /// Invocation locations of executed block processors, in execution order.
+    block_callbacks: Vec<SourceLocation>,
     style_depth: usize,
 }
 
@@ -38,7 +39,7 @@ impl<'handler, F> Execution<'handler, F> {
         Self {
             callback,
             failed: false,
-            block_callbacks: 0,
+            block_callbacks: Vec::new(),
             style_depth: 0,
         }
     }
@@ -52,14 +53,30 @@ impl<'handler, F> Execution<'handler, F> {
     where
         F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
     {
-        self.block_callbacks += usize::from(matches!(block, Block::Extension(_)));
+        if let Block::Extension(extension) = block {
+            self.block_callbacks
+                .push(extension.invocation.location().clone());
+        }
         let result = (self.callback)(block, state, output);
         self.failed |= result.is_err();
         result
     }
 
     pub(super) const fn block_callbacks(&self) -> usize {
-        self.block_callbacks
+        self.block_callbacks.len()
+    }
+
+    /// Native recovery may discard content only when no block processor ran
+    /// in it. Otherwise their effects would outlive the discarded blocks, so
+    /// return a fatal error at the first such invocation. `before` is the
+    /// [`Self::block_callbacks`] count taken when the content started.
+    pub(super) fn discarded_callback(&mut self, before: usize, context: &str) -> Option<Error> {
+        let location = self.block_callbacks.get(before)?.clone();
+        self.failed = true;
+        Some(Error::Extension(
+            Box::new(location),
+            format!("{context}: recovery would discard content after its block processor executed"),
+        ))
     }
 
     pub(super) fn failed(&self) -> bool {
@@ -474,6 +491,7 @@ where
         };
         let mut blocks = Vec::new();
         let toc_start = state.toc_entries.len();
+        let callbacks = self.accepted.block_callbacks();
         let result = cursor
             .collect(
                 &mut TextInput(request.source),
@@ -491,6 +509,12 @@ where
         match result {
             Ok(result) => result,
             Err(error) => {
+                if let Some(error) = self
+                    .accepted
+                    .discarded_callback(callbacks, request.error_context)
+                {
+                    return Err(error);
+                }
                 // Recovery discards this child tree. Retain no provisional TOC
                 // entries for headings that cannot survive in the document.
                 state.toc_entries.truncate(toc_start);
