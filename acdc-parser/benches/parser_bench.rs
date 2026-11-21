@@ -1,6 +1,10 @@
-use std::{fs, hint::black_box, time::Duration};
+use std::{fmt::Write as _, fs, hint::black_box, time::Duration};
 
-use acdc_parser::{Options, Parser, parse, parse_file};
+use acdc_parser::{
+    Options, Parser,
+    extensions::{BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroInvocation, Registry},
+    parse, parse_file,
+};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 #[allow(clippy::expect_used)]
@@ -201,11 +205,89 @@ fn diagnostic_collection_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
+struct CheapMacro;
+
+impl BlockMacroProcessor for CheapMacro {
+    fn process(
+        &mut self,
+        invocation: &MacroInvocation<'_>,
+        _: &mut acdc_parser::extensions::MacroExecutionContext,
+    ) -> Result<BlockMacroOutput, String> {
+        black_box(invocation);
+        Ok(BlockMacroOutput::None)
+    }
+}
+
+#[allow(clippy::expect_used)]
+fn extension_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("extensions");
+    let options = Options::default();
+    let ordinary = include_str!("../fixtures/tests/basic_header.adoc");
+    let empty = Registry::default();
+    let mut builder = Registry::builder();
+    for index in 0..100 {
+        builder
+            .register(BlockMacro::new(format!("cheap{index}"), || CheapMacro))
+            .expect("valid benchmark registration");
+    }
+    let registered = builder.build();
+    group.bench_function("empty_registry", |b| {
+        b.iter(|| black_box(empty.parse(black_box(ordinary), &options)));
+    });
+    group.bench_function("unused_registrations_100", |b| {
+        b.iter(|| black_box(registered.parse(black_box(ordinary), &options)));
+    });
+    let macros = "cheap0::target[]\n\n".repeat(1000);
+    assert!(registered.parse(&macros, &options).is_ok());
+    group.bench_function("cheap_callbacks_1000", |b| {
+        b.iter(|| black_box(registered.parse(black_box(&macros), &options)));
+    });
+    let mut nested = String::new();
+    for section in 0..1000 {
+        writeln!(
+            nested,
+            "== Section {section}\n\n====\n****\n* Parent\n** Child\n****\n====\n"
+        )
+        .expect("write benchmark input");
+    }
+    assert!(parse(&nested, &options).is_ok());
+    group.bench_function("large_nested", |b| {
+        b.iter(|| black_box(parse(black_box(&nested), &options)));
+    });
+    group.finish();
+}
+
+// This only uses the standard library. It controls for machine drift and
+// binary layout without exercising the parser's changed coordinate adapters.
+#[inline(never)]
+fn source_line_lengths(input: &str) -> usize {
+    input.lines().map(str::len).sum()
+}
+
+#[inline(never)]
+fn source_checksum(input: &str) -> u64 {
+    input.bytes().fold(0_u64, |checksum, byte| {
+        checksum.wrapping_mul(31).wrapping_add(u64::from(byte))
+    })
+}
+
+fn unchanged_control_benchmark(c: &mut Criterion) {
+    let input = include_str!("../../ARCHITECTURE.adoc");
+    c.bench_function("unchanged/source_line_lengths", |b| {
+        b.iter(|| black_box(source_line_lengths(black_box(input))));
+    });
+    c.bench_function("unchanged/source_checksum", |b| {
+        b.iter(|| black_box(source_checksum(black_box(input))));
+    });
+}
+
 criterion_group!(
     benches,
     parse_benchmark,
     inline_scanning_benchmark,
     attribute_declaration_benchmark,
-    diagnostic_collection_benchmark
+    diagnostic_collection_benchmark,
+    extension_benchmark,
+    unchanged_control_benchmark
 );
 criterion_main!(benches);

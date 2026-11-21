@@ -787,3 +787,37 @@ fn provider_survives_options_round_trip_with_locked_attributes() -> TestResult {
     assert_eq!(provider.requests(), [file_target(target)]);
     Ok(())
 }
+
+#[test]
+fn tag_selection_is_independent_of_decoder_chunk_boundaries() -> TestResult {
+    struct Fragmented<'a>(&'a [u8], usize);
+    impl std::io::Read for Fragmented<'_> {
+        fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+            let limit = buf.len().min(self.1);
+            self.0.read(buf.split_at_mut(limit).0)
+        }
+    }
+    let content =
+        "πtag::one[]\r\n// end::absent[] tag::one[]\r\nSelected.\r\n// end::one[]\r\nDropped.";
+    for width in [1, 2, 5, 8192] {
+        let options = Options::builder()
+            .with_safe_mode(SafeMode::Safe)
+            .with_include_loader(IncludeLoader::custom(move |_: &IncludeSourceTarget| {
+                Ok(IncludeSource::from_reader(Fragmented(
+                    content.as_bytes(),
+                    width,
+                )))
+            }))
+            .build()?;
+        let parsed = parse("include::part.adoc[tag=one]", &options)?;
+        assert_eq!(parsed.preprocessed_source(), "Selected.");
+        assert_eq!(parsed.warnings(), []);
+        let block = parsed
+            .document()
+            .blocks()
+            .next()
+            .ok_or("missing selected line")?;
+        assert_eq!(block.location().start().line(), 3);
+    }
+    Ok(())
+}

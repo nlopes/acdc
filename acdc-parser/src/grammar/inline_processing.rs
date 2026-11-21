@@ -5,7 +5,7 @@ use crate::{
     SourceLocation,
     grammar::{
         inline_preprocessor::{ProcessedKind, SourceMap},
-        utf8_utils,
+        utf8_utils::RoundDirection,
     },
     inline_preprocessing,
     model::{BibliographyLabel, SourceRange, Substitution, substitution::SubstitutionPlan},
@@ -30,10 +30,7 @@ pub(super) fn process_attribute_inlines<'a>(
     state: &mut ParserState<'a>,
     source: &ResolvedContentAttribute<'a>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let mut substitutions = SubstitutionPlan::default();
-    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
-        substitutions = substitutions.without(&Substitution::Attributes);
-    }
+    let substitutions = SubstitutionPlan::for_attribute(state.options.compatibility_mode);
     process_attribute_inlines_with_substitutions(
         state,
         source,
@@ -172,20 +169,16 @@ fn adjust_peg_error_position(
     // Resolve file and line from source ranges (for included content)
     let (file, position) =
         if let Some(range) = SourceRange::find_containing(&state.source_ranges, absolute_offset) {
-            let doc_position = state
-                .line_map
-                .offset_to_position(absolute_offset, state.input);
+            let doc_position = state.source_position(absolute_offset);
             (
                 range.file.clone(),
                 Position::new(
-                    state.line_map.source_line(range, absolute_offset),
+                    state.source_line(range, absolute_offset),
                     doc_position.column,
                 ),
             )
         } else {
-            let doc_position = state
-                .line_map
-                .offset_to_position(absolute_offset, state.input);
+            let doc_position = state.source_position(absolute_offset);
             (state.current_file.as_deref().cloned(), doc_position)
         };
 
@@ -233,19 +226,13 @@ fn preprocess_inline_content<'a>(
     substitutions: SubstitutionPlan,
 ) -> Result<(Location, ProcessedContent<'a>), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
-    let mut adjusted_end = end + offset;
-    if adjusted_end > 0 && adjusted_end <= state.input.len() {
-        // If not on a boundary, round forward to the next valid boundary
-        while adjusted_end < state.input.len() && !state.input.is_char_boundary(adjusted_end) {
-            adjusted_end += 1;
-        }
-    }
+    let adjusted_end = state.source_snap(end + offset, RoundDirection::Forward);
 
     // We adjust the start and end positions to account for the content start offset
     let content_end_offset = if adjusted_end == 0 {
         0
     } else {
-        utf8_utils::safe_decrement_offset(state.input, adjusted_end)
+        state.source_step(adjusted_end, RoundDirection::Backward)
     };
     let location = state.create_location(content_start + offset, content_end_offset);
 
@@ -272,8 +259,7 @@ fn preprocess_inline_content<'a>(
 
     let mut inline_state = InlinePreprocessorParserState::new(
         content,
-        state.line_map.clone(),
-        state.input,
+        state.source_view(),
         state.arena,
         substitutions.enabled(&Substitution::Macros),
         substitutions.enabled(&Substitution::Attributes),
@@ -462,7 +448,7 @@ fn parse_inline_syntax<'a>(
         if text.contains("[[") || text.contains("anchor:") {
             inline_peg_state.reference_text_context =
                 Some(Rc::new(super::reference_text::ReferenceTextContext {
-                    input: state.input,
+                    source: state.source_view(),
                     passthroughs: processed.passthroughs.clone().into(),
                 }));
         }
@@ -579,11 +565,11 @@ fn late_attribute_sources<'a>(
                 && pass.location.absolute_start == replacement.absolute_start
                 && pass.location.absolute_end == replacement.absolute_end
         });
-        if replacement.kind.is_attribute() || attribute_passthrough {
-            sources.push((
-                expanded..expanded + replacement.byte_len,
-                &state.input[replacement.absolute_start..replacement.absolute_end],
-            ));
+        if (replacement.kind.is_attribute() || attribute_passthrough)
+            && let Some(source) =
+                state.source_slice(replacement.absolute_start..replacement.absolute_end)
+        {
+            sources.push((expanded..expanded + replacement.byte_len, source));
         }
         expanded += replacement.byte_len;
         original = replacement.absolute_end;
@@ -620,7 +606,7 @@ fn parse_bibliography_label<'a>(
     let Some(start) = location.absolute_start.checked_sub(1) else {
         return Ok(None);
     };
-    let Some(anchor) = state.input.get(start..location.absolute_end + 2) else {
+    let Some(anchor) = state.source_slice(start..location.absolute_end + 2) else {
         return Ok(None);
     };
     let Some(body) = anchor

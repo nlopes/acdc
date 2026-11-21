@@ -1,0 +1,124 @@
+= Native lists extension for acdc
+
+`acdc-extensions-lists` implements `list-of::<element>[]` through the native
+extension API. Register `acdc_extensions_lists::registry()?` with the parser or
+as `lists` in converter core's `ExtensionCatalog`, then attach the selected
+extensions to a configured `Pipeline`. Each parse gets its own processor state.
+The CLI exposes the same registrations through its optional `lists` build feature
+and explicit `--extension lists` selection.
+
+[source,asciidoc]
+----
+list-of::image[]
+
+.A diagram
+[#diagram]
+image::diagram.svg[]
+----
+
+The generated paragraph contains one linked line per titled or captioned target,
+with explicit hard breaks. Captioned entries link their caption and put the title
+after it. Other entries link their title. All backends render ordinary nodes.
+
+Supported element names are `image`, `table`, `listing`, `literal`, `example`,
+`quote`, `verse`, `sidebar`, `open`, `pass`, `stem`, `audio`, `video`, `admonition`,
+`paragraph`, `section`, `olist`, `ulist`, `dlist`, and `colist`. Selection includes
+nested containers and AsciiDoc table cells, and follows semantic block styles.
+Requests may precede their targets. Untitled, uncaptioned targets are omitted.
+
+Requests run in source order and capture their own membership and title context.
+Later processors do not refresh those snapshots. The host preserves authored IDs,
+assigns collision-safe deterministic IDs, reuses them for repeated requests, and
+follows surviving targets if their IDs change. Final caption numbers come from
+the host. Empty lists keep their containing section by default.
+Unknown names return a located warning and retain the accepted `list-of` call
+as literal text, including its arguments, quotes, and unexpanded target.
+
+== CLI activation
+
+[source,console]
+----
+cargo build -p acdc-cli --features lists
+acdc convert --extension lists document.adoc
+acdc convert --extension lists --backend terminal --no-pager document.adoc
+acdc convert --extension lists --stdin -o - < document.adoc
+----
+
+Select the relevant backend at build time too; for example,
+`--features lists,terminal` or `--features lists,pdf`. Files, stdin, and batches
+use the shared pipeline. Repeating `--extension lists` activates it once.
+The feature is off by default. A compiled but unselected extension keeps ordinary
+parsing behavior, and selecting an unavailable name fails before reading input.
+The library's optional `network` feature enables parser remote includes; caller
+permission and safe mode still apply. The CLI's `network` feature forwards it
+without enabling another backend.
+
+== Empty-section behavior
+
+Use `list-of::image[hide_empty_section=true]` or `list-of::image[true]` to remove
+the nearest containing section when there are no matching blocks. Matching
+untitled blocks keep the section even though they produce no list entries.
+Removing a section cancels pending calls in its subtree. Later calls observe the
+surviving document; earlier list captures remain snapshots.
+
+The first positional slot maps to `hide_empty_section`, following the pinned
+reference. Named arguments take precedence. Strings follow Ruby truthiness:
+`false`, `0`, `nil`, and an explicitly empty quoted string all enable hiding.
+Omit the argument to keep the section. Library-supplied boolean `false` and nil
+attribute defaults disable hiding. Additional nonempty positional slots are
+rejected; an empty slot does not shift a later argument into the first slot.
+
+Calls in nested containers remove the nearest containing section. A call outside
+a section removes only its empty output. AsciiDoc table cells have their own
+section scope and never remove an outer document section. The host repairs the
+TOC, reference catalog, and footnotes; surviving section and caption ordinals are
+preserved.
+
+== Reference and deliberate differences
+
+The reference is
+https://github.com/Alwinator/asciidoctor-lists/blob/cd926c536bb0fd36985e1f7bff125e9b59fdbdb0/lib/asciidoctor-lists/extensions.rb[asciidoctor-lists at cd926c5],
+characterized with Asciidoctor 2.0.26. The native extension uses deterministic IDs
+instead of UUIDs. Titles retain ordinary parsed formatting and their original
+attribute context. The Ruby default copies rendered title strings into newly
+parsed AsciiDoc, which can expose escaped HTML tags. The native extension renders
+the title once. A title with an explicitly empty caption appears once as a link;
+the reference can duplicate it. Generated paragraphs retain authored block
+metadata such as titles, IDs, and roles; the reference drops that metadata.
+
+The native extension hides the nearest section for nested calls. The reference
+can remove an immediate container instead, and a root-level hiding call can
+fail. Native root-level calls keep the surrounding document. `list-of::section[]`
+selects actual sections; it excludes the document header, which the reference
+can include with a link to a destination absent from embedded HTML. Unlike the
+reference, additional nonempty positional arguments are rejected.
+
+Title formatting is always preserved in acdc. The Ruby `enhanced_rendering`
+compatibility toggle is intentionally unsupported: remove that named argument
+when migrating a call. Supplying it produces an error explaining that formatting
+is automatic. There is no mode that reparses rendered backend markup as title
+source.
+
+Custom captions containing `{counter:...}` currently retain that literal text,
+as they do in ordinary acdc parsing. The pinned enhanced-rendering sample relies
+on those counters; native formatted titles and bibliography links work after
+removing the unsupported toggle, while counter expansion remains a parser and
+conversion-session limitation.
+
+The link:./examples/render.rs[library example] renders a source file through the
+shared HTML pipeline:
+
+[source,console]
+----
+cargo run -p acdc-extensions-lists --example render -- document.adoc
+----
+
+New HTML expectations for this crate can be generated by exact source stem:
+
+[source,console]
+----
+cargo run -p acdc-extensions-lists --example generate_fixtures --all-features -- empty_sections
+----
+
+Review every generated file. Existing expectations require approval before
+regeneration, as elsewhere in the repository.

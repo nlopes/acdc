@@ -180,7 +180,8 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         // This converter borrows from `doc`; its lifetime is independent of `self`.
-        let document = doc;
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
         let converter = Converter {
             parser_options: ParserOptions::default()
                 .with_document_attributes(document.attributes().into()),
@@ -359,22 +360,14 @@ pub fn render_document_to_ansi(
 /// Returns an error if syntax highlighting or writing fails.
 #[cfg(feature = "emulator")]
 pub fn render_listing_to_ansi(
-    options: Options,
-    document_attributes: DocumentAttributes<'_>,
+    _options: Options,
+    _document_attributes: DocumentAttributes<'_>,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    width: usize,
+    _width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
-    render_listing_ansi(
-        options,
-        document_attributes,
-        content,
-        attributes,
-        width,
-        dark_mode,
-        None,
-    )
+    render_listing_content_to_ansi(content, attributes, dark_mode, None)
 }
 
 /// Render a listing/source block to ANSI bytes and collect fallback warnings.
@@ -384,48 +377,37 @@ pub fn render_listing_to_ansi(
 /// Returns an error if syntax highlighting or writing fails.
 #[cfg(feature = "emulator")]
 pub fn render_listing_to_ansi_with_diagnostics(
-    options: Options,
-    document_attributes: DocumentAttributes<'_>,
+    _options: Options,
+    _document_attributes: DocumentAttributes<'_>,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    width: usize,
+    _width: usize,
     dark_mode: bool,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<u8>, Error> {
-    render_listing_ansi(
-        options,
-        document_attributes,
-        content,
-        attributes,
-        width,
-        dark_mode,
-        Some(diagnostics),
-    )
+    render_listing_content_to_ansi(content, attributes, dark_mode, Some(diagnostics))
 }
 
+/// Render listing content with an explicit background theme. The emulator
+/// applies the viewport dimensions when it captures the resulting bytes.
+///
+/// # Errors
+/// Returns an error if syntax highlighting or writing fails.
 #[cfg(feature = "emulator")]
-fn render_listing_ansi(
-    options: Options,
-    document_attributes: DocumentAttributes<'_>,
+pub fn render_listing_content_to_ansi(
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    width: usize,
     dark_mode: bool,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<Vec<u8>, Error> {
-    let mut converter = Converter::new(options, ParserOptions::builder())?
-        .with_terminal_width(width)
-        .with_dark_mode(dark_mode);
-    converter.parser_options = converter
-        .parser_options
-        .with_document_attributes(document_attributes);
+    let appearance = Appearance::for_dark_mode(dark_mode);
     let color_guard = ColorOutputGuard::force_enabled();
     let language =
         acdc_converters_core::code::source_language(attributes).map(preview_highlight_language);
     let output = crate::delimited::render_preformatted_inlines(
         content.inlines(),
         language,
-        &converter,
+        &appearance,
         |source| acdc_converters_core::code::SourceLineOptions::from_attributes(attributes, source),
         diagnostics,
     )?

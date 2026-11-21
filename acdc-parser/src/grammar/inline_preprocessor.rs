@@ -14,17 +14,13 @@ use std::{
     cell::{Cell, RefCell},
     mem::take,
     ops::Range,
-    rc::Rc,
 };
 
 use crate::{
     DocumentAttributes, Error, Location, Passthrough, PassthroughKind, Position, SourceLocation,
     Substitution, Warning, WarningKind,
     document_attribute::reference_name_len,
-    grammar::{
-        LineMap,
-        utf8_utils::{RoundDirection, step_char},
-    },
+    grammar::{source::SourceView, utf8_utils::RoundDirection},
     model::substitution::parse_passthrough_substitutions,
     warning::WarningCollection,
 };
@@ -43,10 +39,8 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(super) passthroughs: RefCell<Vec<Passthrough<'a>>>,
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
-    /// Pre-computed line map for O(log n) offset→position lookups.
-    pub(crate) line_map: Rc<LineMap>,
-    /// Full document input (for `LineMap` position lookups).
-    full_input: &'a str,
+    /// Stable input and its local or document-wide coordinate context.
+    source: SourceView<'a>,
     /// Arena for interning synthesized passthrough strings produced during
     /// preprocessing (character-replacement expansions, escape-stripped text).
     pub(crate) arena: &'a Bump,
@@ -72,15 +66,13 @@ impl<'a> InlinePreprocessorParserState<'a> {
     ///
     /// # Arguments
     /// * `input` - The substring to parse
-    /// * `line_map` - Pre-computed line map for the full document
-    /// * `full_input` - The full document input (for position lookups)
+    /// * `source` - Stable input and its position context
     /// * `arena` - Arena for interning synthesized strings
     /// * `macros_enabled` - Whether macro substitutions are active
     /// * `attributes_enabled` - Whether attribute substitutions are active
-    pub(crate) fn new(
+    pub(super) fn new(
         input: &'a str,
-        line_map: Rc<LineMap>,
-        full_input: &'a str,
+        source: SourceView<'a>,
         arena: &'a Bump,
         macros_enabled: bool,
         attributes_enabled: bool,
@@ -89,8 +81,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
             current_offset: Cell::new(0),
-            line_map,
-            full_input,
+            source,
             arena,
             source_map: RefCell::new(SourceMap::default()),
             input: RefCell::new(input),
@@ -104,13 +95,8 @@ impl<'a> InlinePreprocessorParserState<'a> {
     }
 
     /// Create a new state with all substitutions enabled (macros + attributes).
-    pub(super) fn new_all_enabled(
-        input: &'a str,
-        line_map: Rc<LineMap>,
-        full_input: &'a str,
-        arena: &'a Bump,
-    ) -> Self {
-        Self::new(input, line_map, full_input, arena, true, true)
+    pub(super) fn new_all_enabled(input: &'a str, source: SourceView<'a>, arena: &'a Bump) -> Self {
+        Self::new(input, source, arena, true, true)
     }
 
     fn recover_stem_substitutions(&self, source: &'a str, start: Position) -> String {
@@ -194,8 +180,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
     /// Get current position using `LineMap` lookup.
     fn get_position(&self) -> Position {
-        self.line_map
-            .offset_to_position(self.current_offset.get(), self.full_input)
+        self.source.position(self.current_offset.get())
     }
 
     /// Get current byte offset.
@@ -221,16 +206,12 @@ impl<'a> InlinePreprocessorParserState<'a> {
     /// Build an inclusive diagnostic span from a half-open source range.
     fn source_location_for(&self, start_offset: usize, end_offset: usize) -> SourceLocation {
         let end_offset = if start_offset < end_offset {
-            step_char(self.full_input, end_offset, RoundDirection::Backward)
+            self.source.step(end_offset, RoundDirection::Backward)
         } else {
             start_offset
         };
-        let start = self
-            .line_map
-            .offset_to_position(start_offset, self.full_input);
-        let end = self
-            .line_map
-            .offset_to_position(end_offset, self.full_input);
+        let start = self.source.position(start_offset);
+        let end = self.source.position(end_offset);
         SourceLocation {
             file: None,
             location: Location {
@@ -334,9 +315,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         while let Some(relative_start) = source[search_from..].find('+') {
             let start = search_from + relative_start;
             let previous = if start == 0 {
-                self.full_input[..source_start.saturating_sub(1)]
-                    .chars()
-                    .next_back()
+                self.source.previous_char(source_start.saturating_sub(1))
             } else {
                 source[..start].chars().next_back()
             };
@@ -514,12 +493,8 @@ impl<'a> InlinePreprocessorParserState<'a> {
         Location {
             absolute_start,
             absolute_end,
-            start: self
-                .line_map
-                .offset_to_position(absolute_start, self.full_input),
-            end: self
-                .line_map
-                .offset_to_position(absolute_end, self.full_input),
+            start: self.source.position(absolute_start),
+            end: self.source.position(absolute_end),
         }
     }
 

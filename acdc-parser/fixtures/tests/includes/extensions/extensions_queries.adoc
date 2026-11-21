@@ -1,0 +1,57 @@
+= Queries
+:label: Early
+:figure-caption: Picture
+
+.Original {label}
+[#authored.assign]
+image::one.svg[]
+
+== Outer
+
+.Source *title*
+[source,rust,role=assign]
+----
+println!("hello");
+----
+
+[example]
+--
+Inside an open example.
+--
+
+[listing]
+====
+Inside an example delimiter.
+====
+
+* Item
++
+.Attached
+[.assign]
+image::attached.svg[]
+
+Term:: Definition
++
+defer::description[]
+
+[cols="a,l"]
+|===
+|.Cell image
+[.assign]
+image::cell.svg[]
+|Literal cell
+
+|== Cell section
+
+defer::cell[]
+|Other literal cell
+|===
+
+:label: Late
+:figure-caption: Later picture
+
+include::extension-query.adoc[]
+
+=== Inner
+
+defer::section[]

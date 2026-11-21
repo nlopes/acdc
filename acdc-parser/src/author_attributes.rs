@@ -58,7 +58,13 @@ pub(crate) fn set_author_attrs<'a>(
 }
 
 pub(crate) fn build_author_full_name(author: &Author) -> String {
-    let mut name = author.first_name.to_string();
+    let mut name = String::with_capacity(
+        author.first_name.len()
+            + author.middle_name.map_or(0, |middle| middle.len() + 1)
+            + author.last_name.len()
+            + 1,
+    );
+    name.push_str(author.first_name);
     if let Some(middle) = &author.middle_name {
         name.push(' ');
         name.push_str(middle);
@@ -89,33 +95,23 @@ fn write_author_attrs<'a>(
         }
     };
     assign("authors".into(), all_names.join(", ").into());
-    for (i, author) in authors.iter().enumerate() {
-        let suffix = if i == 0 {
-            String::new()
-        } else {
-            format!("_{}", i + 1)
+    for (i, (author, full_name)) in authors.iter().zip(all_names).enumerate() {
+        let field = |name: &'static str| -> AttributeName<'a> {
+            if i == 0 {
+                name.into()
+            } else {
+                format!("{name}_{}", i + 1).into()
+            }
         };
-        assign(
-            format!("author{suffix}").into(),
-            build_author_full_name(author).into(),
-        );
-        assign(
-            format!("firstname{suffix}").into(),
-            Cow::Borrowed(author.first_name),
-        );
+        assign(field("author"), full_name.into());
+        assign(field("firstname"), Cow::Borrowed(author.first_name));
         if let Some(middle) = author.middle_name {
-            assign(format!("middlename{suffix}").into(), Cow::Borrowed(middle));
+            assign(field("middlename"), Cow::Borrowed(middle));
         }
-        assign(
-            format!("lastname{suffix}").into(),
-            Cow::Borrowed(author.last_name),
-        );
-        assign(
-            format!("authorinitials{suffix}").into(),
-            Cow::Borrowed(author.initials),
-        );
+        assign(field("lastname"), Cow::Borrowed(author.last_name));
+        assign(field("authorinitials"), Cow::Borrowed(author.initials));
         if let Some(email) = author.email {
-            assign(format!("email{suffix}").into(), Cow::Borrowed(email));
+            assign(field("email"), Cow::Borrowed(email));
         }
     }
 }

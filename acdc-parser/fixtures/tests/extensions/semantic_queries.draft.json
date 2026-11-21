@@ -1,0 +1,642 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Semantic queries",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 18
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 24
+      }
+    ]
+  },
+  "attributes": {
+    "figure-caption": "Picture",
+    "label": "Early"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[{\"caption\":\"Numbered { kind: Figure, label: \\\"Picture\\\", number: Some(1) }\",\"context\":\"Image\",\"id\":\"_acdc_2_2\",\"label\":\"Early\",\"raw_title\":\"[[_acdc_2]]Authored collision {label}\",\"section\":null,\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":7},{\"caption\":null,\"context\":\"Section\",\"id\":\"authored\",\"label\":\"Early\",\"raw_title\":\"Outer {label}\",\"section\":null,\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":11},{\"caption\":\"Numbered { kind: Example, label: \\\"Example\\\", number: Some(1) }\",\"context\":\"Example\",\"id\":\"_acdc_4\",\"label\":\"Early\",\"raw_title\":\"Compound {label}\",\"section\":\"authored\",\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":13},{\"caption\":null,\"context\":\"UnorderedList\",\"id\":\"_acdc_5\",\"label\":null,\"raw_title\":null,\"section\":\"authored\",\"substitutions\":null,\"title_line\":null},{\"caption\":\"Numbered { kind: Figure, label: \\\"Picture\\\", number: Some(2) }\",\"context\":\"Image\",\"id\":\"_acdc_6\",\"label\":\"Early\",\"raw_title\":\"Attached {label}\",\"section\":\"authored\",\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":18},{\"caption\":null,\"context\":\"DiscreteHeading\",\"id\":\"_acdc_7\",\"label\":\"Early\",\"raw_title\":\"Discrete {label}\",\"section\":\"authored\",\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":23},{\"caption\":\"Numbered { kind: Table, label: \\\"Table\\\", number: None }\",\"context\":\"Table\",\"id\":\"_acdc_8\",\"label\":null,\"raw_title\":null,\"section\":\"authored\",\"substitutions\":null,\"title_line\":null},{\"caption\":null,\"context\":\"Section\",\"id\":\"_cell_early\",\"label\":\"Early\",\"raw_title\":\"Cell {label}\",\"section\":null,\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":27},{\"caption\":\"Numbered { kind: Figure, label: \\\"Picture\\\", number: Some(3) }\",\"context\":\"Image\",\"id\":\"_acdc_10\",\"label\":\"Early\",\"raw_title\":\"Cell figure {label}\",\"section\":\"_cell_early\",\"substitutions\":[\"special_chars\",\"attributes\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":29},{\"caption\":null,\"context\":\"DocumentAttribute\",\"id\":null,\"label\":null,\"raw_title\":null,\"section\":\"authored\",\"substitutions\":null,\"title_line\":null},{\"caption\":null,\"context\":\"Paragraph\",\"id\":\"_acdc_12\",\"label\":\"Late\",\"raw_title\":\"{label} attribute\",\"section\":\"authored\",\"substitutions\":[\"special_chars\",\"quotes\",\"replacements\",\"macros\",\"post_replacements\",\"callouts\"],\"title_line\":35}]",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 9
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "id": {
+          "id": "_acdc_2_2",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 18
+            }
+          ]
+        }
+      },
+      "title": [
+        {
+          "name": "anchor",
+          "type": "inline",
+          "id": "_acdc_2",
+          "location": [
+            {
+              "line": 7,
+              "col": 2
+            },
+            {
+              "line": 7,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Authored collision Early",
+          "location": [
+            {
+              "line": 7,
+              "col": 13
+            },
+            {
+              "line": 7,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "first.svg"
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Outer Early",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "authored",
+            "location": [
+              {
+                "line": 10,
+                "col": 1
+              },
+              {
+                "line": 10,
+                "col": 12
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "example",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "--",
+          "metadata": {
+            "style": "example",
+            "id": {
+              "id": "_acdc_4",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 2
+                }
+              ]
+            }
+          },
+          "blocks": [
+            {
+              "name": "list",
+              "type": "block",
+              "variant": "unordered",
+              "marker": "*",
+              "metadata": {
+                "id": {
+                  "id": "_acdc_5",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 1
+                    },
+                    {
+                      "line": 19,
+                      "col": 21
+                    }
+                  ]
+                }
+              },
+              "items": [
+                {
+                  "name": "listItem",
+                  "type": "block",
+                  "marker": "*",
+                  "principal": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Item",
+                      "location": [
+                        {
+                          "line": 16,
+                          "col": 3
+                        },
+                        {
+                          "line": 16,
+                          "col": 6
+                        }
+                      ]
+                    }
+                  ],
+                  "blocks": [
+                    {
+                      "name": "image",
+                      "type": "block",
+                      "form": "macro",
+                      "metadata": {
+                        "id": {
+                          "id": "_acdc_6",
+                          "location": [
+                            {
+                              "line": 18,
+                              "col": 1
+                            },
+                            {
+                              "line": 19,
+                              "col": 21
+                            }
+                          ]
+                        }
+                      },
+                      "title": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Attached Early",
+                          "location": [
+                            {
+                              "line": 18,
+                              "col": 2
+                            },
+                            {
+                              "line": 18,
+                              "col": 17
+                            }
+                          ]
+                        }
+                      ],
+                      "source": {
+                        "type": "path",
+                        "value": "attached.svg"
+                      },
+                      "location": [
+                        {
+                          "line": 18,
+                          "col": 1
+                        },
+                        {
+                          "line": 19,
+                          "col": 21
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 1
+                    },
+                    {
+                      "line": 19,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Compound Early",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 2
+                },
+                {
+                  "line": 13,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 2
+            }
+          ]
+        },
+        {
+          "name": "heading",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Discrete Early",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 5
+                },
+                {
+                  "line": 23,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "level": 2,
+          "metadata": {
+            "style": "discrete",
+            "id": {
+              "id": "_acdc_7",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 20
+                }
+              ]
+            }
+          },
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            },
+            "id": {
+              "id": "_acdc_8",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 4
+                }
+              ]
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "footnote_scope": true,
+                    "content": [
+                      {
+                        "name": "section",
+                        "type": "block",
+                        "title": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell Early",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 5
+                              },
+                              {
+                                "line": 27,
+                                "col": 16
+                              }
+                            ]
+                          }
+                        ],
+                        "level": 1,
+                        "blocks": [
+                          {
+                            "name": "image",
+                            "type": "block",
+                            "form": "macro",
+                            "metadata": {
+                              "id": {
+                                "id": "_acdc_10",
+                                "location": [
+                                  {
+                                    "line": 29,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 30,
+                                    "col": 17
+                                  }
+                                ]
+                              }
+                            },
+                            "title": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Cell figure Early",
+                                "location": [
+                                  {
+                                    "line": 29,
+                                    "col": 2
+                                  },
+                                  {
+                                    "line": 29,
+                                    "col": 20
+                                  }
+                                ]
+                              }
+                            ],
+                            "source": {
+                              "type": "path",
+                              "value": "cell.svg"
+                            },
+                            "location": [
+                              {
+                                "line": 29,
+                                "col": 1
+                              },
+                              {
+                                "line": 30,
+                                "col": 17
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 27,
+                            "col": 2
+                          },
+                          {
+                            "line": 30,
+                            "col": 17
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 26,
+                "col": 1
+              },
+              {
+                "line": 31,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "label",
+          "type": "attribute",
+          "value": "Late",
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 33,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Late attribute",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 9
+                },
+                {
+                  "line": 35,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Paragraph.",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "id": {
+              "id": "_acdc_12",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 10
+                }
+              ]
+            }
+          },
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 10
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 36,
+      "col": 10
+    }
+  ]
+}

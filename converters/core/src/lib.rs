@@ -46,6 +46,7 @@ use acdc_parser::{
 mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
+pub mod display;
 mod doctype;
 mod document_attributes;
 pub mod icon;
@@ -54,6 +55,8 @@ mod inline_text;
 pub mod link;
 pub mod list;
 pub mod media;
+pub mod pipeline;
+pub mod render;
 pub mod section;
 pub mod substitutions;
 pub mod table;
@@ -623,6 +626,23 @@ pub trait Converter<'a>: Sized {
         output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error>;
+
+    /// Write with explicitly selected native rendering extensions.
+    /// Backends without rendering hooks retain their ordinary output.
+    ///
+    /// # Errors
+    /// Returns processor, conversion, or output errors.
+    fn write_to_with_extensions<W: std::io::Write>(
+        &self,
+        doc: DocumentRef<'_>,
+        writer: W,
+        source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        _extensions: &pipeline::Extensions,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Self::Error> {
+        self.write_to(doc, writer, source_file, output_path, diagnostics)
+    }
 
     /// Returns the converter's display name (e.g. `"html"`, `"html5s"`,
     /// `"manpage"`, `"markdown"`, `"terminal"`).

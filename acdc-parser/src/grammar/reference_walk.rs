@@ -175,6 +175,7 @@ pub(crate) fn blocks<'a, V: ReferenceVisitor<'a>>(
             | Block::Video(_)
             | Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
+            | Block::Extension(_)
             | Block::Comment(_) => {}
         }
     }

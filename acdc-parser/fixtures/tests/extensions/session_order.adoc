@@ -1,0 +1,17 @@
+:mode: before
+
+record::{mode}[one,,three,first="",second="quoted, value"]
+
+configure::mode[after]
+
+ifdef::mode[]
+include::../includes/extensions/session_order.adoc[]
+endif::[]
+
+configure::mode[unset=true]
+
+ifndef::mode[]
+record::unset["",,last]
+endif::[]
+
+unknown::ordinary[]

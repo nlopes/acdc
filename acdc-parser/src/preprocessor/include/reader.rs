@@ -271,7 +271,7 @@ impl Candidates {
             origins.push(SourceLineOrigin {
                 line: line.number,
                 offset: line.offset,
-                column_shift: 0,
+                column_shift: Some(0),
             });
         }
         Ok(Selected {
@@ -397,7 +397,11 @@ impl<'a> Selection<'a> {
                 if let Some(line) = self.pending.take() {
                     self.accept(&line)?;
                 }
-                self.line = Some(Line::new(self.requirement(), self.tags.is_some()));
+                self.line = Some(Line::new(
+                    self.requirement(),
+                    self.tags.is_some(),
+                    newline.then_some(fragment),
+                ));
             }
             if let Some(line) = &mut self.line {
                 line.extend(fragment);
@@ -430,7 +434,7 @@ impl<'a> Selection<'a> {
     }
 
     fn accept(&mut self, line: &Line) -> Result<(), Error> {
-        let required = self.requirement();
+        let required = line.required_end;
         self.rebuild |= line.crlf;
         self.number += 1;
         let marker = line.marker(self.name)?;
@@ -545,11 +549,26 @@ struct Line {
     previous: Option<char>,
     carriage_returns: usize,
     crlf: bool,
-    probes: Option<[Probe; 2]>,
+    marker: LineMarker,
+}
+
+/// A complete decoded line fits in one decoder buffer. Only lines crossing
+/// buffer boundaries need incremental keyword recognition and name limits.
+enum LineMarker {
+    Complete(Option<(&'static str, String)>),
+    Streaming([Probe; 2]),
 }
 
 impl Line {
-    fn new(required_end: Option<usize>, tags: bool) -> Self {
+    fn new(required_end: Option<usize>, tags: bool, complete: Option<&str>) -> Self {
+        let marker = match (tags, complete) {
+            (false, _) => LineMarker::Complete(None),
+            (true, Some(line)) => LineMarker::Complete(
+                tag::extract_tag_directive(line)
+                    .map(|(directive, name)| (directive, name.to_owned())),
+            ),
+            (true, None) => LineMarker::Streaming([Probe::new("tag::"), Probe::new("end::")]),
+        };
         Self {
             prefix: String::new(),
             required_end,
@@ -559,7 +578,7 @@ impl Line {
             previous: None,
             carriage_returns: 0,
             crlf: false,
-            probes: tags.then(|| [Probe::new("tag::"), Probe::new("end::")]),
+            marker,
         }
     }
 
@@ -583,7 +602,7 @@ impl Line {
             self.last = Some(last);
         }
         self.carriage_returns += text.bytes().filter(|&byte| byte == b'\r').count();
-        if let Some(probes) = &mut self.probes {
+        if let LineMarker::Streaming(probes) = &mut self.marker {
             for ch in text.chars() {
                 for probe in &mut *probes {
                     probe.push(ch);
@@ -610,22 +629,29 @@ impl Line {
     }
 
     fn marker(&self, source: &str) -> Result<Option<(&'static str, &str)>, Error> {
-        if let Some(probes) = &self.probes {
-            // Match the buffered tag extractor: a valid `tag::` marker takes
-            // priority over `end::`, even if `end::` comes first on the line.
-            for probe in probes {
-                if matches!(probe.state, ProbeState::Done(true)) {
-                    if probe.overflow {
-                        return Err(Error::IncludeSelectionTooComplex(source.to_string()));
+        match &self.marker {
+            LineMarker::Complete(marker) => {
+                return Ok(marker
+                    .as_ref()
+                    .map(|(directive, name)| (*directive, name.as_str())));
+            }
+            LineMarker::Streaming(probes) => {
+                // Match the buffered tag extractor: a valid `tag::` marker takes
+                // priority over `end::`, even if `end::` comes first on the line.
+                for probe in probes {
+                    if matches!(probe.state, ProbeState::Done(true)) {
+                        if probe.overflow {
+                            return Err(Error::IncludeSelectionTooComplex(source.to_string()));
+                        }
+                        return Ok(Some((
+                            if probe.keyword == "tag::" {
+                                "tag"
+                            } else {
+                                "end"
+                            },
+                            &probe.name,
+                        )));
                     }
-                    return Ok(Some((
-                        if probe.keyword == "tag::" {
-                            "tag"
-                        } else {
-                            "end"
-                        },
-                        &probe.name,
-                    )));
                 }
             }
         }

@@ -21,18 +21,15 @@
 
 use std::{borrow::Cow, collections::HashMap, io::Write, time::Duration};
 
-use acdc_converters_core::{Diagnostics, Options, code::source_language};
+use acdc_converters_core::{Diagnostics, TraversalContext, code::source_language};
 use acdc_converters_terminal::{
     asciicast,
     cell_grid::{Cell, CellDecorations, CellGrid, Rgb, TerminalSize, capture_ansi},
     replay::{self, Options as ReplayOptions},
 };
-use acdc_parser::{
-    DocumentAttributes,
-    ast::{AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef},
-};
+use acdc_parser::ast::{AttributeValueRef, AttributesRef, ContentRef};
 
-use crate::{Error, image_helpers::attribute_scalar};
+use crate::{Error, attribute_scalar};
 
 const DEFAULT_COLS: usize = 80;
 const AUTO_ROW_PADDING: usize = 1;
@@ -57,11 +54,8 @@ enum Theme {
 }
 
 impl Theme {
-    fn from_document_attributes(attrs: &DocumentAttributes<'_>) -> Self {
-        if DocumentAttributesRef::from(attrs)
-            .get("dark-mode")
-            .is_some()
-        {
+    fn from_document_attributes(attrs: &TraversalContext<'_>) -> Self {
+        if attrs.get("dark-mode").is_some() {
             Self::Dark
         } else {
             Self::Light
@@ -84,7 +78,7 @@ struct PreviewOptions {
 }
 
 impl PreviewOptions {
-    fn resolve(attrs: &DocumentAttributes<'_>, attributes: Option<AttributesRef<'_>>) -> Self {
+    fn resolve(attrs: &TraversalContext<'_>, attributes: Option<AttributesRef<'_>>) -> Self {
         let document_cols = resolved_usize(attrs, "acdc-terminal-cols");
         let document_rows = resolved_usize(attrs, "acdc-terminal-rows");
         let document_theme = Theme::from_document_attributes(attrs);
@@ -123,14 +117,12 @@ struct SpanStyle {
     decorations: CellDecorations,
 }
 
-fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
-    DocumentAttributesRef::from(attrs)
-        .get("acdc-terminal")
-        .is_some()
+fn is_enabled(attrs: &TraversalContext<'_>) -> bool {
+    attrs.get("acdc-terminal").is_some()
 }
 
 pub(crate) fn is_terminal_listing(
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     attributes: AttributesRef<'_>,
 ) -> bool {
     is_enabled(attrs) && source_language(attributes).is_some_and(is_terminal_language)
@@ -152,28 +144,18 @@ pub(crate) fn render_listing<W: Write>(
     writer: W,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    options: Options,
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
     let preview_options = PreviewOptions::resolve(attrs, None);
-    render_with_options(
-        writer,
-        content,
-        attributes,
-        options,
-        attrs,
-        preview_options,
-        diagnostics,
-    )
+    render_with_options(writer, content, attributes, preview_options, diagnostics)
 }
 
 pub(crate) fn render_session<W: Write>(
     writer: W,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    options: Options,
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
     let preview_options = PreviewOptions::resolve(attrs, Some(attributes));
@@ -182,43 +164,28 @@ pub(crate) fn render_session<W: Write>(
             writer,
             content,
             attributes,
-            options,
             attrs,
             preview_options,
             diagnostics,
         );
     }
-    render_with_options(
-        writer,
-        content,
-        attributes,
-        options,
-        attrs,
-        preview_options,
-        diagnostics,
-    )
+    render_with_options(writer, content, attributes, preview_options, diagnostics)
 }
 
 fn render_with_options<W: Write>(
     mut writer: W,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    options: Options,
-    attrs: &DocumentAttributes<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
-    let ansi = normalize_terminal_newlines(
-        &acdc_converters_terminal::render_listing_to_ansi_with_diagnostics(
-            options,
-            attrs.clone(),
+    let ansi =
+        normalize_terminal_newlines(&acdc_converters_terminal::render_listing_content_to_ansi(
             content,
             attributes,
-            preview_options.cols,
             preview_options.theme == Theme::Dark,
-            diagnostics,
-        )?,
-    );
+            Some(diagnostics),
+        )?);
     let size = preview_options.size_for_output(&ansi);
     let grid = capture_ansi(&ansi, size)?;
 
@@ -262,8 +229,7 @@ fn render_replay<W: Write>(
     writer: W,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    options: Options,
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
@@ -272,7 +238,6 @@ fn render_replay<W: Write>(
             writer,
             content,
             attributes,
-            options,
             attrs,
             preview_options,
             diagnostics,
@@ -281,7 +246,6 @@ fn render_replay<W: Write>(
             writer,
             content,
             attributes,
-            options,
             attrs,
             preview_options,
             diagnostics,
@@ -293,35 +257,22 @@ fn render_replay_ansi<W: Write>(
     mut writer: W,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    options: Options,
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
     let Some(size) = replay_size(attrs, attributes, diagnostics) else {
-        return render_with_options(
-            writer,
-            content,
-            attributes,
-            options,
-            attrs,
-            preview_options,
-            diagnostics,
-        );
+        return render_with_options(writer, content, attributes, preview_options, diagnostics);
     };
     let playback_duration = replay_playback_override(attributes, diagnostics);
 
-    let ansi = normalize_terminal_newlines(
-        &acdc_converters_terminal::render_listing_to_ansi_with_diagnostics(
-            options,
-            attrs.clone(),
+    let ansi =
+        normalize_terminal_newlines(&acdc_converters_terminal::render_listing_content_to_ansi(
             content,
             attributes,
-            size.cols,
             preview_options.theme == Theme::Dark,
-            diagnostics,
-        )?,
-    );
+            Some(diagnostics),
+        )?);
     let boundaries = chunk_boundaries(&ansi);
     let estimated_playback_ms = REPLAY_FRAME_DURATION
         .as_millis()
@@ -382,8 +333,7 @@ fn render_replay_asciicast<W: Write>(
     mut writer: W,
     content: ContentRef<'_>,
     attributes: AttributesRef<'_>,
-    options: Options,
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     preview_options: PreviewOptions,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<(), Error> {
@@ -408,15 +358,7 @@ fn render_replay_asciicast<W: Write>(
                 ),
                 "Provide a valid asciicast v2 or v3 recording, or drop `format=asciicast` to replay raw ANSI.",
             );
-            return render_with_options(
-                writer,
-                content,
-                attributes,
-                options,
-                attrs,
-                preview_options,
-                diagnostics,
-            );
+            return render_with_options(writer, content, attributes, preview_options, diagnostics);
         }
     };
 
@@ -533,7 +475,7 @@ fn replay_playback_override(
 /// `default`. Unlike [`replay_size`], a missing size is not a warning here
 /// because the asciicast header supplies the default.
 fn replay_size_with_default(
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     attributes: AttributesRef<'_>,
     default: TerminalSize,
     diagnostics: &mut Diagnostics<'_>,
@@ -551,7 +493,7 @@ fn replay_size_with_default(
 /// name. Returns `None` when none is set; a present but non-positive value is
 /// warned about by [`positive_attr`].
 fn replay_dimension(
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     attributes: AttributesRef<'_>,
     primary: &'static str,
     document: &'static str,
@@ -564,14 +506,14 @@ fn replay_dimension(
 
 fn positive_document_attr(
     name: &'static str,
-    attributes: &DocumentAttributes<'_>,
+    attributes: &TraversalContext<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
-    DocumentAttributesRef::from(attributes).get(name)?;
+    attributes.get(name)?;
     let parsed = resolved_usize(attributes, name);
     if parsed.is_none() {
         let mut presented = String::new();
-        if DocumentAttributesRef::from(attributes)
+        if attributes
             .get(name)
             .is_none_or(|value| value.write_text(&mut presented).is_err())
         {
@@ -597,7 +539,7 @@ fn render_blank_preview<W: Write>(
 }
 
 fn replay_size(
-    attrs: &DocumentAttributes<'_>,
+    attrs: &TraversalContext<'_>,
     attributes: AttributesRef<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<TerminalSize> {
@@ -1194,8 +1136,8 @@ fn attr_usize(value: Option<AttributeValueRef<'_>>) -> Option<usize> {
         .filter(|value| *value > 0)
 }
 
-fn resolved_usize(attributes: &DocumentAttributes<'_>, name: &str) -> Option<usize> {
-    DocumentAttributesRef::from(attributes)
+fn resolved_usize(attributes: &TraversalContext<'_>, name: &str) -> Option<usize> {
+    attributes
         .get(name)
         .and_then(|value| {
             if let Some(value) = value.as_integer() {
@@ -1329,14 +1271,15 @@ fn escape_html(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::estimate_rows;
     use acdc_converters_core::{
         Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning, WarningSource,
     };
     use acdc_parser::{Options as ParserOptions, SafeMode};
     use std::{collections::HashMap, error::Error};
 
-    use crate::{Converter, HtmlVariant, RenderOptions, terminal::resolved_usize};
+    use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
+
+    use super::{estimate_rows, resolved_usize};
 
     type TestResult = Result<(), Box<dyn Error>>;
 
@@ -1375,13 +1318,30 @@ mod tests {
         let source = WarningSource::new("html").with_variant(variant.as_str());
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        converter.convert_to_writer(
+        converter.convert_to_writer_with_extensions(
             doc,
             &mut output,
             &RenderOptions::default(),
+            &crate::extension(),
             &mut diagnostics,
         )?;
         Ok((String::from_utf8(output)?, warnings))
+    }
+
+    #[test]
+    fn terminal_attributes_follow_body_changes_and_cell_scope() -> TestResult {
+        let source = "= Example\n\n[source,console]\n----\nbefore\n----\n\n:acdc-terminal:\n:acdc-terminal-rows: 3\n\n[cols=a,options=noheader]\n|===\n|Cell.\n\n:acdc-terminal-cols: 12\n\n[source,console]\n----\ncell\n----\n|===\n\n[source,console]\n----\nafter cell\n----\n\n:acdc-terminal!:\n\n[source,console]\n----\ndisabled\n----\n";
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let (html, warnings) = render_with_warnings(source, variant)?;
+            assert!(warnings.is_empty(), "{warnings:?}");
+            let widths: Vec<_> = html
+                .split("data-cols=\"")
+                .skip(1)
+                .filter_map(|value| value.split_once('"').map(|(width, _)| width))
+                .collect();
+            assert_eq!(widths, ["12", "80"]);
+        }
+        Ok(())
     }
 
     #[test]
@@ -1592,7 +1552,13 @@ mod tests {
                 .and_then(acdc_parser::DocumentAttributeValue::as_integer),
             Some(64)
         );
-        assert_eq!(resolved_usize(&attributes, "max-include-depth"), Some(64));
+        assert_eq!(
+            resolved_usize(
+                &acdc_converters_core::TraversalContext::new(&attributes),
+                "max-include-depth"
+            ),
+            Some(64)
+        );
         assert_eq!(
             attributes
                 .get("max-include-depth")

@@ -353,6 +353,8 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let doc = prepared.document();
         // This converter borrows from `doc`; its lifetime is independent of `self`.
         let converter = Converter {
             options: self.options.clone(),

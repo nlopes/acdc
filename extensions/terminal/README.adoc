@@ -1,0 +1,67 @@
+= Native terminal extension for acdc
+
+`acdc-extensions-terminal` renders `[terminal]` transcripts, `[terminal%replay]` recordings,
+and terminal-like source blocks opted in with `:acdc-terminal:` as HTML. The
+extension owns terminal emulation, replay processing, and the embedded player.
+It records no sessions and executes no document commands.
+
+== CLI
+
+Build with `html-terminal`, then select the package explicitly:
+
+[source,console]
+----
+cargo run -p acdc-cli --features html-terminal -- convert --extension terminal document.adoc
+----
+
+Compiling the feature makes the extension available. Without `--extension
+terminal`, the backend renders ordinary listings. Unavailable names fail before
+input processing. The extension currently targets HTML; other backends retain
+their ordinary rendering.
+
+== Library
+
+Register `acdc_extensions_terminal::extension()` as `terminal` in an
+`acdc_converters_core::pipeline::ExtensionCatalog`, select it, and attach the
+selection to a configured `Pipeline`. Registrations invoke no factories. Every
+conversion creates fresh processors, including repeated conversion of the same
+parsed document. Parser-only registrations still convert into `Extensions`;
+`parser_registry()` exposes them for callers that need a working edit session.
+Callers with HTML-specific `RenderOptions` can use
+`Converter::convert_to_writer_with_extensions()` with the same explicit selection.
+
+The link:./examples/render.rs[library example] demonstrates registration through
+conversion:
+
+[source,console]
+----
+cargo run -p acdc-extensions-terminal --example render
+----
+
+HTML owns title interpretation, caption numbering, metadata escaping, and
+structured diagnostics. The extension writes through those host services and
+does not change parsed storage. Selected renderers contribute their inline script
+hashes to the host's Content Security Policy. Compilation alone adds no script
+permission.
+
+== Behavior and compatibility
+
+You can set or unset `acdc-terminal` between blocks to control subsequent source
+previews. Dimensions and theme follow the accepted document attributes at the
+block. Attributes local to an AsciiDoc table cell expire at the end of the cell.
+
+The syntax, terminal dimensions, themes, replay controls, static fallback,
+asciicast support, and source highlighting follow the
+link:../../converters/html/README.adoc[HTML authoring guide]. Both standard and
+semantic HTML retain their existing wrappers, IDs, roles, captions, and title
+formatting.
+
+Terminal emulation runs only below Server safe mode. At Server and Secure,
+selected terminal blocks fall back to ordinary listings with a structured warning.
+Library `Options` default to Secure; select a lower mode for trusted terminal
+input. Malformed replay settings retain their warnings and static fallback.
+
+Asciidoctor 2.0.26 renders these styles as raw listings or literal blocks and does
+not provide acdc's terminal preview or replay. The extracted extension preserves
+acdc's rendered behavior when selected. Conversion and output errors stop
+processing without retrying callbacks; prior external effects cannot be undone.

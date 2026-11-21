@@ -1,0 +1,58 @@
+= extension-displays(1)
+:doctype: manpage
+:docdate: 2026-11-15
+:revdate: 2026-11-15
+:mansource: acdc
+:manmanual: Extension displays
+:listing-caption: Code
+:label: Early
+:reproducible:
+
+== NAME
+
+extension-displays - captured titles and deferred captions
+
+== DESCRIPTION
+
+.Dot *{label}* <&>
+[#edited,reftext='Custom *reference*']
+----
+original
+----
+
+[#attribute,title='Attribute _{label}_ <&>']
+----
+attribute
+----
+
+.Literal caption
+[#literal,caption="*Literal* <&> "]
+----
+literal
+----
+
+.Empty caption
+[#empty,caption='']
+----
+empty
+----
+
+:listing-caption!:
+
+.Disabled *caption*
+[#disabled]
+----
+disabled
+----
+
+:label: Late
+
+fixture-display::edited[]
+
+fixture-display::attribute[]
+
+fixture-display::literal[]
+
+fixture-display::empty[]
+
+fixture-display::disabled[]

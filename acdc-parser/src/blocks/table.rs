@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{ColumnStyle, HorizontalAlignment, Table, VerticalAlignment};
 
 pub(crate) const MAX_TABLE_COLUMNS: usize = 100;
@@ -52,6 +54,25 @@ fn split_escaped(line: &str, separator: char) -> Vec<CellPart> {
     });
 
     parts
+}
+
+/// Decode escapes through the table lexer before interpreting raw cell syntax.
+pub(crate) fn decode_cell_escapes(source: &str, separator: char) -> Cow<'_, str> {
+    if !source.match_indices('\\').any(|(index, _)| {
+        source
+            .get(index + 1..)
+            .is_some_and(|tail| tail.starts_with(separator))
+    }) {
+        return Cow::Borrowed(source);
+    }
+    let mut decoded = String::with_capacity(source.len());
+    for (index, part) in split_escaped(source, separator).into_iter().enumerate() {
+        if index > 0 {
+            decoded.push(separator);
+        }
+        decoded.push_str(&part.content);
+    }
+    Cow::Owned(decoded)
 }
 
 /// Split a single line into cell parts for line-per-row formats (DSV, TSV, or a
@@ -627,6 +648,32 @@ fn extract_trailing_spec(content: &str, allow_at_start: bool) -> (&str, Option<C
     }
 }
 
+/// The next cell boundary, using the same escaping and specifier rules as
+/// complete table layout. Offsets refer to the original, still-escaped source.
+pub(crate) fn next_cell_boundary(
+    text: &str,
+    separator: char,
+    allow_at_start: bool,
+) -> Option<(usize, usize, CellSpecifier)> {
+    let parts = split_escaped(text, separator);
+    let first = parts.first()?;
+    let next = parts.get(1)?;
+    let (kept, spec) = extract_trailing_spec(&first.content, allow_at_start);
+    let marker = next.start.checked_sub(separator.len_utf8())?;
+    let end = marker.checked_sub(first.content.len() - kept.len())?;
+    Some((end, next.start, spec.unwrap_or_default()))
+}
+
+pub(crate) fn inferred_columns(source: &str, separator: &str) -> usize {
+    first_line_column_count(source, separator)
+}
+
+pub(crate) fn implicit_header(lines: &[&str], separator: &str) -> bool {
+    lines.first().is_some_and(|line| !line.trim().is_empty())
+        && lines.get(1).is_some_and(|line| line.trim().is_empty())
+        && detect_header_after_first_row(lines, 1, separator)
+}
+
 /// Scan the table body into a flat stream of cells.
 ///
 /// The whole body is split on the separator (respecting `\|` escapes), so
@@ -705,35 +752,30 @@ fn first_line_column_count(text: &str, separator: &str) -> usize {
     }
 }
 
+impl CellSpecifier {
+    pub(crate) fn validate(self, start: usize, end: usize) -> Result<(), TableLimitViolation> {
+        for (resource, requested, limit) in [
+            ("column span", self.colspan, MAX_TABLE_COLUMNS),
+            ("row span", self.rowspan, MAX_TABLE_ROWS),
+            (
+                "cell duplication",
+                self.duplication_count,
+                MAX_TABLE_COLUMNS,
+            ),
+        ] {
+            if requested > limit {
+                return Err(TableLimitViolation::new(
+                    resource, requested, limit, start, end,
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
 fn validate_cell_specifiers(cells: &[ParsedCell]) -> Result<(), TableLimitViolation> {
     for cell in cells {
-        if cell.spec.colspan > MAX_TABLE_COLUMNS {
-            return Err(TableLimitViolation::new(
-                "column span",
-                cell.spec.colspan,
-                MAX_TABLE_COLUMNS,
-                cell.start,
-                cell.end,
-            ));
-        }
-        if cell.spec.rowspan > MAX_TABLE_ROWS {
-            return Err(TableLimitViolation::new(
-                "row span",
-                cell.spec.rowspan,
-                MAX_TABLE_ROWS,
-                cell.start,
-                cell.end,
-            ));
-        }
-        if cell.spec.duplication_count > MAX_TABLE_COLUMNS {
-            return Err(TableLimitViolation::new(
-                "cell duplication",
-                cell.spec.duplication_count,
-                MAX_TABLE_COLUMNS,
-                cell.start,
-                cell.end,
-            ));
-        }
+        cell.spec.validate(cell.start, cell.end)?;
     }
     Ok(())
 }
@@ -770,6 +812,88 @@ fn validate_row_widths(rows: &[Vec<ParsedCell>]) -> Result<(), TableLimitViolati
     Ok(())
 }
 
+/// Column placement shared by complete and cooperative table construction.
+pub(crate) struct CellPlacement {
+    columns: usize,
+    column: usize,
+    generated: usize,
+    active: Vec<(usize, usize, usize)>,
+    new_spans: Vec<(usize, usize, usize)>,
+    filled: bool,
+    rows: usize,
+}
+
+impl CellPlacement {
+    pub(crate) fn new(columns: usize) -> Self {
+        Self {
+            columns: columns.max(1),
+            column: 0,
+            generated: 0,
+            active: Vec::new(),
+            new_spans: Vec::new(),
+            filled: false,
+            rows: 0,
+        }
+    }
+    pub(crate) fn generated(&self) -> usize {
+        self.generated
+    }
+    pub(crate) fn at_row_end(&mut self) -> bool {
+        while self.column < self.columns {
+            let Some(&(_, _, width)) = self
+                .active
+                .iter()
+                .find(|(pos, _, width)| self.column >= *pos && self.column < pos + width)
+            else {
+                break;
+            };
+            self.column += width;
+        }
+        self.filled = self.column >= self.columns;
+        self.filled
+    }
+    pub(crate) fn place(&mut self, spec: CellSpecifier) {
+        let count = if spec.is_duplication {
+            spec.duplication_count
+        } else {
+            1
+        };
+        let occupied = count.max(1) * spec.colspan.max(1);
+        if spec.rowspan > 1 {
+            self.new_spans
+                .push((self.column, spec.rowspan - 1, occupied));
+        }
+        self.column += occupied;
+        self.generated += count;
+        self.filled = self.column >= self.columns;
+    }
+    pub(crate) fn finish_row(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> Result<(), TableLimitViolation> {
+        if self.rows == MAX_TABLE_ROWS {
+            return Err(TableLimitViolation::new(
+                "row count",
+                self.rows + 1,
+                MAX_TABLE_ROWS,
+                start,
+                end,
+            ));
+        }
+        self.rows += 1;
+        self.active.retain_mut(|(_, remaining, _)| {
+            *remaining -= 1;
+            *remaining > 0
+        });
+        self.active.append(&mut self.new_spans);
+        self.column = 0;
+        self.generated = 0;
+        self.filled = false;
+        Ok(())
+    }
+}
+
 /// Group a flat cell stream into rows of `ncols` columns.
 ///
 /// Placement is colspan-, duplication-, and rowspan-aware: a cell spanning
@@ -784,74 +908,32 @@ fn group_cells_into_rows(
     ncols: usize,
     dropped: &mut Option<(usize, usize)>,
 ) -> Result<Vec<Vec<ParsedCell>>, TableLimitViolation> {
-    let ncols = ncols.max(1);
     let mut rows = Vec::new();
-    // Columns occupied by rowspans carried down from earlier rows.
-    let mut active: Vec<(usize, usize, usize)> = Vec::new(); // (col, remaining_rows, width)
+    let mut placement = CellPlacement::new(ncols);
     let mut iter = cells.into_iter();
     let mut next = iter.next();
-
     while next.is_some() {
         let mut row = Vec::new();
-        let mut new_spans: Vec<(usize, usize, usize)> = Vec::new();
-        let mut col = 0;
-
-        while col < ncols {
-            // Skip columns occupied by an active rowspan from a previous row.
-            if let Some(&(_, _, width)) = active
-                .iter()
-                .find(|(pos, _, width)| col >= *pos && col < pos + width)
-            {
-                col += width;
-                continue;
-            }
+        while !placement.at_row_end() {
             let Some(cell) = next.take() else {
                 break;
             };
             next = iter.next();
-
-            let occupied = if cell.spec.is_duplication {
-                cell.spec.duplication_count.max(1) * cell.spec.colspan.max(1)
-            } else {
-                cell.spec.colspan.max(1)
-            };
-            if cell.spec.rowspan > 1 {
-                new_spans.push((col, cell.spec.rowspan - 1, occupied));
-            }
+            placement.place(cell.spec);
             row.push(cell);
-            col += occupied;
         }
-
-        if col < ncols {
-            // Incomplete final row — asciidoctor drops it and warns. Capture
-            // the span of the dropped cells for the warning location.
-            if let (Some(first), Some(last)) = (row.first(), row.last()) {
-                *dropped = Some((first.start, last.end));
-            }
+        let span = row
+            .first()
+            .zip(row.last())
+            .map(|(first, last)| (first.start, last.end));
+        if !placement.filled && next.is_none() {
+            *dropped = span;
             break;
         }
-        if rows.len() == MAX_TABLE_ROWS {
-            let (start, end) = row
-                .first()
-                .zip(row.last())
-                .map_or((0, 0), |(first, last)| (first.start, last.end));
-            return Err(TableLimitViolation::new(
-                "row count",
-                rows.len() + 1,
-                MAX_TABLE_ROWS,
-                start,
-                end,
-            ));
-        }
+        let (start, end) = span.unwrap_or((0, 0));
+        placement.finish_row(start, end)?;
         rows.push(row);
-        // Age existing rowspans, then add the ones introduced by this row.
-        active.retain_mut(|(_, remaining, _)| {
-            *remaining -= 1;
-            *remaining > 0
-        });
-        active.extend(new_spans);
     }
-
     Ok(rows)
 }
 

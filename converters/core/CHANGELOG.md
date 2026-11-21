@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Native block renderers can read the attributes in effect at the block,
+  including accepted body assignments and local table-cell settings.
+  Implementations of `RenderHost::document_attributes` now return a reference
+  to the current `TraversalContext`. Callers of `RenderHost::output` now
+  destructure the returned writer, diagnostics, and traversal context.
+
+- Native extensions can register backend-specific block renderers alongside
+  parser processors. Selection creates fresh render handlers for every conversion,
+  retains structured warnings, and lets the backend render titles and metadata.
+  `ExtensionCatalog::select()` now returns an `Extensions` selection; use
+  `parser_registry()` when a parser-only working session is needed. Existing parser
+  registries can still be attached directly to a pipeline.
+
+- Added a shared library pipeline for backend-aware parsing, selected extensions,
+  finalization, and conversion. Named extensions require explicit activation;
+  unavailable names fail before parsing. Files, readers, and source strings retain
+  structured diagnostics and support repeated conversion without changing the
+  parsed document. Inactive pipelines retain ordinary parsing.
+
+- Added `display::prepare()` for custom converters to resolve extension-generated
+  caption and captured-title labels into ordinary explicit cross-references for
+  each conversion, preserving the shared document and overriding generic `reftext`.
+
 - **Breaking:** removed `TraversalContext::substitute_attributes()`. To expand
   references at a traversal position, call
   `DocumentAttributesRef::substitute_attributes()` from `acdc-parser` on the

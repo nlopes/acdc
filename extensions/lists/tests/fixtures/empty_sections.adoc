@@ -1,0 +1,27 @@
+= Empty list sections
+:sectnums:
+
+[#removed]
+== Removed section
+
+list-of::video[hide_empty_section=true]
+
+[#kept-default]
+== Kept by default
+
+list-of::video[]
+
+[#kept-untitled]
+== Matching untitled image
+
+list-of::image[hide_empty_section=false]
+
+[#targets]
+== Targets
+
+image::untitled.svg[]
+
+[#sections]
+== Surviving sections
+
+list-of::section[]

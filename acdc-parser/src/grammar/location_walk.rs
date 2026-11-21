@@ -46,6 +46,37 @@ pub(crate) fn walk_document_inline_nodes_mut<'a, F: FnMut(&mut InlineNode<'a>)>(
     .unwrap_or_else(|never: Infallible| match never {});
 }
 
+/// A footnote repair can be skipped only if neither a use nor a catalog remains.
+pub(super) fn has_footnotes(document: &mut Document<'_>) -> bool {
+    if !document.footnotes.is_empty() {
+        return true;
+    }
+    let mut walker = AstWalker::new(
+        |_| Ok(()),
+        |node| {
+            if matches!(node, InlineNode::Macro(InlineMacro::Footnote(_))) {
+                Err(())
+            } else {
+                Ok(())
+            }
+        },
+        |_, _| Ok(()),
+        |cell| match &cell.footnotes {
+            Some(notes) if !notes.is_empty() => Err(()),
+            _ => Ok(true),
+        },
+    );
+    // With no registrations the derived labels have no bindings to update.
+    // Only authored uses and nonempty owner catalogs can require repair.
+    walker.include_derived = false;
+    if let Some(header) = &mut document.header
+        && walker.header(header).is_err()
+    {
+        return true;
+    }
+    walker.blocks(&mut document.blocks).is_err()
+}
+
 /// Visit a single inline node's location and recurse into any inline children.
 pub(super) fn walk_inline_locations_mut<F: FnMut(&mut Location)>(
     node: &mut InlineNode<'_>,
@@ -176,7 +207,7 @@ pub(super) fn try_walk_owned_inline_nodes_mut<'a, E>(
     walker.inline(node)
 }
 
-pub(super) fn try_walk_document_inline_nodes_mut<'a, E>(
+pub(crate) fn try_walk_document_inline_nodes_mut<'a, E>(
     document: &mut Document<'a>,
     visit: &mut impl FnMut(&mut InlineNode<'a>) -> Result<(), E>,
 ) -> Result<(), E> {
@@ -444,6 +475,10 @@ where
                 self.inlines(block.title.inlines_mut())?;
             }
             Block::TableOfContents(block) => self.metadata(&mut block.metadata)?,
+            Block::Extension(block) => {
+                self.metadata(&mut block.metadata)?;
+                self.inlines(block.title.inlines_mut())?;
+            }
             Block::DocumentAttribute(_) | Block::Comment(_) => {}
         }
         Ok(())

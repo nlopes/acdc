@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Registered block macros follow asciidoctor's line rules: the target has no
+  whitespace and only whitespace may follow the closing bracket. Other lines
+  stay paragraphs or description-list items. With extensions active, a
+  caller-supplied `leveloffset` and out-of-sequence section warnings behave as
+  in an ordinary parse, and an unquoted `None` macro argument is dropped only in
+  Asciidoctor mode.
+
+- When native recovery would drop a quote body, Markdown blockquote, or list
+  attachment after a registered block macro or style in it already ran, parsing
+  now fails with an extension error at that invocation. Previously the content
+  was silently dropped while the macro's attribute changes and deferred request
+  survived, so `finish()` or a tree processor failed at a location no longer in
+  the document. Content without executed extensions still recovers with a
+  warning.
+
+- Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input. A style registered with `BlockStyle::compound` can also request that its body be parsed as children of an open block.
+
+- Block macro handlers can return a `BlockBuilder` directly with `.into()`. Tree processors see the resulting block with the invocation’s title, ID, roles, and source location.
+
+- Include processors can supply virtual content. They see attributes set by earlier block macros and follow the caller's include permissions, selection options, and expansion limits.
+
+- Native extensions can edit entry-source lines before parsing. Retained lines keep their original source locations.
+
+- Tagged includes read complete lines faster while preserving selection across reader chunk boundaries.
+
+- Register a deferred block macro's tree processor with
+  `TreeProcessorRegistration::for_macro`. Its editor yields only that macro's
+  surviving requests in source order. Other processors can still query the
+  whole document and remove sections containing pending requests.
+
+- Reduced parsing overhead for nested blocks and author headers.
+
+- Reduced allocation traffic when tree processors repeatedly edit a document.
+
+- Native extensions can compose literal text, hard breaks, captured target links,
+  and grouped fragments through `InlineSpec` in generated paragraphs and list
+  items.
+
+- Generated display links that copy a captured title or custom caption no
+  longer duplicate its identity. Inline anchors, footnotes, and concealed index
+  terms are left out of the copy, visible index terms keep only their text, and
+  span and link IDs are removed. A cross reference to an anchor in the title still
+  reaches the original block, and footnotes keep their number and body there.
+
+- Registered block macros retain their accepted call text, including quoted
+  arguments and unexpanded targets, for literal recovery. Tree processors can
+  also report source-located recoverable warnings.
+
+- Registered extensions now support reader input, including source-ordered
+  callback attribute changes before later conditionals and includes. Applications
+  can compose registries in order with duplicate-name checks before parsing.
+
+- Tree processors can capture titles with `DocumentEditor::capture()` and build
+  caption, title, or caption-and-title links through `DisplayIntent` and the inline
+  block builders. `BlockBuilder::unordered_list()` accepts both literal strings
+  and structured inline items. Titles keep their original substitutions and
+  attributes;
+  captions and renamed IDs follow surviving targets at finalization. Removed
+  targets produce located unresolved-reference warnings and cannot bind to reused
+  IDs. Custom converters prepare these requests through converter core before
+  traversal or checked ASG export. Unlike string-based Asciidoctor extensions,
+  later attribute edits do not refresh captured titles.
+
 - The end of the document header now follows the compatibility mode. Asciidoctor
   mode matches Asciidoctor and ignores empty lines before the document title:
   attribute entries, comments, block anchors, and attribute lists above the
@@ -150,6 +213,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset
   disables the cap. This limit and include `depth=` accept Ruby digit separators,
   such as `4_096`.
+- Documents with AsciiDoc includes use fewer allocations while preserving source
+  locations and include policies. Short `lines=` and `tag=` selections also use
+  less memory during ordinary parsing.
+
+- Nested list IDs specified with `[id=...]` now retain their correct source
+  locations inside compound blocks.
 
 - **Breaking since 0.11:** public names now distinguish table cells, reference
   targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
@@ -185,10 +254,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ordered, unordered, and description list items in both compatibility modes,
   matching Asciidoctor. Only a standalone `+` acts as a list continuation.
 
-- Faster parsing of paragraphs, mixed ASCII and Unicode text, formatting, inline
-  passthroughs, and duplicated ordinary table cells (`3*|text`) in both
-  compatibility modes, including text expanded from attributes, while
-  preserving substitution rules and source locations.
+- Applications can register block macros and ordered tree processors with
+  `extensions::Registry`. Each document has fresh processor state. Typed queries
+  cover nested containers and discrete headings. Stable target handles support
+  ID assignment, literal paragraphs and lists, placeholder replacement and
+  section removal. Macros in nested sections retain source-position attribute
+  snapshots and original invocation locations in both compatibility modes.
+  Empty registries and unused registrations preserve ordinary diagnostic order.
+  Edits repair references, TOC and scoped footnotes while
+  preserving surviving section and caption numbers.
+  `BlockBuilder` also builds images, listings, and literal figures with normal
+  attribute lists, weak defaults, and explicit unsets. `replace_block()` keeps
+  the target handle and inherited metadata; `replace_source()` interprets retained
+  paragraph or verbatim source using its local attributes and substitutions.
+  New captions honor local numeric counter seeds and advance beyond existing and
+  removed ordinals; textual diagrams can opt into figure captions with
+  `with_caption_kind()`. Failed edits preserve
+  the visible document, handles, numbering, and diagnostics. `normalize()` repairs
+  catalogs idempotently without rerunning processors.
+  Extension queries also expose raw title source, inline substitutions, original
+  locations, and source-position document attributes through
+  `BlockView::title_source()`, including attribute titles and titles that expand
+  to empty content. Query again after edits or ID assignment; surviving target
+  handles retain their identities, and removed handles remain invalid even when
+  another block reuses their output ID.
+  Call `ExtensionParseResult::finish()` before conversion or checked ASG export;
+  unresolved requests return a located error. Block-macro callbacks now run
+  once as their blocks commit. `MacroExecutionContext::set_attribute` and
+  `unset_attribute` affect later conditionals, includes, and substitutions under
+  normal document assignment policy. Callback effects already performed remain
+  if a later block fails. Quoted empty positional arguments override defaults;
+  omitted slots retain their positions. Nested source ordering supports compound
+  bodies and pipe/exclamation AsciiDoc cells, including cell-local attributes;
+  Asciidoctor 2.0.26 buffers those bodies before invoking their macros. Other
+  table formats retain buffered preprocessing. Discarding a table cell after
+  its callback executed is a located error rather than silent recovery.
+
+- Faster parsing of paragraphs, deeply nested blocks, mixed ASCII and Unicode
+  text, formatting, inline passthroughs, and duplicated ordinary table cells
+  (`3*|text`) in both compatibility modes, including text expanded from
+  attributes, while preserving substitution rules and source locations.
 
 - Keyboard macros with deeply nested brackets no longer abort parsing with a
   stack overflow when `:experimental:` is enabled. Both compatibility modes

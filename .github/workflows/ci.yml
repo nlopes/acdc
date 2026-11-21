@@ -34,6 +34,7 @@ jobs:
             converters:
               - '.github/workflows/ci.yml'
               - 'converters/**'
+              - 'extensions/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -43,6 +44,7 @@ jobs:
               - 'acdc-execute/**'
               - 'acdc-parser/**'
               - 'converters/**'
+              - 'extensions/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
             lsp:
@@ -62,6 +64,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - 'converters/core/**'
               - 'converters/pdf/**'
+              - 'extensions/lists/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -156,8 +159,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y groff mandoc
-      - name: Run converter tests
-        run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
+      - name: Run converter and native extension tests
+        run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown -p acdc-extensions-terminal -p acdc-extensions-lists --all-features --verbose
+      - name: Run native lists without optional capabilities
+        run: cargo nextest run -p acdc-extensions-lists --no-default-features --verbose
       - name: Run HTML tests - no default features
         run: cargo nextest run -p acdc-converters-html --no-default-features --verbose
       - name: Run HTML tests - highlighting
@@ -201,6 +206,12 @@ jobs:
         run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
       - name: Run execute-only tests
         run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
+      - name: Test native lists availability and activation
+        run: |
+          cargo nextest run -p acdc-cli --no-default-features --features html --test lists --verbose
+          cargo nextest run -p acdc-cli --no-default-features --features html,lists --test lists --verbose
+          cargo nextest run -p acdc-cli --no-default-features --features terminal,lists -E 'test(pipeline_cli_native_lists)' --verbose
+          cargo check -p acdc-cli --no-default-features --features lists,network
       - name: Test execute with the parser network capability
         run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/network -E 'test(substitution_is_independent_of_optional_capabilities)' --verbose
       - name: Smoke-test backend-only CLI builds
@@ -209,6 +220,10 @@ jobs:
           for feature in html manpage markdown pdf terminal; do
             cargo run -p acdc-cli --no-default-features --features "$feature" -- convert --help
           done
+      - name: Test native terminal availability and activation
+        run: |
+          cargo nextest run -p acdc-cli --no-default-features --features html --test cli -E 'test(/native_terminal_selection/)'
+          cargo nextest run -p acdc-cli --no-default-features --features html-terminal --test cli -E 'test(/native_terminal_selection/)'
       - name: Smoke-test tool-only CLI builds
         shell: bash
         run: |

@@ -1,0 +1,20 @@
+:mode: outer
+
+====
+configure::mode[compound]
+
+ifdef::mode[]
+record::{mode}[]
+endif::[]
+====
+
+[cols=a]
+|===
+|configure::mode[cell]
+
+ifdef::mode[]
+include::../includes/extensions/session_order.adoc[]
+endif::[]
+|===
+
+record::{mode}[]

@@ -143,6 +143,12 @@ fn cross_reference(
     path: &str,
     settings: InlineContext,
 ) -> Result<Node, Error> {
+    if xref.generated_display.is_some() {
+        return Err(unsupported(
+            &pointer(path, "generated_display"),
+            "resolve generated display content in a conversion context before ASG export",
+        ));
+    }
     for (present, property) in [
         (xref.xrefstyle != XrefStyle::Default, "xrefstyle"),
         (

@@ -12,8 +12,6 @@ use acdc_parser::{
     },
 };
 
-#[cfg(feature = "terminal")]
-use crate::terminal::{is_terminal_session, render_listing, render_session};
 use crate::{
     Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_pcdata, write_attribution,
     write_element_id, write_id, write_semantic_attribution,
@@ -28,7 +26,7 @@ fn block_class(base: &str, attributes: Option<AttributesRef<'_>>) -> String {
 }
 
 /// Write the opening `<div>` tag with optional ID and class attributes.
-fn write_block_div_open<W: Write>(
+pub(crate) fn write_block_div_open<W: Write>(
     w: &mut W,
     attributes: Option<AttributesRef<'_>>,
     base_class: &str,
@@ -44,7 +42,7 @@ fn write_block_div_open<W: Write>(
 }
 
 /// Write an opening tag with optional ID and class for semantic mode.
-fn write_semantic_tag_open<W: Write>(
+pub(crate) fn write_semantic_tag_open<W: Write>(
     w: &mut W,
     tag: &str,
     attributes: Option<AttributesRef<'_>>,
@@ -473,7 +471,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             | BlockKind::Comment(_) => {
                 return Err(unsupported_delimited_block(block));
             }
-            _ => return Err(unsupported_delimited_block(block)),
+            BlockKind::Extension(_) | _ => return Err(unsupported_delimited_block(block)),
         }
         Ok(())
     }
@@ -538,30 +536,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return self.render_listing_block_semantic(traversal, data, caption_kind);
         }
 
-        #[cfg(feature = "terminal")]
-        if is_terminal_session(data.attributes()) && self.terminal_emulator_allowed() {
-            return self.render_terminal_session_block(
-                traversal,
-                content,
-                title,
-                caption_kind,
-                data.attributes(),
-            );
-        }
-
-        #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(converter.document_attributes(), data.attributes())
-            && self.terminal_emulator_allowed()
-        {
-            return self.render_terminal_listing_block(
-                traversal,
-                content,
-                title,
-                caption_kind,
-                data.attributes(),
-            );
-        }
-
         write_block_div_open(&mut self.writer, attributes, "listingblock")?;
 
         self.render_captioned_title_with_wrapper(
@@ -590,32 +564,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let title = data.title();
         let attributes = Some(data.attributes());
 
-        #[cfg(feature = "terminal")]
-        if is_terminal_session(data.attributes()) && self.terminal_emulator_allowed() {
-            return self.render_terminal_session_block_semantic(
-                traversal,
-                content,
-                title,
-                caption_kind,
-                data.attributes(),
-            );
-        }
-
-        #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(
-            self.converter.document_attributes(),
-            data.attributes(),
-        ) && self.terminal_emulator_allowed()
-        {
-            return self.render_terminal_listing_block_semantic(
-                traversal,
-                content,
-                title,
-                caption_kind,
-                data.attributes(),
-            );
-        }
-
         if title.is_some() {
             // Titled: use figure/figcaption
             write_semantic_tag_open(&mut self.writer, "figure", attributes, "listing-block")?;
@@ -633,220 +581,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             // Untitled: use div
             write_semantic_tag_open(&mut self.writer, "div", attributes, "listing-block")?;
             self.render_listing_code(traversal, content, attributes)?;
-            writeln!(self.writer, "</div>")?;
-        }
-        Ok(())
-    }
-
-    /// Whether the terminal emulator may render the current block. Terminal
-    /// rendering feeds document-controlled bytes through a native terminal
-    /// emulator (`libghostty-vt`), so it only runs for trusted documents. At
-    /// `SafeMode::Server` and above the block degrades to a plain listing,
-    /// mirroring how Asciidoctor renders an unrecognized block style, and a
-    /// warning records why the preview is absent.
-    #[cfg(feature = "terminal")]
-    fn terminal_emulator_allowed(&mut self) -> bool {
-        let safe_mode = self.converter.options.safe_mode();
-        if safe_mode < acdc_parser::SafeMode::Server {
-            return true;
-        }
-        self.diagnostics.warn_with_advice(
-            format!(
-                "terminal rendering is disabled at safe mode `{safe_mode:?}`; rendering the block as a plain listing"
-            ),
-            "Use terminal previews only for trusted documents below Server safe mode, or use a plain listing block.",
-        );
-        false
-    }
-
-    #[cfg(feature = "terminal")]
-    fn render_terminal_session_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        content: ContentRef<'_>,
-        title: Option<ContentRef<'_>>,
-        caption_kind: Option<CaptionKind>,
-        attributes: AttributesRef<'_>,
-    ) -> Result<(), Error> {
-        let converter = self.converter.clone();
-        let attrs = converter.document_attributes();
-        let options = converter.options.clone();
-        write_block_div_open(
-            &mut self.writer,
-            Some(attributes),
-            "terminalblock terminal-block",
-        )?;
-
-        self.render_captioned_title_with_wrapper(
-            traversal,
-            title,
-            Some(attributes),
-            caption_kind,
-            "<div class=\"title\">",
-            "</div>\n",
-        )?;
-
-        writeln!(self.writer, "<div class=\"content\">")?;
-        // Direct field access so the writer and diagnostics borrows stay
-        // disjoint; `writer_mut()` would borrow all of `self`.
-        render_session(
-            &mut self.writer,
-            content,
-            attributes,
-            options,
-            attrs,
-            &mut self.diagnostics,
-        )?;
-        writeln!(self.writer, "</div>")?;
-        writeln!(self.writer, "</div>")?;
-        Ok(())
-    }
-
-    #[cfg(feature = "terminal")]
-    fn render_terminal_session_block_semantic(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        content: ContentRef<'_>,
-        title: Option<ContentRef<'_>>,
-        caption_kind: Option<CaptionKind>,
-        attributes: AttributesRef<'_>,
-    ) -> Result<(), Error> {
-        let converter = self.converter.clone();
-        let attrs = converter.document_attributes();
-        let options = converter.options.clone();
-        // Direct field access so the writer and diagnostics borrows stay
-        // disjoint; `writer_mut()` would borrow all of `self`.
-        if title.is_some() {
-            write_semantic_tag_open(
-                &mut self.writer,
-                "figure",
-                Some(attributes),
-                "terminal-block",
-            )?;
-            self.render_captioned_title_with_wrapper(
-                traversal,
-                title,
-                Some(attributes),
-                caption_kind,
-                "<figcaption>",
-                "</figcaption>\n",
-            )?;
-            render_session(
-                &mut self.writer,
-                content,
-                attributes,
-                options,
-                attrs,
-                &mut self.diagnostics,
-            )?;
-            writeln!(self.writer, "</figure>")?;
-        } else {
-            write_semantic_tag_open(&mut self.writer, "div", Some(attributes), "terminal-block")?;
-            render_session(
-                &mut self.writer,
-                content,
-                attributes,
-                options,
-                attrs,
-                &mut self.diagnostics,
-            )?;
-            writeln!(self.writer, "</div>")?;
-        }
-        Ok(())
-    }
-
-    #[cfg(feature = "terminal")]
-    fn render_terminal_listing_block(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        content: ContentRef<'_>,
-        title: Option<ContentRef<'_>>,
-        caption_kind: Option<CaptionKind>,
-        attributes: AttributesRef<'_>,
-    ) -> Result<(), Error> {
-        let converter = self.converter.clone();
-        let attrs = converter.document_attributes();
-        let options = converter.options.clone();
-        write_block_div_open(
-            &mut self.writer,
-            Some(attributes),
-            "listingblock terminal-block",
-        )?;
-
-        self.render_captioned_title_with_wrapper(
-            traversal,
-            title,
-            Some(attributes),
-            caption_kind,
-            "<div class=\"title\">",
-            "</div>\n",
-        )?;
-
-        writeln!(self.writer, "<div class=\"content\">")?;
-        render_listing(
-            &mut self.writer,
-            content,
-            attributes,
-            options,
-            attrs,
-            &mut self.diagnostics,
-        )?;
-        writeln!(self.writer, "</div>")?;
-        writeln!(self.writer, "</div>")?;
-        Ok(())
-    }
-
-    #[cfg(feature = "terminal")]
-    fn render_terminal_listing_block_semantic(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        content: ContentRef<'_>,
-        title: Option<ContentRef<'_>>,
-        caption_kind: Option<CaptionKind>,
-        attributes: AttributesRef<'_>,
-    ) -> Result<(), Error> {
-        let converter = self.converter.clone();
-        let attrs = converter.document_attributes();
-        let options = converter.options.clone();
-        if title.is_some() {
-            write_semantic_tag_open(
-                &mut self.writer,
-                "figure",
-                Some(attributes),
-                "listing-block terminal-block",
-            )?;
-            self.render_captioned_title_with_wrapper(
-                traversal,
-                title,
-                Some(attributes),
-                caption_kind,
-                "<figcaption>",
-                "</figcaption>\n",
-            )?;
-            render_listing(
-                &mut self.writer,
-                content,
-                attributes,
-                options,
-                attrs,
-                &mut self.diagnostics,
-            )?;
-            writeln!(self.writer, "</figure>")?;
-        } else {
-            write_semantic_tag_open(
-                &mut self.writer,
-                "div",
-                Some(attributes),
-                "listing-block terminal-block",
-            )?;
-            render_listing(
-                &mut self.writer,
-                content,
-                attributes,
-                options,
-                attrs,
-                &mut self.diagnostics,
-            )?;
             writeln!(self.writer, "</div>")?;
         }
         Ok(())
@@ -884,28 +618,6 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let content = data.content();
         let title = data.title();
         let attributes = Some(data.attributes());
-
-        #[cfg(feature = "terminal")]
-        if is_terminal_session(data.attributes()) && self.terminal_emulator_allowed() {
-            if self.converter.variant() == HtmlVariant::Semantic {
-                self.render_terminal_session_block_semantic(
-                    traversal,
-                    content,
-                    title,
-                    caption_kind,
-                    data.attributes(),
-                )?;
-            } else {
-                self.render_terminal_session_block(
-                    traversal,
-                    content,
-                    title,
-                    caption_kind,
-                    data.attributes(),
-                )?;
-            }
-            return Ok(());
-        }
 
         let base_class = if let Some(style) = attributes
             .and_then(|attributes| attributes.get("style").and_then(AttributeValueRef::as_str))
@@ -1151,6 +863,7 @@ mod tests {
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             generate_index: false,
+            render_session: None,
             variant: crate::HtmlVariant::Standard,
         }
     }

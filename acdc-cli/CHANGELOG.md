@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Builds with the optional `lists` feature accept `convert --extension lists`
+  for native linked lists of document elements across enabled backends. Files,
+  stdin, and batches preserve formatted titles, stable links, and empty-section
+  options. Compilation alone leaves calls inactive; unavailable selections fail
+  before input is read. The Ruby `enhanced_rendering` option is intentionally
+  unsupported because acdc always preserves title formatting.
+
+- Conversion accepts repeatable `--extension NAME` selections and rejects
+  unavailable packages before reading input. **Breaking:** builds with
+  `html-terminal` require `--extension terminal` to render terminal previews and
+  replay; compilation alone leaves ordinary listings. Files, stdin, and batches
+  retain the existing terminal syntax, safe-mode fallback, and warning behavior.
+
 - Conversion continues after recoverable parser errors and reports structured
   warnings, including non-conforming manpage titles. `convert --fail-on-warnings`
   retains successful output, processes the remaining selected inputs, and exits

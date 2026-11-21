@@ -539,7 +539,13 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             webfonts: !(stylesheet_disabled
                 || !attrs.contains("webfonts") && attrs.is_explicit("webfonts")),
             icons_font: font_icons,
-            replay: cfg!(feature = "terminal"),
+            extension_script_hashes: self
+                .converter
+                .render_session
+                .as_ref()
+                .map_or_else(Vec::new, |session| {
+                    session.borrow().script_hashes().collect()
+                }),
         }
     }
 
@@ -735,6 +741,9 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
         context: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
     ) -> Result<(), Self::Error> {
+        if self.render_extension(context, block)? {
+            return Ok(());
+        }
         match block.kind() {
             BlockKind::Section(section) => self.visit_section_ref(context, section),
             BlockKind::Paragraph(paragraph) => self.visit_paragraph_ref(context, paragraph),
@@ -780,7 +789,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
             | BlockKind::Stem(_)
             | BlockKind::Table(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block_ref(context, block),
-            _ => {
+            BlockKind::Extension(_) | _ => {
                 self.warn_unhandled_block();
                 Ok(())
             }

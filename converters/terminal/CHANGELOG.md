@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Library callers can render a listing to ANSI with its content, block
+  attributes, and background theme through `render_listing_content_to_ansi()`.
+
+- Extension-generated caption and captured-title links now use explicit labels,
+  preserving title formatting and source attributes while following final captions
+  and renamed targets. Repeated conversion preserves the shared parsed document.
+
 - Source blocks with a line longer than 16 KiB render as plain source, preserving
   their text and returning one structured warning per document. This acdc limit
   avoids excessive highlighting time on long lines. HTML terminal previews

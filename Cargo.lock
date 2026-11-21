@@ -13,6 +13,7 @@ dependencies = [
  "acdc-converters-pdf",
  "acdc-converters-terminal",
  "acdc-execute",
+ "acdc-extensions-lists",
  "acdc-lint",
  "acdc-parser",
  "chrono",
@@ -40,6 +41,8 @@ dependencies = [
  "percent-encoding",
  "relative-path 2.0.3",
  "rustc-hash",
+ "serde_json",
+ "tempfile",
  "thiserror",
  "tracing",
 ]
@@ -60,7 +63,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
- "acdc-converters-terminal",
+ "acdc-extensions-terminal",
  "acdc-parser",
  "base64 0.23.1",
  "chrono",
@@ -115,6 +118,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
+ "acdc-extensions-lists",
  "acdc-parser",
  "acdc-pdf-images",
  "acdc-pdf-render",
@@ -172,6 +176,30 @@ dependencies = [
  "petgraph",
  "rstest",
  "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "acdc-extensions-lists"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-parser",
+ "serde_json",
+ "stats_alloc",
+]
+
+[[package]]
+name = "acdc-extensions-terminal"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-converters-terminal",
+ "acdc-parser",
+ "base64 0.23.1",
+ "sha2",
  "thiserror",
 ]
 

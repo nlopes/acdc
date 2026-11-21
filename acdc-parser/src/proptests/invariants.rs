@@ -85,7 +85,7 @@ proptest! {
             let arena = bumpalo::Bump::new();
             let mut state = crate::grammar::ParserState::new(&result.text, &arena, Rc::new(options.clone()));
             state.leveloffset_ranges = result.leveloffset_ranges;
-            if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
+            if let Ok(Ok(doc)) = crate::grammar::parse_document(&result.text, &mut state) {
                 let text = &result.text;
                 walk_document_locations(&doc, &mut |loc, ctx| {
                     assert!(
@@ -309,6 +309,7 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
         | Block::Image(_)
         | Block::Audio(_)
         | Block::Video(_)
+        | Block::Extension(_)
         | Block::Comment(_) => {}
     }
 }
@@ -550,6 +551,7 @@ fn verify_block_monotonic(block: &Block) {
         | Block::Image(_)
         | Block::Audio(_)
         | Block::Video(_)
+        | Block::Extension(_)
         | Block::Comment(_) => {}
     }
 }

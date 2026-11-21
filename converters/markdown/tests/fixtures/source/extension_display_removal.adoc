@@ -1,0 +1,1 @@
+../../../../html/tests/fixtures/source/html/embedded/extension_display_removal.adoc

@@ -2183,12 +2183,15 @@ mod syntax_highlighting {
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("html");
-        converter.convert_to_writer(
-            doc,
-            &mut output,
-            &RenderOptions::default(),
-            &mut Diagnostics::new(&source, &mut warnings),
-        )?;
+        acdc_converters_core::pipeline::Pipeline::new(converter)
+            .with_extensions(acdc_converters_html::terminal_extension())
+            .write_to(
+                doc,
+                &mut output,
+                None,
+                None,
+                &mut Diagnostics::new(&source, &mut warnings),
+            )?;
         let html = String::from_utf8(output)?;
         assert!(html.contains("terminal-view"));
         assert_eq!(warnings.len(), 1, "{warnings:?}");

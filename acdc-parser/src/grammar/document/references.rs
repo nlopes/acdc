@@ -646,6 +646,7 @@ pub(super) fn normalize_bibliography_lists<'a>(state: &ParserState<'a>, blocks: 
             | Block::Video(_)
             | Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
+            | Block::Extension(_)
             | Block::Comment(_) => {}
         }
     }

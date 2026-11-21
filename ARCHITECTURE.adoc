@@ -86,6 +86,73 @@ The preprocessed text gets transformed into an Abstract Syntax Tree (AST).
 The primary PEG grammar lives in `grammar/document/peg.rs` using the `peg::parser!` macro.
 It handles document structure (header, sections, blocks), block-level elements (paragraphs, lists, tables, delimited blocks), attributes and metadata, and all the nesting rules.
 
+==== Registered extensions
+
+The parser owns an optional registry of block-macro descriptors and factories.
+Recognition records invocations and their source-position attributes without
+calling extension code during speculative grammar matching. The host runs macros
+once at committed block boundaries in source order, applying requested attribute
+changes before later conditionals and includes, then repairs captions and catalogs.
+Tree processors run once in registration order through a scoped editor.
+
+Queries return the same typed views as ordinary parser consumers, plus stable
+handles for checked edits. Reference and footnote repair reuse the shared prepared
+content services. Extension edits preserve surviving numbering. The host allocates
+generated text; builders do not reparse it or store backend markup.
+
+The working session retains deferred requests and document-local processors.
+A tree processor registered with `TreeProcessorRegistration::for_macro` receives
+its macro's surviving requests in source order. Only that processor can resolve
+those placeholders. Removing a containing section cancels its pending requests.
+Its checked `finish()` operation rejects unresolved requests and returns the
+ordinary `ParseResult` for conversion. Registrations are explicit, and an empty
+registry retains the ordinary parsing path. Callback attribute changes follow
+the same assignment, locking, and nested-document policies as authored content.
+
+`acdc-converters-core::pipeline` provides the shared library and CLI orchestration.
+The backend is configured before parsing so its attributes govern source
+processing. An `ExtensionCatalog` lists packages available in the application;
+explicit selection activates them and rejects unavailable names before reading
+input. Selected packages preserve selection order and their registration order.
+The CLI makes the native `terminal` package available when built with
+`html-terminal`; explicit `--extension terminal` selection activates it.
+
+`Pipeline` coordinates parser-owned source processing, committed callbacks,
+tree processors, and finalization for strings, files, and readers. Conversion
+prepares deferred display content through the shared display service before
+calling the backend. CLI batches, stdin, terminal output, and pagers use these
+same entry points. Inactive pipelines call the ordinary parser directly.
+
+Working sessions permit checked edits through document-local handles. Borrowed
+queries end before edits; fresh queries observe repaired catalogs and copied
+selections remain snapshots. Surviving handles retain identity across insertions
+and replacement; removed handles never bind to another block. `normalize()` is
+idempotent without callbacks. `finish()` consumes the session, binds displays to
+surviving targets, and rejects unresolved requests. Pipeline parsing returns only
+the finalized `ParseResult`.
+
+Factories may be shared; mutable handlers belong to each document. Each render
+creates fresh counters, traversal state, and display overlays without mutating
+parsed storage. Parser and converter warnings remain structured until presented
+by the caller. Processor errors stop later work. Checked edits are atomic, but
+earlier successful edits and external callback effects cannot be rolled back as
+a sequence.
+
+Native block renderers are also immutable registrations with fresh mutable
+handlers per conversion. `Extensions` combines parser and renderer capabilities;
+renderer-only selections retain ordinary parsing. Backends dispatch selected
+renderers in order and use ordinary rendering when every handler declines.
+HTML supplies streaming output, diagnostics, metadata escaping, and caption/title
+services. Renderers read attributes from the active traversal so accepted body
+assignments apply in source order and cell-local values expire on exit. Selected
+renderers supply their CSP script hashes. No handler can edit the shared parsed
+document through this rendering interface.
+
+`extensions/terminal` owns the terminal preview and replay implementation and
+player script. It uses these generic host services instead of terminal-specific
+branches in HTML's block rendering. The `terminal` HTML feature preserves build
+availability and script-constant exports; it does not activate a renderer.
+
 ==== Inline preprocessing
 
 Inline content needs special handling, as specified in https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/blob/main/spec/sdrs/sdr-005-formal-grammar-for-inline-syntax.adoc[SDR-005: Formal Grammar for Inline Syntax].

@@ -43,10 +43,11 @@
 //! file on each boundary independently (so a span crossing a file boundary reports each
 //! endpoint's own file). Columns are normally left untouched — same-file line edits and
 //! include splicing only add or remove whole lines, never shift within-line columns. The
-//! one exception is `include::[indent=N]`, which re-indents every line by a uniform
+//! include option `indent=N` re-indents every line by a uniform
 //! [`SourceRange::column_shift`]; the remap subtracts it to recover origin columns.
 //!
-//! Byte offsets are origin-relative only for **1:1** ranges (`column_shift == 0`).
+//! Generated source points to column one and the byte offset of the edited line.
+//! Unmodified ranges retain the original byte offset at each position.
 //! An indented include inserts/removes bytes per line, so a single linear map can't
 //! recover origin offsets; for such ranges the offsets are left in preprocessed
 //! coordinates (line/column are still origin-correct) rather than overrun the shorter
@@ -328,10 +329,10 @@ pub(super) fn remap_endpoints(
     };
     location.start.column = shift_column(location.start.column, start_range.column_shift);
     location.end.column = shift_column(location.end.column, end_range.column_shift);
-    if start_range.column_shift == 0 {
+    if start_range.column_shift.unwrap_or(0) == 0 {
         location.absolute_start = start_offset;
     }
-    if end_range.column_shift == 0 {
+    if end_range.column_shift.unwrap_or(0) == 0 {
         location.absolute_end = end_offset.max(location.absolute_start);
     } else {
         location.absolute_end = location.absolute_end.max(location.absolute_start);
@@ -366,11 +367,14 @@ fn covering_range_index(
 
 /// Subtract a re-indent's `column_shift` from a preprocessed `column` to recover the
 /// origin column, clamped to a minimum of 1. A `0` shift returns `column` unchanged.
-fn shift_column(column: u32, column_shift: isize) -> u32 {
+fn shift_column(column: u32, column_shift: Option<i32>) -> u32 {
+    let Some(column_shift) = column_shift else {
+        return 1;
+    };
     if column_shift == 0 {
         return column;
     }
-    let shifted = isize::try_from(column).unwrap_or(isize::MAX) - column_shift;
+    let shifted = i64::from(column) - i64::from(column_shift);
     u32::try_from(shifted.max(1)).unwrap_or(1)
 }
 
@@ -386,7 +390,7 @@ mod tests {
             file_chain: Vec::new(),
             start_line: 1,
             source_start_offset: 0,
-            column_shift: 0,
+            column_shift: Some(0),
         }
     }
 

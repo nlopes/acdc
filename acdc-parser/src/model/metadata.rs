@@ -57,6 +57,8 @@ impl<'a> BlockPrefixEvents<'a> {
 #[non_exhaustive]
 pub struct BlockMetadata<'a> {
     #[serde(skip)]
+    pub(crate) source_context: Option<std::sync::Arc<crate::extensions::SourceContext<'a>>>,
+    #[serde(skip)]
     pub(crate) attribute_positions: Option<Box<AttributePositions<'a>>>,
     // Store uncommon parser events separately to keep each block's metadata small.
     #[serde(skip)]
@@ -121,6 +123,7 @@ pub struct BlockMetadata<'a> {
 impl PartialEq for BlockMetadata<'_> {
     fn eq(&self, other: &Self) -> bool {
         let Self {
+            source_context: _,
             attribute_positions: _,
             prefix_events,
             caption,
