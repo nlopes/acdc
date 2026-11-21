@@ -921,7 +921,8 @@ pub(crate) fn document_from_source<'a>(
     conditionals: &mut Vec<crate::ConditionalEvaluation>,
     finish_source: impl FnOnce(Cow<'a, str>) -> &'a str,
 ) -> Result<Document<'a>, Error> {
-    if let Some(result) = reader.take_pass_through() {
+    if let Some(mut result) = reader.take_pass_through() {
+        state.leveloffset_ranges = std::mem::take(&mut result.leveloffset_ranges);
         let source = finish_source(result.text);
         if !std::ptr::eq(state.input, source) {
             state.set_source_view(SourceView {

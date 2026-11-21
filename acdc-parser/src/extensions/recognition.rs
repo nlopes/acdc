@@ -56,7 +56,7 @@ pub(crate) fn recognize<'a>(
     let mut positional = Vec::new();
     let mut attributes = ElementAttributes::default();
     for (slot, argument) in scanned.into_iter().enumerate() {
-        if argument.name.is_some() && argument.is_unset() {
+        if argument.is_ignored(state.options.compatibility_mode) {
             continue;
         }
         let empty_slot = argument.is_empty_slot();

@@ -120,10 +120,6 @@ impl ScannedAttribute {
         self.quote == AttributeQuote::Unquoted && self.value.is_empty()
     }
 
-    pub(crate) fn is_unset(&self) -> bool {
-        self.quote == AttributeQuote::Unquoted && self.value == "None"
-    }
-
     pub(super) fn resolve_content<'a>(
         &self,
         text: &'a str,
@@ -180,7 +176,7 @@ impl ScannedAttribute {
             .map(crate::model::canonical_attribute_name)
     }
 
-    pub(super) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
+    pub(crate) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
         mode == CompatibilityMode::Asciidoctor
             && self.name.is_some()
             && self.quote == AttributeQuote::Unquoted

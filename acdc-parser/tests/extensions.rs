@@ -540,3 +540,6 @@ mod raw_styles;
 
 #[path = "extensions/compound_styles.rs"]
 mod compound_styles;
+
+#[path = "extensions/parity.rs"]
+mod parity;

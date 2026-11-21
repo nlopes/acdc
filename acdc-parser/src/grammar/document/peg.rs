@@ -1159,10 +1159,11 @@ peg::parser! {
                 // is "out of sequence". asciidoctor warns but still renders it at
                 // its literal level rather than aborting, so we do the same.
                 if section_level.1 > parent_level {
-                    let location = state.create_error_source_location(
-                        state.create_block_location(section_level_start, section_level_end, offset),
-                    );
-                    let start = location.location.absolute_start;
+                    let heading = state.create_block_location(section_level_start, section_level_end, offset);
+                    // Key by the preprocessed offset that `heading_location` also uses;
+                    // the reported location is remapped to the original source.
+                    let start = heading.absolute_start;
+                    let location = state.create_error_source_location(heading);
                     let warning = Warning::new(
                         WarningKind::SectionLevelOutOfSequence {
                             expected: parent_level,
@@ -1948,17 +1949,16 @@ peg::parser! {
             } else { Err("registered block macro") }
         }
 
+        // Like asciidoctor, a target has no whitespace and the line ends at
+        // the closing bracket; anything else stays ordinary content.
         rule extension_macro_source() -> (&'input str, &'input str, &'input str, usize)
-        = name:registered_macro_name() target:$([^'[' | '\n' | '\r']*)
-          "[" arguments:attribute_list_content(BlockAttributeMode::Macro) end:position!() trailing:$([^'\n']*)
+        = name:registered_macro_name() target:$([^'[' | ' ' | '\t' | '\n' | '\r']*)
+          "[" arguments:attribute_list_content(BlockAttributeMode::Macro) end:position!() block_macro_end()
         { (name, target, arguments, end) }
 
         rule extension_macro(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = source:extension_macro_source() {
             let (name, target, arguments, end) = source;
-            if state.source_slice(end + offset..span_end + offset).is_some_and(|trailing| !trailing.trim().is_empty()) {
-                state.add_warning(Warning::new(WarningKind::ContentRecovery { message: format!("trailing content after block macro {name}").into() }, Some(state.create_error_source_location(state.create_location(end + offset, span_end + offset)))));
-            }
             crate::extensions::recognize(state, name, target, arguments, block_metadata.metadata.clone(), block_metadata.title.clone(), state.create_block_location(start, end, offset))
         }
 
