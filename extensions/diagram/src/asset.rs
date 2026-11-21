@@ -174,12 +174,19 @@ pub(super) fn run(command: &mut Command, dir: &Path, tool: &str) -> io::Result<(
     run_with_input(command, dir, tool, Stdio::null())
 }
 
-pub(super) fn run_with_input(
+pub(super) fn run_with_source(
     command: &mut Command,
     dir: &Path,
     tool: &str,
-    stdin: Stdio,
+    scratch: &Path,
+    source: &str,
 ) -> io::Result<()> {
+    let path = scratch.join("stdin");
+    fs::write(&path, source.as_bytes())?;
+    run_with_input(command, dir, tool, fs::File::open(path)?.into())
+}
+
+fn run_with_input(command: &mut Command, dir: &Path, tool: &str, stdin: Stdio) -> io::Result<()> {
     let mut child = command
         .current_dir(dir)
         .stdin(stdin)

@@ -52,7 +52,7 @@ Use `scale=0.5` to halve those defaults. Explicit `width` and `height` each over
 acdc uses Asciidoctor Diagram’s factor of 1.33 for TeX points and truncates fractional pixels after scaling.
 For other physical units acdc uses 96 pixels per inch. A `viewBox` offset does not change its width or height.
 Use `[wavedrom,clock,png]` to generate `clock.png`. WaveDrom defaults to SVG.
-Set `:diagram-format: svg` to select a common format for all three renderers.
+Set `:diagram-format: svg` to select a common format for the registered renderers.
 A block's positional or named format overrides the renderer-specific attribute (such as `graphviz-format`), which in turn overrides `diagram-format`.
 Each block uses the document attributes in effect at its location. Unsetting a renderer-specific format restores the shared default.
 An empty format reports an unsupported format. Use `:diagram-format!:` to restore automatic selection.
@@ -92,7 +92,17 @@ The CLI also registers `graphviz::graphs/chart.dot[svg,alt="*Graph*"]`. In a lib
 The macro reads DOT through the parser's include loader. It accepts UTF-8 and Unicode files with a byte order mark. The target resolves like a local include and its bytes count toward the same document limit. Graphviz resolves resources inside the graph relative to the DOT file. The example writes `chart.svg`. Without an explicit `target` or `alt`, the alternative text is `Diagram`. The file stem follows the same output-name rules as a diagram block. Use `target=other-name` to override it.
 Only the caller selects the executable. Rendering requires unsafe mode.
 
+== Message sequence charts
+
+Pass `--extension diagram --mscgen /usr/bin/mscgen` to render a listing or literal block styled `[msc]`, or load a local file with `msc::charts/exchange.msc[svg]`.
+In a library, register the block style returned by `acdc_diagram::msc` and the block macro returned by `acdc_diagram::msc_file`.
+Both forms default to PNG. Select SVG with the positional format, `format=svg`, or `:msc-format: svg`.
+Native mscgen uses the `font` argument for PNG output. Set a document default with `:msc-font: DejaVu Sans`.
+The macro reads its source through the parser's include loader. Rendering requires unsafe mode and a caller-selected executable.
+
 == Verification
+
+With mscgen 0.20, acdc and Asciidoctor Diagram 3.2.1 rendered the same two-entity request and response chart as a 600 × 102 PNG block and a 600 × 78 SVG file macro. The image targets, alternative text, and numbered figure captions matched.
 
 Graphviz 14.1.2 rendered the same DOT graph with the `dot` layout through acdc and Asciidoctor Diagram 3.2.1. The HTML image paths, alternative text, and dimensions matched for PNG, SVG, and PDF.
 For `graphviz::graphs/chart.dot[svg,alt="*Graph*"]`, both CLIs linked `chart.svg`, preserved the literal asterisks in the alternative text, and numbered the titled image as a figure.

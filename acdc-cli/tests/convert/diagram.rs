@@ -38,6 +38,7 @@ fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     let dir = tempfile::tempdir()?;
     for (args, expected) in [
         (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
+        (vec!["--mscgen", "missing"], "require --extension diagram"),
         (
             vec!["--graphviz-dot", "missing"],
             "require --extension diagram",
@@ -89,6 +90,69 @@ mod active {
         ];
         command.extend(args);
         run_acdc_in(root, &command, stdin)
+    }
+
+    #[test]
+    fn msc_renders_block_and_local_file_with_the_selected_font() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::create_dir(root.join("charts"))?;
+        fs::write(root.join("charts/exchange.msc"), "file chart")?;
+        fs::write(
+            root.join("mscgen"),
+            r#"#!/bin/sh
+set -eu
+test "$#" = 7
+test "$1" = -o && test "$3" = -T && test "$4" = svg && test "$5" = -F && test "$7" = -
+case "$(cat)" in
+  'file chart') test -f exchange.msc && test "$6" = 'File Font' ;;
+  'block chart') test -f doc.adoc && test "$6" = 'Block Font' ;;
+  *) exit 2 ;;
+esac
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$2"
+"#,
+        )?;
+        fs::set_permissions(root.join("mscgen"), fs::Permissions::from_mode(0o700))?;
+        fs::write(
+            root.join("doc.adoc"),
+            "= Charts\n:msc-font: Block Font\n:msc-format: svg\n:imagesdir: images\n\n[msc,request]\n....\nblock chart\n....\n\n.Reply\nmsc::charts/exchange.msc[svg,font=File Font,alt=Reply]",
+        )?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--mscgen",
+            "./mscgen",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        for (name, alt) in [("request", "request"), ("exchange", "Reply")] {
+            assert!(root.join(format!("images/{name}.svg")).is_file());
+            assert!(html.contains(&format!(
+                r#"src="images/{name}.svg" alt="{alt}" width="16" height="8""#
+            )));
+        }
+        assert!(html.contains("Figure 1. Reply"));
+        for (source, expected) in [
+            ("msc::charts/exchange.msc[pdf]", "unsupported msc format"),
+            (
+                ":mscgen: other\n\n[msc]\n----\nsource\n----",
+                "set the mscgen executable",
+            ),
+            (
+                "msc::charts/exchange.msc[mscgen_js=other]",
+                "set the mscgen executable",
+            ),
+        ] {
+            fs::write(root.join("doc.adoc"), source)?;
+            let output = run_acdc_in(root, &args, None)?;
+            assert!(!output.status.success());
+            assert!(output_text(&output.stderr).contains(expected));
+        }
+        Ok(())
     }
 
     #[test]

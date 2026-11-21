@@ -31,10 +31,7 @@ impl Selection {
         #[cfg(feature = "diagram")]
         if args.extensions.iter().any(|name| name == "diagram") {
             return args.diagram.select(args, catalog, asset_base);
-        } else if args.diagram.wavedrom_cli.is_some()
-            || args.diagram.lualatex.is_some()
-            || args.diagram.graphviz_dot.is_some()
-        {
+        } else if args.diagram.has_renderer() {
             return Err(miette::miette!(
                 "diagram tool paths require --extension diagram"
             ));
@@ -71,6 +68,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted Graphviz dot executable
     #[arg(long, value_name = "PATH")]
     graphviz_dot: Option<std::path::PathBuf>,
+    /// Path to the trusted mscgen executable for message sequence charts
+    #[arg(long, value_name = "PATH")]
+    mscgen: Option<std::path::PathBuf>,
     /// Path to the trusted wavedrom-cli executable
     #[arg(long, value_name = "PATH")]
     wavedrom_cli: Option<std::path::PathBuf>,
@@ -84,6 +84,13 @@ pub(super) struct DiagramArgs {
 
 #[cfg(feature = "diagram")]
 impl DiagramArgs {
+    fn has_renderer(&self) -> bool {
+        self.wavedrom_cli.is_some()
+            || self.lualatex.is_some()
+            || self.graphviz_dot.is_some()
+            || self.mscgen.is_some()
+    }
+
     fn select(
         &self,
         args: &Args,
@@ -91,9 +98,9 @@ impl DiagramArgs {
         asset_base: AssetBase,
     ) -> Result<Selection> {
         use std::collections::{HashMap, hash_map::Entry};
-        if self.wavedrom_cli.is_none() && self.lualatex.is_none() && self.graphviz_dot.is_none() {
+        if !self.has_renderer() {
             return Err(miette::miette!(
-                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, or --graphviz-dot PATH"
+                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, or --mscgen PATH"
             ));
         }
         // The terminal backend displays files from the working directory, including in a pager.
@@ -157,6 +164,20 @@ impl DiagramArgs {
                 .map_err(|e| error::display(&e))?;
             let file_macro = acdc_diagram::graphviz_file(tool, output).map_err(|e| {
                 miette::miette!("cannot configure Graphviz with {}: {e}", tool.display())
+            })?;
+            registry
+                .register(file_macro)
+                .map_err(|e| error::display(&e))?;
+        }
+        if let Some(tool) = &self.mscgen {
+            let style = acdc_diagram::msc(tool, output).map_err(|e| {
+                miette::miette!("cannot configure mscgen with {}: {e}", tool.display())
+            })?;
+            registry
+                .register_block_style(style)
+                .map_err(|e| error::display(&e))?;
+            let file_macro = acdc_diagram::msc_file(tool, output).map_err(|e| {
+                miette::miette!("cannot configure mscgen with {}: {e}", tool.display())
             })?;
             registry
                 .register(file_macro)
