@@ -1,10 +1,10 @@
 use super::{TestResult, support};
 use acdc_parser::{
     CompatibilityMode, Options, WarningKind,
-    ast::{BlockKind, InlineKind},
+    ast::{BlockKind, ContentRef, DocumentRef, InlineKind},
     extensions::{
-        BlockBuilder, BlockContext, DisplayIntent, DisplayLabel, DocumentEditor, InlineSpec,
-        PreparedDocument, TitleSource,
+        BlockBuilder, BlockContext, DisplayIntent, DisplayLabel, DocumentEditor,
+        ExtensionParseResult, InlineSpec, PreparedDocument, TitleSource,
     },
 };
 
@@ -337,6 +337,143 @@ fn extensions_display_distinguishes_absent_and_present_empty_titles() -> TestRes
                 matches!(xref.text().inlines().next().ok_or("label")?.kind(), InlineKind::Plain(text) if text.text() == expected)
             );
         }
+    }
+    Ok(())
+}
+
+/// Record every ID-bearing inline, recursing into spans and cross-reference labels.
+fn collect_id_bearing(content: ContentRef<'_>, found: &mut Vec<String>) {
+    for inline in content.inlines() {
+        let kind = inline.kind();
+        if let InlineKind::Anchor(anchor) = kind {
+            found.push(format!("anchor {}", anchor.id()));
+        } else if let InlineKind::Footnote(note) = kind {
+            found.push(format!("footnote {}", note.number()));
+        } else if let InlineKind::Bold(span) = kind {
+            if let Some(id) = span.id() {
+                found.push(format!("span {}", id.as_str()));
+            }
+            collect_id_bearing(span.content(), found);
+        } else if let InlineKind::Italic(span) = kind {
+            if let Some(id) = span.id() {
+                found.push(format!("span {}", id.as_str()));
+            }
+            collect_id_bearing(span.content(), found);
+        } else if let InlineKind::CrossReference(xref) = kind {
+            collect_id_bearing(xref.text(), found);
+        }
+    }
+}
+
+/// A generated list using both title-copying intents, ahead of the captured image.
+fn display_list_before_image(
+    title: &str,
+    mode: CompatibilityMode,
+) -> Result<ExtensionParseResult, Box<dyn std::error::Error>> {
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let mut result = support::registry().parse(
+        &format!("[#output]\nOutput.\n\n.{title}\n[#figure]\nimage::r.svg[]\n\nSee <<res>>."),
+        &options,
+    )?;
+    let image = result
+        .query()
+        .select(BlockContext::Image)
+        .next()
+        .ok_or("image")?
+        .target()
+        .clone();
+    let output = result
+        .query()
+        .select(BlockContext::Paragraph)
+        .next()
+        .ok_or("output")?
+        .target()
+        .clone();
+    let mut editor = DocumentEditor::new(&mut result, None);
+    let captured = editor.capture(&image)?;
+    editor.replace_block(
+        &output,
+        BlockBuilder::unordered_list([
+            vec![captured.display(DisplayIntent::Title)],
+            vec![captured.display(DisplayIntent::CaptionAndTitle)],
+        ]),
+    )?;
+    Ok(result)
+}
+
+fn generated_list_ids(
+    document: DocumentRef<'_>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let BlockKind::UnorderedList(list) = document.blocks().next().ok_or("list")?.kind() else {
+        return Err("list kind".into());
+    };
+    let mut found = Vec::new();
+    for item in list.items() {
+        collect_id_bearing(item.principal(), &mut found);
+    }
+    Ok(found)
+}
+
+fn image_title_ids(document: DocumentRef<'_>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let block = document
+        .blocks()
+        .find(|block| matches!(block.kind(), BlockKind::Image(_)))
+        .ok_or("image")?;
+    let mut found = Vec::new();
+    collect_id_bearing(block.title().ok_or("image title")?, &mut found);
+    Ok(found)
+}
+
+#[test]
+fn extensions_display_title_copies_drop_inline_anchors() -> TestResult {
+    for mode in modes() {
+        let result = display_list_before_image("Results [[res]] *bold [[inner]]*", mode)?;
+        let parsed = result.finish()?;
+        assert!(
+            !parsed
+                .warnings()
+                .iter()
+                .any(|warning| matches!(warning.kind, WarningKind::DuplicateId { .. })),
+            "{:?}",
+            parsed.warnings()
+        );
+        let prepared = PreparedDocument::new(parsed.document(), |_| DisplayLabel::Title)?;
+        let document = prepared.document();
+        assert_eq!(generated_list_ids(document)?, Vec::<String>::new());
+        assert_eq!(image_title_ids(document)?, ["anchor res", "anchor inner"]);
+        assert!(document.references().contains("res"));
+        assert!(document.references().contains("inner"));
+    }
+    Ok(())
+}
+
+#[test]
+fn extensions_display_title_copies_leave_footnotes_with_the_original() -> TestResult {
+    for mode in modes() {
+        let result = display_list_before_image("Results footnote:[note]", mode)?;
+        let parsed = result.finish()?;
+        let prepared = PreparedDocument::new(parsed.document(), |_| DisplayLabel::Title)?;
+        let document = prepared.document();
+        assert_eq!(generated_list_ids(document)?, Vec::<String>::new());
+        assert_eq!(image_title_ids(document)?, ["footnote 1"]);
+        let block = document
+            .blocks()
+            .find(|block| matches!(block.kind(), BlockKind::Image(_)))
+            .ok_or("image")?;
+        let note = block
+            .title()
+            .ok_or("image title")?
+            .inlines()
+            .find_map(|inline| {
+                if let InlineKind::Footnote(note) = inline.kind() {
+                    Some(note)
+                } else {
+                    None
+                }
+            })
+            .ok_or("original footnote")?;
+        assert!(note.content().is_some_and(|content| !content.is_empty()));
+        assert_eq!(document.footnotes().count(), 1);
     }
     Ok(())
 }
