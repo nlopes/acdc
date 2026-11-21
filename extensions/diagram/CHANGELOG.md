@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Caption local images with `meme::photo.jpg[Top,Bottom]` and `--extension diagram --magick PATH`. PNG is the default. Use `format=gif` for GIF and `opts=noupcase` to preserve letter case.
+
 - Render `[vegalite]` blocks and `vegalite::chart.json[]` files with `--vl2vg PATH`. Supply the Vega SVG renderer with `--vg2svg PATH`. The compiler feeds its Vega specification to the selected SVG or PNG renderer.
 
 - Render `[vega]` blocks and `vega::chart.json[]` files with `--vg2svg PATH`. SVG uses `--vg2svg`. Supply `--vg2png PATH` for PNG and `--vl2vg PATH` for Vega-Lite specifications.

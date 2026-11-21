@@ -165,6 +165,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted vg2svg renderer
     #[arg(long, value_name = "PATH")]
     vg2svg: Option<std::path::PathBuf>,
+    /// `ImageMagick` executable for captioned image macros
+    #[arg(long, value_name = "PATH")]
+    magick: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -283,6 +286,7 @@ impl DiagramArgs {
             || self.dpic.is_some()
             || self.pikchr.is_some()
             || self.goat.is_some()
+            || self.magick.is_some()
             || self.bytefield_svg.is_some()
             || self.configured_renderers().next().is_some()
     }
@@ -296,7 +300,7 @@ impl DiagramArgs {
         use std::collections::{HashMap, hash_map::Entry};
         if !self.has_renderer() {
             return Err(miette::miette!(
-                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, --mscgen PATH, --dpic PATH, --pikchr PATH, --goat PATH, or --bytefield-svg PATH"
+                "--extension diagram requires at least one renderer executable (see acdc convert --help)"
             ));
         }
         // The terminal backend displays files from the working directory, including in a pager.
@@ -427,6 +431,13 @@ impl DiagramArgs {
                 .map_err(|e| error::display(&e))?;
         }
         self.register_configured(&mut registry, output)?;
+        if let Some(tool) = &self.magick {
+            let descriptor = acdc_diagram::meme(tool, output)
+                .map_err(|e| miette::miette!("cannot configure ImageMagick: {e}"))?;
+            registry
+                .register(descriptor)
+                .map_err(|e| error::display(&e))?;
+        }
         let mut catalog = available.clone();
         catalog
             .register("diagram", registry.build())

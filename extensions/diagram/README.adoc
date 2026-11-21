@@ -253,6 +253,10 @@ Render `[vega]` blocks and `vega::chart.json[]` files with `--vg2svg PATH`. SVG 
 
 Render `[vegalite]` blocks and `vegalite::chart.json[]` files with `--vl2vg PATH`. Supply the Vega SVG renderer with `--vg2svg PATH`. The compiler feeds its Vega specification to the selected SVG or PNG renderer. Enable the package with `--extension diagram`.
 
+== Meme
+
+Caption local images with `meme::photo.jpg[Top,Bottom]` and `--extension diagram --magick PATH`. PNG is the default. Use `format=gif` for GIF and `opts=noupcase` to preserve letter case. The third and fourth positional attributes set the output target and format. Use ` // ` to split a caption across lines. Both ImageMagick 7 `magick` and ImageMagick 6 `convert` accept this command line.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

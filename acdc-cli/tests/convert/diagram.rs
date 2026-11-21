@@ -37,7 +37,10 @@ fn diagram_is_unavailable_before_input_is_read() -> TestResult {
 fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     let dir = tempfile::tempdir()?;
     for (args, expected) in [
-        (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
+        (
+            vec!["--extension", "diagram"],
+            "requires at least one renderer executable",
+        ),
         (
             vec!["--bytefield-svg", "missing"],
             "require --extension diagram",
@@ -549,6 +552,53 @@ cat >/dev/null
 printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#,
             )],
         )
+    }
+
+    #[test]
+    fn meme_block_and_file() -> TestResult {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        fs::write(root.join("photo.jpg"), [0xff, 0xd8, 0xff, 0xd9])?;
+        fs::write(
+            root.join("doc.adoc"),
+            ".Caption\nmeme::photo.jpg[Mixed // case,Bottom,caption,gif,opts=noupcase,font=Sample]",
+        )?;
+        fs::write(
+            root.join("renderer"),
+            r#"#!/bin/sh
+set -eu
+for last; do :; done
+case "$last" in
+    info:) printf '100 50';;
+    */top.png)
+        test "${10}" = Sample
+        printf '%s\n' "$@" > top-args
+        touch "$last";;
+    */bottom.png) touch "$last";;
+    */output.gif)
+        test "$2" != ''
+        printf 'GIF89a\001\000\001\000\200\000\000\000\000\000\377\377\377\054\000\000\000\000\001\000\001\000\000\002\002\104\001\000\073' > "$last";;
+    *) exit 1;;
+esac
+"#,
+        )?;
+        fs::set_permissions(root.join("renderer"), fs::Permissions::from_mode(0o700))?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--magick",
+            "./renderer",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        assert!(html.contains(r#"src="caption.gif""#));
+        assert!(html.contains("Figure 1. Caption"));
+        assert!(fs::read_to_string(root.join("top-args"))?.contains("label:Mixed\ncase"));
+        Ok(())
     }
 
     fn tool_sample(
