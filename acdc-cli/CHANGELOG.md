@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[nomnoml]` blocks and `nomnoml::chart.nomnoml[]` files with `--nomnoml PATH`. Output is SVG.
+
 - Render `[rackdiag]` blocks and `rackdiag::chart.diag[]` files with `--rackdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
 
 - Render `[packetdiag]` blocks and `packetdiag::chart.diag[]` files with `--packetdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.

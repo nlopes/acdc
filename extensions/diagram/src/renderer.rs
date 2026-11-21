@@ -124,6 +124,15 @@ struct Job<'a> {
 }
 
 impl Job<'_> {
+    fn source_file(&self, extension: &str) -> io::Result<std::path::PathBuf> {
+        let path = self.scratch.join(format!("input.{extension}"));
+        std::fs::write(&path, self.source)?;
+        Ok(path)
+    }
+    fn run(&self, command: &mut Command) -> io::Result<()> {
+        asset::run(command, self.dir, self.name)
+    }
+
     fn option(&self, key: &str) -> Option<&str> {
         self.options
             .iter()
@@ -200,4 +209,18 @@ pub const RACKDIAG: Renderer = Renderer {
     formats: &[Format::Png, Format::Pdf, Format::Svg],
     attributes: &["fontpath"],
     generate: blockdiag_family,
+};
+
+fn nomnoml(job: &Job<'_>) -> io::Result<()> {
+    let input = job.source_file("nomnoml")?;
+    job.run(Command::new(job.tool).arg(input).arg(job.output))
+}
+
+/// Render `nomnoml` diagrams using `nomnoml`.
+pub const NOMNOML: Renderer = Renderer {
+    name: "nomnoml",
+    tool: "nomnoml",
+    formats: &[Format::Svg],
+    attributes: &[],
+    generate: nomnoml,
 };
