@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[salt]` blocks and `salt::chart.salt[]` files with `--plantuml PATH`. Supply the PlantUML executable to render Salt wireframes as PNG, SVG, or text.
+
 - Render `[plantuml]` blocks and `plantuml::chart.puml[]` files with `--plantuml PATH`. Choose PNG, SVG, ASCII `atxt`, or Unicode `txt` and `utxt`. Local includes resolve from the diagram directory. Configure Graphviz with `--graphviz-dot` or use the built-in Smetana layout.
 
 - Render `[penrose]` blocks and `penrose::chart.substance[]` files with `--roger PATH`. Provide `domain_file` and `style_file` relative to the diagram source. Use `variation` to choose a layout.

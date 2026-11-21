@@ -892,3 +892,26 @@ pub const PLANTUML: Renderer = Renderer {
     ],
     generate: plantuml::render,
 };
+
+/// Render `salt` diagrams using `plantuml`.
+pub const SALT: Renderer = Renderer {
+    name: "salt",
+    tool: "plantuml",
+    formats: &[
+        Format::Png,
+        Format::Svg,
+        Format::Txt,
+        Format::Atxt,
+        Format::Utxt,
+    ],
+    attributes: &[
+        "theme",
+        "config",
+        "includedir",
+        "size-limit",
+        "preprocess",
+        "smetana",
+        "debug",
+    ],
+    generate: plantuml::render,
+};
