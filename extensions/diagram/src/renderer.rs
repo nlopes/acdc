@@ -165,3 +165,12 @@ pub const SEQDIAG: Renderer = Renderer {
     attributes: &["fontpath"],
     generate: blockdiag_family,
 };
+
+/// Render `actdiag` diagrams using `actdiag`.
+pub const ACTDIAG: Renderer = Renderer {
+    name: "actdiag",
+    tool: "actdiag",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &["fontpath"],
+    generate: blockdiag_family,
+};
