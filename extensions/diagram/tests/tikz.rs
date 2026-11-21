@@ -32,6 +32,7 @@ fn tikz_rejects_document_tool_selection_and_requires_unsafe_mode() -> TestResult
         );
     }
     let unsafe_opts = Options::builder()
+        .with_attribute("diagram-on-error", "abort")
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
     for (prefix, message) in [
@@ -73,6 +74,7 @@ printf '%%PDF-1.4\n%%%%EOF\n' > input.pdf
     )?;
     let registry = registry(&engine, None, dir.path())?;
     let options = Options::builder()
+        .with_attribute("diagram-on-error", "abort")
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
     let source = "[tikz,figure,pdf,preamble=true]\n....\n% preamble\n~~~~\npicture body\n....";

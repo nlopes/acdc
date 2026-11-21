@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   WaveDrom or `--lualatex PATH` for TikZ. Add `--pdf2svg PATH` for TikZ SVG.
   Rendering requires unsafe mode and a caller-selected executable. Add
   `subs=attributes` to a diagram block to expand document attributes in its source.
+  Failed diagrams show the error and source in the output. Use `--fail-on-warnings` to
+  return status 1 after conversion, or `-a diagram-on-error=abort` to stop at the block.
 
 - Statically linked converter registrations now supply the available backend names, aliases, and variants for CLI help and conversion.
 

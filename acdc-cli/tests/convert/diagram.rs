@@ -103,6 +103,60 @@ mod active {
     }
 
     #[test]
+    fn failed_diagram_in_an_include_keeps_source_and_reports_a_warning() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        setup(root)?;
+        fs::write(root.join("renderer"), "#!/bin/sh\nexit 1\n")?;
+        fs::write(root.join("clock.svg"), "previous asset")?;
+        fs::write(
+            root.join("guide.adoc"),
+            ":label: clock\n\ninclude::part.adoc[]\n\nAfter.",
+        )?;
+        fs::write(
+            root.join("part.adoc"),
+            "\n[wavedrom,clock,svg,subs=attributes]\n....\n<{label}> *raw*\n....",
+        )?;
+        for strict in [false, true] {
+            let mut args = vec![
+                "convert",
+                "--extension",
+                "diagram",
+                "--wavedrom-cli",
+                "./renderer",
+                "--embedded",
+                "-o",
+                "-",
+                "guide.adoc",
+            ];
+            if strict {
+                args.push("--fail-on-warnings");
+            }
+            let output = run_acdc_in(root, &args, None)?;
+            let html = output_text(&output.stdout);
+            let stderr = output_text(&output.stderr);
+            assert_eq!(output.status.code(), Some(i32::from(strict)), "{stderr}");
+            assert!(
+                stderr.contains("renderer exited") && stderr.contains("part.adoc"),
+                "{stderr}"
+            );
+            assert!(
+                html.contains("Failed to generate image:") && html.contains("&lt;clock&gt; *raw*"),
+                "{html}"
+            );
+            assert!(
+                html.contains("<p>After.</p>") && !html.contains("src=\"clock.svg\""),
+                "{html}"
+            );
+        }
+        assert_eq!(
+            fs::read_to_string(root.join("clock.svg"))?,
+            "previous asset"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn diagram_assets_follow_files_streams_and_batches() -> TestResult {
         let dir = tempfile::tempdir()?;
         let root = dir.path();

@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Failed WaveDrom and TikZ diagrams now produce a located warning and show the error and source in a listing. As in Asciidoctor Diagram, `diagram-on-error` defaults to `log`. Set it to `abort` to stop parsing.
+
 - WaveDrom and TikZ blocks accept `subs=attributes` to expand document attributes before rendering. With the default settings, braces and backslashes pass through verbatim. Unnamed images use the expanded source for their filenames. Only the attribute step of a substitution group is applied to diagram source.
 
 - WaveDrom and TikZ also render listing blocks delimited by `----`. They accept the same source, attributes, and output formats as literal blocks delimited by `....`.

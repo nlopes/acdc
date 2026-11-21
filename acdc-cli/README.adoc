@@ -140,6 +140,8 @@ acdc convert --extension diagram --lualatex /opt/tex/bin/lualatex --pdf2svg /opt
 
 Both tool sets can be supplied together. Diagram blocks run only in unsafe mode (the CLI default).
 Restricted modes report an error at the block before launching the renderer.
+By default a renderer failure emits a warning and conversion continues with the error and diagram source in a listing.
+Use `--fail-on-warnings` to keep that output and return status 1, or `-a diagram-on-error=abort` to stop at the failed block.
 A document cannot supply an executable path. See the link:../extensions/diagram/README.adoc[diagram guide] for block syntax.
 
 Linked assets follow the `imagesdir` in effect at the block, relative to the converted file's directory.

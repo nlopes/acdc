@@ -103,7 +103,7 @@ where
             let linked = linked.clone();
             let embedded = embedded.clone();
             let render = render.clone();
-            move |input: RawBlockInput<'_>| {
+            move |mut input: RawBlockInput<'_>| {
                 if input
                     .document_attributes
                     .get("safe-mode-name")
@@ -114,15 +114,45 @@ where
                         "{label} requires unsafe mode to run the configured executable"
                     ));
                 }
-                render(
-                    OutputDirectories::new(&linked, embedded.as_deref().unwrap_or(&linked)),
-                    &input,
-                )
-                .map(Some)
+                let roots = OutputDirectories::new(&linked, embedded.as_deref().unwrap_or(&linked));
+                match render(roots, &input) {
+                    Ok(image) => Ok(Some(image)),
+                    Err(error) if abort_on_error(&input, label) => Err(error),
+                    Err(error) => {
+                        let message = format!("Failed to generate image: {error}");
+                        // The renderer already received its requested substitutions.
+                        // Display that source with ordinary listing escaping.
+                        let listing =
+                            BlockBuilder::listing(format!("{message}\n{}", diagram_source(&input)))
+                                .without_attribute("subs");
+                        input.warn(message);
+                        Ok(Some(listing))
+                    }
+                }
             }
         },
     )
     .with_positional_attributes(["target", "format"]))
+}
+
+fn abort_on_error(input: &RawBlockInput<'_>, label: &str) -> bool {
+    let attrs = input.document_attributes;
+    input
+        .metadata
+        .attributes
+        .get_string("on-error")
+        .as_deref()
+        .or_else(|| {
+            attrs
+                .get(&format!("{}-on-error", label.to_ascii_lowercase()))
+                .and_then(DocumentAttributeValue::text)
+        })
+        .or_else(|| {
+            attrs
+                .get("diagram-on-error")
+                .and_then(DocumentAttributeValue::text)
+        })
+        == Some("abort")
 }
 
 fn diagram_source<'a>(input: &RawBlockInput<'a>) -> Cow<'a, str> {

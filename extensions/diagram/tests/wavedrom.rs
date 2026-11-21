@@ -111,6 +111,7 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
         );
     }
     let options = Options::builder()
+        .with_attribute("diagram-on-error", "abort")
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
     #[cfg(unix)]
@@ -129,6 +130,41 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
     ] {
         let result = registry.parse(&format!("{header}\n....\nbody\n...."), &options);
         assert!(matches!(result, Err(Error::Extension(_, msg)) if msg.contains(fragment)));
+    }
+    Ok(())
+}
+
+#[test]
+fn error_policy_uses_block_renderer_and_document_attributes_in_source_order() -> TestResult {
+    let root = tempfile::tempdir()?;
+    let tool = root.path().join("unused");
+    fs::write(&tool, "")?;
+    let registry = registry(&tool, root.path())?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .build()?;
+    let block = "[wavedrom,,pdf]\n....\nbody\n....";
+    let source = format!(
+        "{block}\n\n:diagram-on-error: abort\n:wavedrom-on-error: log\n\n{block}\n\n:wavedrom-on-error: abort\n\n[wavedrom,,pdf,on-error=log]\n....\nbody\n...."
+    );
+    let parsed = registry.parse(&source, &options)?.finish()?;
+    assert_eq!(parsed.warnings().len(), 3);
+    assert_eq!(
+        parsed
+            .document()
+            .blocks()
+            .filter(|b| matches!(b.kind(), BlockKind::Listing(_)))
+            .count(),
+        3
+    );
+
+    for prefix in [":wavedrom-on-error!:", ":diagram-on-error: log"] {
+        let source = format!("{source}\n\n{prefix}\n\n{block}");
+        let last_block_line = u32::try_from(source.lines().count() - 3)?;
+        assert!(
+            matches!(registry.parse(&source, &options), Err(Error::Extension(origin, message))
+            if origin.location.start.line == last_block_line && message.contains("unsupported WaveDrom format"))
+        );
     }
     Ok(())
 }
@@ -172,6 +208,7 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
     // A failed rerender must preserve an existing named asset.
     let registry = registry(&tool, root.path())?;
     let options = Options::builder()
+        .with_attribute("diagram-on-error", "abort")
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
     fs::write(root.path().join("existing.svg"), "old asset")?;
@@ -298,6 +335,7 @@ cp "$(dirname "$0")/result.png" "$4"
     let before = fs::read(&original)?;
     let registry = registry(&tool, dir.path())?;
     let options = Options::builder()
+        .with_attribute("diagram-on-error", "abort")
         .with_safe_mode(SafeMode::Unsafe)
         .build()?;
     let failed = registry.parse(
