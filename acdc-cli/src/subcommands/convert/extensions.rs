@@ -111,6 +111,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted pintora renderer
     #[arg(long, value_name = "PATH")]
     pintora: Option<std::path::PathBuf>,
+    /// Path to the trusted a2s renderer
+    #[arg(long, value_name = "PATH")]
+    a2s: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -146,6 +149,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::A2S, self.a2s.as_deref()),
             (acdc_diagram::renderer::PINTORA, self.pintora.as_deref()),
             (
                 acdc_diagram::renderer::SYMBOLATOR,

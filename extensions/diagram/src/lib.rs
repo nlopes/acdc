@@ -287,6 +287,7 @@ fn render(
         input,
         format,
         [source.as_ref()],
+        false,
         |scratch, output| wavedrom_cli::render(tool, &source, format, scratch, output),
     )
 }
@@ -349,6 +350,7 @@ fn render_svg(
             .iter()
             .flat_map(|arg| [*arg, "\0"])
             .chain([source.as_ref()]),
+        false,
         |scratch, output| generate(&source, scratch, output),
     )
 }
@@ -390,6 +392,7 @@ fn image<'a>(
     input: &DiagramInput<'_>,
     format: Format,
     identity: impl IntoIterator<Item = &'a str>,
+    native_scale: bool,
     generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
 ) -> Result<BlockBuilder, String> {
     let attrs = input.document_attributes;
@@ -463,11 +466,14 @@ fn image<'a>(
     if backend.starts_with("html")
         && let Some(size) = size
     {
-        let scale = args
-            .get_string("scale")
-            .and_then(|value| value.parse::<f64>().ok())
-            .filter(|scale| scale.is_finite() && *scale >= 0.0)
-            .unwrap_or(1.0);
+        let scale = if native_scale {
+            1.0
+        } else {
+            args.get_string("scale")
+                .and_then(|value| value.parse::<f64>().ok())
+                .filter(|scale| scale.is_finite() && *scale >= 0.0)
+                .unwrap_or(1.0)
+        };
         let width = (size.width * scale).trunc();
         let height = (size.height * scale).trunc();
         if width.is_finite() && height.is_finite() {

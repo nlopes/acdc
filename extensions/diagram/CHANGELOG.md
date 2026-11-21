@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[a2s]` blocks and `a2s::chart.txt[]` files with `--a2s PATH`. SVG is the default. Use `format=txt` for the original text, `scalex` and `scaley` for dimensions, or `noblur=true` for crisp edges.
+
 - Render `[pintora]` blocks and `pintora::chart.pintora[]` files with `--pintora PATH`. Choose PNG (default) or SVG. Set `theme`, `width`, `background-color`, or `pixel-ratio` to customize the result.
 
 - Render `[symbolator]` blocks and `symbolator::chart.vhd[]` files with `--symbolator PATH`. Choose PNG (default), PDF, or SVG.

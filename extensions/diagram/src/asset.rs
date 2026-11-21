@@ -8,7 +8,7 @@ use std::{
 
 use svgtypes::{Length, LengthUnit, ViewBox};
 
-const MAX_BYTES: u64 = 16 * 1024 * 1024;
+pub(super) const MAX_BYTES: u64 = 16 * 1024 * 1024;
 
 pub(super) struct ImageSize {
     pub(super) width: f64,
@@ -45,6 +45,7 @@ impl ImageSize {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Format {
+    Txt,
     Svg,
     Png,
     Pdf,
@@ -53,6 +54,7 @@ pub(super) enum Format {
 impl Format {
     pub(super) fn extension(self) -> &'static str {
         match self {
+            Self::Txt => "txt",
             Self::Svg => "svg",
             Self::Png => "png",
             Self::Pdf => "pdf",
@@ -68,6 +70,7 @@ impl Format {
         }
         let mut file = fs::File::open(path)?;
         match self {
+            Self::Txt => Err(io::Error::other("text output requires a literal block")),
             Self::Svg => {
                 let mut svg = String::new();
                 file.take(MAX_BYTES + 1).read_to_string(&mut svg)?;
@@ -148,12 +151,7 @@ fn validate_png(file: fs::File) -> io::Result<ImageSize> {
     })
 }
 
-pub(super) fn publish(
-    dir: &Path,
-    filename: &str,
-    format: Format,
-    generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
-) -> io::Result<Option<ImageSize>> {
+pub(super) fn scratch_dir(dir: &Path) -> io::Result<tempfile::TempDir> {
     let mut scratch = tempfile::Builder::new();
     scratch.prefix(".acdc-diagram-");
     #[cfg(unix)]
@@ -161,7 +159,33 @@ pub(super) fn publish(
         use std::os::unix::fs::PermissionsExt as _;
         scratch.permissions(fs::Permissions::from_mode(0o700));
     }
-    let scratch = scratch.tempdir_in(dir)?;
+    scratch.tempdir_in(dir)
+}
+
+pub(super) fn read_text(path: &Path) -> io::Result<String> {
+    let meta = fs::symlink_metadata(path)?;
+    if !meta.is_file() || meta.len() > MAX_BYTES {
+        return Err(io::Error::other(
+            "expected a regular text file of at most 16 MiB",
+        ));
+    }
+    let mut text = String::new();
+    fs::File::open(path)?
+        .take(MAX_BYTES + 1)
+        .read_to_string(&mut text)?;
+    if text.len() as u64 > MAX_BYTES {
+        return Err(io::Error::other("renderer text exceeds 16 MiB"));
+    }
+    Ok(text)
+}
+
+pub(super) fn publish(
+    dir: &Path,
+    filename: &str,
+    format: Format,
+    generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> io::Result<Option<ImageSize>> {
+    let scratch = scratch_dir(dir)?;
     let output = scratch
         .path()
         .join(format!("output.{}", format.extension()));

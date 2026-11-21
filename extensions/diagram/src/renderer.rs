@@ -90,24 +90,37 @@ impl Renderer {
             .iter()
             .flat_map(|(k, v)| [*k, "\0", v.as_ref(), "\0"])
             .chain([source.as_ref()]);
+        let generate = |scratch: &Path, output: &Path| {
+            (self.generate)(&Job {
+                tool,
+                name: self.tool,
+                dir,
+                format,
+                source: &source,
+                options: &options,
+                scratch,
+                output,
+            })
+        };
+        if format == Format::Txt {
+            let render = || -> io::Result<String> {
+                let scratch = asset::scratch_dir(roots.embedded)?;
+                let output = scratch.path().join("output.txt");
+                generate(scratch.path(), &output)?;
+                asset::read_text(&output)
+            };
+            return render()
+                .map(BlockBuilder::literal)
+                .map_err(|e| format!("{}: {e}", self.name));
+        }
         image(
             self.name,
             roots,
             input,
             format,
             identity,
-            |scratch, output| {
-                (self.generate)(&Job {
-                    tool,
-                    name: self.tool,
-                    dir,
-                    format,
-                    source: &source,
-                    options: &options,
-                    scratch,
-                    output,
-                })
-            },
+            self.attributes.contains(&"scale"),
+            generate,
         )
     }
 }
@@ -393,4 +406,39 @@ pub const PINTORA: Renderer = Renderer {
     formats: &[Format::Png, Format::Svg],
     attributes: &["width", "theme", "background-color", "pixel-ratio"],
     generate: pintora,
+};
+
+fn a2s(job: &Job<'_>) -> io::Result<()> {
+    if job.format == Format::Txt {
+        return std::fs::write(job.output, job.source);
+    }
+    let mut cmd = Command::new(job.tool);
+    cmd.arg("-o").arg(job.output);
+    let axes = job
+        .option("scalex")
+        .zip(job.option("scaley"))
+        .or_else(|| job.option("scale").map(|s| (s, s)));
+    if let Some((x, y)) = axes {
+        cmd.args(["-s", &format!("{x},{y}")]);
+    }
+    if job.option("noblur") == Some("true") {
+        cmd.arg("-b");
+    }
+    job.flags(&mut cmd, &[("fontfamily", "-f")]);
+    // a2s counts a terminating newline as an extra row of the canvas.
+    let source = job
+        .source
+        .strip_suffix("\r\n")
+        .or_else(|| job.source.strip_suffix('\n'))
+        .unwrap_or(job.source);
+    asset::run_with_source(&mut cmd, job.dir, job.name, job.scratch, source, None)
+}
+
+/// Render `a2s` diagrams using `a2s`.
+pub const A2S: Renderer = Renderer {
+    name: "a2s",
+    tool: "a2s",
+    formats: &[Format::Svg, Format::Txt],
+    attributes: &["scalex", "scaley", "scale", "noblur", "fontfamily"],
+    generate: a2s,
 };

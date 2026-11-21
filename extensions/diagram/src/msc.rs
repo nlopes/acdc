@@ -78,6 +78,7 @@ fn render(
         input,
         format,
         [font.unwrap_or_default(), "\0", source.as_ref()],
+        false,
         |scratch, output| {
             let mut cmd = Command::new(tool);
             cmd.arg("-o").arg(output).arg("-T").arg(format.extension());

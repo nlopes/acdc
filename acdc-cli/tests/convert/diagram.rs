@@ -299,6 +299,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn a2s_block_and_file() -> TestResult {
+        tool_sample(
+            "a2s",
+            "--a2s",
+            "+---+\n| A |\n+---+",
+            "svg",
+            r#"test "$1" = "-o"
+cmp - chart.source
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$2""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

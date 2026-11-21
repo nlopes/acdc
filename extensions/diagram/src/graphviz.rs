@@ -84,6 +84,7 @@ fn render(
         input,
         format,
         [layout.unwrap_or_default(), "\0", source.as_ref()],
+        false,
         |scratch, output| {
             let mut cmd = Command::new(dot);
             cmd.arg("-o")

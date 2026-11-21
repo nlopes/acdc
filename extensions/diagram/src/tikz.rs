@@ -85,27 +85,35 @@ pub fn tikz<'a>(
                 .any(|opt| *opt == "preamble");
         let document = latex_document(&diagram_source(input), preamble);
         let identity = [document.as_str()];
-        image("tikz", root, input, format, identity, |scratch, output| {
-            fs::write(scratch.join("input.tex"), &document)?;
-            asset::run(
-                Command::new(&engine).args([
-                    "-no-shell-escape",
-                    "-halt-on-error",
-                    "-file-line-error",
-                    "-interaction=nonstopmode",
-                    "input.tex",
-                ]),
-                scratch,
-                "lualatex",
-            )?;
-            let pdf = scratch.join("input.pdf");
-            if let Some(tool) = svg_tool {
-                Format::Pdf.validate(&pdf)?;
-                asset::run(Command::new(tool).arg(pdf).arg(output), scratch, "pdf2svg")
-            } else {
-                fs::rename(pdf, output)
-            }
-        })
+        image(
+            "tikz",
+            root,
+            input,
+            format,
+            identity,
+            false,
+            |scratch, output| {
+                fs::write(scratch.join("input.tex"), &document)?;
+                asset::run(
+                    Command::new(&engine).args([
+                        "-no-shell-escape",
+                        "-halt-on-error",
+                        "-file-line-error",
+                        "-interaction=nonstopmode",
+                        "input.tex",
+                    ]),
+                    scratch,
+                    "lualatex",
+                )?;
+                let pdf = scratch.join("input.pdf");
+                if let Some(tool) = svg_tool {
+                    Format::Pdf.validate(&pdf)?;
+                    asset::run(Command::new(tool).arg(pdf).arg(output), scratch, "pdf2svg")
+                } else {
+                    fs::rename(pdf, output)
+                }
+            },
+        )
     })
 }
 
