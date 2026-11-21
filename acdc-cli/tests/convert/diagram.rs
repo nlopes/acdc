@@ -221,6 +221,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn dbml_block_and_file() -> TestResult {
+        tool_sample(
+            "dbml",
+            "--dbml-renderer",
+            "Table users {\n  id int [pk]\n}",
+            "svg",
+            r#"test "$#" = 0
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' "#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

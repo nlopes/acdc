@@ -250,3 +250,16 @@ pub const SMCAT: Renderer = Renderer {
     attributes: &["direction", "engine"],
     generate: smcat,
 };
+
+fn dbml(job: &Job<'_>) -> io::Result<()> {
+    job.stdin(&mut Command::new(job.tool), Some(job.output))
+}
+
+/// Render `dbml` diagrams using `dbml-renderer`.
+pub const DBML: Renderer = Renderer {
+    name: "dbml",
+    tool: "dbml-renderer",
+    formats: &[Format::Svg],
+    attributes: &[],
+    generate: dbml,
+};

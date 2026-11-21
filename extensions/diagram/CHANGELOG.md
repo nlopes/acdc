@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[dbml]` blocks and `dbml::chart.dbml[]` files with `--dbml-renderer PATH`. Output is SVG.
+
 - Render `[smcat]` blocks and `smcat::chart.smcat[]` files with `--smcat PATH`. Set `direction` or `engine` to choose the SVG layout.
 
 - Render `[nomnoml]` blocks and `nomnoml::chart.nomnoml[]` files with `--nomnoml PATH`. Output is SVG.

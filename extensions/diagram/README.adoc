@@ -157,6 +157,10 @@ Render `[nomnoml]` blocks and `nomnoml::chart.nomnoml[]` files with `--nomnoml P
 
 Render `[smcat]` blocks and `smcat::chart.smcat[]` files with `--smcat PATH`. Set `direction` or `engine` to choose the SVG layout. Enable the package with `--extension diagram`.
 
+== dbml
+
+Render `[dbml]` blocks and `dbml::chart.dbml[]` files with `--dbml-renderer PATH`. Output is SVG. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.
