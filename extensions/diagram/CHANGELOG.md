@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-- HTML output uses the generated SVG’s width and height for WaveDrom and TikZ. A numeric `scale` multiplies those defaults, and an explicit `width` or `height` overrides that dimension. acdc uses CSS pixel conversions for inches, centimeters, millimeters, and picas, and takes `viewBox` extents independently of their origin. These cases can differ from Asciidoctor Diagram.
+- HTML output uses the generated image’s width and height for WaveDrom SVG and PNG diagrams and for TikZ SVG diagrams. A numeric `scale` multiplies those defaults, and an explicit `width` or `height` overrides that dimension. acdc uses CSS pixel conversions for inches, centimeters, millimeters, and picas, and takes `viewBox` extents independently of their origin. These cases can differ from Asciidoctor Diagram.
 
 - Set `imagesoutdir` to stage WaveDrom and TikZ files in a local relative directory. Linked images use `imagesdir`, and embedded images read the staged files. acdc rejects absolute directories and parent traversal.
 

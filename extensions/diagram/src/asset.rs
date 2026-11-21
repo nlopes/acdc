@@ -8,13 +8,13 @@ use std::{
 
 use svgtypes::{Length, LengthUnit, ViewBox};
 
-pub(super) struct SvgSize {
+pub(super) struct ImageSize {
     pub(super) width: f64,
     pub(super) height: f64,
 }
 
-impl SvgSize {
-    fn from_root(root: roxmltree::Node<'_, '_>) -> Option<Self> {
+impl ImageSize {
+    fn from_svg_root(root: roxmltree::Node<'_, '_>) -> Option<Self> {
         let pixels = |name| {
             let length: Length = root.attribute(name)?.trim().parse().ok()?;
             let factor = match length.unit {
@@ -57,7 +57,7 @@ impl Format {
         }
     }
 
-    pub(super) fn validate(self, path: &Path) -> io::Result<Option<SvgSize>> {
+    pub(super) fn validate(self, path: &Path) -> io::Result<Option<ImageSize>> {
         const MAX_BYTES: u64 = 16 * 1024 * 1024;
         let meta = fs::symlink_metadata(path)?;
         if !meta.is_file() || meta.len() > MAX_BYTES {
@@ -78,9 +78,9 @@ impl Format {
                 if !root.has_tag_name(("http://www.w3.org/2000/svg", "svg")) {
                     return Err(io::Error::other("invalid SVG output"));
                 }
-                return Ok(SvgSize::from_root(root));
+                Ok(ImageSize::from_svg_root(root))
             }
-            Self::Png => validate_png(file)?,
+            Self::Png => validate_png(file).map(Some),
             Self::Pdf => {
                 let mut signature = [0; 5];
                 file.read_exact(&mut signature)?;
@@ -90,14 +90,14 @@ impl Format {
                 if &signature != b"%PDF-" || !tail.trim_ascii_end().ends_with(b"%%EOF") {
                     return Err(io::Error::other("invalid PDF output"));
                 }
+                Ok(None)
             }
         }
-        Ok(None)
     }
 }
 
 // Check the raster and its end marker before publishing, without storing a full frame.
-fn validate_png(file: fs::File) -> io::Result<()> {
+fn validate_png(file: fs::File) -> io::Result<ImageSize> {
     let invalid = |e: png::DecodingError| {
         io::Error::new(
             io::ErrorKind::InvalidData,
@@ -116,7 +116,12 @@ fn validate_png(file: fs::File) -> io::Result<()> {
         ));
     }
     while reader.next_row().map_err(invalid)?.is_some() {}
-    reader.finish().map_err(invalid)
+    reader.finish().map_err(invalid)?;
+    let (width, height) = reader.info().size();
+    Ok(ImageSize {
+        width: f64::from(width),
+        height: f64::from(height),
+    })
 }
 
 pub(super) fn publish(
@@ -124,7 +129,7 @@ pub(super) fn publish(
     filename: &str,
     format: Format,
     generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
-) -> io::Result<Option<SvgSize>> {
+) -> io::Result<Option<ImageSize>> {
     let scratch = tempfile::Builder::new()
         .prefix(".acdc-diagram-")
         .tempdir_in(dir)?;

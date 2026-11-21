@@ -27,7 +27,7 @@ fn render_asset(
     mode: CompatibilityMode,
     source_text: &str,
     expected_html_alt: &str,
-) -> Result<PathBuf, Box<dyn std::error::Error>> {
+) -> Result<(PathBuf, String), Box<dyn std::error::Error>> {
     let pipeline = Pipeline::new(Converter::new_with_variant(
         ConverterOptions::builder().embedded(true).build(),
         Options::builder()
@@ -67,7 +67,7 @@ fn render_asset(
         "{html}"
     );
     assert_eq!(warnings, []);
-    Ok(root.join(reference))
+    Ok((root.join(reference), html))
 }
 
 #[test]
@@ -76,7 +76,8 @@ fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
     let tool = PathBuf::from(env::var_os("ACDC_WAVEDROM_CLI").ok_or("set ACDC_WAVEDROM_CLI")?);
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let output = tempfile::tempdir()?;
-        let svg = fs::read_to_string(render_asset(&tool, output.path(), mode, ACE, "Diagram")?)?;
+        let (path, _) = render_asset(&tool, output.path(), mode, ACE, "Diagram")?;
+        let svg = fs::read_to_string(path)?;
         let document = roxmltree::Document::parse(&svg)?;
         let root = document.root_element();
         assert!(root.has_tag_name(("http://www.w3.org/2000/svg", "svg")));
@@ -90,7 +91,8 @@ fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
         }
 
         let png_source = ACE.replacen(", svg]", ", png]", 1);
-        let path = render_asset(&tool, output.path(), mode, &png_source, "Diagram")?;
+        let (path, html) = render_asset(&tool, output.path(), mode, &png_source, "Diagram")?;
+        assert!(html.contains(r#"width="800" height="84""#), "{html}");
         assert_eq!(path.extension().and_then(|ext| ext.to_str()), Some("png"));
         let mut reader = png::Decoder::new(BufReader::new(fs::File::open(path)?)).read_info()?;
         assert_eq!(reader.info().size(), (800, 84));
@@ -214,7 +216,7 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
     )?;
     let listing = ACE.replace("\n....\n", "\n----\n");
     let nested = ACE.replacen(", ,", ",boards/rev-a/clock_signal,", 1);
-    let path = render_asset(
+    let (path, _) = render_asset(
         &tool,
         root.path(),
         CompatibilityMode::Draft,
@@ -236,13 +238,8 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
         (&labeled, "Clock &amp; reset"),
         (&decorative, ""),
     ] {
-        let svg = fs::read_to_string(render_asset(
-            &tool,
-            root.path(),
-            CompatibilityMode::Draft,
-            source,
-            alt,
-        )?)?;
+        let (path, _) = render_asset(&tool, root.path(), CompatibilityMode::Draft, source, alt)?;
+        let svg = fs::read_to_string(path)?;
         assert!(svg.contains("<desc>test</desc>"));
     }
 
@@ -350,11 +347,11 @@ cp "$(dirname "$0")/result.png" "$4"
     fs::set_permissions(&tool, fs::Permissions::from_mode(0o700))?;
 
     let mut png = Vec::new();
-    let mut encoder = png::Encoder::new(&mut png, 1, 1);
+    let mut encoder = png::Encoder::new(&mut png, 6, 4);
     encoder.set_color(png::ColorType::Rgb);
     encoder.set_depth(png::BitDepth::Eight);
     let mut writer = encoder.write_header()?;
-    writer.write_image_data(&[10, 20, 30])?;
+    writer.write_image_data(&[127; 6 * 4 * 3])?;
     writer.finish()?;
     let result = dir.path().join("result.png");
     fs::write(&result, &png)?;
@@ -367,7 +364,7 @@ cp "$(dirname "$0")/result.png" "$4"
         "[wavedrom,register,svg,format=png]",
     ] {
         let source = format!("{header}\n....\nbody\n....");
-        let path = render_asset(
+        let (path, html) = render_asset(
             &tool,
             dir.path(),
             CompatibilityMode::Draft,
@@ -376,7 +373,17 @@ cp "$(dirname "$0")/result.png" "$4"
         )?;
         assert_eq!(path, dir.path().join("images/register.png"));
         assert_eq!(fs::read(path)?, png);
+        assert!(html.contains(r#"width="6" height="4""#), "{html}");
     }
+
+    let (_, html) = render_asset(
+        &tool,
+        dir.path(),
+        CompatibilityMode::Asciidoctor,
+        "[wavedrom,register,png,width=50%,scale=0.5]\n....\nbody\n....",
+        "register",
+    )?;
+    assert!(html.contains(r#"width="50%" height="2""#), "{html}");
 
     // A successful process can still produce a truncated PNG without an IEND chunk.
     png.truncate(png.len() - 12);
