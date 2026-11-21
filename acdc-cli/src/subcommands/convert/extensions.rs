@@ -72,6 +72,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted blockdiag renderer
     #[arg(long, value_name = "PATH")]
     blockdiag: Option<std::path::PathBuf>,
+    /// Path to the trusted seqdiag renderer
+    #[arg(long, value_name = "PATH")]
+    seqdiag: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -106,9 +109,12 @@ impl DiagramArgs {
     fn configured_renderers(
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
-        [(acdc_diagram::renderer::BLOCKDIAG, self.blockdiag.as_deref())]
-            .into_iter()
-            .filter_map(|(renderer, path): (_, Option<&Path>)| path.map(|p| (renderer, p)))
+        [
+            (acdc_diagram::renderer::SEQDIAG, self.seqdiag.as_deref()),
+            (acdc_diagram::renderer::BLOCKDIAG, self.blockdiag.as_deref()),
+        ]
+        .into_iter()
+        .filter_map(|(renderer, path): (_, Option<&Path>)| path.map(|p| (renderer, p)))
     }
 
     fn has_renderer(&self) -> bool {

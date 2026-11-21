@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[seqdiag]` blocks and `seqdiag::chart.diag[]` files with `--seqdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
+
 - Render `[blockdiag]` blocks and `blockdiag::chart.diag[]` files with `--blockdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
 
 - Render packet and binary layouts as SVG from `[bytefield]` blocks or `bytefield::layout.edn[]` file macros with `--extension diagram --bytefield-svg PATH`.

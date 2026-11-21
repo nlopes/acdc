@@ -156,3 +156,12 @@ pub const BLOCKDIAG: Renderer = Renderer {
     attributes: &["fontpath"],
     generate: blockdiag_family,
 };
+
+/// Render `seqdiag` diagrams using `seqdiag`.
+pub const SEQDIAG: Renderer = Renderer {
+    name: "seqdiag",
+    tool: "seqdiag",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &["fontpath"],
+    generate: blockdiag_family,
+};
