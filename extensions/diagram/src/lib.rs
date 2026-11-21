@@ -15,6 +15,7 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 
 mod asset;
+mod dpic;
 mod file_macro;
 mod graphviz;
 mod msc;
@@ -22,6 +23,7 @@ mod tikz;
 mod wavedrom_cli;
 
 use asset::Format;
+pub use dpic::{dpic, dpic_file};
 use file_macro::file_macro;
 pub use graphviz::{graphviz, graphviz_file};
 pub use msc::{msc, msc_file};

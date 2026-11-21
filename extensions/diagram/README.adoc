@@ -100,7 +100,16 @@ Both forms default to PNG. Select SVG with the positional format, `format=svg`, 
 Native mscgen uses the `font` argument for PNG output. Set a document default with `:msc-font: DejaVu Sans`.
 The macro reads its source through the parser's include loader. Rendering requires unsafe mode and a caller-selected executable.
 
+== PIC diagrams
+
+Use `--extension diagram --dpic /usr/bin/dpic` to render PIC source as SVG. Use `[dpic,flow]` on a listing or literal block to write `flow.svg`, or `dpic::charts/flow.pic[]` to read a local picture through the parser's include loader.
+In a library, register the block style returned by `acdc_diagram::dpic` and the macro returned by `acdc_diagram::dpic_file`.
+acdc adds missing `.PS` and `.PE` delimiters. Existing delimiters, including a size on the opening line, are preserved.
+The acdc conversion requires unsafe mode to launch the configured executable. acdc always passes dpic's own `-z` flag, which disables external file access inside PIC source.
+
 == Verification
+
+With dpic 2023.06.01, acdc and Asciidoctor Diagram 3.2.1 rendered a two-box picture as a 195 × 51 SVG from both a bare block and a file macro. Image targets, labels, and figure captions matched. For a file already ending in `.PE`, acdc rendered the same picture. Asciidoctor Diagram 3.2.1 appended a second `.PE` and dpic reported a syntax error.
 
 With mscgen 0.20, acdc and Asciidoctor Diagram 3.2.1 rendered the same two-entity request and response chart as a 600 × 102 PNG block and a 600 × 78 SVG file macro. The image targets, alternative text, and numbered figure captions matched.
 

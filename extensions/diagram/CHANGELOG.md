@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render PIC source from `[dpic]` blocks or `dpic::chart.pic[]` file macros as SVG with `--extension diagram --dpic PATH`. acdc accepts both bare source and pictures already enclosed in `.PS` and `.PE`. Asciidoctor Diagram 3.2.1 can append a duplicate closing delimiter to a complete picture.
+
 - Render message sequence charts from `[msc]` blocks or `msc::chart.msc[svg]` with `--extension diagram --mscgen PATH`. PNG is the default. Use `font=` or `msc-font` to select a PNG font.
 
 - Render a local DOT file with `graphviz::chart.dot[svg,alt="*Graph*"]`. File macros use the configured Graphviz executable and share the document’s include byte limit.

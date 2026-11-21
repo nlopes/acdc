@@ -8,6 +8,8 @@ use std::{
 
 use svgtypes::{Length, LengthUnit, ViewBox};
 
+const MAX_BYTES: u64 = 16 * 1024 * 1024;
+
 pub(super) struct ImageSize {
     pub(super) width: f64,
     pub(super) height: f64,
@@ -58,7 +60,6 @@ impl Format {
     }
 
     pub(super) fn validate(self, path: &Path) -> io::Result<Option<ImageSize>> {
-        const MAX_BYTES: u64 = 16 * 1024 * 1024;
         let meta = fs::symlink_metadata(path)?;
         if !meta.is_file() || meta.len() > MAX_BYTES {
             return Err(io::Error::other(
@@ -171,7 +172,7 @@ pub(super) fn publish(
 }
 
 pub(super) fn run(command: &mut Command, dir: &Path, tool: &str) -> io::Result<()> {
-    run_with_input(command, dir, tool, Stdio::null())
+    run_redirected(command, dir, tool, Stdio::null(), None)
 }
 
 pub(super) fn run_with_source(
@@ -183,14 +184,35 @@ pub(super) fn run_with_source(
 ) -> io::Result<()> {
     let path = scratch.join("stdin");
     fs::write(&path, source.as_bytes())?;
-    run_with_input(command, dir, tool, fs::File::open(path)?.into())
+    run_redirected(command, dir, tool, fs::File::open(path)?.into(), None)
 }
 
-fn run_with_input(command: &mut Command, dir: &Path, tool: &str, stdin: Stdio) -> io::Result<()> {
+/// Stream renderer stdout directly to the unpublished asset.
+pub(super) fn run_to_file(
+    command: &mut Command,
+    dir: &Path,
+    tool: &str,
+    output: &Path,
+) -> io::Result<()> {
+    let file = fs::File::create_new(output)?;
+    run_redirected(command, dir, tool, Stdio::null(), Some(&file))
+}
+
+fn run_redirected(
+    command: &mut Command,
+    dir: &Path,
+    tool: &str,
+    stdin: Stdio,
+    output: Option<&fs::File>,
+) -> io::Result<()> {
+    let stdout = match output {
+        Some(file) => Stdio::from(file.try_clone()?),
+        None => Stdio::null(),
+    };
     let mut child = command
         .current_dir(dir)
         .stdin(stdin)
-        .stdout(Stdio::null())
+        .stdout(stdout)
         .stderr(Stdio::null())
         .spawn()?;
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -202,6 +224,15 @@ fn run_with_input(command: &mut Command, dir: &Path, tool: &str, stdin: Stdio) -
             }
             Err(error) => break error,
             Ok(None) => {}
+        }
+        if let Some(file) = output {
+            match file.metadata() {
+                Ok(meta) if meta.len() > MAX_BYTES => {
+                    break io::Error::other(format!("{tool} output exceeds 16 MiB"));
+                }
+                Err(error) => break error,
+                Ok(_) => {}
+            }
         }
         let remaining = deadline.saturating_duration_since(Instant::now());
         if remaining.is_zero() {

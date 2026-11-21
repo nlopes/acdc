@@ -38,6 +38,7 @@ fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     let dir = tempfile::tempdir()?;
     for (args, expected) in [
         (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
+        (vec!["--dpic", "missing"], "require --extension diagram"),
         (vec!["--mscgen", "missing"], "require --extension diagram"),
         (
             vec!["--graphviz-dot", "missing"],
@@ -90,6 +91,113 @@ mod active {
         ];
         command.extend(args);
         run_acdc_in(root, &command, stdin)
+    }
+
+    #[test]
+    fn dpic_wraps_source_once_and_publishes_svg_from_stdout() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::create_dir(root.join("charts"))?;
+        fs::write(
+            root.join("charts/flow.pic"),
+            ".PS 2\nbox \"File\"\n.PE # done\n",
+        )?;
+        fs::write(
+            root.join("doc.adoc"),
+            "= Charts\n:imagesdir: images\n\n[dpic,inline-chart]\n....\nbox \"Block\"\n....\n\n.External\ndpic::charts/flow.pic[svg,alt=Flow]",
+        )?;
+        fs::write(
+            root.join("dpic"),
+            r#"#!/bin/sh
+set -eu
+test "$#" = 3
+test "$1" = -v
+test "$2" = -z
+if test -f flow.pic; then
+    cmp "$3" flow.pic
+else
+    printf '%s\n' '.PS' 'box "Block"' '.PE' | cmp - "$3"
+fi
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="20px" height="10px"/>'
+"#,
+        )?;
+        fs::set_permissions(root.join("dpic"), fs::Permissions::from_mode(0o700))?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--dpic",
+            "./dpic",
+            "--fail-on-warnings",
+            "doc.adoc",
+        ];
+        let run = run_acdc_in(root, &args, None)?;
+        assert!(run.status.success(), "{}", output_text(&run.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        assert!(html.contains("Figure 1. External"));
+        for (name, alt) in [("inline-chart", "inline chart"), ("flow", "Flow")] {
+            assert!(root.join(format!("images/{name}.svg")).is_file());
+            assert!(html.contains(&format!(
+                r#"src="images/{name}.svg" alt="{alt}" width="20" height="10""#
+            )));
+        }
+
+        let mut secure = args.to_vec();
+        secure.extend(["--safe-mode", "secure"]);
+        let denied = run_acdc_in(root, &secure, None)?;
+        assert!(!denied.status.success());
+        assert!(output_text(&denied.stderr).contains("dpic requires unsafe mode"));
+
+        for (source, message) in [
+            ("dpic::charts/flow.pic[png]", "unsupported dpic format"),
+            (
+                ":dpic: other\n\n[dpic]\n----\nbox\n----",
+                "set the dpic executable",
+            ),
+            (
+                "dpic::charts/flow.pic[dpic=other]",
+                "set the dpic executable",
+            ),
+        ] {
+            fs::write(root.join("doc.adoc"), source)?;
+            let run = run_acdc_in(root, &args, None)?;
+            assert!(!run.status.success());
+            assert!(output_text(&run.stderr).contains(message));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn oversized_dpic_stdout_preserves_the_previous_asset() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::write(root.join("doc.adoc"), "[dpic,figure]\n----\nbox\n----")?;
+        fs::write(root.join("figure.svg"), "previous image")?;
+        fs::write(
+            root.join("dpic"),
+            "#!/bin/sh\ndd if=/dev/zero bs=1048576 count=17\n",
+        )?;
+        fs::set_permissions(root.join("dpic"), fs::Permissions::from_mode(0o700))?;
+        let run = run_acdc_in(
+            root,
+            &[
+                "convert",
+                "--extension",
+                "diagram",
+                "--dpic",
+                "./dpic",
+                "--fail-on-warnings",
+                "doc.adoc",
+            ],
+            None,
+        )?;
+        assert!(!run.status.success());
+        assert!(output_text(&run.stderr).contains("16 MiB"));
+        assert_eq!(
+            fs::read_to_string(root.join("figure.svg"))?,
+            "previous image"
+        );
+        Ok(())
     }
 
     #[test]

@@ -1,4 +1,8 @@
 use acdc_converters_core::pipeline::{ExtensionCatalog, Extensions};
+#[cfg(feature = "diagram")]
+use acdc_diagram::OutputDirectories;
+#[cfg(feature = "diagram")]
+use acdc_parser::extensions::{BlockMacro, BlockStyle, Registry, RegistryBuilder};
 use miette::Result;
 use std::path::Path;
 
@@ -65,6 +69,9 @@ fn parent(file: Option<&Path>) -> &Path {
 #[cfg(feature = "diagram")]
 #[derive(clap::Args, Debug)]
 pub(super) struct DiagramArgs {
+    /// Path to the trusted dpic executable for PIC diagrams
+    #[arg(long, value_name = "PATH")]
+    dpic: Option<std::path::PathBuf>,
     /// Path to the trusted Graphviz dot executable
     #[arg(long, value_name = "PATH")]
     graphviz_dot: Option<std::path::PathBuf>,
@@ -89,6 +96,7 @@ impl DiagramArgs {
             || self.lualatex.is_some()
             || self.graphviz_dot.is_some()
             || self.mscgen.is_some()
+            || self.dpic.is_some()
     }
 
     fn select(
@@ -100,7 +108,7 @@ impl DiagramArgs {
         use std::collections::{HashMap, hash_map::Entry};
         if !self.has_renderer() {
             return Err(miette::miette!(
-                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, or --mscgen PATH"
+                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, --graphviz-dot PATH, --mscgen PATH, or --dpic PATH"
             ));
         }
         // The terminal backend displays files from the working directory, including in a pager.
@@ -151,37 +159,38 @@ impl DiagramArgs {
         linked: &Path,
         embedded: &Path,
     ) -> Result<Option<Extensions>> {
-        use acdc_parser::extensions::Registry;
-        let output = acdc_diagram::OutputDirectories::new(linked, embedded)
-            .with_imagesoutdir_base(Path::new("."));
+        let output =
+            OutputDirectories::new(linked, embedded).with_imagesoutdir_base(Path::new("."));
         let mut registry = Registry::builder();
         if let Some(tool) = &self.graphviz_dot {
-            let style = acdc_diagram::graphviz(tool, output).map_err(|e| {
-                miette::miette!("cannot configure Graphviz with {}: {e}", tool.display())
-            })?;
-            registry
-                .register_block_style(style)
-                .map_err(|e| error::display(&e))?;
-            let file_macro = acdc_diagram::graphviz_file(tool, output).map_err(|e| {
-                miette::miette!("cannot configure Graphviz with {}: {e}", tool.display())
-            })?;
-            registry
-                .register(file_macro)
-                .map_err(|e| error::display(&e))?;
+            register_file_renderer(
+                &mut registry,
+                "Graphviz",
+                tool,
+                output,
+                acdc_diagram::graphviz,
+                acdc_diagram::graphviz_file,
+            )?;
         }
         if let Some(tool) = &self.mscgen {
-            let style = acdc_diagram::msc(tool, output).map_err(|e| {
-                miette::miette!("cannot configure mscgen with {}: {e}", tool.display())
-            })?;
-            registry
-                .register_block_style(style)
-                .map_err(|e| error::display(&e))?;
-            let file_macro = acdc_diagram::msc_file(tool, output).map_err(|e| {
-                miette::miette!("cannot configure mscgen with {}: {e}", tool.display())
-            })?;
-            registry
-                .register(file_macro)
-                .map_err(|e| error::display(&e))?;
+            register_file_renderer(
+                &mut registry,
+                "mscgen",
+                tool,
+                output,
+                acdc_diagram::msc,
+                acdc_diagram::msc_file,
+            )?;
+        }
+        if let Some(tool) = &self.dpic {
+            register_file_renderer(
+                &mut registry,
+                "dpic",
+                tool,
+                output,
+                acdc_diagram::dpic,
+                acdc_diagram::dpic_file,
+            )?;
         }
         if let Some(tool) = &self.wavedrom_cli {
             let style = acdc_diagram::wavedrom(tool, output).map_err(|e| {
@@ -207,4 +216,26 @@ impl DiagramArgs {
             .select(&args.extensions)
             .map_err(|e| error::display(&e))
     }
+}
+
+#[cfg(feature = "diagram")]
+fn register_file_renderer<'a>(
+    registry: &mut RegistryBuilder,
+    name: &str,
+    tool: &Path,
+    output: OutputDirectories<'a>,
+    style: impl FnOnce(&Path, OutputDirectories<'a>) -> std::io::Result<BlockStyle>,
+    file_macro: impl FnOnce(&Path, OutputDirectories<'a>) -> std::io::Result<BlockMacro>,
+) -> Result<()> {
+    let configure =
+        |e: std::io::Error| miette::miette!("cannot configure {name} with {}: {e}", tool.display());
+    let style = style(tool, output).map_err(configure)?;
+    let file_macro = file_macro(tool, output).map_err(configure)?;
+    registry
+        .register_block_style(style)
+        .map_err(|e| error::display(&e))?;
+    registry
+        .register(file_macro)
+        .map_err(|e| error::display(&e))?;
+    Ok(())
 }
