@@ -173,6 +173,10 @@ Render `[d2]` blocks and `d2::chart.d2[]` files with `--d2 PATH`. SVG is the def
 
 Render `[shaape]` blocks and `shaape::chart.shaape[]` files with `--shaape PATH`. PNG is the default. Select SVG with `format=svg`. Enable the package with `--extension diagram`.
 
+== symbolator
+
+Render `[symbolator]` blocks and `symbolator::chart.vhd[]` files with `--symbolator PATH`. Choose PNG (default), PDF, or SVG. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

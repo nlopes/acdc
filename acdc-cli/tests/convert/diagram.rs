@@ -273,6 +273,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn symbolator_block_and_file() -> TestResult {
+        tool_sample(
+            "symbolator",
+            "--symbolator",
+            "entity Gate is\n port(a : in bit; q : out bit);\nend Gate;",
+            "svg",
+            r#"test "$1:$3" = "-i-:-fsvg"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "${2#-o}""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

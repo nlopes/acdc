@@ -345,3 +345,24 @@ pub const SHAAPE: Renderer = Renderer {
     attributes: &[],
     generate: shaape,
 };
+
+fn symbolator(job: &Job<'_>) -> io::Result<()> {
+    let mut out = std::ffi::OsString::from("-o");
+    out.push(job.output);
+    job.stdin(
+        Command::new(job.tool)
+            .arg("-i-")
+            .arg(out)
+            .arg(format!("-f{}", job.format.extension())),
+        None,
+    )
+}
+
+/// Render `symbolator` diagrams using `symbolator`.
+pub const SYMBOLATOR: Renderer = Renderer {
+    name: "symbolator",
+    tool: "symbolator",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &[],
+    generate: symbolator,
+};
