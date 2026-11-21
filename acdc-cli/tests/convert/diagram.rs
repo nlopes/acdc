@@ -247,6 +247,19 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn d2_block_and_file() -> TestResult {
+        tool_sample(
+            "d2",
+            "--d2",
+            "API -> DB",
+            "svg",
+            r#"test "$1:$2:$3" = "--browser:false:-"
+test "$(cat)" = "$(cat chart.source)"
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$4""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

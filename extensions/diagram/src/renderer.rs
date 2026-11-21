@@ -284,3 +284,45 @@ pub const GRAPHVIZ_PY: Renderer = Renderer {
     attributes: &["layout", "argument"],
     generate: graphviz_py,
 };
+
+fn d2(job: &Job<'_>) -> io::Result<()> {
+    let mut cmd = Command::new(job.tool);
+    cmd.args(["--browser", "false"]);
+    for flag in [
+        "layout",
+        "theme",
+        "dark-theme",
+        "pad",
+        "animate-interval",
+        "font-regular",
+        "font-italic",
+        "font-bold",
+    ] {
+        if let Some(value) = job.option(flag) {
+            cmd.arg(format!("--{flag}")).arg(value);
+        }
+    }
+    if job.option("sketch").is_some_and(|v| v != "false") {
+        cmd.arg("--sketch");
+    }
+    job.stdin(cmd.arg("-").arg(job.output), None)
+}
+
+/// Render `d2` diagrams using `d2`.
+pub const D2: Renderer = Renderer {
+    name: "d2",
+    tool: "d2",
+    formats: &[Format::Svg, Format::Png, Format::Pdf],
+    attributes: &[
+        "layout",
+        "theme",
+        "dark-theme",
+        "pad",
+        "animate-interval",
+        "font-regular",
+        "font-italic",
+        "font-bold",
+        "sketch",
+    ],
+    generate: d2,
+};
