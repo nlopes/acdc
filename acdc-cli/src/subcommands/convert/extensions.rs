@@ -90,6 +90,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted nomnoml renderer
     #[arg(long, value_name = "PATH")]
     nomnoml: Option<std::path::PathBuf>,
+    /// Path to the trusted smcat renderer
+    #[arg(long, value_name = "PATH")]
+    smcat: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -125,6 +128,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::SMCAT, self.smcat.as_deref()),
             (acdc_diagram::renderer::NOMNOML, self.nomnoml.as_deref()),
             (acdc_diagram::renderer::RACKDIAG, self.rackdiag.as_deref()),
             (

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[smcat]` blocks and `smcat::chart.smcat[]` files with `--smcat PATH`. Set `direction` or `engine` to choose the SVG layout.
+
 - Render `[nomnoml]` blocks and `nomnoml::chart.nomnoml[]` files with `--nomnoml PATH`. Output is SVG.
 
 - Render `[rackdiag]` blocks and `rackdiag::chart.diag[]` files with `--rackdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.

@@ -124,6 +124,14 @@ struct Job<'a> {
 }
 
 impl Job<'_> {
+    fn flags(&self, cmd: &mut Command, flags: &[(&str, &str)]) {
+        for &(attribute, flag) in flags {
+            if let Some(value) = self.option(attribute) {
+                cmd.arg(flag).arg(value);
+            }
+        }
+    }
+
     fn source_file(&self, extension: &str) -> io::Result<std::path::PathBuf> {
         let path = self.scratch.join(format!("input.{extension}"));
         std::fs::write(&path, self.source)?;
@@ -223,4 +231,22 @@ pub const NOMNOML: Renderer = Renderer {
     formats: &[Format::Svg],
     attributes: &[],
     generate: nomnoml,
+};
+
+fn smcat(job: &Job<'_>) -> io::Result<()> {
+    let mut cmd = Command::new(job.tool);
+    cmd.arg("-o")
+        .arg(job.output)
+        .args(["-T", job.format.extension()]);
+    job.flags(&mut cmd, &[("direction", "-d"), ("engine", "-E")]);
+    job.stdin(cmd.arg("-"), None)
+}
+
+/// Render `smcat` diagrams using `smcat`.
+pub const SMCAT: Renderer = Renderer {
+    name: "smcat",
+    tool: "smcat",
+    formats: &[Format::Svg],
+    attributes: &["direction", "engine"],
+    generate: smcat,
 };
