@@ -2068,6 +2068,14 @@ In unsafe mode a block macro can read its relative local target with
 the bytes, decoded as UTF-8 or using a Unicode byte order mark. These reads share the include byte budget. Use `warn` to
 report a recoverable problem at the invocation.
 
+Use `RegistryBuilder::register_reference_normalizer` to rewrite the destination of
+a cross-reference before local or external resolution. Both xref forms pass the
+restored target and original source location to each normalizer in registration order.
+Return `Ok(None)` to pass the target through, `Ok(Some(target))` to replace it,
+or an error message to stop parsing at the reference. URI schemes and network paths
+bypass normalization. The built-in `with_force_local_file_xrefs()` option applies
+to the resulting target. Explicit labels keep their authored text and formatting.
+
 A block macro can return an ordinary block directly. For example, a handler for
 `logo::acme[]` can return `Ok(BlockBuilder::image("acme.svg").into())`.
 The image inherits the invocation's title, ID, roles, and source location.

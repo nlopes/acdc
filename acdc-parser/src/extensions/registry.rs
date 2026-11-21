@@ -1,12 +1,34 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt, path::Path, sync::Arc};
 
 use crate::{Error, Options, ParseResult};
 
 use super::{
     BlockMacro, BlockStyle, DocumentEditor, ExtensionParseResult, IncludeProcessor,
     IncludeProcessors, RawBlockContext, Session, SourcePreprocessor, TreeProcessorRegistration,
-    source::SourceRegistration,
 };
+
+pub(super) struct ProcessorFactory<P: ?Sized> {
+    pub(super) name: String,
+    pub(super) factory: Arc<dyn Fn() -> Box<P> + Send + Sync>,
+}
+
+impl<P: ?Sized> Clone for ProcessorFactory<P> {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.clone(),
+            factory: Arc::clone(&self.factory),
+        }
+    }
+}
+
+impl<P: ?Sized> fmt::Debug for ProcessorFactory<P> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ProcessorFactory").field(&self.name).finish()
+    }
+}
+
+pub(crate) type ReferenceNormalizer =
+    dyn FnMut(&str, &crate::SourceLocation) -> Result<Option<String>, String>;
 
 /// A registration rejected before any document is parsed.
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -26,6 +48,8 @@ pub enum RegistrationError {
     DuplicateTreeProcessor(String),
     #[error("source preprocessor is already registered: {0}")]
     DuplicatePreprocessor(String),
+    #[error("reference normalizer is already registered: {0}")]
+    DuplicateReferenceNormalizer(String),
     #[error("include processor is already registered: {0}")]
     DuplicateIncludeProcessor(String),
     #[error("deferred processor already registered for block macro: {0}")]
@@ -39,8 +63,9 @@ pub struct RegistryBuilder {
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
     trees: Vec<TreeProcessorRegistration>,
-    preprocessors: Vec<SourceRegistration<dyn SourcePreprocessor>>,
-    includes: Vec<SourceRegistration<dyn IncludeProcessor>>,
+    preprocessors: Vec<ProcessorFactory<dyn SourcePreprocessor>>,
+    includes: Vec<ProcessorFactory<dyn IncludeProcessor>>,
+    normalizers: Vec<ProcessorFactory<ReferenceNormalizer>>,
 }
 
 impl RegistryBuilder {
@@ -61,19 +86,27 @@ impl RegistryBuilder {
             self.check_tree_name(descriptor)?;
         }
         for entry in &registry.0.preprocessors {
-            check_source_name(
+            check_processor_name(
                 &self.preprocessors,
                 &entry.name,
                 RegistrationError::DuplicatePreprocessor,
             )?;
         }
         for entry in &registry.0.includes {
-            check_source_name(
+            check_processor_name(
                 &self.includes,
                 &entry.name,
                 RegistrationError::DuplicateIncludeProcessor,
             )?;
         }
+        for entry in &registry.0.normalizers {
+            check_processor_name(
+                &self.normalizers,
+                &entry.name,
+                RegistrationError::DuplicateReferenceNormalizer,
+            )?;
+        }
+        self.normalizers.extend_from_slice(&registry.0.normalizers);
         self.preprocessors
             .extend_from_slice(&registry.0.preprocessors);
         self.styles.extend_from_slice(&registry.0.styles);
@@ -124,12 +157,56 @@ impl RegistryBuilder {
         factory: impl Fn() -> P + Send + Sync + 'static,
     ) -> Result<&mut Self, RegistrationError> {
         let name = name.into();
-        check_source_name(
+        check_processor_name(
             &self.preprocessors,
             &name,
             RegistrationError::DuplicatePreprocessor,
         )?;
-        self.preprocessors.push(SourceRegistration {
+        self.preprocessors.push(ProcessorFactory {
+            name,
+            factory: Arc::new(move || Box::new(factory())),
+        });
+        Ok(self)
+    }
+
+    /// Normalize restored cross-reference targets before the parser resolves them.
+    /// Each document gets fresh callbacks, applied in registration order. A callback
+    /// receives the current target and the authored reference's source location.
+    /// Return `Ok(Some(target))` to rewrite it or `Ok(None)` to keep it.
+    /// URI schemes and network paths bypass the remaining normalizers. The
+    /// built-in file-to-local option runs last. Display text stays independent.
+    ///
+    /// ```
+    /// use acdc_parser::{Options, SourceLocation, extensions::Registry};
+    ///
+    /// let mut builder = Registry::builder();
+    /// builder.register_reference_normalizer("chapter-move", || {
+    ///     |target: &str, _: &SourceLocation| {
+    ///         Ok(target.strip_prefix("old.adoc#").map(|id| format!("new.adoc#{id}")))
+    ///     }
+    /// })?;
+    /// let parsed = builder.build().parse("xref:old.adoc#intro[Introduction]", &Options::default())?.finish()?;
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    ///
+    /// # Errors
+    /// Registration rejects invalid or duplicate names. A callback error stops
+    /// parsing with a located [`Error::Extension`].
+    pub fn register_reference_normalizer<N>(
+        &mut self,
+        name: impl Into<String>,
+        factory: impl Fn() -> N + Send + Sync + 'static,
+    ) -> Result<&mut Self, RegistrationError>
+    where
+        N: FnMut(&str, &crate::SourceLocation) -> Result<Option<String>, String> + 'static,
+    {
+        let name = name.into();
+        check_processor_name(
+            &self.normalizers,
+            &name,
+            RegistrationError::DuplicateReferenceNormalizer,
+        )?;
+        self.normalizers.push(ProcessorFactory {
             name,
             factory: Arc::new(move || Box::new(factory())),
         });
@@ -146,12 +223,12 @@ impl RegistryBuilder {
         factory: impl Fn() -> P + Send + Sync + 'static,
     ) -> Result<&mut Self, RegistrationError> {
         let name = name.into();
-        check_source_name(
+        check_processor_name(
             &self.includes,
             &name,
             RegistrationError::DuplicateIncludeProcessor,
         )?;
-        self.includes.push(SourceRegistration {
+        self.includes.push(ProcessorFactory {
             name,
             factory: Arc::new(move || Box::new(factory())),
         });
@@ -237,12 +314,13 @@ impl RegistryBuilder {
             trees: self.trees,
             preprocessors: self.preprocessors,
             includes: self.includes,
+            normalizers: self.normalizers,
         }))
     }
 }
 
-fn check_source_name<P: ?Sized>(
-    entries: &[SourceRegistration<P>],
+fn check_processor_name<P: ?Sized>(
+    entries: &[ProcessorFactory<P>],
     name: &str,
     duplicate: fn(String) -> RegistrationError,
 ) -> Result<(), RegistrationError> {
@@ -280,8 +358,9 @@ struct RegistryData {
     macros: Vec<BlockMacro>,
     names: HashMap<String, usize>,
     trees: Vec<TreeProcessorRegistration>,
-    preprocessors: Vec<SourceRegistration<dyn SourcePreprocessor>>,
-    includes: Vec<SourceRegistration<dyn IncludeProcessor>>,
+    preprocessors: Vec<ProcessorFactory<dyn SourcePreprocessor>>,
+    includes: Vec<ProcessorFactory<dyn IncludeProcessor>>,
+    normalizers: Vec<ProcessorFactory<ReferenceNormalizer>>,
 }
 
 /// A cheap-to-clone, immutable collection of extension factories.
@@ -296,7 +375,7 @@ impl Registry {
 
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        !self.has_input_processors() && self.0.trees.is_empty()
+        !self.has_input_processors() && self.0.trees.is_empty() && self.0.normalizers.is_empty()
     }
 
     fn has_input_processors(&self) -> bool {
@@ -304,6 +383,12 @@ impl Registry {
             && self.0.macros.is_empty()
             && self.0.preprocessors.is_empty()
             && self.0.includes.is_empty())
+    }
+
+    pub(crate) fn reference_normalizers(
+        &self,
+    ) -> impl Iterator<Item = Box<ReferenceNormalizer>> + '_ {
+        self.0.normalizers.iter().map(|entry| (entry.factory)())
     }
 
     pub(crate) fn preprocessors(&self) -> impl Iterator<Item = Box<dyn SourcePreprocessor>> + '_ {

@@ -32,6 +32,7 @@ mod source;
 mod tag;
 
 use comment::CommentScanner;
+pub(crate) use include::uri_scheme;
 use include::{Include, IncludeResult, LocationContext};
 pub(crate) use source::SourceReader;
 

@@ -45,18 +45,6 @@ pub(super) fn finish<'a>(
         next_suffix: HashMap::new(),
         natural_targets: HashMap::new(),
     };
-    let mut xrefs = Vec::new();
-    if let Some(header) = &header {
-        collect_header_references(state, header, &attributes, &mut references, &mut xrefs);
-    }
-    collect_references(state, &mut blocks, &mut references, &mut xrefs);
-    section::number_parsed_sections(
-        &mut blocks,
-        &mut state.toc_entries,
-        &mut references.entries,
-        is_book_doctype(&attributes),
-    );
-
     let mut document = Document {
         generated_displays: crate::extensions::DisplayState::default(),
         header,
@@ -66,8 +54,28 @@ pub(super) fn finish<'a>(
         blocks,
         footnotes: state.footnote_tracker.borrow().footnotes.clone(),
         toc_entries: state.toc_entries.clone(),
-        references: references.entries,
+        references: HashMap::new(),
     };
+    crate::grammar::reference_normalization::normalize_document(state, &mut document)?;
+    let mut xrefs = Vec::new();
+    if let Some(header) = &document.header {
+        collect_header_references(
+            state,
+            header,
+            &document.attributes,
+            &mut references,
+            &mut xrefs,
+        );
+    }
+    collect_references(state, &mut document.blocks, &mut references, &mut xrefs);
+    section::number_parsed_sections(
+        &mut document.blocks,
+        &mut document.toc_entries,
+        &mut references.entries,
+        is_book_doctype(&document.attributes),
+    );
+
+    document.references = references.entries;
     register_document_references(
         state,
         &mut document,

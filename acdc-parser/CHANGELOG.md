@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Registered extensions can rewrite cross-reference targets before resolution in both xref syntaxes, with access to the original source location.
+
 - Block macros can forward selected named arguments to generated blocks while preserving attribute quoting and escaping.
 
 - In unsafe mode, registered block macros can read relative local targets through the configured include loader and report recoverable warnings at the invocation. Target reads count toward the document’s include byte limit.

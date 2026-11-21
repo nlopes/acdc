@@ -20,6 +20,7 @@ mod location_walk;
 pub(crate) use location_walk::try_walk_document_inline_nodes_mut;
 mod marked_text;
 mod passthrough_processing;
+pub(crate) mod reference_normalization;
 pub(crate) mod reference_text;
 pub(crate) mod reference_walk;
 pub(crate) mod setext;

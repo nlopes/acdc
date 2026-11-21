@@ -766,6 +766,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         )
         .and_then(|(mut inlines, _)| {
             grammar::reference_text::resolve_inline_tree(&mut state, &mut inlines)?;
+            grammar::reference_normalization::normalize_fragment(&state, &mut inlines)?;
             grammar::remap_inlines_to_source(
                 &mut inlines,
                 &state.source_ranges,

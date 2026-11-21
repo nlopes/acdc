@@ -20,10 +20,7 @@ use crate::{
                 IndexTermForm, IndexTermSegment, expand_escaped_index_terms, parse_index_term,
                 trimmed_index_term_segment,
             },
-            links::{
-                LinkContent, ProcessedLinkContent, force_local_file_xref, process_link_content,
-                xref_macro_text,
-            },
+            links::{LinkContent, ProcessedLinkContent, process_link_content, xref_macro_text},
             recognition::{
                 autolink_start, byte_came_from_attribute, catalog_escape_allowed,
                 catalog_macro_allowed, check_code_opening_boundary, code_followed_by_attribute,
@@ -1385,9 +1382,6 @@ peg::parser! {
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
             }
-            if state.options.force_local_file_xrefs() {
-                force_local_file_xref(&mut xref);
-            }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
@@ -1451,9 +1445,6 @@ peg::parser! {
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             if !state.options.compatibility_mode.legacy_controls_enabled(&state.document_attributes) {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
-            }
-            if state.options.force_local_file_xrefs() {
-                force_local_file_xref(&mut xref);
             }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             // A per-reference `xrefstyle=` wins over the document's, including

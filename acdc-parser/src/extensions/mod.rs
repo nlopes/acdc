@@ -229,6 +229,7 @@ pub(crate) use display::{DisplayState, GeneratedDisplay};
 pub use editor::DocumentEditor;
 pub use inline::InlineSpec;
 pub use query::{BlockContext, BlockView, DocumentQuery};
+pub(crate) use registry::ReferenceNormalizer;
 pub use registry::{RegistrationError, Registry, RegistryBuilder};
 pub use session::ExtensionParseResult;
 pub use target::{TargetError, TargetId};

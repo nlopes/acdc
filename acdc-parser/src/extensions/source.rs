@@ -1,7 +1,8 @@
 //! Document-local hooks for the entry source and resolved includes.
 
-use std::{cell::RefCell, fmt, path::Path, sync::Arc};
+use std::{cell::RefCell, fmt, path::Path};
 
+use super::registry::ProcessorFactory;
 use crate::{
     DocumentAttributes, Error, IncludeSource, IncludeSourceTarget, Position, SourceLocation,
     Warning, WarningKind, warning::WarningCollection,
@@ -124,33 +125,11 @@ where
     }
 }
 
-pub(super) struct SourceRegistration<P: ?Sized> {
-    pub(super) name: String,
-    pub(super) factory: Arc<dyn Fn() -> Box<P> + Send + Sync>,
-}
-
-impl<P: ?Sized> Clone for SourceRegistration<P> {
-    fn clone(&self) -> Self {
-        Self {
-            name: self.name.clone(),
-            factory: Arc::clone(&self.factory),
-        }
-    }
-}
-
-impl<P: ?Sized> fmt::Debug for SourceRegistration<P> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("SourceRegistration")
-            .field(&self.name)
-            .finish()
-    }
-}
-
 /// Nested include scopes share the active document's processor instances.
 pub(crate) struct IncludeProcessors(RefCell<Box<[Box<dyn IncludeProcessor>]>>);
 
 impl IncludeProcessors {
-    pub(super) fn new(registrations: &[SourceRegistration<dyn IncludeProcessor>]) -> Option<Self> {
+    pub(super) fn new(registrations: &[ProcessorFactory<dyn IncludeProcessor>]) -> Option<Self> {
         (!registrations.is_empty()).then(|| {
             Self(RefCell::new(
                 registrations.iter().map(|r| (r.factory)()).collect(),

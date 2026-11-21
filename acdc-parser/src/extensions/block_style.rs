@@ -6,7 +6,7 @@ use crate::{
     BlockMetadata, ElementAttributes, SourceLocation, Substitution, ast::DocumentAttributesRef,
 };
 
-use super::{BlockBuilder, TitleSource, source::SourceRegistration};
+use super::{BlockBuilder, TitleSource, registry::ProcessorFactory};
 
 /// Delimited source forms supported by a raw block style.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -85,7 +85,7 @@ where
 /// A named block style, its supported source forms, and its per-document factory.
 #[derive(Clone, Debug)]
 pub struct BlockStyle {
-    pub(super) handler: SourceRegistration<dyn RawBlockProcessor<BlockStyleOutput>>,
+    pub(super) handler: ProcessorFactory<dyn RawBlockProcessor<BlockStyleOutput>>,
     pub(super) contexts: Vec<RawBlockContext>,
     positional: Vec<String>,
     defaults: ElementAttributes<'static>,
@@ -144,7 +144,7 @@ impl BlockStyle {
         factory: impl Fn() -> P + Send + Sync + 'static,
     ) -> Self {
         Self {
-            handler: SourceRegistration {
+            handler: ProcessorFactory {
                 name: name.into(),
                 factory: Arc::new(move || Box::new(factory())),
             },

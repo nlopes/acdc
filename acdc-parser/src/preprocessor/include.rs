@@ -186,7 +186,7 @@ pub(crate) enum Target {
 
 impl Target {
     fn parse(target: &str, source_origin: &SourceOrigin) -> Result<Self, Error> {
-        if let Some(scheme) = include_uri_scheme(target) {
+        if let Some(scheme) = uri_scheme(target) {
             if scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https") {
                 Url::parse(target)?;
                 return Ok(Self::Url(target.to_string()));
@@ -213,7 +213,7 @@ impl Target {
 /// Provenance: Claude investigated this behavior and wrote this function; this seems fine
 /// and I also looked at the asciidoctor source myself and _roughly_ matches. I'm not sure
 /// if I'm just carrying dead weight from asciidoctor though.
-fn include_uri_scheme(target: &str) -> Option<&str> {
+pub(crate) fn uri_scheme(target: &str) -> Option<&str> {
     let (scheme, _) = target.split_once(':')?;
     let (first, rest) = scheme.as_bytes().split_first()?;
     (!rest.is_empty()
@@ -1655,7 +1655,7 @@ mod tests {
             ("ab:/path", "ab"),
             ("HTTP://example.test/path", "HTTP"),
         ] {
-            assert_eq!(include_uri_scheme(target), Some(expected), "{target}");
+            assert_eq!(uri_scheme(target), Some(expected), "{target}");
         }
 
         for target in [
@@ -1669,7 +1669,7 @@ mod tests {
             "ab¾:valeur",
             "ab①:valeur",
         ] {
-            assert_eq!(include_uri_scheme(target), None, "{target}");
+            assert_eq!(uri_scheme(target), None, "{target}");
         }
 
         let source_origin = SourceOrigin::File {
