@@ -442,6 +442,21 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > 
         )
     }
 
+    #[test]
+    fn lilypond_block_and_file() -> TestResult {
+        tool_sample(
+            "lilypond",
+            "--lilypond",
+            "\\relative c' { c d e f }",
+            "pdf",
+            r#"test "$5:$7:$8" = "-o:-f:pdf"
+grep -F 'oddFooterMarkup=##f' >/dev/null
+printf '%%PDF-1.7
+%%%%EOF
+' > "$6.cropped.pdf""#,
+        )
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

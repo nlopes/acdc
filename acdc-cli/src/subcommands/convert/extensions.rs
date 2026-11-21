@@ -144,6 +144,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted oxdraw renderer
     #[arg(long, value_name = "PATH")]
     oxdraw: Option<std::path::PathBuf>,
+    /// Path to the trusted lilypond renderer
+    #[arg(long, value_name = "PATH")]
+    lilypond: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -179,6 +182,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::LILYPOND, self.lilypond.as_deref()),
             (acdc_diagram::renderer::OXDRAW, self.oxdraw.as_deref()),
             (acdc_diagram::renderer::MERMAID, self.mmdc.as_deref()),
             (acdc_diagram::renderer::BPMN, self.bpmn_js.as_deref()),

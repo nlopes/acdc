@@ -225,6 +225,10 @@ Render `[mermaid]` blocks and `mermaid::chart.mmd[]` files with `--mmdc PATH`. C
 
 Render `[oxdraw]` blocks and `oxdraw::chart.mmd[]` files with `--oxdraw PATH`. SVG is the default. Use `background` and `scale` to change the output. Enable the package with `--extension diagram`.
 
+== lilypond
+
+Render `[lilypond]` blocks and `lilypond::chart.ly[]` files with `--lilypond PATH`. The output is a cropped PNG or PDF score. Set `resolution` to select the raster resolution. Enable the package with `--extension diagram`.
+
 == Verification
 
 With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.

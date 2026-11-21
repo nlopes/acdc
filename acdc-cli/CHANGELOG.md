@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[lilypond]` blocks and `lilypond::chart.ly[]` files with `--lilypond PATH`. The output is a cropped PNG or PDF score. Set `resolution` to select the raster resolution.
+
 - Render `[oxdraw]` blocks and `oxdraw::chart.mmd[]` files with `--oxdraw PATH`. SVG is the default. Use `background` and `scale` to change the output.
 
 - Render `[mermaid]` blocks and `mermaid::chart.mmd[]` files with `--mmdc PATH`. Choose PNG or SVG and set `theme`, `scale`, or a local `config` file. For SVGs with a nonzero viewBox origin, acdc uses the declared width and height. Asciidoctor Diagram 3.2.1 subtracts the origin from those dimensions.

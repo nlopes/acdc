@@ -735,3 +735,37 @@ pub const OXDRAW: Renderer = Renderer {
     attributes: &["background", "scale"],
     generate: oxdraw::render,
 };
+
+fn lilypond(job: &Job<'_>) -> io::Result<()> {
+    const PAPER: &str = "\\paper{\n oddFooterMarkup=##f\n oddHeaderMarkup=##f\n bookTitleMarkup=##f\n scoreTitleMarkup=##f\n}\n";
+    let source = format!("{PAPER}{}", job.source);
+    let mut cmd = Command::new(job.tool);
+    cmd.args([
+        "-daux-files=#f",
+        "-dbackend=eps",
+        "-dno-gs-load-fonts",
+        "-dinclude-eps-fonts",
+        "-o",
+    ])
+    .arg(job.output)
+    .args(["-f", job.format.extension(), "-dcrop=#t"]);
+    if let Some(resolution) = job.option("resolution") {
+        cmd.arg(format!("-dresolution={resolution}"));
+    }
+    if job.format == Format::Png {
+        cmd.arg("-dpixmap-format=pngalpha");
+    }
+    asset::run_with_source(cmd.arg("-"), job.dir, job.name, job.scratch, &source, None)?;
+    let mut cropped = job.output.as_os_str().to_owned();
+    cropped.push(format!(".cropped.{}", job.format.extension()));
+    std::fs::rename(cropped, job.output)
+}
+
+/// Render `lilypond` diagrams using `lilypond`.
+pub const LILYPOND: Renderer = Renderer {
+    name: "lilypond",
+    tool: "lilypond",
+    formats: &[Format::Png, Format::Pdf],
+    attributes: &["resolution"],
+    generate: lilypond,
+};
