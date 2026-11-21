@@ -94,7 +94,7 @@ impl DisplayRequest {
         ))));
         if intent == DisplayIntent::CaptionAndTitle && selection.title.is_present() {
             nodes.push(plain(" ", &origin.location));
-            nodes.extend(selection.title.as_inlines().iter().cloned());
+            nodes.extend(display_copy(selection.title.as_inlines()));
         }
         Ok(())
     }
@@ -375,4 +375,83 @@ fn resolve_targets<'a>(
 
 fn failure(origin: &SourceLocation, message: &str) -> Error {
     Error::Extension(Box::new(origin.clone()), message.into())
+}
+
+/// Copy captured inlines into generated content without duplicating identity.
+///
+/// A copy must not register targets or own notes: inline anchors and footnotes
+/// are dropped, span and link IDs are cleared, concealed index terms are dropped,
+/// and visible index terms keep only their text. Otherwise reference and footnote
+/// repair let the first occurrence, often the generated copy, own the ID or note.
+fn display_copy<'a>(nodes: &[InlineNode<'a>]) -> Vec<InlineNode<'a>> {
+    macro_rules! span {
+        ($variant:ident, $span:expr) => {{
+            let mut span = $span.clone();
+            span.id = None;
+            span.content = display_copy(&span.content);
+            InlineNode::$variant(span)
+        }};
+    }
+    macro_rules! link {
+        ($variant:ident, $link:expr) => {{
+            let mut link = $link.clone();
+            link.metadata.id = None;
+            link.text = display_copy(&link.text);
+            InlineNode::Macro(InlineMacro::$variant(link))
+        }};
+    }
+    let mut copied = Vec::with_capacity(nodes.len());
+    for node in nodes {
+        let node = match node {
+            InlineNode::InlineAnchor(_) | InlineNode::Macro(InlineMacro::Footnote(_)) => continue,
+            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+                if term.is_visible() {
+                    copied.extend(display_copy(term.term()));
+                }
+                continue;
+            }
+            InlineNode::BoldText(span) => span!(BoldText, span),
+            InlineNode::ItalicText(span) => span!(ItalicText, span),
+            InlineNode::MonospaceText(span) => span!(MonospaceText, span),
+            InlineNode::HighlightText(span) => span!(HighlightText, span),
+            InlineNode::SubscriptText(span) => span!(SubscriptText, span),
+            InlineNode::SuperscriptText(span) => span!(SuperscriptText, span),
+            InlineNode::DoubleQuotedSpan(span) => span!(DoubleQuotedSpan, span),
+            InlineNode::SingleQuotedSpan(span) => span!(SingleQuotedSpan, span),
+            InlineNode::Macro(InlineMacro::Link(node)) => link!(Link, node),
+            InlineNode::Macro(InlineMacro::UrlMacro(node)) => link!(UrlMacro, node),
+            InlineNode::Macro(InlineMacro::Mailto(node)) => link!(Mailto, node),
+            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
+                let mut xref = xref.clone();
+                xref.text = display_copy(&xref.text);
+                InlineNode::Macro(InlineMacro::CrossReference(xref))
+            }
+            InlineNode::RawText(raw) => {
+                let mut raw = raw.clone();
+                if let Some(metadata) = &mut raw.metadata {
+                    metadata.id = None;
+                }
+                InlineNode::RawText(raw)
+            }
+            InlineNode::PlainText(_)
+            | InlineNode::Symbol(_)
+            | InlineNode::CharacterReference(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::CalloutMarker(_)
+            | InlineNode::Macro(
+                InlineMacro::Icon(_)
+                | InlineMacro::Image(_)
+                | InlineMacro::KeyboardShortcut(_)
+                | InlineMacro::Button(_)
+                | InlineMacro::MenuPath(_)
+                | InlineMacro::Autolink(_)
+                | InlineMacro::Passthrough(_)
+                | InlineMacro::Stem(_),
+            ) => node.clone(),
+        };
+        copied.push(node);
+    }
+    copied
 }

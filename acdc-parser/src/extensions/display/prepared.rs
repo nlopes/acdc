@@ -7,7 +7,7 @@ use crate::{
     grammar::try_walk_document_inline_nodes_mut,
 };
 
-use super::{DisplayState, GeneratedDisplay, GeneratedDisplayRef, failure, plain};
+use super::{DisplayState, GeneratedDisplay, GeneratedDisplayRef, display_copy, failure, plain};
 
 /// A converter's label decision, lowered by parser-owned constructors.
 #[derive(Clone, Debug)]
@@ -118,7 +118,7 @@ fn build_label<'a>(
     match label {
         DisplayLabel::Title => {
             if display.selection.title.is_present() {
-                display.selection.title.as_inlines().to_vec()
+                display_copy(display.selection.title.as_inlines())
             } else {
                 vec![plain(
                     arena.alloc_str(&format!("[{}]", GeneratedDisplayRef(display).target())),
@@ -134,7 +134,7 @@ fn build_label<'a>(
                 .and_then(|target| target.caption.as_ref())
                 .and_then(|caption| {
                     if let Caption::CustomContent(content) = caption {
-                        Some(content.as_inlines().to_vec())
+                        Some(display_copy(content.as_inlines()))
                     } else {
                         None
                     }

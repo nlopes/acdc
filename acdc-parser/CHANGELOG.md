@@ -45,6 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and grouped fragments through `InlineSpec` in generated paragraphs and list
   items.
 
+- Generated display links that copy a captured title or custom caption no
+  longer duplicate its identity. Inline anchors, footnotes, and concealed index
+  terms are left out of the copy, visible index terms keep only their text, and
+  span and link IDs are removed. A cross reference to an anchor in the title still
+  reaches the original block, and footnotes keep their number and body there.
+
 - Registered block macros retain their accepted call text, including quoted
   arguments and unexpanded targets, for literal recovery. Tree processors can
   also report source-located recoverable warnings.
