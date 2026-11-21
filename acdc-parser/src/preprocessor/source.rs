@@ -39,6 +39,7 @@ pub(crate) struct SourceReader<'a> {
     /// Caller-supplied `leveloffset`, recorded before any line is read. The
     /// first chunk carries it so the parser sees it while blocks commit.
     initial_leveloffset_ranges: Vec<LeveloffsetRange>,
+    pub(crate) include_session: Rc<super::IncludeSession>,
     pub(crate) options: Rc<Options<'static>>,
 }
 
@@ -109,6 +110,7 @@ impl<'a> SourceReader<'a> {
             warnings,
             include_context: super::IncludeContext::root(&options, includes),
         };
+        let include_session = Rc::clone(&preprocessor.include_context.session);
         let normalized = match text {
             Cow::Borrowed(text) => text,
             Cow::Owned(text) => arena.alloc_str(&text),
@@ -134,6 +136,7 @@ impl<'a> SourceReader<'a> {
             let initial_leveloffset_ranges =
                 Preprocessor::initial_leveloffset_ranges(normalized.len(), &options);
             return Ok(Self {
+                include_session,
                 cursor: None,
                 unchanged: Some(normalized),
                 result: Some(PreprocessorResult {
@@ -162,6 +165,7 @@ impl<'a> SourceReader<'a> {
         );
         Ok(Self {
             initial_leveloffset_ranges: cursor.leveloffset_ranges().to_vec(),
+            include_session,
             cursor: Some(cursor),
             unchanged: None,
             result: None,

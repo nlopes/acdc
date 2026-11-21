@@ -1,4 +1,7 @@
-use std::{cell::OnceCell, fmt};
+use std::{
+    cell::{Cell, OnceCell},
+    fmt,
+};
 
 use crate::{Block, Error, ParseResult, Warning, WarningKind, grammar::ParserState};
 
@@ -129,11 +132,49 @@ impl Session {
         self.identity.get_or_init(DocumentIdentity::default)
     }
 
+    fn process_macro<'a>(
+        &mut self,
+        processor: usize,
+        call: &super::MacroInvocation<'a>,
+        state: &ParserState<'a>,
+        assignments: &mut crate::grammar::SourceAssignments<'a>,
+        budget: &Cell<usize>,
+    ) -> Result<BlockMacroOutput, Error> {
+        let fail = |message| Error::Extension(Box::new(call.location.clone()), message);
+        let mut context = super::MacroExecutionContext {
+            file: Some(super::block_macro::LocalTarget {
+                call,
+                options: &state.options,
+                entry: state
+                    .current_file
+                    .as_deref()
+                    .map(std::path::PathBuf::as_path),
+                budget,
+            }),
+            ..Default::default()
+        };
+        let output = self
+            .processors
+            .get_mut(processor)
+            .ok_or_else(|| fail("processor is absent from the document session".into()))?
+            .process(call, &mut context)
+            .map_err(fail)?;
+        *assignments = context.assignments;
+        for message in context.warnings {
+            state.add_warning(Warning::new(
+                WarningKind::Other(message.into()),
+                Some(call.location.clone()),
+            ));
+        }
+        Ok(output)
+    }
+
     fn block<'a>(
         &mut self,
         block: &mut Block<'a>,
         state: &ParserState<'a>,
-        context: &mut super::MacroExecutionContext,
+        assignments: &mut crate::grammar::SourceAssignments<'a>,
+        budget: &Cell<usize>,
     ) -> Result<bool, Error> {
         if let Block::Extension(extension) = block {
             self.processed_blocks = true;
@@ -182,15 +223,8 @@ impl Session {
                     }
                 }
                 Invocation::Macro(call) => {
-                    let fail = |message| Error::Extension(Box::new(call.location.clone()), message);
-                    let output = self
-                        .processors
-                        .get_mut(extension.processor)
-                        .ok_or_else(|| {
-                            fail("processor is absent from the document session".into())
-                        })?
-                        .process(call, context)
-                        .map_err(fail)?;
+                    let output =
+                        self.process_macro(extension.processor, call, state, assignments, budget)?;
                     match output {
                         BlockMacroOutput::Paragraph(text) => BlockBuilder::paragraph(text),
                         BlockMacroOutput::Block(builder) => builder,
@@ -235,9 +269,10 @@ impl crate::grammar::SourceHandler for Session {
         &mut self,
         block: &mut Block<'a>,
         state: &mut ParserState<'a>,
+        budget: &Cell<usize>,
     ) -> Result<(bool, crate::grammar::SourceAssignments<'a>), Error> {
-        let mut context = super::MacroExecutionContext::default();
-        let keep = self.block(block, state, &mut context)?;
-        Ok((keep, context.assignments))
+        let mut assignments = Vec::new();
+        let keep = self.block(block, state, &mut assignments, budget)?;
+        Ok((keep, assignments))
     }
 }

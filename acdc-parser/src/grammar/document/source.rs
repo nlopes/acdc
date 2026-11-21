@@ -1,6 +1,10 @@
 //! Cooperate with the reader between committed construction steps.
 
-use std::{borrow::Cow, cell::RefCell, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 use crate::{
     AttributeName, Block, Document, DocumentAttributeAssignment, DocumentAttributes, Error,
@@ -44,6 +48,7 @@ pub(crate) trait SourceHandler {
         &mut self,
         block: &mut Block<'a>,
         state: &mut ParserState<'a>,
+        _remaining: &Cell<usize>,
     ) -> Result<(bool, Assignments<'a>), Error> {
         self.accepted(block, &state.document_attributes)
             .map(|assignments| (true, assignments))
@@ -921,6 +926,7 @@ pub(crate) fn document_from_source<'a>(
     conditionals: &mut Vec<crate::ConditionalEvaluation>,
     finish_source: impl FnOnce(Cow<'a, str>) -> &'a str,
 ) -> Result<Document<'a>, Error> {
+    let includes = Rc::clone(&reader.include_session);
     if let Some(mut result) = reader.take_pass_through() {
         state.leveloffset_ranges = std::mem::take(&mut result.leveloffset_ranges);
         let source = finish_source(result.text);
@@ -933,7 +939,14 @@ pub(crate) fn document_from_source<'a>(
         }
         let mut callback =
             |block: &mut Block<'a>, state: &mut ParserState<'a>, output: &mut Vec<Block<'a>>| {
-                execute_source_handler(handler, block, state, None, output)
+                execute_source_handler(
+                    handler,
+                    &includes.remaining_bytes,
+                    block,
+                    state,
+                    None,
+                    output,
+                )
             };
         let document =
             document_with_execution(source, state, ConstructionMode::Ordered, &mut callback)
@@ -944,7 +957,14 @@ pub(crate) fn document_from_source<'a>(
     let updates = PendingAssignments::default();
     let mut callback =
         |block: &mut Block<'a>, state: &mut ParserState<'a>, output: &mut Vec<Block<'a>>| {
-            execute_source_handler(handler, block, state, Some(&updates), output)
+            execute_source_handler(
+                handler,
+                &includes.remaining_bytes,
+                block,
+                state,
+                Some(&updates),
+                output,
+            )
         };
     let index = state
         .input_origin
@@ -998,12 +1018,13 @@ pub(crate) fn document_from_source<'a>(
 #[inline]
 fn execute_source_handler<'a>(
     handler: &mut dyn SourceHandler,
+    remaining: &Cell<usize>,
     block: &mut Block<'a>,
     state: &mut ParserState<'a>,
     updates: Option<&PendingAssignments<'a>>,
     output: &mut Vec<Block<'a>>,
 ) -> Result<bool, Error> {
-    let (keep, assignments) = handler.construct(block, state)?;
+    let (keep, assignments) = handler.construct(block, state, remaining)?;
     if !assignments.is_empty() {
         apply_assignments(assignments, block, state, updates, output);
     }

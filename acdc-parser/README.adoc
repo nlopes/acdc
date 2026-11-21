@@ -2063,6 +2063,10 @@ under normal document assignment policy. The invocation retains the original
 source location and a read-only attribute snapshot. Both compatibility modes
 support registrations. Factories are shared; handlers may use document-local,
 non-`Send` state. Completed callback effects remain if later parsing fails.
+In unsafe mode a block macro can read its relative local target with
+`MacroExecutionContext::read_local_target`. The caller's include loader supplies
+the bytes, decoded as UTF-8 or using a Unicode byte order mark. These reads share the include byte budget. Use `warn` to
+report a recoverable problem at the invocation.
 
 A block macro can return an ordinary block directly. For example, a handler for
 `logo::acme[]` can return `Ok(BlockBuilder::image("acme.svg").into())`.

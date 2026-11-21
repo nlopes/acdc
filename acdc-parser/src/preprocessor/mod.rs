@@ -239,8 +239,8 @@ struct IncludeContext {
 
 /// Sibling and nested scopes share one byte budget and one set of processors.
 #[derive(Debug)]
-struct IncludeSession {
-    remaining_bytes: Cell<usize>,
+pub(crate) struct IncludeSession {
+    pub(crate) remaining_bytes: Cell<usize>,
     processors: Option<crate::extensions::IncludeProcessors>,
 }
 
@@ -392,7 +392,7 @@ impl SourceLineOrigin {
 /// Make a path absolute and collapse `.` and `..` without resolving symlinks.
 /// For example, `/workspace/docs/chapters/../shared.adoc` becomes
 /// `/workspace/docs/shared.adoc`, even if `chapters` is a symlink.
-fn absolute_normalized(path: &Path) -> Result<PathBuf, Error> {
+pub(crate) fn absolute_normalized(path: &Path) -> Result<PathBuf, Error> {
     let absolute = std::path::absolute(path)?;
     let mut normalized = PathBuf::new();
     for component in absolute.components() {
@@ -711,7 +711,11 @@ pub(crate) fn read_and_decode_file(
 }
 
 /// Decode source bytes using an explicit encoding, BOM detection, or UTF-8.
-fn decode_bytes(bytes: &[u8], encoding: Option<&str>, source: &str) -> Result<String, Error> {
+pub(crate) fn decode_bytes(
+    bytes: &[u8],
+    encoding: Option<&str>,
+    source: &str,
+) -> Result<String, Error> {
     // If there was an encoding specified, decode the entire file as that
     if let Some(enc_label) = encoding {
         if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {

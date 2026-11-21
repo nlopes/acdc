@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- In unsafe mode, registered block macros can read relative local targets through the configured include loader and report recoverable warnings at the invocation. Target reads count toward the document’s include byte limit.
+
 - Registered block macros follow asciidoctor's line rules: the target has no
   whitespace and only whitespace may follow the closing bracket. Other lines
   stay paragraphs or description-list items. With extensions active, a

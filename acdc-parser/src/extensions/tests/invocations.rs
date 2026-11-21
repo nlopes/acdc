@@ -63,3 +63,81 @@ fn extensions_deferred_source_keeps_quotes_slots_and_normal_cell_escapes() -> Te
     }
     Ok(())
 }
+
+#[test]
+fn local_macro_target_uses_include_provider_origin_and_shared_budget() -> TestResult {
+    use acdc_parser::{IncludeLoader, IncludeSource, IncludeSourceTarget, SafeMode};
+
+    let root = tempfile::tempdir()?;
+    let root_path = root.path().to_path_buf();
+    let loader = IncludeLoader::custom(move |target: &IncludeSourceTarget| {
+        let IncludeSourceTarget::File(path) = target else {
+            panic!("expected file")
+        };
+        let relative = path.strip_prefix(&root_path).expect("configured base");
+        Ok(IncludeSource::from_string(match relative.to_str() {
+            Some("nested/part.adoc") => "read::data.txt[]",
+            Some("nested/data.txt") => "data",
+            Some("next.txt") => "again",
+            _ => panic!("unexpected target: {relative:?}"),
+        }))
+    });
+    let mut builder = Registry::builder();
+    builder.register(BlockMacro::new("read", || {
+        |call: &MacroInvocation<'_>, ctx: &mut MacroExecutionContext| match ctx.read_local_target()
+        {
+            Ok((path, text)) => {
+                assert!(path.ends_with(call.target.as_ref()));
+                Ok(BlockMacroOutput::Paragraph(text))
+            }
+            Err(err) => {
+                ctx.warn(err.to_string());
+                Ok(BlockMacroOutput::None)
+            }
+        }
+    }))?;
+    let registry = builder.build();
+    let mut options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .with_include_loader(loader)
+        .with_base_dir(root.path())
+        .with_max_total_include_bytes("read::data.txt[]\n".len() + 4)
+        .build()?;
+    let result = registry
+        .parse("include::nested/part.adoc[]\n\nread::next.txt[]", &options)?
+        .finish()?;
+    assert_eq!(paragraph_text(&result.document_storage().blocks[0]), "data");
+    let [warning] = result.warnings() else {
+        panic!("{:?}", result.warnings());
+    };
+    assert!(
+        warning
+            .to_string()
+            .contains("remaining include byte budget")
+    );
+    assert_eq!(
+        warning
+            .location
+            .as_ref()
+            .ok_or("missing warning location")?
+            .location
+            .start
+            .line,
+        3
+    );
+    options.include_loader = IncludeLoader::Disabled;
+    let result = registry.parse("read::data.txt[]", &options)?.finish()?;
+    assert!(
+        result.warnings()[0]
+            .to_string()
+            .contains("loading is disabled")
+    );
+    options.safe_mode = SafeMode::Secure;
+    let result = registry.parse("read::data.txt[]", &options)?.finish()?;
+    assert!(
+        result.warnings()[0]
+            .to_string()
+            .contains("require unsafe mode")
+    );
+    Ok(())
+}

@@ -1,8 +1,15 @@
-use std::{borrow::Cow, fmt, sync::Arc};
+use std::{
+    borrow::Cow,
+    cell::Cell,
+    fmt,
+    io::{self, Read},
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use crate::{
     DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, ElementAttributes,
-    SourceLocation,
+    IncludeSourceTarget, Options, SafeMode, SourceLocation,
 };
 
 /// The parser scope in which a block macro can be recognized.
@@ -147,11 +154,90 @@ where
 /// normal document assignment policy, before advancing to subsequent source.
 /// Values are already resolved; literal attribute references are not expanded again.
 #[derive(Debug, Default)]
-pub struct MacroExecutionContext {
+pub struct MacroExecutionContext<'a> {
+    pub(super) file: Option<LocalTarget<'a>>,
+    pub(super) warnings: Vec<String>,
     pub(crate) assignments: Vec<(Cow<'static, str>, DocumentAttributeAssignment<'static>)>,
 }
 
-impl MacroExecutionContext {
+#[derive(Debug)]
+pub(super) struct LocalTarget<'a> {
+    pub(super) call: &'a MacroInvocation<'a>,
+    pub(super) options: &'a Options<'a>,
+    pub(super) entry: Option<&'a Path>,
+    pub(super) budget: &'a Cell<usize>,
+}
+
+impl MacroExecutionContext<'_> {
+    /// Read this invocation's relative local text target through the caller's
+    /// include loader. Return the resolved path alongside the text so processors
+    /// can resolve references within it. Reads share the document's include byte budget.
+    ///
+    /// # Errors
+    /// Requires unsafe mode, an enabled loader, and a local source origin.
+    /// Invalid targets, loader errors, invalid text encodings, and oversized files fail.
+    pub fn read_local_target(&self) -> io::Result<(PathBuf, String)> {
+        let input = self
+            .file
+            .as_ref()
+            .ok_or_else(|| io::Error::other("no active macro invocation"))?;
+        if input.options.safe_mode != SafeMode::Unsafe {
+            return Err(io::Error::other("local macro targets require unsafe mode"));
+        }
+        let provider = input
+            .options
+            .include_loader
+            .provider()
+            .ok_or_else(|| io::Error::other("include loading is disabled"))?;
+        let target = Path::new(input.call.target.as_ref());
+        if target.as_os_str().is_empty()
+            || !target.is_relative()
+            || input.call.target.contains(':')
+            || input.call.target.starts_with('\\')
+        {
+            return Err(io::Error::other("expected a relative local macro target"));
+        }
+        let origin = input.call.location.file.as_deref();
+        if origin.is_some_and(|p| p.to_string_lossy().contains("://")) {
+            return Err(io::Error::other(
+                "local macro target has a URI source origin",
+            ));
+        }
+        let from = origin.and_then(Path::parent);
+        let base = if origin == input.entry {
+            input.options.base_dir.as_deref().or(from)
+        } else {
+            from.or(input.options.base_dir.as_deref())
+        };
+        let path =
+            crate::preprocessor::absolute_normalized(&base.unwrap_or(Path::new(".")).join(target))
+                .map_err(io::Error::other)?;
+        let source = provider
+            .open(&IncludeSourceTarget::File(path.clone()))
+            .map_err(io::Error::other)?;
+        let remaining = input.budget.get();
+        let mut bytes = Vec::new();
+        let result = source
+            .into_reader()
+            .take((remaining as u64).saturating_add(1))
+            .read_to_end(&mut bytes);
+        input.budget.set(remaining.saturating_sub(bytes.len()));
+        result?;
+        if bytes.len() > remaining {
+            return Err(io::Error::other(
+                "macro target exceeds the remaining include byte budget",
+            ));
+        }
+        let text = crate::preprocessor::decode_bytes(&bytes, None, &path.to_string_lossy())
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok((path, text))
+    }
+
+    /// Report a recoverable warning at the current macro invocation.
+    pub fn warn(&mut self, message: impl Into<String>) {
+        self.warnings.push(message.into());
+    }
+
     pub fn set_attribute(
         &mut self,
         name: impl Into<Cow<'static, str>>,
