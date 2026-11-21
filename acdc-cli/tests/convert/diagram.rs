@@ -601,6 +601,61 @@ esac
         Ok(())
     }
 
+    #[test]
+    fn renderer_aliases_and_file_image_dimensions() -> TestResult {
+        let temp = tempfile::tempdir()?;
+        let root = temp.path();
+        fs::write(root.join("chart.source"), "diagram text")?;
+        fs::write(
+            root.join("doc.adoc"),
+            "= Charts\n:svgbob-option-scale: 3\n\n[svgbob,scaled,SVG]\n----\nexample\n----\n\nsvgbob::chart.source[LiTeRaL]\n\nbpmn::chart.source[svg,width=37,height=12]",
+        )?;
+        fs::write(
+            root.join("renderer"),
+            r#"#!/bin/sh
+set -eu
+case "$1" in
+    -o) test "$3:$4" = "--scale:3"; file=$2;;
+    *.bpmn) test "$2" = "-o"; file=$3;;
+    *) exit 1;;
+esac
+printf '%s' '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="8"/>' > "$file"
+"#,
+        )?;
+        fs::set_permissions(root.join("renderer"), fs::Permissions::from_mode(0o700))?;
+        let result = run_acdc_in(
+            root,
+            &[
+                "convert",
+                "--extension",
+                "diagram",
+                "--svgbob",
+                "./renderer",
+                "--bpmn-js",
+                "./renderer",
+                "--fail-on-warnings",
+                "doc.adoc",
+            ],
+            None,
+        )?;
+        assert!(result.status.success(), "{}", output_text(&result.stderr));
+        let html = fs::read_to_string(root.join("doc.html"))?;
+        assert!(html.contains("diagram text"));
+        assert!(
+            html.contains(r#"src="scaled.svg" alt="scaled" width="16" height="8""#),
+            "{html}"
+        );
+        let image = html
+            .lines()
+            .find(|line| line.contains(r#"src="chart.svg""#))
+            .ok_or("missing file macro image")?;
+        assert!(
+            image.contains(r#"width="37""#) && image.contains(r#"height="12""#),
+            "{image}"
+        );
+        Ok(())
+    }
+
     fn tool_sample(
         style: &str,
         flag: &str,

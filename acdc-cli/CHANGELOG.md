@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Honor renderer option defaults, `literal` and `jpg` format aliases, and explicit image dimensions on diagram file macros.
+
 - Caption local images with `meme::photo.jpg[Top,Bottom]` and `--extension diagram --magick PATH`. PNG is the default. Use `format=gif` for GIF and `opts=noupcase` to preserve letter case.
 
 - Render `[vegalite]` blocks and `vegalite::chart.json[]` files with `--vl2vg PATH`. Supply the Vega SVG renderer with `--vg2svg PATH`. The compiler feeds its Vega specification to the selected SVG or PNG renderer.

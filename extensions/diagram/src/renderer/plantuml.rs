@@ -1,6 +1,5 @@
 use super::Job;
-use crate::asset;
-use crate::asset::Format;
+use crate::asset::{self, Format};
 use std::{io, process::Command};
 pub(super) fn render(job: &Job<'_>) -> io::Result<()> {
     let tag = if job.language == "salt" {

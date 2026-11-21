@@ -203,7 +203,7 @@ Render `[ditaa]` blocks and `ditaa::chart.ditaa[]` files with `--ditaa PATH`. Ch
 
 == tape
 
-Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. Use `format=svg` for an SVG recording. Tape scripts run in unsafe mode. Enable the package with `--extension diagram`.
+Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. SVG recording requires a VHS build with SVG support, such as the agentstation fork. Tape scripts run in unsafe mode. Enable the package with `--extension diagram`.
 
 == gnuplot
 
@@ -256,6 +256,12 @@ Render `[vegalite]` blocks and `vegalite::chart.json[]` files with `--vl2vg PATH
 == Meme
 
 Caption local images with `meme::photo.jpg[Top,Bottom]` and `--extension diagram --magick PATH`. PNG is the default. Use `format=gif` for GIF and `opts=noupcase` to preserve letter case. The third and fourth positional attributes set the output target and format. Use ` // ` to split a caption across lines. Both ImageMagick 7 `magick` and ImageMagick 6 `convert` accept this command line.
+
+== Renderer attributes
+
+External renderers registered through the renderer API accept case-insensitive format names. Use `jpg` for JPEG or `literal` for text when the renderer supports that format.
+Document attributes such as `:svgbob-option-scale:`, `:ditaa-option-round-corners:`, `:plantumlconfig:`, and `:syntrax-style:` set defaults for their renderers.
+PlantUML and Salt also accept `opts="smetana,debug"` on a diagram.
 
 == Verification
 

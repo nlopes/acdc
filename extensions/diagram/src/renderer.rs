@@ -61,6 +61,32 @@ impl Renderer {
         Ok((block, file))
     }
 
+    fn option<'a>(self, input: &DiagramInput<'a>, key: &str) -> Option<Cow<'a, str>> {
+        let document = |name: &str| {
+            input
+                .document_attributes
+                .get(name)
+                .map(|value| Cow::Borrowed(value.text().unwrap_or_default()))
+        };
+        if matches!((self.name, key), ("plantuml" | "salt", "config"))
+            && let Some(config) = document("plantumlconfig")
+        {
+            return Some(config);
+        }
+        diagram_attribute(input, self.name, key).or_else(|| match (self.name, key) {
+            ("svgbob" | "ditaa", _) => document(&format!("{}-option-{key}", self.name)),
+            ("syntrax", "style-file") => document("syntrax-style"),
+            ("salt" | "plantuml", "smetana" | "debug") => {
+                let enabled = (&input.metadata.options)
+                    .into_iter()
+                    .any(|flag| *flag == key)
+                    || diagram_attribute(input, self.name, &format!("{key}-option")).is_some();
+                enabled.then_some(Cow::Borrowed("true"))
+            }
+            _ => None,
+        })
+    }
+
     fn render(
         self,
         tool: &Path,
@@ -86,7 +112,7 @@ impl Renderer {
             Some(name) => *self
                 .formats
                 .iter()
-                .find(|format| format.extension() == name)
+                .find(|format| format.matches_name(name))
                 .ok_or_else(|| {
                     format!(
                         "unsupported {} format '{name}' (expected {})",
@@ -102,7 +128,7 @@ impl Renderer {
         let options: Vec<_> = self
             .attributes
             .iter()
-            .filter_map(|&key| diagram_attribute(input, self.name, key).map(|value| (key, value)))
+            .filter_map(|&key| self.option(input, key).map(|value| (key, value)))
             .collect();
         let source = diagram_source(input);
         let identity = options

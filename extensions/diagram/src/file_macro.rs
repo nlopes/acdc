@@ -56,7 +56,8 @@ where
                             !matches!(
                                 name,
                                 "target" | "format" | "on-error" | "scale" | "subs" | "svg-type"
-                            ) && !renderer_arguments.contains(&name)
+                            ) && (matches!(name, "width" | "height")
+                                || !renderer_arguments.contains(&name))
                         });
                         if attributes.is_empty() {
                             image

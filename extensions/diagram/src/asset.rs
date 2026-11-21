@@ -69,6 +69,13 @@ impl Format {
         }
     }
 
+    pub(super) fn matches_name(self, value: &str) -> bool {
+        let value = value.trim();
+        value.eq_ignore_ascii_case(self.extension())
+            || (self == Self::Jpeg && value.eq_ignore_ascii_case("jpg"))
+            || (self == Self::Txt && value.eq_ignore_ascii_case("literal"))
+    }
+
     pub(super) fn validate(self, path: &Path) -> io::Result<Option<ImageSize>> {
         let meta = fs::symlink_metadata(path)?;
         if !meta.is_file() || meta.len() > MAX_BYTES {
