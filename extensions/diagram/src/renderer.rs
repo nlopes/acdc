@@ -192,3 +192,12 @@ pub const PACKETDIAG: Renderer = Renderer {
     attributes: &["fontpath"],
     generate: blockdiag_family,
 };
+
+/// Render `rackdiag` diagrams using `rackdiag`.
+pub const RACKDIAG: Renderer = Renderer {
+    name: "rackdiag",
+    tool: "rackdiag",
+    formats: &[Format::Png, Format::Pdf, Format::Svg],
+    attributes: &["fontpath"],
+    generate: blockdiag_family,
+};

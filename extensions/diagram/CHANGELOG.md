@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- Render `[rackdiag]` blocks and `rackdiag::chart.diag[]` files with `--rackdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
+
 - Render `[packetdiag]` blocks and `packetdiag::chart.diag[]` files with `--packetdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.
 
 - Render `[nwdiag]` blocks and `nwdiag::chart.diag[]` files with `--nwdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported.

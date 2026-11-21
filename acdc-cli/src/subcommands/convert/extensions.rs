@@ -84,6 +84,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted packetdiag renderer
     #[arg(long, value_name = "PATH")]
     packetdiag: Option<std::path::PathBuf>,
+    /// Path to the trusted rackdiag renderer
+    #[arg(long, value_name = "PATH")]
+    rackdiag: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -119,6 +122,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::RACKDIAG, self.rackdiag.as_deref()),
             (
                 acdc_diagram::renderer::PACKETDIAG,
                 self.packetdiag.as_deref(),
