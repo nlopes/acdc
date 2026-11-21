@@ -31,7 +31,9 @@ Target names accept ASCII letters, digits, hyphens, and underscores.
 An empty target uses a SHA-256 digest of the body. Named `target=` and `format=` take precedence.
 The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
 Use local relative image directories without URI escapes, query strings, or fragments. Symlinks in the directory path, parent traversal, and `imagesoutdir` overrides are rejected.
-SVG is the supported format in this port. A failed render stops parsing at the block and preserves any previous asset.
+Use `[wavedrom,clock,png]` to generate `clock.png`. SVG is the default.
+The block’s format takes precedence over the `wavedrom-format` document attribute in effect at the block.
+A failed render stops parsing at the block and preserves any previous asset.
 
 == TikZ
 

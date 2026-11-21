@@ -69,13 +69,14 @@ pub fn tikz(lualatex: &Path, pdf2svg: Option<&Path>, output_dir: &Path) -> io::R
             }
             None => Format::Pdf,
         };
-        let svg_tool = match format {
-            Format::Svg => Some(
+        let svg_tool = if format == Format::Svg {
+            Some(
                 converter
                     .as_ref()
                     .ok_or("TikZ SVG output requires a configured pdf2svg executable")?,
-            ),
-            Format::Pdf => None,
+            )
+        } else {
+            None
         };
         let preamble = args.get_string("preamble").as_deref() == Some("true")
             || (&input.metadata.options)

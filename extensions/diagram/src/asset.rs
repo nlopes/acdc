@@ -1,6 +1,6 @@
 use std::{
     fs,
-    io::{self, Read as _, Seek as _},
+    io::{self, BufReader, Read as _, Seek as _},
     path::Path,
     process::{Command, Stdio},
     time::{Duration, Instant},
@@ -9,6 +9,7 @@ use std::{
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Format {
     Svg,
+    Png,
     Pdf,
 }
 
@@ -16,6 +17,7 @@ impl Format {
     pub(super) fn extension(self) -> &'static str {
         match self {
             Self::Svg => "svg",
+            Self::Png => "png",
             Self::Pdf => "pdf",
         }
     }
@@ -42,6 +44,7 @@ impl Format {
                     return Err(io::Error::other("invalid SVG output"));
                 }
             }
+            Self::Png => validate_png(file)?,
             Self::Pdf => {
                 let mut signature = [0; 5];
                 file.read_exact(&mut signature)?;
@@ -55,6 +58,29 @@ impl Format {
         }
         Ok(())
     }
+}
+
+// Check the raster and its end marker before publishing, without storing a full frame.
+fn validate_png(file: fs::File) -> io::Result<()> {
+    let invalid = |e: png::DecodingError| {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("invalid PNG output: {e}"),
+        )
+    };
+    let mut reader = png::Decoder::new(BufReader::new(file))
+        .read_info()
+        .map_err(invalid)?;
+    if reader
+        .output_buffer_size()
+        .is_none_or(|bytes| bytes > png::Limits::default().bytes)
+    {
+        return Err(io::Error::other(
+            "PNG raster exceeds the decoder size limit",
+        ));
+    }
+    while reader.next_row().map_err(invalid)?.is_some() {}
+    reader.finish().map_err(invalid)
 }
 
 pub(super) fn publish(

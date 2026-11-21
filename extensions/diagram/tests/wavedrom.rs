@@ -1,5 +1,6 @@
 use std::{
     env, fs,
+    io::BufReader,
     path::{Path, PathBuf},
 };
 
@@ -20,11 +21,12 @@ fn registry(tool: &Path, root: &Path) -> Result<Registry, Box<dyn std::error::Er
     Ok(builder.build())
 }
 
-fn render_ace(
+fn render_asset(
     tool: &Path,
     root: &Path,
     mode: CompatibilityMode,
-) -> Result<String, Box<dyn std::error::Error>> {
+    source_text: &str,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let pipeline = Pipeline::new(Converter::new_with_variant(
         ConverterOptions::builder().embedded(true).build(),
         Options::builder()
@@ -33,7 +35,7 @@ fn render_ace(
         HtmlVariant::Standard,
     )?)
     .with_extensions(registry(tool, root)?);
-    let parsed = pipeline.parse(&format!("Intro.\n\n:imagesdir: images\n\n{ACE}"))?;
+    let parsed = pipeline.parse(&format!("Intro.\n\n:imagesdir: images\n\n{source_text}"))?;
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     let target = parsed
         .document()
@@ -61,7 +63,7 @@ fn render_ace(
     assert!(html.contains(&format!("src=\"{reference}\"")));
     assert!(html.contains("alt=\"Diagram\""), "{html}");
     assert_eq!(warnings, []);
-    Ok(fs::read_to_string(root.join(reference))?)
+    Ok(root.join(reference))
 }
 
 #[test]
@@ -70,7 +72,7 @@ fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
     let tool = PathBuf::from(env::var_os("ACDC_WAVEDROM_CLI").ok_or("set ACDC_WAVEDROM_CLI")?);
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let output = tempfile::tempdir()?;
-        let svg = render_ace(&tool, output.path(), mode)?;
+        let svg = fs::read_to_string(render_asset(&tool, output.path(), mode, ACE)?)?;
         let document = roxmltree::Document::parse(&svg)?;
         let root = document.root_element();
         assert!(root.has_tag_name(("http://www.w3.org/2000/svg", "svg")));
@@ -82,6 +84,15 @@ fn ace_register_diagram_with_real_wavedrom_cli() -> TestResult {
                 "missing {label}"
             );
         }
+
+        let png_source = ACE.replacen(", svg]", ", png]", 1);
+        let path = render_asset(&tool, output.path(), mode, &png_source)?;
+        assert_eq!(path.extension().and_then(|ext| ext.to_str()), Some("png"));
+        let mut reader = png::Decoder::new(BufReader::new(fs::File::open(path)?)).read_info()?;
+        assert_eq!(reader.info().size(), (800, 84));
+        let mut pixels = vec![0; reader.output_buffer_size().ok_or("no PNG raster")?];
+        let frame = reader.next_frame(&mut pixels)?;
+        assert_eq!((frame.width, frame.height), (800, 84));
     }
     Ok(())
 }
@@ -112,7 +123,7 @@ fn restrictive_modes_and_invalid_targets_fail_before_execution() -> TestResult {
     }
     for (header, fragment) in [
         ("[wavedrom,../outside,svg]", "target"),
-        ("[wavedrom,,png]", "format"),
+        ("[wavedrom,,pdf]", "format"),
         (":wavedrom: other-tool\n\n[wavedrom]", "executable"),
         (":imagesdir: ../outside\n\n[wavedrom]", "imagesdir"),
     ] {
@@ -147,7 +158,12 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
             .strip_suffix("....\n")
             .ok_or("closing delimiter")?,
     )?;
-    let svg = render_ace(&tool, root.path(), CompatibilityMode::Draft)?;
+    let svg = fs::read_to_string(render_asset(
+        &tool,
+        root.path(),
+        CompatibilityMode::Draft,
+        ACE,
+    )?)?;
     assert!(svg.contains("<desc>test</desc>"));
 
     // A failed rerender must preserve an existing named asset.
@@ -164,5 +180,63 @@ printf '%s' '<svg xmlns="http://www.w3.org/2000/svg"><desc>test</desc></svg>' > 
         fs::read_to_string(root.path().join("existing.svg"))?,
         "old asset"
     );
+    Ok(())
+}
+
+#[cfg(unix)]
+#[test]
+fn png_selection_and_failed_publication() -> TestResult {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let dir = tempfile::tempdir()?;
+    let tool = dir.path().join("renderer");
+    fs::write(
+        &tool,
+        r#"#!/bin/sh
+set -eu
+test "$1" = --input
+test "$3" = --png
+cp "$(dirname "$0")/result.png" "$4"
+"#,
+    )?;
+    fs::set_permissions(&tool, fs::Permissions::from_mode(0o700))?;
+
+    let mut png = Vec::new();
+    let mut encoder = png::Encoder::new(&mut png, 1, 1);
+    encoder.set_color(png::ColorType::Rgb);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&[10, 20, 30])?;
+    writer.finish()?;
+    let result = dir.path().join("result.png");
+    fs::write(&result, &png)?;
+    for header in [
+        ":wavedrom-format: png\n\n[wavedrom,register]",
+        ":wavedrom-format: svg\n\n[wavedrom,register,png]",
+        "[wavedrom,register,svg,format=png]",
+    ] {
+        let source = format!("{header}\n....\nbody\n....");
+        let path = render_asset(&tool, dir.path(), CompatibilityMode::Draft, &source)?;
+        assert_eq!(path, dir.path().join("images/register.png"));
+        assert_eq!(fs::read(path)?, png);
+    }
+
+    // A successful process can still produce a truncated PNG without an IEND chunk.
+    png.truncate(png.len() - 12);
+    fs::write(result, &png)?;
+    let original = dir.path().join("images/register.png");
+    let before = fs::read(&original)?;
+    let registry = registry(&tool, dir.path())?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Unsafe)
+        .build()?;
+    let failed = registry.parse(
+        ":imagesdir: images\n\n[wavedrom,register,png]\n....\nbody\n....",
+        &options,
+    );
+    assert!(
+        matches!(failed, Err(Error::Extension(origin, msg)) if origin.location.start.line == 3 && msg.contains("invalid PNG"))
+    );
+    assert_eq!(fs::read(original)?, before);
     Ok(())
 }

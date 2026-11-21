@@ -88,20 +88,27 @@ fn render(tool: &Path, root: &Path, input: &RawBlockInput<'_>) -> Result<BlockBu
     if args.get("wavedrom").is_some() || attrs.get("wavedrom").is_some() {
         return Err("set the WaveDrom executable when registering the style".into());
     }
-    if let Some(format) = args.get_string("format")
-        && format != "svg"
-    {
-        return Err(format!(
-            "unsupported WaveDrom format '{format}' (expected svg)"
-        ));
-    }
+    let requested = args.get_string("format");
+    let format = match requested.as_deref().or_else(|| {
+        attrs
+            .get("wavedrom-format")
+            .and_then(DocumentAttributeValue::text)
+    }) {
+        Some("png") => Format::Png,
+        None | Some("svg") => Format::Svg,
+        Some(other) => {
+            return Err(format!(
+                "unsupported WaveDrom format '{other}' (expected svg or png)"
+            ));
+        }
+    };
     image(
         "wavedrom",
         root,
         input,
-        Format::Svg,
+        format,
         input.body,
-        |scratch, output| wavedrom_cli::render(tool, input.body, scratch, output),
+        |scratch, output| wavedrom_cli::render(tool, input.body, format, scratch, output),
     )
 }
 
