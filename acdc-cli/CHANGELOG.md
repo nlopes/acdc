@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render `[plantuml]` blocks and `plantuml::chart.puml[]` files with `--plantuml PATH`. Choose PNG, SVG, ASCII `atxt`, or Unicode `txt` and `utxt`. Local includes resolve from the diagram directory. Configure Graphviz with `--graphviz-dot` or use the built-in Smetana layout.
+
 - Render `[penrose]` blocks and `penrose::chart.substance[]` files with `--roger PATH`. Provide `domain_file` and `style_file` relative to the diagram source. Use `variation` to choose a layout.
 
 - Render `[erd]` blocks and `erd::chart.erd[]` files with `--erd PATH`. Configure Graphviz with `--graphviz-dot PATH`. The ERD renderer produces DOT and Graphviz writes the final PNG or SVG.

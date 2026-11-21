@@ -45,6 +45,8 @@ impl ImageSize {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Format {
+    Atxt,
+    Utxt,
     Txt,
     Gif,
     Jpeg,
@@ -56,6 +58,8 @@ pub(super) enum Format {
 impl Format {
     pub(super) fn extension(self) -> &'static str {
         match self {
+            Self::Atxt => "atxt",
+            Self::Utxt => "utxt",
             Self::Txt => "txt",
             Self::Gif => "gif",
             Self::Jpeg => "jpeg",
@@ -74,7 +78,9 @@ impl Format {
         }
         let mut file = fs::File::open(path)?;
         match self {
-            Self::Txt => Err(io::Error::other("text output requires a literal block")),
+            Self::Txt | Self::Atxt | Self::Utxt => {
+                Err(io::Error::other("text output requires a literal block"))
+            }
             Self::Gif => validate_raster(file, image::ImageFormat::Gif).map(Some),
             Self::Jpeg => validate_raster(file, image::ImageFormat::Jpeg).map(Some),
             Self::Svg => {

@@ -111,6 +111,7 @@ impl Renderer {
             .chain([source.as_ref()]);
         let generate = |scratch: &Path, output: &Path| {
             (self.generate)(&Job {
+                language: self.name,
                 companions,
                 tool,
                 name: self.tool,
@@ -122,7 +123,7 @@ impl Renderer {
                 output,
             })
         };
-        if format == Format::Txt {
+        if matches!(format, Format::Txt | Format::Atxt | Format::Utxt) {
             let render = || -> io::Result<String> {
                 let scratch = asset::scratch_dir(roots.embedded)?;
                 let output = scratch.path().join("output.txt");
@@ -146,6 +147,7 @@ impl Renderer {
 }
 
 struct Job<'a> {
+    language: &'static str,
     companions: &'a [(&'a str, std::path::PathBuf)],
     tool: &'a Path,
     name: &'static str,
@@ -864,4 +866,29 @@ pub const PENROSE: Renderer = Renderer {
     formats: &[Format::Svg],
     attributes: &["domain_file", "style_file", "variation"],
     generate: penrose,
+};
+
+mod plantuml;
+
+/// Render `plantuml` diagrams using `plantuml`.
+pub const PLANTUML: Renderer = Renderer {
+    name: "plantuml",
+    tool: "plantuml",
+    formats: &[
+        Format::Png,
+        Format::Svg,
+        Format::Txt,
+        Format::Atxt,
+        Format::Utxt,
+    ],
+    attributes: &[
+        "theme",
+        "config",
+        "includedir",
+        "size-limit",
+        "preprocess",
+        "smetana",
+        "debug",
+    ],
+    generate: plantuml::render,
 };

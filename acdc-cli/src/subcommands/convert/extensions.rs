@@ -153,6 +153,9 @@ pub(super) struct DiagramArgs {
     /// Path to the trusted roger renderer
     #[arg(long, value_name = "PATH")]
     roger: Option<std::path::PathBuf>,
+    /// Path to the trusted plantuml renderer
+    #[arg(long, value_name = "PATH")]
+    plantuml: Option<std::path::PathBuf>,
     /// Path to the trusted bytefield-svg executable
     #[arg(long, value_name = "PATH")]
     bytefield_svg: Option<std::path::PathBuf>,
@@ -188,6 +191,7 @@ impl DiagramArgs {
         &self,
     ) -> impl Iterator<Item = (acdc_diagram::renderer::Renderer, &Path)> {
         [
+            (acdc_diagram::renderer::PLANTUML, self.plantuml.as_deref()),
             (acdc_diagram::renderer::PENROSE, self.roger.as_deref()),
             (acdc_diagram::renderer::ERD, self.erd.as_deref()),
             (acdc_diagram::renderer::LILYPOND, self.lilypond.as_deref()),
