@@ -13,9 +13,9 @@ roxmltree = "0.21"
 base64.workspace = true
 sha2.workspace = true
 tempfile.workspace = true
-wait-timeout = "0.2"
 
 [dev-dependencies]
+lopdf.workspace = true
 acdc-converters-core.workspace = true
 acdc-converters-html.workspace = true
 

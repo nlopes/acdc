@@ -12,7 +12,12 @@ use acdc_parser::{
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 
+mod asset;
+mod tikz;
 mod wavedrom_cli;
+
+use asset::Format;
+pub use tikz::tikz;
 
 /// Register the `wavedrom` literal-block style for a trusted renderer and an
 /// existing output directory (the directory containing the converted document).
@@ -22,33 +27,63 @@ mod wavedrom_cli;
 /// # Errors
 /// Returns an error if either path cannot be resolved or has the wrong file type.
 pub fn wavedrom(tool: &Path, output_dir: &Path) -> io::Result<BlockStyle> {
-    let tool = tool.canonicalize()?;
-    let root = output_dir.canonicalize()?;
-    if !tool.is_file() || !root.is_dir() {
+    let tool = executable(tool.canonicalize()?)?;
+    style("WaveDrom", output_dir, move |root, input| {
+        render(&tool, root, input)
+    })
+}
+
+fn executable(tool: PathBuf) -> io::Result<PathBuf> {
+    if !tool.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "expected a WaveDrom executable and an output directory",
+            format!("expected an executable file at {}", tool.display()),
         ));
     }
-    Ok(
-        BlockStyle::raw("wavedrom", [RawBlockContext::Literal], move || {
-            let tool = tool.clone();
+    Ok(tool)
+}
+
+fn style<F>(label: &'static str, output_dir: &Path, render: F) -> io::Result<BlockStyle>
+where
+    F: Fn(&Path, &RawBlockInput<'_>) -> Result<BlockBuilder, String>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+{
+    let root = output_dir.canonicalize()?;
+    if !root.is_dir() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "expected an output directory",
+        ));
+    }
+    Ok(BlockStyle::raw(
+        label.to_ascii_lowercase(),
+        [RawBlockContext::Literal],
+        move || {
             let root = root.clone();
-            move |input: RawBlockInput<'_>| render(&tool, &root, &input).map(Some)
-        })
-        .with_positional_attributes(["target", "format"]),
+            let render = render.clone();
+            move |input: RawBlockInput<'_>| {
+                if input
+                    .document_attributes
+                    .get("safe-mode-name")
+                    .and_then(DocumentAttributeValue::text)
+                    != Some(SafeMode::Unsafe.name())
+                {
+                    return Err(format!(
+                        "{label} requires unsafe mode to run the configured executable"
+                    ));
+                }
+                render(&root, &input).map(Some)
+            }
+        },
     )
+    .with_positional_attributes(["target", "format"]))
 }
 
 fn render(tool: &Path, root: &Path, input: &RawBlockInput<'_>) -> Result<BlockBuilder, String> {
     let attrs = input.document_attributes;
-    if attrs
-        .get("safe-mode-name")
-        .and_then(DocumentAttributeValue::text)
-        != Some(SafeMode::Unsafe.name())
-    {
-        return Err("WaveDrom requires unsafe mode to run the configured executable".into());
-    }
     let args = &input.metadata.attributes;
     if args.get("wavedrom").is_some() || attrs.get("wavedrom").is_some() {
         return Err("set the WaveDrom executable when registering the style".into());
@@ -60,29 +95,56 @@ fn render(tool: &Path, root: &Path, input: &RawBlockInput<'_>) -> Result<BlockBu
             "unsupported WaveDrom format '{format}' (expected svg)"
         ));
     }
+    image(
+        "wavedrom",
+        root,
+        input,
+        Format::Svg,
+        input.body,
+        |scratch, output| wavedrom_cli::render(tool, input.body, scratch, output),
+    )
+}
+
+fn image(
+    name: &str,
+    root: &Path,
+    input: &RawBlockInput<'_>,
+    format: Format,
+    source: &str,
+    generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> Result<BlockBuilder, String> {
+    let attrs = input.document_attributes;
+    let args = &input.metadata.attributes;
     if attrs.get("imagesoutdir").is_some() {
-        return Err("WaveDrom writes relative to the caller's output directory; imagesoutdir is unsupported".into());
+        return Err(format!(
+            "{name} writes relative to the caller's output directory; imagesoutdir is unsupported"
+        ));
     }
     let target = args.get_string("target").unwrap_or_default();
     let filename = if target.is_empty() {
-        let digest = Sha256::digest(input.body.as_bytes());
-        format!("wavedrom-{}.svg", URL_SAFE_NO_PAD.encode(digest))
+        let digest = Sha256::digest(source.as_bytes());
+        format!(
+            "{name}-{}.{}",
+            URL_SAFE_NO_PAD.encode(digest),
+            format.extension()
+        )
     } else {
         if !target
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
         {
-            return Err("WaveDrom target must use letters, digits, hyphens, or underscores".into());
+            return Err(format!(
+                "{name} target must use letters, digits, hyphens, or underscores"
+            ));
         }
-        format!("{target}.svg")
+        format!("{target}.{}", format.extension())
     };
     let images = attrs
         .get("imagesdir")
         .and_then(DocumentAttributeValue::text)
         .unwrap_or_default();
-    let dir = image_directory(root, images).map_err(|e| format!("WaveDrom imagesdir: {e}"))?;
-    wavedrom_cli::render(tool, input.body, &dir, &filename)
-        .map_err(|e| format!("WaveDrom: {e}"))?;
+    let dir = image_directory(root, images).map_err(|e| format!("{name} imagesdir: {e}"))?;
+    asset::publish(&dir, &filename, format, generate).map_err(|e| format!("{name}: {e}"))?;
     Ok(BlockBuilder::image(filename).with_default_attributes("alt=Diagram"))
 }
 

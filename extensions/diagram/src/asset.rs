@@ -1,0 +1,106 @@
+use std::{
+    fs,
+    io::{self, Read as _, Seek as _},
+    path::Path,
+    process::{Command, Stdio},
+    time::{Duration, Instant},
+};
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Format {
+    Svg,
+    Pdf,
+}
+
+impl Format {
+    pub(super) fn extension(self) -> &'static str {
+        match self {
+            Self::Svg => "svg",
+            Self::Pdf => "pdf",
+        }
+    }
+
+    pub(super) fn validate(self, path: &Path) -> io::Result<()> {
+        const MAX_BYTES: u64 = 16 * 1024 * 1024;
+        let meta = fs::symlink_metadata(path)?;
+        if !meta.is_file() || meta.len() > MAX_BYTES {
+            return Err(io::Error::other(
+                "expected a regular diagram file of at most 16 MiB",
+            ));
+        }
+        let mut file = fs::File::open(path)?;
+        match self {
+            Self::Svg => {
+                let mut svg = String::new();
+                file.take(MAX_BYTES + 1).read_to_string(&mut svg)?;
+                if svg.len() as u64 > MAX_BYTES
+                    || !roxmltree::Document::parse(&svg)
+                        .map_err(io::Error::other)?
+                        .root_element()
+                        .has_tag_name(("http://www.w3.org/2000/svg", "svg"))
+                {
+                    return Err(io::Error::other("invalid SVG output"));
+                }
+            }
+            Self::Pdf => {
+                let mut signature = [0; 5];
+                file.read_exact(&mut signature)?;
+                file.seek(io::SeekFrom::Start(meta.len().saturating_sub(1024)))?;
+                let mut tail = Vec::new();
+                file.take(1024).read_to_end(&mut tail)?;
+                if &signature != b"%PDF-" || !tail.trim_ascii_end().ends_with(b"%%EOF") {
+                    return Err(io::Error::other("invalid PDF output"));
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
+pub(super) fn publish(
+    dir: &Path,
+    filename: &str,
+    format: Format,
+    generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> io::Result<()> {
+    let scratch = tempfile::Builder::new()
+        .prefix(".acdc-diagram-")
+        .tempdir_in(dir)?;
+    let output = scratch
+        .path()
+        .join(format!("output.{}", format.extension()));
+    generate(scratch.path(), &output)?;
+    format.validate(&output)?;
+    fs::rename(output, dir.join(filename))
+}
+
+pub(super) fn run(command: &mut Command, dir: &Path, tool: &str) -> io::Result<()> {
+    let mut child = command
+        .current_dir(dir)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let error = loop {
+        match child.try_wait() {
+            Ok(Some(status)) if status.success() => return Ok(()),
+            Ok(Some(status)) => {
+                return Err(io::Error::other(format!("{tool} exited with {status}")));
+            }
+            Err(error) => break error,
+            Ok(None) => {}
+        }
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            break io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!("{tool} exceeded 30 seconds"),
+            );
+        }
+        std::thread::sleep(remaining.min(Duration::from_millis(10)));
+    };
+    let _ = child.kill();
+    child.wait()?;
+    Err(error)
+}

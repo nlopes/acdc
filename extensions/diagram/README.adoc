@@ -1,4 +1,6 @@
-= WaveDrom diagrams for acdc
+= Diagram extensions for acdc
+
+== WaveDrom
 
 Applications can register the `wavedrom` literal-block style in the parser registry.
 Supply the path to a trusted `wavedrom-cli` executable and the directory containing the converted document.
@@ -31,6 +33,25 @@ The image is an ordinary acdc block. Its file is written under the output direct
 Use local relative image directories without URI escapes, query strings, or fragments. Symlinks in the directory path, parent traversal, and `imagesoutdir` overrides are rejected.
 SVG is the supported format in this port. A failed render stops parsing at the block and preserves any previous asset.
 
+== TikZ
+
+Register the `tikz` literal-block style with the application's LuaLaTeX executable, an optional pdf2svg executable, and the converted document's output directory.
+
+[source,rust]
+----
+builder.register_block_style(acdc_diagram::tikz(&lualatex, Some(&pdf2svg), &output_dir)?)?;
+----
+
+Use `[tikz,figure,svg,preamble=true,command=lualatex]` over a literal block to produce `figure.svg`.
+Put the TeX preamble before a line containing exactly `~~~~`, then the picture after it.
+With no separator the complete body becomes picture content.
+Use `pdf` for native one-page PDF output. With no explicit format, HTML backends prefer SVG when pdf2svg is configured. Other configurations default to PDF.
+
+LuaLaTeX runs only in unsafe mode on trusted documents, with shell escape disabled.
+The block's `command` and document's `tikz-command` can select only `lualatex`.
+Fonts and packages must be discoverable by the caller's TeX installation.
+The existing target naming, source-position `imagesdir`, atomic publication, and located error behavior also apply to TikZ.
+
 == Verification
 
 The adapter uses the file-to-file protocol from https://github.com/nlopes/acdc/pull/451[acdc-diagram].
@@ -40,4 +61,14 @@ It was verified with `wavedrom-cli` 3.2.0. To run the real-renderer test:
 [source,console]
 ----
 ACDC_WAVEDROM_CLI=/absolute/path/to/wavedrom-cli cargo nextest run -p acdc-diagram --all-features --run-ignored only -E 'test(=ace_register_diagram_with_real_wavedrom_cli)'
+----
+
+The https://github.com/riscv/riscv-high-assurance-cryptography/blob/6b82dbaf0096747c8acee1749a1e1c188474f478/src/ace-ISA-unpriv.adoc#L513-L587[ACE state diagram fixture] is extracted from a comment in the same CC BY 4.0 source.
+Install the TeX packages for standalone, TikZ, and fontspec and make the four https://github.com/riscv/docs-resources/tree/2aef34ec803cf3475376172bac78a35d5801cb21/fonts[Petrona Light and Medium upright and italic font files] available to LuaLaTeX.
+The reference comparison used LuaHBTeX 1.24.0, pdf2svg 0.2.4, and Asciidoctor Diagram 3.2.1 configured to run the same LuaLaTeX engine with shell escape disabled.
+To verify both formats with the real tools:
+
+[source,console]
+----
+ACDC_LUALATEX=/absolute/path/to/lualatex ACDC_PDF2SVG=/absolute/path/to/pdf2svg cargo nextest run -p acdc-diagram --all-features --run-ignored only -E 'test(=ace_state_diagram_with_real_lualatex)'
 ----
