@@ -39,6 +39,10 @@ fn diagram_configuration_requires_activation_and_tools() -> TestResult {
     for (args, expected) in [
         (vec!["--extension", "diagram"], "requires --wavedrom-cli"),
         (
+            vec!["--graphviz-dot", "missing"],
+            "require --extension diagram",
+        ),
+        (
             vec!["--wavedrom-cli", "missing"],
             "require --extension diagram",
         ),
@@ -85,6 +89,82 @@ mod active {
         ];
         command.extend(args);
         run_acdc_in(root, &command, stdin)
+    }
+
+    #[test]
+    fn graphviz_uses_the_configured_dot_and_source_position_layout() -> TestResult {
+        let dir = tempfile::tempdir()?;
+        let root = dir.path();
+        fs::create_dir(root.join("source"))?;
+        fs::create_dir(root.join("out"))?;
+        fs::write(
+            root.join("dot"),
+            r#"#!/bin/sh
+set -eu
+test -f graph.adoc
+test "$1" = -o
+test "$3" = -Tsvg
+test "$(cat)" = 'digraph { start -> finish }'
+printf '%s\n' "$4" >> layouts
+cat > "$2" <<'SVG'
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+ "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" width="80pt" height="20pt"/>
+SVG
+"#,
+        )?;
+        fs::set_permissions(root.join("dot"), fs::Permissions::from_mode(0o700))?;
+        let body = "digraph { start -> finish }";
+        fs::write(
+            root.join("source/graph.adoc"),
+            format!(
+                "= Flow\n:graphviz-format: svg\n:graphviz-layout: dot\n\n[graphviz]\n----\n{body}\n----\n\n[graphviz,layout=neato]\n....\n{body}\n...."
+            ),
+        )?;
+        let args = [
+            "convert",
+            "--extension",
+            "diagram",
+            "--graphviz-dot",
+            "./dot",
+            "--fail-on-warnings",
+            "source/graph.adoc",
+            "-o",
+            "out/graph.html",
+        ];
+        let output = run_acdc_in(root, &args, None)?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_eq!(
+            fs::read_to_string(root.join("source/layouts"))?,
+            "-Kdot\n-Kneato\n"
+        );
+        let html = fs::read_to_string(root.join("out/graph.html"))?;
+        let mut diagrams = 0;
+        for entry in fs::read_dir(root.join("out"))? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "svg") {
+                let name = entry.file_name();
+                assert!(html.contains(&format!("src=\"{}\"", name.to_string_lossy())));
+                diagrams += 1;
+            }
+        }
+        assert_eq!(diagrams, 2);
+        assert_eq!(html.matches(r#"width="106" height="26""#).count(), 2);
+
+        fs::write(
+            root.join("source/graph.adoc"),
+            format!("[graphviz,graphvizdot=other]\n....\n{body}\n...."),
+        )?;
+        let denied = run_acdc_in(root, &args, None)?;
+        assert!(!denied.status.success());
+        assert!(output_text(&denied.stderr).contains("set the Graphviz executable"));
+        assert_eq!(
+            fs::read_to_string(root.join("source/layouts"))?,
+            "-Kdot\n-Kneato\n"
+        );
+        Ok(())
     }
 
     #[test]

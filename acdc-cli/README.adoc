@@ -130,15 +130,16 @@ activate it. Unknown or unavailable names fail before input is read or parsed.
 
 Build with `cargo build -p acdc-cli --features diagram` to make the `diagram` package available.
 Select it for trusted documents and pass the paths to the tools you want to run.
-WaveDrom accepts SVG (default) or PNG. TikZ uses LuaLaTeX for PDF and can use pdf2svg for SVG.
+Graphviz accepts PNG (default), SVG, or PDF. WaveDrom accepts SVG (default) or PNG. TikZ uses LuaLaTeX for PDF and can use pdf2svg for SVG.
 
 [source,console]
 ....
+acdc convert --extension diagram --graphviz-dot /usr/bin/dot manual.adoc
 acdc convert --extension diagram --wavedrom-cli /opt/bin/wavedrom-cli manual.adoc
 acdc convert --extension diagram --lualatex /opt/tex/bin/lualatex --pdf2svg /opt/bin/pdf2svg manual.adoc
 ....
 
-Both tool sets can be supplied together. Diagram blocks run only in unsafe mode (the CLI default).
+The tool paths can be supplied together. Diagram blocks run only in unsafe mode (the CLI default).
 Restricted modes report an error at the block before launching the renderer.
 By default a renderer failure emits a warning and conversion continues with the error and diagram source in a listing.
 Use `--fail-on-warnings` to keep that output and return status 1, or `-a diagram-on-error=abort` to stop at the failed block.
@@ -540,7 +541,7 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 
 | `diagram`
 | no
-| Makes WaveDrom and TikZ available through `--extension diagram` and caller-supplied tool paths.
+| Makes native diagram styles available through `--extension diagram` and caller-supplied tool paths.
 
 | `terminal-emulator`
 | no

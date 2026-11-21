@@ -27,7 +27,7 @@ let parsed = builder.build().parse(source, &options)?.finish()?;
 ....
 ----
 
-WaveDrom and TikZ receive the preprocessed body verbatim by default.
+Diagram renderers receive the preprocessed body verbatim by default.
 Use `subs=attributes` to expand references such as `{signal-label}` with the value in effect at the block.
 With expansion enabled, `\{signal-label}` passes a literal `{signal-label}` to the tool. Unknown references stay in the source.
 Only the attribute step of a `subs` setting affects diagram source. Formatting, escaping, and callout processing are left to the renderer.
@@ -35,30 +35,30 @@ Only the attribute step of a `subs` setting affects diagram source. Formatting, 
 The first positional argument names the output, e.g. `[wavedrom,clock,svg]` produces `clock.svg`.
 Use a relative target such as `boards/rev-a/clock_signal` to write `boards/rev-a/clock_signal.svg` under the current image directory.
 Each slash-separated segment accepts ASCII letters, digits, hyphens, and underscores.
-WaveDrom and TikZ use the final segment as the default alternative text, with hyphens and underscores displayed as spaces.
+Diagram blocks use the final segment as the default alternative text, with hyphens and underscores displayed as spaces.
 An unnamed diagram defaults to `Diagram`. Set `alt="Clock and reset"` to supply a label or `alt=""` for a decorative image.
-An empty target uses a SHA-256 digest of the source sent to the renderer. Named `target=` and `format=` take precedence.
+An empty target uses a SHA-256 digest of the renderer input, including the selected layout for Graphviz. Named `target=` and `format=` take precedence.
 The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
 Set `:imagesoutdir: staging` to write diagrams under `staging` while keeping `imagesdir` in published links.
 Embedding reads the staged file directly. Unset the attribute with `:imagesoutdir!:` to resume writing under `imagesdir`.
 The CLI resolves `imagesoutdir` from its working directory. Library callers can set its base with `OutputDirectories::with_imagesoutdir_base`.
 Directories used for writing must be relative and cannot contain symlinks, parent traversal, URI escapes, query strings, or fragments.
 In HTML, the default `static` SVG type produces an `<img>`. Set `:diagram-svg-type: inline` to embed SVG markup or `:diagram-svg-type: interactive` to use an `<object>`.
-The `wavedrom-svg-type` and `tikz-svg-type` attributes override the shared setting. Each block can override either with `svg-type=static`, `inline`, or `interactive`.
+A renderer-specific attribute such as `graphviz-svg-type` overrides the shared setting. Each block can override it with `svg-type=static`, `inline`, or `interactive`.
 Explicit `opts=inline` or `opts=interactive` takes precedence over `svg-type`. If both options are present, inline wins.
 For HTML, SVG diagrams supply default image dimensions from their absolute width and height, or from the `viewBox` when either dimension is unavailable.
-WaveDrom PNG diagrams use the pixel width and height of the generated raster.
+PNG diagrams use the pixel width and height of the generated raster.
 Use `scale=0.5` to halve those defaults. Explicit `width` and `height` each override the corresponding default.
 acdc uses Asciidoctor Diagram’s factor of 1.33 for TeX points and truncates fractional pixels after scaling.
 For other physical units acdc uses 96 pixels per inch. A `viewBox` offset does not change its width or height.
-Use `[wavedrom,clock,png]` to generate `clock.png`. SVG is the default.
-Set `:diagram-format: svg` to select a common format for WaveDrom and TikZ.
-A block's positional or named format overrides `wavedrom-format` or `tikz-format`, which in turn override `diagram-format`.
+Use `[wavedrom,clock,png]` to generate `clock.png`. WaveDrom defaults to SVG.
+Set `:diagram-format: svg` to select a common format for all three renderers.
+A block's positional or named format overrides the renderer-specific attribute (such as `graphviz-format`), which in turn overrides `diagram-format`.
 Each block uses the document attributes in effect at its location. Unsetting a renderer-specific format restores the shared default.
 An empty format reports an unsupported format. Use `:diagram-format!:` to restore automatic selection.
-If WaveDrom or TikZ fails to generate an image, the default `diagram-on-error=log` reports a warning at the block and continues conversion.
+If a renderer fails to generate an image, the default `diagram-on-error=log` reports a warning at the block and continues conversion.
 The output contains a listing with the error and the diagram source, including any requested attribute expansion. A previous image file is preserved.
-Set `:diagram-on-error: abort` to stop at the first failure. The block's `on-error` attribute overrides `wavedrom-on-error` or `tikz-on-error`, which override `diagram-on-error` in effect at the block.
+Set `:diagram-on-error: abort` to stop at the first failure. The block's `on-error` attribute overrides the renderer-specific attribute (such as `graphviz-on-error`), which overrides `diagram-on-error` in effect at the block.
 Restricted safe modes still stop before running any tool.
 Each render uses a temporary directory under the image output directory. On Unix, acdc creates it with owner-only access. On Windows, it inherits the output directory’s access controls.
 After success or a renderer error, acdc removes the temporary directory.
@@ -82,9 +82,19 @@ The block's `command` and document's `tikz-command` can select only `lualatex`.
 Fonts and packages must be discoverable by the caller's TeX installation.
 The existing target naming, source-position `imagesdir`, atomic publication, and located error behavior also apply to TikZ.
 
+== Graphviz
+
+Register `acdc_diagram::graphviz(&dot, &output_dir)` or pass `--extension diagram --graphviz-dot /usr/bin/dot` in the CLI.
+Use `[graphviz,flow,svg]` on a listing or literal block containing DOT source. Graphviz defaults to PNG and also supports PDF.
+Set `:graphviz-layout: dot` for subsequent blocks or select an installed layout per block with `layout=neato`.
+Graphviz reads the diagram on standard input. Relative resources resolve from the caller's source directory for file conversion.
+Only the caller selects the executable. Rendering requires unsafe mode.
+
 == Verification
 
-The adapter uses the file-to-file protocol from https://github.com/nlopes/acdc/pull/451[acdc-diagram].
+Graphviz 14.1.2 rendered the same DOT graph with the `dot` layout through acdc and Asciidoctor Diagram 3.2.1. The HTML image paths, alternative text, and dimensions matched for PNG, SVG, and PDF.
+
+The WaveDrom adapter uses the file-to-file protocol from https://github.com/nlopes/acdc/pull/451[acdc-diagram].
 The acceptance fixture reproduces the https://github.com/riscv/riscv-high-assurance-cryptography/blob/6b82dbaf0096747c8acee1749a1e1c188474f478/src/ace-ISA-unpriv.adoc#L1184-L1193[RISC-V ACE register diagram for ace.load], licensed under https://creativecommons.org/licenses/by/4.0/[CC BY 4.0].
 It was verified with `wavedrom-cli` 3.2.0. To run the real-renderer test:
 

@@ -31,7 +31,10 @@ impl Selection {
         #[cfg(feature = "diagram")]
         if args.extensions.iter().any(|name| name == "diagram") {
             return args.diagram.select(args, catalog, asset_base);
-        } else if args.diagram.wavedrom_cli.is_some() || args.diagram.lualatex.is_some() {
+        } else if args.diagram.wavedrom_cli.is_some()
+            || args.diagram.lualatex.is_some()
+            || args.diagram.graphviz_dot.is_some()
+        {
             return Err(miette::miette!(
                 "diagram tool paths require --extension diagram"
             ));
@@ -65,6 +68,9 @@ fn parent(file: Option<&Path>) -> &Path {
 #[cfg(feature = "diagram")]
 #[derive(clap::Args, Debug)]
 pub(super) struct DiagramArgs {
+    /// Path to the trusted Graphviz dot executable
+    #[arg(long, value_name = "PATH")]
+    graphviz_dot: Option<std::path::PathBuf>,
     /// Path to the trusted wavedrom-cli executable
     #[arg(long, value_name = "PATH")]
     wavedrom_cli: Option<std::path::PathBuf>,
@@ -85,9 +91,9 @@ impl DiagramArgs {
         asset_base: AssetBase,
     ) -> Result<Selection> {
         use std::collections::{HashMap, hash_map::Entry};
-        if self.wavedrom_cli.is_none() && self.lualatex.is_none() {
+        if self.wavedrom_cli.is_none() && self.lualatex.is_none() && self.graphviz_dot.is_none() {
             return Err(miette::miette!(
-                "--extension diagram requires --wavedrom-cli PATH or --lualatex PATH"
+                "--extension diagram requires --wavedrom-cli PATH, --lualatex PATH, or --graphviz-dot PATH"
             ));
         }
         // The terminal backend displays files from the working directory, including in a pager.
@@ -142,6 +148,14 @@ impl DiagramArgs {
         let output = acdc_diagram::OutputDirectories::new(linked, embedded)
             .with_imagesoutdir_base(Path::new("."));
         let mut registry = Registry::builder();
+        if let Some(tool) = &self.graphviz_dot {
+            let style = acdc_diagram::graphviz(tool, output).map_err(|e| {
+                miette::miette!("cannot configure Graphviz with {}: {e}", tool.display())
+            })?;
+            registry
+                .register_block_style(style)
+                .map_err(|e| error::display(&e))?;
+        }
         if let Some(tool) = &self.wavedrom_cli {
             let style = acdc_diagram::wavedrom(tool, output).map_err(|e| {
                 miette::miette!("cannot configure WaveDrom with {}: {e}", tool.display())

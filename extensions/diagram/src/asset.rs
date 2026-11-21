@@ -73,7 +73,14 @@ impl Format {
                 if svg.len() as u64 > MAX_BYTES {
                     return Err(io::Error::other("invalid SVG output"));
                 }
-                let document = roxmltree::Document::parse(&svg).map_err(io::Error::other)?;
+                let document = roxmltree::Document::parse_with_options(
+                    &svg,
+                    roxmltree::ParsingOptions {
+                        allow_dtd: declares_svg_11(&svg),
+                        ..Default::default()
+                    },
+                )
+                .map_err(io::Error::other)?;
                 let root = document.root_element();
                 if !root.has_tag_name(("http://www.w3.org/2000/svg", "svg")) {
                     return Err(io::Error::other("invalid SVG output"));
@@ -94,6 +101,22 @@ impl Format {
             }
         }
     }
+}
+
+// Graphviz emits this external SVG 1.1 declaration. Only enable DTD parsing for
+// that exact prolog (without an internal subset), with no external entity resolver.
+fn declares_svg_11(svg: &str) -> bool {
+    let svg = svg.trim_start_matches('\u{feff}').trim_start();
+    let prolog = svg
+        .strip_prefix("<?xml ")
+        .and_then(|s| s.split_once("?>"))
+        .map_or(svg, |(_, rest)| rest.trim_start());
+    prolog.strip_prefix("<!DOCTYPE ")
+        .and_then(|decl| decl.split_once('>'))
+        .is_some_and(|(decl, _)| decl.split_ascii_whitespace().eq(
+            r#"svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd""#
+                .split_ascii_whitespace()
+        ))
 }
 
 // Check the raster and its end marker before publishing, without storing a full frame.
@@ -148,9 +171,18 @@ pub(super) fn publish(
 }
 
 pub(super) fn run(command: &mut Command, dir: &Path, tool: &str) -> io::Result<()> {
+    run_with_input(command, dir, tool, Stdio::null())
+}
+
+pub(super) fn run_with_input(
+    command: &mut Command,
+    dir: &Path,
+    tool: &str,
+    stdin: Stdio,
+) -> io::Result<()> {
     let mut child = command
         .current_dir(dir)
-        .stdin(Stdio::null())
+        .stdin(stdin)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()?;
@@ -176,4 +208,21 @@ pub(super) fn run(command: &mut Command, dir: &Path, tool: &str) -> io::Result<(
     let _ = child.kill();
     child.wait()?;
     Err(error)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn svg_11_declaration_with_internal_subset_is_rejected() -> io::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let path = dir.path().join("graph.svg");
+        fs::write(
+            &path,
+            r#"<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" []><svg xmlns="http://www.w3.org/2000/svg"/>"#,
+        )?;
+        assert!(Format::Svg.validate(&path).is_err());
+        Ok(())
+    }
 }

@@ -84,7 +84,8 @@ pub fn tikz<'a>(
                 .into_iter()
                 .any(|opt| *opt == "preamble");
         let document = latex_document(&diagram_source(input), preamble);
-        image("tikz", root, input, format, &document, |scratch, output| {
+        let identity = [document.as_str()];
+        image("tikz", root, input, format, identity, |scratch, output| {
             fs::write(scratch.join("input.tex"), &document)?;
             asset::run(
                 Command::new(&engine).args([

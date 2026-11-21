@@ -14,10 +14,12 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use sha2::{Digest, Sha256};
 
 mod asset;
+mod graphviz;
 mod tikz;
 mod wavedrom_cli;
 
 use asset::Format;
+pub use graphviz::graphviz;
 pub use tikz::tikz;
 
 /// Directories used by a converter to resolve relative image references.
@@ -225,7 +227,7 @@ fn render(
         root,
         input,
         format,
-        &source,
+        [source.as_ref()],
         |scratch, output| wavedrom_cli::render(tool, &source, format, scratch, output),
     )
 }
@@ -256,22 +258,25 @@ fn svg_option(
     }
 }
 
-fn image(
+fn image<'a>(
     name: &str,
     roots: OutputDirectories<'_>,
     input: &RawBlockInput<'_>,
     format: Format,
-    source: &str,
+    identity: impl IntoIterator<Item = &'a str>,
     generate: impl FnOnce(&Path, &Path) -> io::Result<()>,
 ) -> Result<BlockBuilder, String> {
     let attrs = input.document_attributes;
     let args = &input.metadata.attributes;
     let target = args.get_string("target").unwrap_or_default();
     let image_target = if target.is_empty() {
-        let digest = Sha256::digest(source.as_bytes());
+        let mut digest = Sha256::new();
+        for part in identity {
+            digest.update(part);
+        }
         format!(
             "{name}-{}.{}",
-            URL_SAFE_NO_PAD.encode(digest),
+            URL_SAFE_NO_PAD.encode(digest.finalize()),
             format.extension()
         )
     } else {

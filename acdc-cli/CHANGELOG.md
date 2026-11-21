@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Render Graphviz listing and literal blocks with the registered `dot` executable (`--extension diagram --graphviz-dot PATH` in the CLI). PNG is the default. SVG, PDF, and the `layout` setting are supported.
+
 - Set `imagesoutdir` to stage WaveDrom and TikZ files in a local relative directory. Linked images use `imagesdir`, and embedded images read the staged files. acdc rejects absolute directories and parent traversal.
 
 - Builds with the optional `diagram` feature can convert WaveDrom and TikZ listing
