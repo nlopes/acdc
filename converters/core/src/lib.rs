@@ -57,6 +57,7 @@ pub mod link;
 pub mod list;
 pub mod media;
 pub mod pipeline;
+pub mod postprocess;
 pub mod render;
 pub mod section;
 pub mod substitutions;
@@ -661,6 +662,12 @@ pub trait Converter<'a>: Sized {
     #[must_use]
     fn name(&self) -> &'static str;
 
+    /// Whether completed output can be delivered to a selected UTF-8 text processor.
+    /// The default keeps opaque and binary converters on their own output paths.
+    fn supports_text_output(&self) -> bool {
+        false
+    }
+
     /// Tag used on warnings emitted by this converter.
     ///
     /// The default uses [`Self::name`] verbatim, which suits backends with a
@@ -709,47 +716,15 @@ pub trait Converter<'a>: Sized {
         source_file: Option<&Path>,
         output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {
-        let start = self.options().timings().then(Instant::now);
-
-        if let Some(f) = source_file.filter(|_| self.options().timings()) {
-            println!("Input file: {}", f.display());
-        }
-
-        tracing::debug!(
-            source = ?source_file,
-            destination = ?output_path,
-            "converting document to {}",
-            self.name()
-        );
-
-        if let Some(parent) = output_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let file = std::fs::File::create(output_path)?;
-        let source = self.warning_source();
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        self.write_to(
-            doc,
-            std::io::BufWriter::new(file),
-            source_file,
-            Some(output_path),
-            &mut diagnostics,
-        )?;
-
-        if let Some(start) = start {
-            let elapsed = start.elapsed();
-            tracing::debug!(
-                time = elapsed.format_human_with_precision(3),
-                source = ?source_file,
-                destination = ?output_path,
-                "time to convert document"
-            );
-            println!("  Time to convert document: {}", elapsed.format_human());
-        }
-
-        println!("Generated {} file: {}", self.name(), output_path.display());
-        Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
+        report_file_conversion(self, source_file, output_path, |diagnostics| {
+            self.write_to(
+                doc,
+                create_output(output_path)?,
+                source_file,
+                Some(output_path),
+                diagnostics,
+            )
+        })
     }
 
     /// Main entry point: route based on [`OutputDestination`].
@@ -780,6 +755,55 @@ pub trait Converter<'a>: Sized {
             }
         }
     }
+}
+
+fn create_output(path: &Path) -> std::io::Result<std::io::BufWriter<std::fs::File>> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    Ok(std::io::BufWriter::new(std::fs::File::create(path)?))
+}
+
+fn report_file_conversion<'a, C: Converter<'a>>(
+    converter: &C,
+    source_file: Option<&Path>,
+    output_path: &Path,
+    write: impl FnOnce(&mut Diagnostics<'_>) -> Result<(), C::Error>,
+) -> Result<ConversionResult, C::Error> {
+    let start = converter.options().timings().then(Instant::now);
+
+    if let Some(f) = source_file.filter(|_| converter.options().timings()) {
+        println!("Input file: {}", f.display());
+    }
+
+    tracing::debug!(
+        source = ?source_file,
+        destination = ?output_path,
+        "converting document to {}",
+        converter.name()
+    );
+
+    let source = converter.warning_source();
+    let mut warnings = Vec::new();
+    write(&mut Diagnostics::new(&source, &mut warnings))?;
+
+    if let Some(start) = start {
+        let elapsed = start.elapsed();
+        tracing::debug!(
+            time = elapsed.format_human_with_precision(3),
+            source = ?source_file,
+            destination = ?output_path,
+            "time to convert document"
+        );
+        println!("  Time to convert document: {}", elapsed.format_human());
+    }
+
+    println!(
+        "Generated {} file: {}",
+        converter.name(),
+        output_path.display()
+    );
+    Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
 }
 
 /// Walk the error source chain to find a parser error.

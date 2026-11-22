@@ -225,6 +225,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         self.write_document(doc, writer, source_file, diagnostics)
     }
 
+    fn supports_text_output(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "manpage"
     }

@@ -45,7 +45,10 @@ use std::{
 
 use acdc_parser::{Error, ParseResult, ast::DocumentRef};
 
-use crate::{ConversionResult, Converter, Diagnostics, display};
+use crate::{
+    ConversionResult, Converter, Diagnostics, display,
+    postprocess::{PostprocessContext, PostprocessError},
+};
 
 mod extensions;
 mod registrations;
@@ -68,6 +71,7 @@ impl<C> Pipeline<C> {
                 parser: None,
                 renderers: Vec::new(),
                 docinfo: Vec::new(),
+                postprocessors: Vec::new(),
             },
         }
     }
@@ -149,6 +153,62 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         }
     }
 
+    fn has_postprocessors(&self) -> bool {
+        self.extensions
+            .postprocessors(self.converter.name())
+            .next()
+            .is_some()
+    }
+
+    fn completed_text(
+        &self,
+        document: DocumentRef<'_>,
+        source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<String, C::Error> {
+        use std::io::{Error as IoError, ErrorKind};
+
+        let backend = self.converter.name();
+        if !self.converter.supports_text_output() {
+            return Err(IoError::new(
+                ErrorKind::Unsupported,
+                PostprocessError::Unsupported(backend),
+            )
+            .into());
+        }
+        let prepared = self.prepare(document, diagnostics)?;
+        let context = PostprocessContext {
+            backend,
+            document: prepared.document(),
+            source_file,
+            output_path,
+        };
+        let mut bytes = Vec::new();
+        self.converter.write_to_with_extensions(
+            context.document,
+            &mut bytes,
+            source_file,
+            output_path,
+            &self.extensions,
+            diagnostics,
+        )?;
+        let mut text = String::from_utf8(bytes).map_err(|e| {
+            IoError::new(
+                ErrorKind::InvalidData,
+                PostprocessError::InvalidText {
+                    backend,
+                    source: e.utf8_error(),
+                },
+            )
+        })?;
+        for processor in self.extensions.postprocessors(backend) {
+            (processor.process)(&mut text, context, diagnostics)
+                .map_err(|source| IoError::other(PostprocessError::Callback { backend, source }))?;
+        }
+        Ok(text)
+    }
+
     /// Resolve display content and write one conversion with structured diagnostics.
     ///
     /// # Errors
@@ -156,11 +216,16 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
     pub fn write_to(
         &self,
         document: DocumentRef<'_>,
-        writer: impl Write,
+        mut writer: impl Write,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), C::Error> {
+        if self.has_postprocessors() {
+            let text = self.completed_text(document, source_file, output_path, diagnostics)?;
+            writer.write_all(text.as_bytes())?;
+            return Ok(writer.flush()?);
+        }
         let prepared = self.prepare(document, diagnostics)?;
         self.converter.write_to_with_extensions(
             prepared.document(),
@@ -182,15 +247,25 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         document: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, C::Error> {
-        if self.converter.uses_render_extensions(&self.extensions) {
+        if self.has_postprocessors() || self.converter.uses_render_extensions(&self.extensions) {
             return <Self as Converter<'options>>::convert(self, document, source_file);
         }
+        self.convert_prepared(document, |prepared| {
+            self.converter.convert(prepared, source_file)
+        })
+    }
+
+    fn convert_prepared(
+        &self,
+        document: DocumentRef<'_>,
+        convert: impl FnOnce(DocumentRef<'_>) -> Result<ConversionResult, C::Error>,
+    ) -> Result<ConversionResult, C::Error> {
         let mut warnings = Vec::new();
         let prepared = self.prepare(
             document,
             &mut Diagnostics::new(&self.converter.warning_source(), &mut warnings),
         )?;
-        let mut result = self.converter.convert(prepared.document(), source_file)?;
+        let mut result = convert(prepared.document())?;
         if !warnings.is_empty() {
             warnings.append(&mut result.warnings);
             result.warnings = warnings;
@@ -223,6 +298,48 @@ impl<'options, C: Converter<'options>> Converter<'options> for Pipeline<C> {
     fn name(&self) -> &'static str {
         self.converter.name()
     }
+    fn supports_text_output(&self) -> bool {
+        self.converter.supports_text_output()
+    }
+
+    fn convert_to_file(
+        &self,
+        doc: DocumentRef<'_>,
+        source_file: Option<&Path>,
+        output_path: &Path,
+    ) -> Result<ConversionResult, C::Error> {
+        let postprocess = self.has_postprocessors();
+        if !postprocess && !self.converter.uses_render_extensions(&self.extensions) {
+            return self.convert_prepared(doc, |prepared| {
+                self.converter
+                    .convert_to_file(prepared, source_file, output_path)
+            });
+        }
+        crate::report_file_conversion(self, source_file, output_path, |diagnostics| {
+            if postprocess {
+                // Renderers may place companion files beside the final output.
+                if self.converter.supports_text_output()
+                    && let Some(parent) = output_path.parent()
+                {
+                    std::fs::create_dir_all(parent)?;
+                }
+                let text = self.completed_text(doc, source_file, Some(output_path), diagnostics)?;
+                let mut writer = crate::create_output(output_path)?;
+                writer.write_all(text.as_bytes())?;
+                writer.flush()?;
+                Ok(())
+            } else {
+                self.write_to(
+                    doc,
+                    crate::create_output(output_path)?,
+                    source_file,
+                    Some(output_path),
+                    diagnostics,
+                )
+            }
+        })
+    }
+
     fn warning_source(&self) -> crate::WarningSource {
         self.converter.warning_source()
     }

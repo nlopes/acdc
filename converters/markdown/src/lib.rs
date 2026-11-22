@@ -380,6 +380,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         visitor.visit_document(&mut traversal, doc)
     }
 
+    fn supports_text_output(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         "markdown"
     }

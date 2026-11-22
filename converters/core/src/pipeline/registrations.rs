@@ -2,6 +2,7 @@ use acdc_parser::extensions::Registry;
 
 use crate::{
     docinfo::{DocinfoHook, DocinfoProcessor},
+    postprocess::TextPostprocessor,
     render::{BlockRenderer, RenderSession},
 };
 
@@ -10,6 +11,7 @@ use crate::{
 #[derive(Clone, Debug, Default)]
 pub struct Extensions {
     pub(super) parser: Option<Registry>,
+    pub(super) postprocessors: Vec<TextPostprocessor>,
     pub(super) docinfo: Vec<DocinfoHook>,
     pub(super) renderers: Vec<BlockRenderer>,
 }
@@ -20,6 +22,7 @@ impl From<Registry> for Extensions {
             parser: (!registry.is_empty()).then_some(registry),
             renderers: Vec::new(),
             docinfo: Vec::new(),
+            postprocessors: Vec::new(),
         }
     }
 }
@@ -30,6 +33,20 @@ impl Extensions {
     pub fn with_renderer(mut self, registration: BlockRenderer) -> Self {
         self.renderers.push(registration);
         self
+    }
+
+    /// Append a completed-text callback. Matching callbacks edit the same string
+    /// in package selection and registration order.
+    #[must_use]
+    pub fn with_postprocessor(mut self, processor: TextPostprocessor) -> Self {
+        self.postprocessors.push(processor);
+        self
+    }
+
+    pub(super) fn postprocessors(&self, backend: &str) -> impl Iterator<Item = &TextPostprocessor> {
+        self.postprocessors
+            .iter()
+            .filter(move |p| p.backend == backend)
     }
 
     /// Append a docinfo hook. At each insertion point hooks run in selection
@@ -66,7 +83,10 @@ impl Extensions {
     /// Whether this collection has no parser or rendering capabilities.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.parser.is_none() && self.renderers.is_empty() && self.docinfo.is_empty()
+        self.parser.is_none()
+            && self.renderers.is_empty()
+            && self.docinfo.is_empty()
+            && self.postprocessors.is_empty()
     }
 
     /// Trusted script hashes requested by selected HTML block renderers.

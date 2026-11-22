@@ -1085,7 +1085,10 @@ mod tests {
     #[test]
     fn fail_on_warnings_counts_pager_diagnostics_after_all_inputs_finish()
     -> Result<(), Box<dyn Error>> {
-        use std::process::{Command, Stdio};
+        use std::{
+            fmt::Write as _,
+            process::{Command, Stdio},
+        };
 
         let directory = tempfile::tempdir()?;
         let warning = directory.path().join("warning.adoc");
@@ -1103,7 +1106,21 @@ mod tests {
         let converter = Pipeline::new(acdc_converters_terminal::Converter::new(
             options.clone(),
             ParserOptions::builder(),
-        )?);
+        )?)
+        .with_extensions(Extensions::default().with_postprocessor(
+            acdc_converters_core::postprocess::TextPostprocessor::new(
+                "terminal",
+                |text, ctx, _| {
+                    let stem = ctx
+                        .source_file
+                        .and_then(Path::file_stem)
+                        .and_then(|name| name.to_str())
+                        .ok_or("missing pager source")?;
+                    writeln!(text, "completed {stem}")?;
+                    Ok(())
+                },
+            ),
+        ));
         let pager = Command::new("/bin/sh")
             .args([
                 "-c",
@@ -1122,7 +1139,117 @@ mod tests {
         let rendered = std::fs::read_to_string(captured)?;
         assert!(rendered.contains("Retained body."));
         assert!(rendered.contains("Clean pager body."));
-        assert!(rendered.ends_with("pager finished\n"));
+        assert!(rendered.contains("completed warning"));
+        assert!(rendered.ends_with("completed clean\npager finished\n"));
+        Ok(())
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_rejects_a_selected_text_postprocessor_before_writing() -> Result<(), Box<dyn Error>> {
+        use acdc_converters_core::postprocess::{PostprocessError, TextPostprocessor};
+
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("existing.pdf");
+        std::fs::write(&path, b"previous output")?;
+        let options = Options::builder()
+            .output_destination(OutputDestination::File(path.clone()))
+            .build();
+        let extension = Extensions::default()
+            .with_postprocessor(TextPostprocessor::new("pdf", |_, _, _| {
+                Err("unexpected PDF callback".into())
+            }));
+        let pipeline = configure_pipeline(
+            acdc_converters_pdf::Converter::new(options, ParserOptions::builder())?,
+            Some(&extension),
+        );
+        let parsed = pipeline.parse("Body")?;
+        let Err(acdc_converters_pdf::Error::Io(error)) = pipeline.convert(parsed.document(), None)
+        else {
+            return Err("expected an unsupported PDF postprocessor".into());
+        };
+        assert!(matches!(
+            error
+                .get_ref()
+                .and_then(|source| source.downcast_ref::<PostprocessError>()),
+            Some(PostprocessError::Unsupported("pdf"))
+        ));
+        assert_eq!(std::fs::read(path)?, b"previous output");
+        Ok(())
+    }
+
+    #[cfg(feature = "html")]
+    #[test]
+    fn postprocessing_sees_one_complete_document_per_reader_and_batch_file() -> MietteResult<()> {
+        use acdc_converters_core::postprocess::TextPostprocessor;
+        use miette::IntoDiagnostic as _;
+
+        let dir = tempfile::tempdir().into_diagnostic()?;
+        let files = ["left.adoc", "right.adoc"].map(|name| dir.path().join(name));
+        for file in &files {
+            std::fs::write(file, "Document body.").into_diagnostic()?;
+        }
+        let extension = Extensions::default().with_postprocessor(TextPostprocessor::new(
+            "html",
+            |text, ctx, _| {
+                assert!(text.contains("Document body.") && text.trim_end().ends_with("</html>"));
+                let input = ctx
+                    .source_file
+                    .and_then(Path::file_stem)
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("stdin");
+                let output = ctx
+                    .output_path
+                    .and_then(Path::file_stem)
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("stdout");
+                *text = format!("{input} to {output}");
+                Ok(())
+            },
+        ));
+        let batch = run_multi_file(
+            &Options::default(),
+            &ParserOptions::builder(),
+            &files,
+            Some(&extension),
+            acdc_converters_html::Converter::new,
+        )?;
+        assert_eq!(batch.output_paths.len(), 2);
+        for name in ["left", "right"] {
+            let text = std::fs::read_to_string(dir.path().join(name).with_extension("html"))
+                .into_diagnostic()?;
+            assert_eq!(text, format!("{name} to {name}"));
+        }
+        let dst = dir.path().join("reader.html");
+        let reader = configure_pipeline(
+            acdc_converters_html::Converter::new(
+                Options::builder()
+                    .output_destination(OutputDestination::File(dst.clone()))
+                    .build(),
+                ParserOptions::builder(),
+            )
+            .into_diagnostic()?,
+            Some(&extension),
+        );
+        convert_reader(&reader, "Document body.".as_bytes())?;
+        assert_eq!(
+            std::fs::read_to_string(dst).into_diagnostic()?,
+            "stdin to reader"
+        );
+        let stdout = configure_pipeline(
+            acdc_converters_html::Converter::new(
+                Options::builder()
+                    .output_destination(OutputDestination::Stdout)
+                    .build(),
+                ParserOptions::builder(),
+            )
+            .into_diagnostic()?,
+            Some(&extension),
+        );
+        assert_eq!(
+            convert_reader(&stdout, "Document body.".as_bytes())?.warning_count,
+            0
+        );
         Ok(())
     }
 
@@ -1403,7 +1530,13 @@ fn run_terminal_through_pager(
         for file in files {
             let mut parsed = parse_terminal_file(base_options, converter, file)?;
             let parser_warnings = parsed.take_warnings();
-            converter.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
+            converter.write_to(
+                parsed.document(),
+                &mut writer,
+                Some(file),
+                None,
+                &mut diagnostics,
+            )?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
         }

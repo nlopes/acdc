@@ -21,6 +21,7 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+stats_alloc = "0.1"
 serde_json.workspace = true
 tempfile.workspace = true
 

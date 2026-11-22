@@ -608,6 +608,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         Ok(())
     }
 
+    fn supports_text_output(&self) -> bool {
+        true
+    }
+
     fn name(&self) -> &'static str {
         match self.variant {
             HtmlVariant::Semantic => "html5s",

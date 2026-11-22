@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Selected UTF-8 postprocessors can edit complete output in order before it reaches its destination. Conversions stream as usual when no matching processor is selected.
+
 - Selected docinfo hooks can insert trusted fragments during conversion in registration order, with access to the current document attributes and diagnostics.
 
 - Block renderers can decline with a diagnostic before gaining access to output. An accepting renderer can delegate once and wrap the result. Package selection and registration order determine the chain.

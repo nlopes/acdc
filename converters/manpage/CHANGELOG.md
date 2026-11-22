@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Selected text postprocessors can transform a completed manpage before delivery.
+
 - Extension-generated caption and captured-title links now use explicit labels,
   preserving title formatting and source attributes while following final captions
   and renamed targets. Repeated conversion preserves the shared parsed document.

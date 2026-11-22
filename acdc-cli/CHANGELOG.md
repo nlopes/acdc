@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Selected native text postprocessors run per input, including when multiple terminal documents share a pager.
+
 - Conversion accepts repeatable `--extension NAME` selections and rejects
   unavailable packages before reading input. All input and output routes share
   the backend-aware library pipeline.
