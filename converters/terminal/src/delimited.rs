@@ -520,7 +520,7 @@ fn render_preformatted_content(
     render_preformatted_inlines(
         inlines.inlines(),
         source_language(attributes),
-        converter,
+        &converter.appearance,
         |source| SourceLineOptions::from_attributes(attributes, source),
         diagnostics,
     )
@@ -529,7 +529,7 @@ fn render_preformatted_content(
 pub(crate) fn render_preformatted_inlines<'inline>(
     inlines: impl Iterator<Item = InlineRef<'inline>>,
     language: Option<&str>,
-    converter: &Converter<'_>,
+    appearance: &crate::Appearance,
     line_options: impl FnOnce(&str) -> SourceLineOptions,
     diagnostics: Option<&mut acdc_converters_core::Diagnostics<'_>>,
 ) -> Result<String, Error> {
@@ -539,7 +539,7 @@ pub(crate) fn render_preformatted_inlines<'inline>(
     // Explicit quote formatting takes precedence over syntax colors. Sending
     // its terminal escapes through the highlighter would display or corrupt them.
     if let Some(language) = language.filter(|_| !formatted) {
-        crate::syntax::highlight_text(&mut output, &source, language, converter, diagnostics)?;
+        crate::syntax::highlight_text(&mut output, &source, language, appearance, diagnostics)?;
     } else {
         output.extend_from_slice(source.as_bytes());
     }

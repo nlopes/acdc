@@ -42,12 +42,6 @@ impl CspFeatures {
     #[must_use]
     pub(crate) fn content_security_policy(self) -> String {
         let mut script_src = String::from("script-src 'self'");
-        #[cfg(feature = "terminal")]
-        {
-            script_src.push_str(" '");
-            script_src.push_str(crate::REPLAY_PLAYER_SCRIPT_CSP_HASH);
-            script_src.push('\'');
-        }
         for hash in self.extension_script_hashes {
             script_src.push_str(" '");
             script_src.push_str(hash);
@@ -146,7 +140,7 @@ mod tests {
     #[test]
     fn replay_adds_player_hash() {
         let policy = CspFeatures {
-            extension_script_hashes: Vec::new(),
+            extension_script_hashes: vec![crate::REPLAY_PLAYER_SCRIPT_CSP_HASH],
             ..CspFeatures::default()
         }
         .content_security_policy();

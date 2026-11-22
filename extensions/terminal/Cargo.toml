@@ -1,0 +1,26 @@
+[package]
+name = "acdc-extensions-terminal"
+version = "0.1.0"
+edition.workspace = true
+description = "Native terminal preview and replay extension for acdc"
+readme = "README.adoc"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+acdc-converters-core.workspace = true
+acdc-converters-terminal = { workspace = true, features = ["emulator", "highlighting"] }
+acdc-parser.workspace = true
+thiserror.workspace = true
+
+[build-dependencies]
+base64.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+acdc-converters-html = { workspace = true, features = ["terminal"] }
+base64.workspace = true
+sha2.workspace = true
+
+[lints]
+workspace = true

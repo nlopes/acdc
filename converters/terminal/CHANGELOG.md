@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Selected text postprocessors can transform the completed terminal output for each document, including documents sent to a pager.
 
+- Library callers can render a listing to ANSI with its content, block
+  attributes, and background theme through `render_listing_content_to_ansi()`.
+
 - Extension-generated caption and captured-title links now use explicit labels,
   preserving title formatting and source attributes while following final captions
   and renamed targets. Repeated conversion preserves the shared parsed document.

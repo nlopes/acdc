@@ -285,7 +285,16 @@ impl Args {
 }
 
 pub(crate) fn run(args: &Args) -> MietteResult<()> {
-    run_with_extensions(args, &ExtensionCatalog::default())
+    let available = ExtensionCatalog::default();
+    #[cfg(feature = "html-terminal")]
+    let available = {
+        let mut available = available;
+        available
+            .register("terminal", acdc_converters_html::terminal_extension())
+            .map_err(|error| error::display(&error))?;
+        available
+    };
+    run_with_extensions(args, &available)
 }
 
 fn run_with_extensions(args: &Args, available: &ExtensionCatalog) -> MietteResult<()> {

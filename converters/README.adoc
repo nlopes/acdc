@@ -67,7 +67,11 @@ until the application presents them.
 
 Native block renderers use the same selection. They receive a fresh handler for
 each conversion and can use the backend's streaming output, title/caption, and
-metadata services. Declined blocks use ordinary rendering.
+metadata services. Declined blocks use ordinary rendering. The
+link:../extensions/terminal/README.adoc[native terminal extension] provides a real
+consumer: register `acdc_extensions_terminal::extension()`, select `terminal`, and attach it
+to an HTML pipeline. The HTML `terminal` feature also exposes
+`acdc_converters_html::terminal_extension()` for applications using that feature.
 
 == Development prerequisites
 

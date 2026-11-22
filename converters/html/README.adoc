@@ -357,29 +357,34 @@ acdc convert -a dark-mode document.adoc
 
 ==== Terminal previews
 
-Two separate switches are involved:
+Build availability, extension selection, and document syntax are separate:
 
-* The `terminal` Cargo feature is a build-time feature flag. It compiles the
-  HTML terminal renderer. From the CLI this is the `html-terminal` feature,
-  which just enables this crate's `terminal` feature.
+* The `terminal` Cargo feature makes the native `acdc-extensions-terminal` extension
+  available. From the CLI this is the `html-terminal` build feature.
+* `--extension terminal` explicitly activates the available package. Library
+  callers attach `terminal_extension()` to their configured pipeline. Compiling
+  the feature alone leaves ordinary listing rendering.
 * The `:acdc-terminal:` document attribute is only a source-block opt-in.
   It makes terminal-like source blocks render through that terminal renderer.
 
-When the Cargo feature is enabled, acdc supports two terminal-looking HTML
+When the native extension is selected, acdc supports two terminal-looking HTML
 render paths:
 
 * Source blocks such as `[source,console]` render as terminal previews only
   when the document sets `:acdc-terminal:`.
 * `[terminal]` is an explicit block style for terminal session content. It
-  renders as terminal output whenever the `terminal` Cargo feature is enabled; the
+  renders as terminal output when the native extension is selected; the
   `:acdc-terminal:` document attribute is not required.
 
 This is an acdc-only extension; Asciidoctor does not provide a
 `:acdc-terminal:` attribute, the `[terminal]` or `[terminal%replay]` block
 styles, or any equivalent built-in terminal preview or replay feature.
 
-The HTML converter implements terminal rendering with its optional dependency on
-`acdc-converters-terminal`.
+The link:../../extensions/terminal/README.adoc[native terminal extension] owns
+terminal emulation, replay, and its player script. HTML supplies generic rendering
+services for titles, captions, metadata, diagnostics, and streaming output. For
+example, build with `html-terminal` and run
+`acdc convert --extension terminal document.adoc`.
 
 Use `:acdc-terminal:` when existing source blocks should look like terminal
 examples:

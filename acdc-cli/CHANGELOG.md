@@ -12,8 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selected native text postprocessors run per input, including when multiple terminal documents share a pager.
 
 - Conversion accepts repeatable `--extension NAME` selections and rejects
-  unavailable packages before reading input. All input and output routes share
-  the backend-aware library pipeline.
+  unavailable packages before reading input. **Breaking:** builds with
+  `html-terminal` require `--extension terminal` to render terminal previews and
+  replay; compilation alone leaves ordinary listings. Files, stdin, and batches
+  retain the existing terminal syntax, safe-mode fallback, and warning behavior.
 
 - Conversion continues after recoverable parser errors and reports structured
   warnings, including non-conforming manpage titles. `convert --fail-on-warnings`
