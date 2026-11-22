@@ -393,17 +393,24 @@ fn pipeline_selection_order_controls_processor_order() -> TestResult {
 #[test]
 fn pipeline_renderer_factories_wait_for_matching_backend_sessions() -> TestResult {
     use acdc_converters_core::render::{
-        BlockRenderProcessor, BlockRenderer, RenderError, RenderHost,
+        BlockRenderProcessor, BlockRenderer, Next, RenderContext, RenderError,
     };
 
     struct Decline;
     impl BlockRenderProcessor for Decline {
+        fn accepts(
+            &mut self,
+            _: acdc_parser::ast::BlockRef<'_>,
+            _: &mut dyn RenderContext,
+        ) -> Result<bool, RenderError> {
+            Ok(false)
+        }
         fn render(
             &mut self,
             _: acdc_parser::ast::BlockRef<'_>,
-            _: &mut dyn RenderHost,
-        ) -> Result<bool, RenderError> {
-            Ok(false)
+            _: Next<'_, '_>,
+        ) -> Result<(), RenderError> {
+            Err("declined renderer called".into())
         }
     }
 

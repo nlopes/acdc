@@ -4,9 +4,12 @@ use std::io::Write;
 
 use acdc_converters_core::{
     Diagnostics, Options, TraversalContext,
-    render::{RenderError, RenderHost},
+    render::{HtmlRenderHost, RenderContext, RenderError},
 };
-use acdc_parser::{CaptionKind, ast::BlockRef};
+use acdc_parser::{
+    CaptionKind,
+    ast::{BlockKind, BlockRef},
+};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
@@ -22,16 +25,24 @@ impl<'doc, W: Write> HtmlVisitor<'doc, '_, W> {
         let Some(session) = self.converter.render_session.clone() else {
             return Ok(false);
         };
+        if !matches!(
+            block.kind(),
+            BlockKind::Paragraph(_) | BlockKind::Listing(_) | BlockKind::Literal(_)
+        ) {
+            return Ok(false);
+        }
         let mut session = session.try_borrow_mut().map_err(|_| {
             Error::Extension(std::io::Error::other("recursive block renderer dispatch").into())
         })?;
-        Ok(session.render(
+        session.render(
             block,
             &mut Host {
                 visitor: self,
                 traversal,
             },
-        )?)
+            |host| Ok(host.visitor.render_builtin_block(host.traversal, block)?),
+        )?;
+        Ok(true)
     }
 }
 
@@ -40,7 +51,7 @@ struct Host<'host, 'doc, 'diagnostics, W: Write> {
     traversal: &'host mut TraversalContext<'doc>,
 }
 
-impl<W: Write> RenderHost for Host<'_, '_, '_, W> {
+impl<W: Write> RenderContext for Host<'_, '_, '_, W> {
     fn variant(&self) -> &str {
         self.visitor.converter.variant.backend_profile().backend()
     }
@@ -51,6 +62,12 @@ impl<W: Write> RenderHost for Host<'_, '_, '_, W> {
         &self.visitor.converter.options
     }
 
+    fn diagnostics(&mut self) -> Diagnostics<'_> {
+        self.visitor.diagnostics.reborrow()
+    }
+}
+
+impl<W: Write> HtmlRenderHost for Host<'_, '_, '_, W> {
     fn open_block(
         &mut self,
         block: BlockRef<'_>,

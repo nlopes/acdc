@@ -178,6 +178,7 @@ pub struct Converter<'a> {
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the header opts into a catalog and the section hierarchy has a seed.
     generate_index: bool,
+    extension_script_hashes: Vec<&'static str>,
     render_session: Option<Rc<RefCell<acdc_converters_core::render::RenderSession>>>,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
@@ -331,6 +332,7 @@ impl<'a> Converter<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
+            extension_script_hashes: extensions.html_script_hashes().collect(),
             render_session: extensions
                 .render_session("html")
                 .map(|session| Rc::new(RefCell::new(session))),
@@ -648,6 +650,7 @@ impl<'a> Converter<'a> {
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
+            extension_script_hashes: Vec::new(),
             render_session: None,
             variant,
         })

@@ -1151,6 +1151,7 @@ mod tests {
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             generate_index: false,
+            extension_script_hashes: Vec::new(),
             render_session: None,
             variant: crate::HtmlVariant::Standard,
         }

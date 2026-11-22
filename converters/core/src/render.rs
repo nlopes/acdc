@@ -13,6 +13,7 @@ pub type RenderError = Box<dyn std::error::Error + Send + Sync>;
 #[derive(Clone)]
 pub struct BlockRenderer {
     pub(crate) backend: &'static str,
+    html_script_hashes: &'static [&'static str],
     pub(crate) factory: Arc<dyn Fn() -> Box<dyn BlockRenderProcessor> + Send + Sync>,
 }
 
@@ -34,39 +35,53 @@ impl BlockRenderer {
     ) -> Self {
         Self {
             backend,
+            html_script_hashes: &[],
             factory: Arc::new(move || Box::new(factory())),
         }
     }
-}
-
-/// A mutable processor belonging to one conversion, including its nested blocks.
-pub trait BlockRenderProcessor {
-    /// Render a block or decline it so the next renderer or backend can handle it.
-    /// A declined block must not write output; structured fallback warnings are allowed.
-    ///
-    /// # Errors
-    /// Stops conversion on processor, host, or output failure. Earlier writes and
-    /// external effects cannot be rolled back.
-    fn render(
-        &mut self,
-        block: BlockRef<'_>,
-        host: &mut dyn RenderHost,
-    ) -> Result<bool, RenderError>;
-
-    /// Inline script hashes required by this selected renderer, for the host's CSP.
-    fn script_hashes(&self) -> &'static [&'static str] {
-        &[]
+    /// Declare trusted inline scripts for the HTML host's Content Security Policy.
+    #[must_use]
+    pub fn with_html_script_hashes(mut self, hashes: &'static [&'static str]) -> Self {
+        self.html_script_hashes = hashes;
+        self
     }
 }
 
-/// Backend services for a native renderer. Titles and metadata retain host semantics.
-pub trait RenderHost {
-    /// Current backend variant, such as `html5` or `html5s`.
+/// A mutable renderer for one conversion. HTML dispatches paragraph, listing,
+/// and literal blocks. Children of other blocks follow ordinary traversal.
+pub trait BlockRenderProcessor {
+    /// Select this block before gaining access to output. A decline can warn.
+    ///
+    /// # Errors
+    /// Stops conversion on a selection failure.
+    fn accepts(
+        &mut self,
+        block: BlockRef<'_>,
+        context: &mut dyn RenderContext,
+    ) -> Result<bool, RenderError>;
+
+    /// Replace the selected block, or decorate the remaining chain with [`Next::render`].
+    ///
+    /// # Errors
+    /// An error stops the chain. Earlier writes and external effects are observable.
+    fn render(&mut self, block: BlockRef<'_>, next: Next<'_, '_>) -> Result<(), RenderError>;
+}
+
+/// Services available during selection. Output becomes available only on acceptance.
+pub trait RenderContext {
+    /// Selected backend variant.
     fn variant(&self) -> &str;
-    /// Attributes in effect at this block, including body and table-cell assignments.
+    /// Attributes at the current block, including nested scopes.
     fn document_attributes(&self) -> &TraversalContext<'_>;
-    /// Validated application options, including safe mode.
+    /// Validated converter options and safe mode.
     fn options(&self) -> &Options;
+    /// Borrow this conversion’s diagnostic sink.
+    fn diagnostics(&mut self) -> Diagnostics<'_>;
+}
+
+/// HTML-specific output services. The HTML host owns element wrappers, CSS
+/// classes, title rendering, and escaping document metadata.
+pub trait HtmlRenderHost: RenderContext {
     /// Open a backend element with the block's ID, roles, and default classes.
     /// Native renderers supply trusted target markup; the host escapes document metadata.
     ///
@@ -96,9 +111,78 @@ pub trait RenderHost {
     }
 }
 
-/// Selected processors instantiated once for a conversion. Dispatch follows registration order.
+/// A one-shot continuation for an accepted block. Write a prefix through
+/// [`Self::host`], delegate, then write a suffix through the returned host.
+/// Dropping the continuation replaces the block. A delegated error propagates
+/// without trying another handler or replaying any writes.
+pub struct Next<'a, 'doc> {
+    host: &'a mut dyn DispatchHost,
+    remaining: &'a mut [Box<dyn BlockRenderProcessor>],
+    block: BlockRef<'doc>,
+}
+
+impl<'a> Next<'a, '_> {
+    /// Write output before delegating, or implement a complete replacement.
+    pub fn host(&mut self) -> &mut dyn HtmlRenderHost {
+        self.host.output_host()
+    }
+
+    /// Run the rest of the chain, falling back to the built-in visitor.
+    ///
+    /// # Errors
+    /// Returns the delegated processor or backend failure.
+    pub fn render(self) -> Result<&'a mut dyn HtmlRenderHost, RenderError> {
+        dispatch(self.remaining, self.block, self.host)?;
+        Ok(self.host.output_host())
+    }
+}
+
+trait DispatchHost {
+    fn output_host(&mut self) -> &mut dyn HtmlRenderHost;
+    fn base(&mut self) -> Result<(), RenderError>;
+}
+
+struct Host<'a, H, F> {
+    host: &'a mut H,
+    base: F,
+}
+
+impl<H: HtmlRenderHost, F: FnMut(&mut H) -> Result<(), RenderError>> DispatchHost
+    for Host<'_, H, F>
+{
+    fn output_host(&mut self) -> &mut dyn HtmlRenderHost {
+        self.host
+    }
+    fn base(&mut self) -> Result<(), RenderError> {
+        (self.base)(self.host)
+    }
+}
+
+fn dispatch(
+    mut processors: &mut [Box<dyn BlockRenderProcessor>],
+    block: BlockRef<'_>,
+    host: &mut dyn DispatchHost,
+) -> Result<(), RenderError> {
+    while let Some((processor, remaining)) = processors.split_first_mut() {
+        if processor.accepts(block, host.output_host())? {
+            return processor.render(
+                block,
+                Next {
+                    host,
+                    remaining,
+                    block,
+                },
+            );
+        }
+        processors = remaining;
+    }
+    host.base()
+}
+
+/// Fresh handlers in package-selection and registration order. The first
+/// accepting handler can replace the block or delegate to later handlers.
 pub struct RenderSession {
-    pub(crate) processors: Vec<Box<dyn BlockRenderProcessor>>,
+    processors: Vec<Box<dyn BlockRenderProcessor>>,
 }
 
 impl fmt::Debug for RenderSession {
@@ -111,27 +195,26 @@ impl fmt::Debug for RenderSession {
 }
 
 impl RenderSession {
-    /// Dispatch until a processor handles the block, otherwise use ordinary rendering.
-    ///
-    /// # Errors
-    /// Stops at the first processor failure without retrying it.
-    pub fn render(
-        &mut self,
-        block: BlockRef<'_>,
-        host: &mut dyn RenderHost,
-    ) -> Result<bool, RenderError> {
-        for processor in &mut self.processors {
-            if processor.render(block, host)? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+    pub(crate) fn new(processors: Vec<Box<dyn BlockRenderProcessor>>) -> Self {
+        Self { processors }
     }
 
-    /// CSP hashes belonging to selected processors for this backend.
-    pub fn script_hashes(&self) -> impl Iterator<Item = &'static str> + '_ {
-        self.processors
-            .iter()
-            .flat_map(|processor| processor.script_hashes().iter().copied())
+    /// Dispatch an eligible HTML block. The generic fallback uses the original visitor.
+    ///
+    /// # Errors
+    /// Stops at the first selection, processor, or backend failure.
+    pub fn render<H: HtmlRenderHost>(
+        &mut self,
+        block: BlockRef<'_>,
+        host: &mut H,
+        base: impl FnMut(&mut H) -> Result<(), RenderError>,
+    ) -> Result<(), RenderError> {
+        dispatch(&mut self.processors, block, &mut Host { host, base })
+    }
+}
+
+impl BlockRenderer {
+    pub(crate) fn html_script_hashes(&self) -> &'static [&'static str] {
+        self.html_script_hashes
     }
 }

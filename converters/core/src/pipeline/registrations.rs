@@ -39,6 +39,14 @@ impl Extensions {
         self.parser.is_none() && self.renderers.is_empty()
     }
 
+    /// Trusted script hashes requested by selected HTML block renderers.
+    pub fn html_script_hashes(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.renderers
+            .iter()
+            .filter(|r| r.backend == "html")
+            .flat_map(|r| r.html_script_hashes().iter().copied())
+    }
+
     /// Construct document-local renderers for a backend family, in registration order.
     /// Other backends invoke no factories. Empty selections allocate no session.
     #[must_use]
@@ -49,6 +57,6 @@ impl Extensions {
             .filter(|registration| registration.backend == backend)
             .map(|registration| (registration.factory)())
             .collect();
-        (!processors.is_empty()).then_some(RenderSession { processors })
+        (!processors.is_empty()).then_some(RenderSession::new(processors))
     }
 }

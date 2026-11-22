@@ -12,7 +12,7 @@ use std::{
 use acdc_converters_core::{
     Converter as _, Diagnostics, Options,
     pipeline::{ExtensionCatalog, Extensions, Pipeline},
-    render::{BlockRenderProcessor, BlockRenderer, RenderError, RenderHost},
+    render::{BlockRenderProcessor, BlockRenderer, Next, RenderContext, RenderError},
 };
 use acdc_converters_html::Converter;
 use acdc_parser::{
@@ -27,17 +27,18 @@ struct Counter {
 }
 
 impl BlockRenderProcessor for Counter {
-    fn render(
+    fn accepts(
         &mut self,
         block: BlockRef<'_>,
-        host: &mut dyn RenderHost,
+        _: &mut dyn RenderContext,
     ) -> Result<bool, RenderError> {
-        if !matches!(block.kind(), BlockKind::Paragraph(_)) {
-            return Ok(false);
-        }
+        Ok(matches!(block.kind(), BlockKind::Paragraph(_)))
+    }
+    fn render(&mut self, _: BlockRef<'_>, mut next: Next<'_, '_>) -> Result<(), RenderError> {
+        let host = next.host();
         self.calls.set(self.calls.get() + 1);
         host.write(format!("<p>native:{}</p>\n", self.calls.get()).as_bytes())?;
-        Ok(true)
+        Ok(())
     }
 }
 
@@ -139,7 +140,10 @@ fn native_renderers_are_explicit_and_fresh_across_nested_and_parallel_conversion
 
 struct Fail(Arc<AtomicUsize>);
 impl BlockRenderProcessor for Fail {
-    fn render(&mut self, _: BlockRef<'_>, _: &mut dyn RenderHost) -> Result<bool, RenderError> {
+    fn accepts(&mut self, _: BlockRef<'_>, _: &mut dyn RenderContext) -> Result<bool, RenderError> {
+        Ok(true)
+    }
+    fn render(&mut self, _: BlockRef<'_>, _: Next<'_, '_>) -> Result<(), RenderError> {
         self.0.fetch_add(1, Ordering::SeqCst);
         Err(std::io::Error::other("native failure").into())
     }
@@ -180,10 +184,10 @@ struct Decision {
 }
 
 impl BlockRenderProcessor for Decision {
-    fn render(
+    fn accepts(
         &mut self,
         block: BlockRef<'_>,
-        host: &mut dyn RenderHost,
+        _: &mut dyn RenderContext,
     ) -> Result<bool, RenderError> {
         if !matches!(block.kind(), BlockKind::Paragraph(_)) {
             return Ok(false);
@@ -192,10 +196,10 @@ impl BlockRenderProcessor for Decision {
             .lock()
             .map_err(|_| "trace lock poisoned")?
             .push(self.label);
-        if self.handled {
-            host.write(self.label.as_bytes())?;
-        }
         Ok(self.handled)
+    }
+    fn render(&mut self, _: BlockRef<'_>, mut next: Next<'_, '_>) -> Result<(), RenderError> {
+        next.host().write(self.label.as_bytes())
     }
 }
 
@@ -224,5 +228,48 @@ fn native_renderer_dispatch_follows_selection_order_and_stops_when_handled() -> 
     let active = pipeline(available.select(["third", "second", "decline"])?)?;
     assert_eq!(render(&active, "source")?, "third");
     assert_eq!(*trace.lock().map_err(|_| "trace lock poisoned")?, ["third"]);
+    Ok(())
+}
+
+#[test]
+fn decorators_wrap_the_next_handler_and_declines_only_emit_diagnostics() -> TestResult {
+    struct Decorator(&'static str);
+    impl BlockRenderProcessor for Decorator {
+        fn accepts(
+            &mut self,
+            _: BlockRef<'_>,
+            context: &mut dyn RenderContext,
+        ) -> Result<bool, RenderError> {
+            if self.0 == "decline" {
+                context.diagnostics().warn("declined");
+                return Ok(false);
+            }
+            Ok(true)
+        }
+        fn render(&mut self, _: BlockRef<'_>, mut next: Next<'_, '_>) -> Result<(), RenderError> {
+            next.host().write(format!("<{}>", self.0).as_bytes())?;
+            next.render()?.write(format!("</{}>", self.0).as_bytes())
+        }
+    }
+    let mut extensions = Extensions::default();
+    for tag in ["outer", "decline", "inner"] {
+        extensions = extensions.with_renderer(BlockRenderer::new("html", move || Decorator(tag)));
+    }
+    let pipeline = pipeline(Some(extensions))?;
+    let parsed = pipeline.parse("ordinary")?;
+    let mut warnings = Vec::new();
+    let mut output = Vec::new();
+    pipeline.write_to(
+        parsed.document(),
+        &mut output,
+        None,
+        None,
+        &mut Diagnostics::new(&pipeline.converter().warning_source(), &mut warnings),
+    )?;
+    let html = String::from_utf8(output)?;
+    assert!(html.starts_with("<outer><inner>"), "{html}");
+    assert!(html.ends_with("</inner></outer>"), "{html}");
+    assert_eq!(html.matches("<p>ordinary</p>").count(), 1);
+    assert_eq!(warnings.len(), 1);
     Ok(())
 }
