@@ -26,6 +26,7 @@ unicode-width.workspace = true
 
 [dev-dependencies]
 acdc-converters-dev.workspace = true
+acdc-extensions-lists.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 
