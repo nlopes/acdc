@@ -108,7 +108,16 @@ struct SourceStart<'a> {
     compound: bool,
 }
 
+pub(super) enum DelimitedLine<'a> {
+    Body(&'a str),
+    End {
+        offset: usize,
+        close: Option<&'a str>,
+    },
+}
+
 struct CellRead<'a> {
+    enclosing_compound: Option<&'a str>,
     separator: char,
     delimiter: &'a str,
     start: usize,
@@ -166,34 +175,32 @@ impl<'a> SourceInput<'a> {
         {
             return Ok(None);
         }
-        let Some(line) = self.raw_line(offset, state)? else {
+        let result = self.read_line(offset, state);
+        self.failed |= result.is_err();
+        let Some(line) = result? else {
             return Ok(None);
         };
         if let Some(cell) = self.cells.last_mut() {
-            let boundary = if document_parser::source_block_close(line, state, cell.delimiter, true)
-                .is_ok()
-            {
-                Some(0)
-            } else {
-                crate::blocks::table::next_cell_boundary(line, cell.separator, offset != cell.start)
+            let boundary =
+                if closes_enclosing_compound(line, offset, cell.enclosing_compound, state)
+                    || document_parser::source_block_close(line, state, cell.delimiter, true)
+                        .is_ok()
+                {
+                    Some(0)
+                } else {
+                    crate::blocks::table::next_cell_boundary(
+                        line,
+                        cell.separator,
+                        offset != cell.start,
+                    )
                     .map(|(end, _, _)| end)
-            };
+                };
             if let Some(end) = boundary {
                 cell.end = Some(offset + end);
                 return Ok((end > 0).then(|| &line[..end]));
             }
         }
         Ok(Some(line))
-    }
-
-    pub(super) fn raw_line(
-        &mut self,
-        offset: usize,
-        state: &mut ParserState<'a>,
-    ) -> Result<Option<&'a str>, Error> {
-        let result = self.read_line(offset, state);
-        self.failed |= result.is_err();
-        result
     }
 
     fn read_line(
@@ -441,6 +448,35 @@ impl<'a> SourceInput<'a> {
         Ok(end.min(self.index.len()))
     }
 
+    pub(super) fn delimited_line(
+        &mut self,
+        offset: usize,
+        delimiter: &str,
+        table: bool,
+        state: &mut ParserState<'a>,
+    ) -> Result<DelimitedLine<'a>, Error> {
+        let Some(line) = self.line(offset, state)? else {
+            return Ok(DelimitedLine::End {
+                offset: offset.min(self.available_end()),
+                close: None,
+            });
+        };
+        if table && closes_enclosing_compound(line, offset, self.boundary(), state) {
+            // The newline before the enclosing close belongs to the compound.
+            return Ok(DelimitedLine::End {
+                offset: offset - 1,
+                close: None,
+            });
+        }
+        if document_parser::source_block_close(line, state, delimiter, table).is_ok() {
+            return Ok(DelimitedLine::End {
+                offset,
+                close: Some(line),
+            });
+        }
+        Ok(DelimitedLine::Body(line))
+    }
+
     /// Locate the matching close without constructing children, respecting table cell boundaries.
     pub(super) fn delimited_boundary(
         &mut self,
@@ -449,13 +485,12 @@ impl<'a> SourceInput<'a> {
         table: bool,
         state: &mut ParserState<'a>,
     ) -> Result<(usize, Option<&'a str>), Error> {
-        while let Some(line) = self.line(offset, state)? {
-            if document_parser::source_block_close(line, state, delimiter, table).is_ok() {
-                return Ok((offset, Some(line)));
+        loop {
+            match self.delimited_line(offset, delimiter, table, state)? {
+                DelimitedLine::Body(line) => offset += line.len(),
+                DelimitedLine::End { offset, close } => return Ok((offset, close)),
             }
-            offset += line.len();
         }
-        Ok((offset.min(self.index.len()), None))
     }
 
     fn delimited_end(
@@ -830,6 +865,7 @@ impl<'a> SourceInput<'a> {
     }
     pub(super) fn begin_cell(&mut self, separator: char, delimiter: &'a str, start: usize) {
         self.cells.push(CellRead {
+            enclosing_compound: self.boundary(),
             separator,
             delimiter,
             start,
@@ -891,6 +927,19 @@ impl<'a> BlockInput<'a> for SourceInput<'a> {
     fn failed(&self) -> bool {
         self.failed
     }
+}
+
+fn closes_enclosing_compound(
+    line: &str,
+    offset: usize,
+    delimiter: Option<&str>,
+    state: &ParserState<'_>,
+) -> bool {
+    delimiter.is_some_and(|delimiter| {
+        line.trim_end_matches('\n') == delimiter
+            && offset > 0
+            && state.source_byte(offset - 1) == Some(b'\n')
+    })
 }
 
 fn is_prose_line(line: &str) -> bool {

@@ -17,7 +17,7 @@ use super::super::{
     coordinator::{BlockCursor, Execution},
     delimited::{ContentParser, ContentRequest},
     document_parser,
-    source::SourceInput,
+    source::{DelimitedLine, SourceInput},
 };
 use super::{
     CellParser, InitialAttributes, PreparedTableCellParagraph, TableClosing, TableParseParams,
@@ -249,10 +249,11 @@ impl<'a> TableReader<'a> {
     where
         F: FnMut(&mut Block<'a>, &mut ParserState<'a>, &mut Vec<Block<'a>>) -> Result<bool, Error>,
     {
-        while let Some(line) = input.raw_line(offset, state)? {
-            if document_parser::source_block_close(line, state, self.delimiter, true).is_ok() {
-                return Ok((offset, Some(line.trim_end_matches('\n'))));
-            }
+        loop {
+            let line = match input.delimited_line(offset, self.delimiter, true, state)? {
+                DelimitedLine::Body(line) => line,
+                DelimitedLine::End { offset, close } => return Ok((offset, close)),
+            };
             if let Some((_, content_start, spec)) = next_cell_boundary(line, self.separator, true) {
                 spec.validate(offset, offset + content_start)
                     .map_err(|violation| {
@@ -285,7 +286,6 @@ impl<'a> TableReader<'a> {
                 offset += line.len();
             }
         }
-        Ok((offset, None))
     }
 }
 
@@ -319,10 +319,9 @@ impl BlockCursor {
             );
         }
         let start = params.content_start + params.offset;
-        let first = match input.raw_line(start, state) {
-            Ok(Some(line)) => line,
-            Ok(None) => "",
-            Err(error) => return Err(error),
+        let first = match input.delimited_line(start, params.open_delim, true, state)? {
+            DelimitedLine::Body(line) => line,
+            DelimitedLine::End { .. } => "",
         };
         let mut lines = vec![first.trim_end_matches('\n')];
         lines.extend(input.table_header_lookahead());
@@ -387,15 +386,7 @@ impl BlockCursor {
     {
         let params = &mut construction.params;
         let start = params.content_start + params.offset;
-        let mut end = start;
-        let mut close = None;
-        while let Some(line) = input.raw_line(end, state)? {
-            if document_parser::source_block_close(line, state, params.open_delim, true).is_ok() {
-                close = Some(line.trim_end_matches('\n'));
-                break;
-            }
-            end += line.len();
-        }
+        let (end, close) = input.delimited_boundary(start, params.open_delim, true, state)?;
         params.finish_stream(state, end, close)?;
         self.offset = params.end;
         self.base_offset = params.offset;
@@ -420,7 +411,10 @@ impl<'a> TableParseParams<'a> {
         end: usize,
         close: Option<&'a str>,
     ) -> Result<(), Error> {
+        // An opener immediately before the enclosing close has no body newline.
+        self.content_start = self.content_start.min(end - self.offset);
         let start = self.content_start + self.offset;
+        let close = close.map(|line| line.trim_end_matches('\n'));
         let body = retain_body(state, start, end).ok_or_else(|| {
             let location = state.create_block_location(self.start, self.end, self.offset);
             Error::Extension(

@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Adjacent matching table delimiters now produce an empty table without a
   warning, matching asciidoctor. With extensions active, the table stays in its
-  list attachment and a preceding block macro runs once.
+  list attachment and a preceding block macro runs once. If the table has no
+  closing delimiter, acdc warns at its opener and resumes after the enclosing
+  compound block.
 
 - Extensions can register full and short inline macros or a pair of custom
   delimiters. Registered calls in macro-enabled text retain their source span

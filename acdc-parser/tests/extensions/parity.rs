@@ -201,18 +201,33 @@ fn streamed_styled_quote_retains_a_deeper_section() -> TestResult {
 #[case::description("term:: def")]
 fn table_in_streamed_list_attachment(
     #[case] item: &str,
+    #[values(
+        "|===\n|===",
+        "|===",
+        "|===\n|Cell",
+        "[cols=a]\n|===\n|Cell",
+        "[separator=;]\n|===\n;Cell",
+        ",===\nCell",
+        "|===\n|===="
+    )]
+    table: &str,
     #[values(CompatibilityMode::Draft, CompatibilityMode::Asciidoctor)] mode: CompatibilityMode,
 ) -> TestResult {
     let calls = Arc::new(AtomicUsize::new(0));
     let registry = greet_registry(&calls)?;
     let options = Options::builder().with_compatibility_mode(mode).build()?;
-    let source = format!(
-        "{item}\n+\n====\nifdef::x[]\nX.\nendif::[]\ngreet::[]\n|===\n|===\n====\n\nAfter."
-    );
+    let source =
+        format!("{item}\n+\n====\nifdef::x[]\nX.\nendif::[]\ngreet::[]\n{table}\n====\n\nAfter.");
     let ordinary = acdc_parser::parse(&source, &options)?;
     let extended = registry.parse(&source, &options)?.finish()?;
     assert_eq!(calls.load(Ordering::Relaxed), 1);
-    assert!(ordinary.warnings().is_empty(), "{:?}", ordinary.warnings());
+    if table.ends_with("\n|===") {
+        assert_eq!(ordinary.warnings(), &[]);
+    } else {
+        assert!(
+            matches!(ordinary.warnings(), [warning] if matches!(warning.kind, WarningKind::UnterminatedTable { .. }))
+        );
+    }
     assert_eq!(extended.warnings(), ordinary.warnings());
     assert_eq!(
         serde_json::to_value(extended.document())?,
