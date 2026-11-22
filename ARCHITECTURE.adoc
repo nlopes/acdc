@@ -88,8 +88,16 @@ It handles document structure (header, sections, blocks), block-level elements (
 
 ==== Registered extensions
 
-The parser owns an optional registry of block-macro descriptors and factories.
-Recognition records invocations and their source-position attributes without
+The parser owns an optional extension registry. Source preprocessors edit the
+normalized entry text before the reader interprets directives. Include processors
+can supply bytes for a resolved target under the reader's access and size limits.
+Block styles receive a preprocessed listing or literal body and can emit an
+ordinary block, consume the input, or ask the parser to read child blocks.
+Reference normalizers can rewrite a cross-reference target before resolution.
+The link:acdc-parser/README.adoc#registered-extensions[parser guide] describes
+the ordering and limits of these callbacks.
+
+Block-macro recognition records invocations and their source-position attributes without
 calling extension code during speculative grammar matching. The host runs macros
 once at committed block boundaries in source order, applying requested attribute
 changes before later conditionals and includes, then repairs captions and catalogs.
@@ -117,8 +125,9 @@ input. Selected packages preserve selection order and their registration order.
 
 `Pipeline` coordinates parser-owned source processing, committed callbacks,
 tree processors, and finalization for strings, files, and readers. Conversion
-prepares deferred display content through the shared display service before
-calling the backend. CLI batches, stdin, terminal output, and pagers use these
+prepares deferred display content and expands surviving registered inline macros
+before calling the backend. A copied title or catalog label reuses the expansion
+of its original invocation. CLI batches, stdin, terminal output, and pagers use these
 same entry points. Inactive pipelines call the ordinary parser directly.
 
 Working sessions permit checked edits through document-local handles. Borrowed
@@ -140,11 +149,19 @@ Native block renderers are also immutable registrations with fresh mutable
 handlers per conversion. `Extensions` combines parser and renderer capabilities;
 renderer-only selections retain ordinary parsing. Backends dispatch selected
 renderers in order and use ordinary rendering when every handler declines.
+An accepting renderer can replace the block or delegate once to wrap the output
+of the remaining renderers and the backend.
 HTML supplies streaming output, diagnostics, metadata escaping, and caption/title
 services. Renderers read attributes from the active traversal so accepted body
 assignments apply in source order and cell-local values expire on exit. Selected
 renderers supply their CSP script hashes. No handler can edit the shared parsed
 document through this rendering interface.
+
+Full HTML documents run docinfo hooks at the head, header, and footer, after
+file-based docinfo at each position. A hook supplies trusted backend markup and
+escapes any document values it inserts. For converters that support UTF-8 text
+output, selecting a postprocessor buffers the completed document. Postprocessors
+edit it in registration order before the pipeline writes it to the destination.
 
 ==== Inline preprocessing
 
@@ -206,7 +223,7 @@ Programmatically constructed nodes can carry caller-supplied or default location
 === Stage 3: converters
 
 Converters (`converters/`) transform the AST into various output formats.
-They implement the `Processable` trait in link:converters/core/src/lib.rs[`converters/core`].
+They implement the `Converter` trait in link:converters/core/src/lib.rs[`converters/core`].
 The trait owns converter setup and conversion; parser options are validated before parsing.
 
 The converters are:
@@ -324,23 +341,17 @@ Reindented includes retain preprocessed byte offsets, so use their original line
 
 === Adding new converters
 
-If you want to add a new converter, implement the `Processable` trait. The trait requires:
+Implement `acdc_converters_core::Converter` in a crate under `converters/`.
+Its constructor configures the parser options, including the backend's intrinsic
+attributes. Its `write_to()` method renders a prepared document to the supplied
+writer and reports warnings through the diagnostic sink. The
+link:converters/terminal/src/lib.rs[terminal converter] implements this contract.
 
-* `document_attributes_defaults()` - Provide converter-specific default attributes (optional override)
-* `new()` - Initialize the converter with its options and a parser options builder
-* `convert()` - Convert a parsed document, writing output to the destination
-* `document_attributes()` - Access the document attributes
-
-The best way to understand how this works is to look at an existing converter.
-The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
-
-To add a new converter:
-
-. Create a new crate under `converters/`
-. Add dependencies on `acdc-converters-core` and `acdc-parser`
-. Define your options and error types
-. Implement the `Processable` trait
-. Walk the AST to generate your output format
+To expose a statically linked converter by name, publish a `ConverterSpec` with
+its canonical name, aliases, and supported variants. The application registers
+the spec and its runner in a `ConverterRegistry`. It resolves the selection
+before reading input so only the selected runner constructs a converter.
+See the link:converters/core/src/registry.rs[registration example].
 
 === Adding new grammar rules
 
