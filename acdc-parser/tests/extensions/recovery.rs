@@ -5,6 +5,7 @@ use std::sync::{
 
 use acdc_parser::{
     CompatibilityMode, Error, Options, WarningKind,
+    ast::{BlockKind, BlockRef},
     extensions::{
         BlockBuilder, BlockMacro, BlockMacroOutput, DocumentEditor, MacroExecutionContext,
         MacroInvocation, Registry, TreeProcessor, TreeProcessorRegistration,
@@ -13,9 +14,8 @@ use acdc_parser::{
 
 use super::TestResult;
 
-/// Native parsing recovers each source by dropping the content that holds
-/// `greet::[]` at the given line.
-const DISCARDED: [(&str, u32); 7] = [
+/// The extension reader discards content containing `greet::[]` at the given line.
+const DISCARDED: [(&str, u32); 8] = [
     // A `[quote]` body inherits the section context and stops at `== B`.
     (
         "= Doc\n\n== A\n\n[quote]\n____\ngreet::[]\n\n== B\n\ntext\n____\n\nAfter.",
@@ -44,6 +44,11 @@ const DISCARDED: [(&str, u32); 7] = [
     (
         "== A\n\n[quote]\n____\ngreet::[]\n\nifdef::x[]\nX.\nendif::[]\n\n== B\n\ntext\n____",
         5,
+    ),
+    // The child list has a description marker with no term.
+    (
+        "====\ngreet::[]\n\nifdef::x[]\nX.\nendif::[]\n\n* Item\n::: orphan\n====",
+        2,
     ),
 ];
 
@@ -133,5 +138,73 @@ fn recovery_without_executed_macros_keeps_native_content_recovery() -> TestResul
             );
         }
     }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::quote("[quote]\n____", "____")]
+#[case::example("====", "====")]
+fn compound_child_grammar_failure_recovers_through_the_closing_delimiter(
+    #[case] open: &str,
+    #[case] close: &str,
+    #[values("", "ifdef::missing[]\nomitted\nendif::[]\n\n")] split: &str,
+    #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
+) -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let registry = greet_registry(&calls)?;
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let source = format!(
+        "== Parent\n\n{open}\n=== Inner\n\n{split}* item\n::: orphan\n\ngreet::discarded[]\n{close}\n\n== After\n\ngreet::after[]"
+    );
+    let parsed = registry.parse(&source, &options)?.finish()?;
+    let [warning] = parsed.warnings() else {
+        return Err(format!(
+            "expected one recovery warning for {source}: {:?}",
+            parsed.warnings()
+        )
+        .into());
+    };
+    assert!(
+        matches!(&warning.kind, WarningKind::ContentRecovery { message }
+                    if message.contains("expected description list term"))
+    );
+    let failed_line = source
+        .lines()
+        .position(|line| line == "::: orphan")
+        .ok_or("missing malformed list item")?
+        + 1;
+    let location = warning
+        .location
+        .as_ref()
+        .ok_or("missing warning location")?;
+    assert_eq!(location.location.start.line as usize, failed_line);
+    assert_eq!(location.location.start.column, 1);
+    let doc = parsed.document();
+    assert_eq!(doc.toc_entries().len(), 2);
+    let mut sections = doc.blocks();
+    let Some(BlockKind::Section(parent)) = sections.next().map(BlockRef::kind) else {
+        return Err("missing parent section".into());
+    };
+    let mut blocks = parent.blocks();
+    match blocks.next().map(BlockRef::kind) {
+        Some(BlockKind::Quote(quote)) => {
+            assert_eq!(quote.blocks().count(), 0);
+        }
+        Some(BlockKind::Example(example)) => {
+            assert_eq!(example.blocks().count(), 0);
+        }
+        _ => return Err("missing recovered compound".into()),
+    }
+    assert!(blocks.next().is_none());
+    let Some(BlockKind::Section(after)) = sections.next().map(BlockRef::kind) else {
+        return Err("missing section after the delimiter".into());
+    };
+    assert!(
+        after
+            .blocks()
+            .any(|b| matches!(b.kind(), BlockKind::Paragraph(_)))
+    );
+    assert!(sections.next().is_none());
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
     Ok(())
 }

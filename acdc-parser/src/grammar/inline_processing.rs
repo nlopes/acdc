@@ -149,22 +149,10 @@ fn position_offset(input: &str, position: &Position) -> usize {
 /// This function converts those positions to the correct positions in the original document.
 fn adjust_peg_error_position(
     err: &peg::error::ParseError<peg::str::LineCol>,
-    parsed_text: &str,
     doc_start_offset: usize,
     state: &ParserState,
 ) -> Error {
-    // Calculate the byte offset within the substring where the error occurred
-    let mut byte_offset = 0;
-    for (line_idx, line) in parsed_text.lines().enumerate() {
-        if line_idx + 1 == err.location.line {
-            byte_offset += err.location.column - 1; // column is 1-indexed
-            break;
-        }
-        byte_offset += line.len() + 1; // +1 for newline
-    }
-
-    // Add the substring's starting position to get the absolute document position
-    let absolute_offset = doc_start_offset + byte_offset;
+    let absolute_offset = doc_start_offset + err.location.offset;
 
     // Resolve file and line from source ranges (for included content)
     let (file, position) =
@@ -198,22 +186,30 @@ fn adjust_peg_error_position(
 /// Records a content-recovery warning at the original source position.
 pub(super) fn adjust_and_log_parse_error(
     err: &peg::error::ParseError<peg::str::LineCol>,
-    parsed_text: &str,
     doc_start_offset: usize,
     state: &ParserState,
     context: &str,
 ) {
-    let adjusted_error = adjust_peg_error_position(err, parsed_text, doc_start_offset, state);
-    state.add_warning(crate::Warning::new(
-        crate::WarningKind::ContentRecovery {
-            message: format!("{context}: {adjusted_error}").into(),
-        },
-        adjusted_error.source_location().cloned(),
-    ));
+    state.add_warning(parse_error_warning(err, doc_start_offset, state, context));
     tracing::error!(
         doc_start_offset,
         "inline parse error; see returned diagnostics"
     );
+}
+
+pub(super) fn parse_error_warning(
+    err: &peg::error::ParseError<peg::str::LineCol>,
+    doc_start_offset: usize,
+    state: &ParserState,
+    context: &str,
+) -> crate::Warning {
+    let adjusted_error = adjust_peg_error_position(err, doc_start_offset, state);
+    crate::Warning::new(
+        crate::WarningKind::ContentRecovery {
+            message: format!("{context}: {adjusted_error}").into(),
+        },
+        adjusted_error.source_location().cloned(),
+    )
 }
 
 #[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
@@ -505,7 +501,7 @@ fn parse_inline_syntax<'a>(
 
     let warnings = inline_peg_state.take_inline_warnings();
     let mut inlines = inlines
-        .map_err(|error| adjust_peg_error_position(&error, text, location.absolute_start, state))?;
+        .map_err(|error| adjust_peg_error_position(&error, location.absolute_start, state))?;
 
     inlines = super::inlines::typography::resolve_plain(
         inlines,
@@ -670,8 +666,7 @@ fn parse_bibliography_label<'a>(
         }
         state.add_warning(warning);
     }
-    let content =
-        parsed.map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    let content = parsed.map_err(|error| adjust_peg_error_position(&error, offset, state))?;
     let mut content = super::inlines::typography::resolve_plain(content, &child, false);
     for inline in &mut content {
         super::location_walk::walk_inline_locations_mut(inline, &mut |location| {

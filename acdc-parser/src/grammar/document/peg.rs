@@ -2190,7 +2190,7 @@ peg::parser! {
         #[no_eof]
         pub(in crate::grammar::document) rule first_description_list_item(offset: usize, base: usize, metadata: &BlockParsingMetadata<'input>) -> (DescriptionItemHead<'input>, Option<DescriptionListScope<'input>>, usize)
         = resume_at(offset) description_list_ahead(base) parent:enter_description_list(base)
-          head:description_list_head(base, metadata) end:position!() { (head, parent, end) }
+          head:(description_list_head(base, metadata) / expected!("description list term")) end:position!() { (head, parent, end) }
 
         #[no_eof]
         pub(in crate::grammar::document) rule next_description_list_item(offset: usize, base: usize, metadata: &BlockParsingMetadata<'input>, parent: Option<DescriptionListScope<'input>>) -> (Option<DescriptionItemHead<'input>>, usize)

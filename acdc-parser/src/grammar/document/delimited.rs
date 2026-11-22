@@ -77,7 +77,7 @@ impl<'a> ContentRequest<'a> {
             state.add_warning(warning);
             return;
         }
-        adjust_and_log_parse_error(error, self.source, self.offset, state, self.error_context);
+        adjust_and_log_parse_error(error, self.offset, state, self.error_context);
     }
 }
 
@@ -282,22 +282,23 @@ fn parse_block_content<'input>(
     error_context: &'static str,
     parser: &mut impl ContentParser<'input>,
 ) -> Result<Vec<Block<'input>>, Error> {
-    if content.trim().is_empty() {
-        Ok(Vec::new())
-    } else {
-        parse_content(
-            state,
-            ContentRequest {
-                source: content,
-                offset: content_start + offset,
-                parent_section_level: block_metadata.parent_section_level,
-                context: BlockContext::Compound,
-                kind: ContentKind::Compound,
-                error_context,
-            },
-            parser,
-        )
+    // Empty source can be a streamed opener. Its builder still needs the
+    // child request to know the parsing context and where the body starts.
+    if !content.is_empty() && content.trim().is_empty() {
+        return Ok(Vec::new());
     }
+    parse_content(
+        state,
+        ContentRequest {
+            source: content,
+            offset: content_start + offset,
+            parent_section_level: block_metadata.parent_section_level,
+            context: BlockContext::Compound,
+            kind: ContentKind::Compound,
+            error_context,
+        },
+        parser,
+    )
 }
 
 /// Source ranges and delimiters for a block.

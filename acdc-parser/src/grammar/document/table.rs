@@ -700,7 +700,6 @@ fn parse_normal_cell<'a>(
     result.unwrap_or_else(|error| {
         adjust_and_log_parse_error(
             &error,
-            content,
             offset,
             state,
             "Failed parsing table cell content as blocks",
@@ -826,7 +825,6 @@ fn parse_table_cell_with_parser<'a>(
     .unwrap_or_else(|error| {
         adjust_and_log_parse_error(
             &error,
-            content,
             cell_start_offset,
             state,
             "Failed parsing table cell content as blocks",

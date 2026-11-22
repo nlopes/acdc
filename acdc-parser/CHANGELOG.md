@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning. A styled quote spanning a conditional now follows the same section
   boundaries with or without extensions. acdc warns at the interrupting heading
   and resumes after the quote. Asciidoctor retains the content inside the quote.
+- With block extensions active, a child syntax error in a compound spanning a
+  conditional or include now produces a warning, discards the body, and resumes
+  after the closing delimiter. If a block processor already ran in that body,
+  acdc reports an error at its invocation. For example, after a list item the
+  extension parser reports a missing term for `::: orphan`. The ordinary parser
+  retains that line as text, and asciidoctor reads `:` as its term.
 
 - Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input. A style registered with `BlockStyle::compound` can also request that its body be parsed as children of an open block.
 - Block styles can report a warning at the styled block's source location and continue parsing with fallback content.

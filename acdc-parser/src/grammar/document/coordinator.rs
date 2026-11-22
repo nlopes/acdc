@@ -289,13 +289,13 @@ impl BlockCursor {
                     ));
                 }
                 BlockStepKind::Delimited(construction) if source.streaming_compound() => {
-                    return self.construct_streamed_compound(
+                    return Ok(self.construct_streamed_compound(
                         source,
                         state,
                         construction,
                         output,
                         accepted,
-                    );
+                    ));
                 }
                 kind @ (BlockStepKind::Block(_)
                 | BlockStepKind::Delimited(_)
