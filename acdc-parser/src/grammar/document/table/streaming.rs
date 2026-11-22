@@ -20,9 +20,9 @@ use super::super::{
     source::SourceInput,
 };
 use super::{
-    CellParser, InitialAttributes, PreparedTableCellParagraph, TableClosing, TableSettings,
-    construction::TableConstruction, parse_table_cell_with_parser, parse_table_with_cells,
-    table_settings,
+    CellParser, InitialAttributes, PreparedTableCellParagraph, TableClosing, TableParseParams,
+    TableSettings, construction::TableConstruction, parse_table_cell_with_parser,
+    parse_table_with_cells, table_settings,
 };
 
 struct CellReader<'i, 'h, 'callback, 'a, F> {
@@ -342,21 +342,7 @@ impl BlockCursor {
             cells: HashMap::new(),
         };
         let (end, close) = reader.collect(input, state, start, accepted)?;
-        params.end = end - params.offset + close.map_or(0, str::len);
-        params.content_end = end.saturating_sub(usize::from(close.is_some())) - params.offset;
-        params.content =
-            retain_body(state, start, params.content_end + params.offset).ok_or_else(|| {
-                Error::Extension(
-                    Box::new(state.create_error_source_location(location)),
-                    "missing committed table source".into(),
-                )
-            })?;
-        params.closing = close.map_or(TableClosing::Unterminated, |close_delim| {
-            TableClosing::Terminated {
-                close_delim,
-                close_start: end - params.offset,
-            }
-        });
+        params.finish_stream(state, end, close)?;
         let mut parser = CompletedCells {
             cells: reader.cells,
             parser: super::super::coordinator::CursorContent { accepted },
@@ -410,23 +396,7 @@ impl BlockCursor {
             }
             end += line.len();
         }
-        params.end = end - params.offset + close.map_or(0, str::len);
-        params.content_end = end.saturating_sub(usize::from(close.is_some())) - params.offset;
-        params.content =
-            retain_body(state, start, params.content_end + params.offset).ok_or_else(|| {
-                Error::Extension(
-                    Box::new(
-                        state.create_error_source_location(state.create_location(start, start)),
-                    ),
-                    "missing buffered table source".into(),
-                )
-            })?;
-        params.closing = close.map_or(TableClosing::Unterminated, |close_delim| {
-            TableClosing::Terminated {
-                close_delim,
-                close_start: end - params.offset,
-            }
-        });
+        params.finish_stream(state, end, close)?;
         self.offset = params.end;
         self.base_offset = params.offset;
         let (mut block, content) = construction.start(state)?;
@@ -439,6 +409,37 @@ impl BlockCursor {
             super::super::metadata::assign_block_caption(state, &mut block);
             output.push(block);
         }
+        Ok(())
+    }
+}
+
+impl<'a> TableParseParams<'a> {
+    fn finish_stream(
+        &mut self,
+        state: &ParserState<'a>,
+        end: usize,
+        close: Option<&'a str>,
+    ) -> Result<(), Error> {
+        let start = self.content_start + self.offset;
+        let body = retain_body(state, start, end).ok_or_else(|| {
+            let location = state.create_block_location(self.start, self.end, self.offset);
+            Error::Extension(
+                Box::new(state.create_error_source_location(location)),
+                "missing committed table source".into(),
+            )
+        })?;
+        self.content = if close.is_some() {
+            body.strip_suffix('\n').unwrap_or(body)
+        } else {
+            body
+        };
+        self.end = end - self.offset + close.map_or(0, str::len);
+        self.closing = close.map_or(TableClosing::Unterminated, |close_delim| {
+            TableClosing::Terminated {
+                close_delim,
+                close_start: end - self.offset,
+            }
+        });
         Ok(())
     }
 }

@@ -18,9 +18,10 @@ fn greet_registry(calls: &Arc<AtomicUsize>) -> Result<Registry, Box<dyn std::err
     let mut builder = Registry::builder();
     builder.register(BlockMacro::new("greet", move || {
         let calls = Arc::clone(&calls);
-        move |_: &MacroInvocation<'_>, _: &mut MacroExecutionContext| {
+        move |invocation: &MacroInvocation<'_>, _: &mut MacroExecutionContext| {
             calls.fetch_add(1, Ordering::SeqCst);
-            Ok(BlockBuilder::paragraph("hello").into())
+            // Echo the source so parity tests can compare the entire document.
+            Ok(BlockBuilder::paragraph(invocation.source.to_string()).into())
         }
     }))?;
     Ok(builder.build())
@@ -192,5 +193,30 @@ fn streamed_styled_quote_retains_a_deeper_section() -> TestResult {
             "{mode:?}"
         );
     }
+    Ok(())
+}
+
+#[rstest::rstest]
+#[case::unordered("* item")]
+#[case::description("term:: def")]
+fn table_in_streamed_list_attachment(
+    #[case] item: &str,
+    #[values(CompatibilityMode::Draft, CompatibilityMode::Asciidoctor)] mode: CompatibilityMode,
+) -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let registry = greet_registry(&calls)?;
+    let options = Options::builder().with_compatibility_mode(mode).build()?;
+    let source = format!(
+        "{item}\n+\n====\nifdef::x[]\nX.\nendif::[]\ngreet::[]\n|===\n|===\n====\n\nAfter."
+    );
+    let ordinary = acdc_parser::parse(&source, &options)?;
+    let extended = registry.parse(&source, &options)?.finish()?;
+    assert_eq!(calls.load(Ordering::Relaxed), 1);
+    assert!(ordinary.warnings().is_empty(), "{:?}", ordinary.warnings());
+    assert_eq!(extended.warnings(), ordinary.warnings());
+    assert_eq!(
+        serde_json::to_value(extended.document())?,
+        serde_json::to_value(ordinary.document())?
+    );
     Ok(())
 }

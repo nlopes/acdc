@@ -15,7 +15,7 @@ use acdc_parser::{
 use super::TestResult;
 
 /// The extension reader discards content containing `greet::[]` at the given line.
-const DISCARDED: [(&str, u32); 8] = [
+const DISCARDED: [(&str, u32); 6] = [
     // A `[quote]` body inherits the section context and stops at `== B`.
     (
         "= Doc\n\n== A\n\n[quote]\n____\ngreet::[]\n\n== B\n\ntext\n____\n\nAfter.",
@@ -29,16 +29,6 @@ const DISCARDED: [(&str, u32); 8] = [
     (
         "= Doc\n\n== A\n\nterm:: def\n+\n[quote]\n____\ngreet::[]\n\n== B\n____\n\nAfter.",
         9,
-    ),
-    // The conditional makes the attached example stream. List recovery then
-    // drops the attachment after its child macro has executed.
-    (
-        "* item\n+\n====\nifdef::x[]\nX.\nendif::[]\ngreet::[]\n|===\n|===\n====\n\nAfter.",
-        7,
-    ),
-    (
-        "term:: def\n+\n====\nifdef::x[]\nX.\nendif::[]\ngreet::[]\n|===\n|===\n====\n\nAfter.",
-        7,
     ),
     // The processor runs before a conditional splits the quote into reader windows.
     (

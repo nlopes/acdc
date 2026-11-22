@@ -1460,7 +1460,7 @@ peg::parser! {
         // Reuse block-start rules before selected attributes can register inline content.
         rule attribute_block_form(offset: usize) -> AttributeBlockForm<'input>
         = form:&(open:block_open() (eol() / ![_]) { AttributeBlockForm::Delimited(open.0, open.2) }) { form }
-        / &((table_delimiter() / comma_table_delimiter() / colon_table_delimiter()) (eol() / ![_])) { AttributeBlockForm::Table }
+        / &(table_delimiter() (eol() / ![_])) { AttributeBlockForm::Table }
         / &(media_block_ahead_true() / at_list_item_start() / at_callout_list_item()
             / check_line_is_description_list(offset) / toc_block_ahead() / ("<<<" &eol()*<2,2>) / "> "
             / thematic_break_marker()) { AttributeBlockForm::NonParagraph }
@@ -1752,14 +1752,6 @@ peg::parser! {
         rule sidebar_delimiter() -> &'input str = delim:$("*"*<4,>) { delim }
         rule table_delimiter() -> &'input str = delim:$((['|' | ',' | ':' | '!'] "="*<3,>)) { delim }
 
-        // Opening rules select the table's default separator. Content scanning
-        // compares the complete opening token, retaining nested tables with a
-        // different delimiter in the outer table's body.
-        rule pipe_table_delimiter() -> &'input str = delim:$("|" "="*<3,>) { delim }
-        rule excl_table_delimiter() -> &'input str = delim:$("!" "="*<3,>) { delim }
-        rule comma_table_delimiter() -> &'input str = delim:$("," "="*<3,>) { delim }
-        rule colon_table_delimiter() -> &'input str = delim:$(":" "="*<3,>) { delim }
-
         rule pass_delimiter() -> &'input str = delim:$("+"*<4,>) { delim }
         rule markdown_code_delimiter() -> &'input str = delim:$("`"*<3,>) { delim }
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
@@ -1772,135 +1764,27 @@ peg::parser! {
         }
 
         rule until_table_delimiter(open_delim: &str) -> &'input str
-        = content:$((!(eol() matching_table_delimiter(open_delim)) [_])*) { content }
+        = &matching_table_delimiter(open_delim) { "" }
+        / content:$((!(eol() matching_table_delimiter(open_delim)) [_])*) { content }
 
         rule markdown_language() -> &'input str
         = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+) { lang }
 
-        // Table block dispatcher - tries each delimiter-specific variant in order.
-        // This enables nested tables: |=== outer can contain !=== inner because
-        // each rule only looks for its own closing delimiter.
-        //
-        // Terminated variants are tried first; unterminated fallbacks only match
-        // when an opening delimiter runs to end-of-input without a close.
         rule table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = params:table_params(start, offset) { parse_table_block_impl(&params, state, block_metadata) }
 
+        // A matching delimiter closes even an empty table. Without one the
+        // body runs to EOF, including when the opener itself is the last line.
         rule table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = pipe_table_params(start, offset)
-            / excl_table_params(start, offset)
-            / comma_table_params(start, offset)
-            / colon_table_params(start, offset)
-            / unterminated_pipe_table_params(start, offset)
-            / unterminated_excl_table_params(start, offset)
-            / unterminated_comma_table_params(start, offset)
-            / unterminated_colon_table_params(start, offset)
-
-        rule pipe_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:pipe_table_delimiter() eol()
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
+        = table_start:position!() open_delim:table_delimiter() (eol() / ![_])
+          content_start:position!() content:until_table_delimiter(open_delim)
+          closing:(eol()? close_start:position!() close_delim:matching_table_delimiter(open_delim) {
+              TableClosing::Terminated { close_delim, close_start }
+          })?
         {
             TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: "|",
-                    closing: TableClosing::Terminated { close_delim, close_start },
-            }
-        }
-
-        rule excl_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:excl_table_delimiter() eol()
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: "!",
-                    closing: TableClosing::Terminated { close_delim, close_start },
-            }
-        }
-
-        rule comma_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:comma_table_delimiter() eol()
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: ",",
-                    closing: TableClosing::Terminated { close_delim, close_start },
-            }
-        }
-
-        rule colon_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:colon_table_delimiter() eol()
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              eol() close_start:position!() close_delim:matching_table_delimiter(open_delim)
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: ":",
-                    closing: TableClosing::Terminated { close_delim, close_start },
-            }
-        }
-
-        // Unterminated table fallbacks: match an opening table delimiter
-        // that runs to end-of-input without a closing delimiter. These
-        // alternatives are tried only after all terminated variants fail,
-        // so a document with a valid close never takes this path. When
-        // taken, `parse_table_block_impl` emits an `UnterminatedTable`
-        // warning and still produces a table, matching asciidoctor's
-        // recovery behavior.
-        //
-        // The `(eol() / ![_])` after the open delimiter accepts both
-        // `|===\n...` and `|===<EOF>`: the preprocessor's `normalize`
-        // strips a single trailing newline (mirroring `str::lines`), so a
-        // file ending with just `|===\n` reaches the grammar as `|===`.
-        rule unterminated_pipe_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:pipe_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              ![_]
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: "|",
-                    closing: TableClosing::Unterminated,
-            }
-        }
-
-        rule unterminated_excl_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:excl_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              ![_]
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: "!",
-                    closing: TableClosing::Unterminated,
-            }
-        }
-
-        rule unterminated_comma_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:comma_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              ![_]
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: ",",
-                    closing: TableClosing::Unterminated,
-            }
-        }
-
-        rule unterminated_colon_table_params(start: usize, offset: usize) -> TableParseParams<'input>
-            = table_start:position!() open_delim:colon_table_delimiter() (eol() / ![_])
-              content_start:position!() content:until_table_delimiter(open_delim) content_end:position!()
-              ![_]
-        {
-            TableParseParams {
-                    start, offset, table_start, content_start, content_end, end: span_end,
-                    open_delim, content, default_separator: ":",
-                    closing: TableClosing::Unterminated,
+                start, offset, table_start, content_start, end: span_end, open_delim, content,
+                default_separator: &open_delim[..1], closing: closing.unwrap_or(TableClosing::Unterminated),
             }
         }
 
