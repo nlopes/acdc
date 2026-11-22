@@ -111,12 +111,34 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Diagnostics, Options, TraversalContext, WarningSource,
-    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
+    registry::{ConverterSpec, Variant},
+    section::contains_index_section,
+    visitor::DocumentVisitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     CaptionKind, Options as ParserOptions, ReferenceTarget,
     ast::{AttributesRef, CaptionRef, DocumentAttributesRef, DocumentRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<MarkdownVariant> =
+    ConverterSpec::new("markdown", MarkdownVariant::GitHubFlavored)
+        .with_aliases(&["md"])
+        .with_variants(&[
+            Variant {
+                name: "commonmark",
+                aliases: &["cm"],
+                shortcut: None,
+                value: MarkdownVariant::CommonMark,
+            },
+            Variant {
+                name: "gfm",
+                aliases: &["github", "github-flavored"],
+                shortcut: None,
+                value: MarkdownVariant::GitHubFlavored,
+            },
+        ]);
 
 mod error;
 mod index;

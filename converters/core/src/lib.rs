@@ -58,6 +58,7 @@ pub mod list;
 pub mod media;
 pub mod pipeline;
 pub mod postprocess;
+pub mod registry;
 pub mod render;
 pub mod section;
 pub mod substitutions;

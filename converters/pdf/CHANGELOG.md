@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Applications can register this converter using its built-in backend names and variant choices.
+
 - Extension-generated caption and captured-title links now use explicit labels,
   preserving title formatting and source attributes while following final captions
   and renamed targets. Repeated conversion preserves the shared parsed document.

@@ -8,12 +8,16 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Converter as _, Diagnostics, InlineTextTransform, Options, TraversalContext,
-    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
+    registry::ConverterSpec, section::contains_index_section, visitor::DocumentVisitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     CaptionKind, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
     ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<()> = ConverterSpec::new("terminal", ());
 
 pub(crate) use appearance::Appearance;
 

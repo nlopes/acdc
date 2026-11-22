@@ -41,7 +41,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Diagnostics, Doctype, Options, TraversalContext,
+    BackendProfile, Diagnostics, Doctype, Options, TraversalContext, registry::ConverterSpec,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 
@@ -49,6 +49,9 @@ use acdc_parser::{
     AttributeValue, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
     ast::{DocumentRef, TocEntryRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<()> = ConverterSpec::new("manpage", ());
 
 mod admonition;
 mod delimited;

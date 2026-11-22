@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Applications can register this converter using its built-in backend names and variant choices.
+
 - Selected text postprocessors can transform the completed terminal output for each document, including documents sent to a pager.
 
 - Extension-generated caption and captured-title links now use explicit labels,

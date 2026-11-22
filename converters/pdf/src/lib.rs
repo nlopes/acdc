@@ -27,6 +27,7 @@ use acdc_converters_core::{
         IconMode, custom_image_source as admonition_icon_source, image_source as icon_image_source,
     },
     media::resolve_target,
+    registry::ConverterSpec,
     toc::Config as TocConfig,
     visitor::{BlockVisitor, DocumentVisitor},
     xref::XrefGuard,
@@ -49,6 +50,10 @@ use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
 use lopdf::{Document as PdfDocument, Object, dictionary};
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<()> = ConverterSpec::new("pdf", ());
+
 mod anchors;
 mod converter;
 mod error;

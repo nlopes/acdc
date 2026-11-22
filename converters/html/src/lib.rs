@@ -11,7 +11,9 @@ use std::{
 use acdc_converters_core::substitutions::TextBoundaries;
 use acdc_converters_core::{
     BackendProfile, Converter as _, Diagnostics, Options, TraversalContext, WarningSource,
-    section::contains_index_section, xref::XrefGuard,
+    registry::{ConverterSpec, Variant},
+    section::contains_index_section,
+    xref::XrefGuard,
 };
 
 use acdc_parser::{
@@ -28,6 +30,23 @@ use acdc_parser::{
     InlineNode,
     ast::{InlineKind, InlineRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<HtmlVariant> =
+    ConverterSpec::new("html", HtmlVariant::Standard).with_variants(&[
+        Variant {
+            name: "standard",
+            aliases: &[],
+            shortcut: None,
+            value: HtmlVariant::Standard,
+        },
+        Variant {
+            name: "semantic",
+            aliases: &[],
+            shortcut: Some("html5s"),
+            value: HtmlVariant::Semantic,
+        },
+    ]);
 
 mod admonition;
 mod audio;

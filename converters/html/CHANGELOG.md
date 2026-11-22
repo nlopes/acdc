@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Applications can register this converter using its built-in backend names and variant choices.
+
 - Selected text postprocessors can transform a complete HTML document or embedded fragment after rendering.
 
 - Full HTML documents accept native docinfo fragments at the end of the head, start of the body, and after the footer. Embedded HTML skips these hooks.
