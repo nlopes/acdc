@@ -345,6 +345,9 @@ impl<'a> Converter<'a> {
             options.clone(),
             diagnostics.reborrow(),
         );
+        if !options.embedded {
+            visitor.docinfo_processors = extensions.docinfo_processors("html");
+        }
         acdc_converters_core::visitor::DocumentVisitor::visit_document(
             &mut visitor,
             &mut traversal,
@@ -554,6 +557,13 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
             &acdc_converters_core::pipeline::Extensions::default(),
             diagnostics,
         )
+    }
+
+    fn uses_render_extensions(
+        &self,
+        extensions: &acdc_converters_core::pipeline::Extensions,
+    ) -> bool {
+        extensions.has_render_hooks("html", !self.options.embedded())
     }
 
     fn write_to_with_extensions<W: Write>(

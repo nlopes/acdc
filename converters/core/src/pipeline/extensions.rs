@@ -78,6 +78,7 @@ impl ExtensionCatalog {
         let mut builder = Registry::builder();
         let mut active = false;
         let mut renderers = Vec::new();
+        let mut docinfo = Vec::new();
         for name in names {
             let (name, registrations) = self
                 .available
@@ -95,11 +96,13 @@ impl ExtensionCatalog {
                     })?;
                 active = true;
             }
+            docinfo.extend(registrations.docinfo.iter().cloned());
             renderers.extend(registrations.renderers.iter().cloned());
         }
         let extensions = Extensions {
             parser: active.then(|| builder.build()),
             renderers,
+            docinfo,
         };
         Ok((!extensions.is_empty()).then_some(extensions))
     }

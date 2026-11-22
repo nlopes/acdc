@@ -67,6 +67,7 @@ impl<C> Pipeline<C> {
             extensions: Extensions {
                 parser: None,
                 renderers: Vec::new(),
+                docinfo: Vec::new(),
             },
         }
     }
@@ -181,21 +182,20 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
         document: DocumentRef<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, C::Error> {
-        if self.extensions.renderers.is_empty() {
-            let mut warnings = Vec::new();
-            let prepared = self.prepare(
-                document,
-                &mut Diagnostics::new(&self.converter.warning_source(), &mut warnings),
-            )?;
-            let mut result = self.converter.convert(prepared.document(), source_file)?;
-            if !warnings.is_empty() {
-                warnings.append(&mut result.warnings);
-                result.warnings = warnings;
-            }
-            Ok(result)
-        } else {
-            <Self as Converter<'options>>::convert(self, document, source_file)
+        if self.converter.uses_render_extensions(&self.extensions) {
+            return <Self as Converter<'options>>::convert(self, document, source_file);
         }
+        let mut warnings = Vec::new();
+        let prepared = self.prepare(
+            document,
+            &mut Diagnostics::new(&self.converter.warning_source(), &mut warnings),
+        )?;
+        let mut result = self.converter.convert(prepared.document(), source_file)?;
+        if !warnings.is_empty() {
+            warnings.append(&mut result.warnings);
+            result.warnings = warnings;
+        }
+        Ok(result)
     }
 }
 

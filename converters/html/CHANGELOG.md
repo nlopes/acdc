@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Full HTML documents accept native docinfo fragments at the end of the head, start of the body, and after the footer. Embedded HTML skips these hooks.
+
 - Native renderers can decorate paragraphs, listings, and literal blocks while retaining the selected HTML variant’s built-in rendering.
 
 - Native HTML renderers now observe body attribute changes in source order

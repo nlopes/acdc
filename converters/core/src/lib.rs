@@ -47,6 +47,7 @@ mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
 pub mod display;
+pub mod docinfo;
 mod doctype;
 mod document_attributes;
 pub mod icon;
@@ -626,6 +627,12 @@ pub trait Converter<'a>: Sized {
         output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error>;
+
+    /// Whether this backend handles any selected hooks during its own traversal.
+    /// The pipeline preserves backend-specific destination routing for other selections.
+    fn uses_render_extensions(&self, _extensions: &pipeline::Extensions) -> bool {
+        false
+    }
 
     /// Write with explicitly selected native rendering extensions.
     /// Backends without rendering hooks retain their ordinary output.
