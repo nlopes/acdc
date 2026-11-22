@@ -7,9 +7,9 @@ use crate::{
 
 use super::{
     RecognitionError,
-    construction::{ConstructionMode, DelimitedConstruction},
+    construction::DelimitedConstruction,
     coordinator::{BlockCursor, Execution},
-    delimited::resolve_delimited_close,
+    delimited::{DelimitedParams, resolve_delimited_close},
     document_parser,
     metadata::assign_block_caption,
     source::SourceInput,
@@ -32,7 +32,7 @@ impl BlockCursor {
         // Build the accepted shell with the existing builder without issuing an
         // unterminated-block warning at the temporary end of the input window.
         construction.params.close = Some((params.end, params.open_delim));
-        let (mut block, _) = match construction.start(state) {
+        let (mut block, request) = match construction.start(state) {
             Ok(started) => started,
             Err(error) => return Ok(Err(error)),
         };
@@ -41,9 +41,13 @@ impl BlockCursor {
             Ok(false) => return Ok(Ok(())),
             Err(error) => return Ok(Err(error)),
         }
-        let mut child = BlockCursor::new(self.offset, ConstructionMode::Ordered);
-        child.base_offset = self.base_offset;
-        let previous_context = std::mem::replace(&mut state.block_context, BlockContext::Compound);
+        let mut child = BlockCursor::content(
+            self.offset,
+            self.base_offset,
+            request.and_then(|r| r.parent_section_level),
+        );
+        let context = request.map_or(BlockContext::Compound, |r| r.context);
+        let previous_context = std::mem::replace(&mut state.block_context, context);
         let previous_scope = std::mem::replace(
             &mut state.source_scope_offset,
             params.content_start + params.offset,
@@ -51,6 +55,7 @@ impl BlockCursor {
         input.push_boundary(params.open_delim);
         let mut body = Vec::new();
         let callbacks = accepted.block_callbacks();
+        let toc_start = state.toc_entries.len();
         let result = child.collect(input, state, &mut body, accepted);
         input.pop_boundary();
         state.block_context = previous_context;
@@ -58,8 +63,7 @@ impl BlockCursor {
         let mut end = match result {
             Ok(Ok(end)) => end,
             Ok(Err(error)) => return Ok(Err(error)),
-            // Compound children cannot stop at a section heading, so no known
-            // input reaches this. Still report executed processors first.
+            // Report an executed processor before propagating a child grammar failure.
             Err(error) => {
                 return match accepted.discarded_callback(callbacks, "Compound block content") {
                     Some(error) => Ok(Err(error)),
@@ -67,6 +71,7 @@ impl BlockCursor {
                 };
             }
         };
+        let unparsed = state.input.get(child.offset..);
         while let Some(line) =
             source_tail(state, end).and_then(|tail| tail.split_inclusive('\n').next())
         {
@@ -75,45 +80,75 @@ impl BlockCursor {
             }
             end += line.len();
         }
-        let close = source_tail(state, end)
+        let mut close = source_tail(state, end)
             .and_then(|tail| tail.split_inclusive('\n').next())
             .filter(|line| {
                 document_parser::source_block_close(line, state, params.open_delim, false).is_ok()
             });
+        // If the child sequence stopped at a heading, consume the rest of its
+        // quote without running processors in the discarded text.
+        let recovery = if close.is_none()
+            && let (Some(request), Some(tail)) = (request, unparsed)
+            && let Some(warning) =
+                request.section_boundary_warning(tail, child.base_offset + child.offset, state)
+        {
+            if let Some(error) = accepted.discarded_callback(callbacks, request.error_context) {
+                return Ok(Err(error));
+            }
+            body.clear();
+            state.toc_entries.truncate(toc_start);
+            (end, close) = match input.delimited_boundary(end, params.open_delim, false, state) {
+                Ok(boundary) => boundary,
+                Err(error) => return Ok(Err(error)),
+            };
+            Some(warning)
+        } else {
+            None
+        };
         params.close = close.map(|_| (end - params.offset, params.open_delim));
         params.end =
             end - params.offset + close.map_or(0, |line| line.trim_end_matches('\n').len());
-        let close_location = match resolve_delimited_close(state, &params) {
-            Ok(location) => location,
-            Err(error) => return Ok(Err(error)),
-        };
-        let Some(source) = retain_body(state, params.content_start + params.offset, end) else {
-            return Ok(Err(Error::Parse(
-                Box::new(state.create_error_source_location(block.location().clone())),
-                "missing committed compound source".into(),
-            )));
-        };
-        *block.location_mut() =
-            state.create_block_location(params.start, params.end, params.offset);
-        if let Block::DelimitedBlock(delimited) = &mut block {
-            delimited.close_delimiter_location = close_location;
-            delimited.source_text = Some(source);
+        if let Err(error) = finish_compound(state, &params, end, &mut block, body) {
+            return Ok(Err(error));
         }
-        let Some(slot) = crate::extensions::compound_body_mut(&mut block) else {
-            return Ok(Err(Error::Parse(
-                Box::new(state.create_error_source_location(block.location().clone())),
-                "compound builder returned no child content slot".into(),
-            )));
-        };
-        *slot = body;
-        child.offset =
-            end - child.base_offset + close.map_or(0, |line| line.trim_end_matches('\n').len());
-        self.offset = child.offset;
+        if let Some(warning) = recovery {
+            state.add_warning(warning);
+        }
         self.base_offset = child.base_offset;
+        self.offset = params.end + params.offset - self.base_offset;
         assign_block_caption(state, &mut block);
         output.push(block);
         Ok(Ok(()))
     }
+}
+
+fn finish_compound<'a>(
+    state: &mut ParserState<'a>,
+    params: &DelimitedParams<'a>,
+    end: usize,
+    block: &mut Block<'a>,
+    body: Vec<Block<'a>>,
+) -> Result<(), Error> {
+    let close_location = resolve_delimited_close(state, params)?;
+    let Some(source) = retain_body(state, params.content_start + params.offset, end) else {
+        return Err(Error::Parse(
+            Box::new(state.create_error_source_location(block.location().clone())),
+            "missing committed compound source".into(),
+        ));
+    };
+    *block.location_mut() = state.create_block_location(params.start, params.end, params.offset);
+    if let Block::DelimitedBlock(delimited) = block {
+        delimited.close_delimiter_location = close_location;
+        delimited.source_text = Some(source);
+    }
+    let Some(slot) = crate::extensions::compound_body_mut(block) else {
+        return Err(Error::Parse(
+            Box::new(state.create_error_source_location(block.location().clone())),
+            "compound builder returned no child content slot".into(),
+        ));
+    };
+    *slot = body;
+    Ok(())
 }
 
 pub(super) fn retain_body<'a>(

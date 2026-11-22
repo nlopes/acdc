@@ -198,6 +198,12 @@ peg::parser! {
             peg::RuleResult::Failed
         }}
 
+        // Locate a section boundary after the last accepted child, using the
+        // same level and metadata rules as block recognition.
+        #[no_eof]
+        pub(in crate::grammar::document) rule content_section_boundary(offset: usize, parent: Option<SectionLevel>) -> usize
+        = eol()* start:position!() &same_or_higher_level_section(offset, parent) { offset + start }
+
         pub(in crate::grammar::document) rule block_sequence_end(offset: usize)
         = resume_at(offset) eol()*
 

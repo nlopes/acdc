@@ -15,7 +15,7 @@ use super::TestResult;
 
 /// Native parsing recovers each source by dropping the content that holds
 /// `greet::[]` at the given line.
-const DISCARDED: [(&str, u32); 6] = [
+const DISCARDED: [(&str, u32); 7] = [
     // A `[quote]` body inherits the section context and stops at `== B`.
     (
         "= Doc\n\n== A\n\n[quote]\n____\ngreet::[]\n\n== B\n\ntext\n____\n\nAfter.",
@@ -39,6 +39,11 @@ const DISCARDED: [(&str, u32); 6] = [
     (
         "term:: def\n+\n====\nifdef::x[]\nX.\nendif::[]\ngreet::[]\n|===\n|===\n====\n\nAfter.",
         7,
+    ),
+    // The processor runs before a conditional splits the quote into reader windows.
+    (
+        "== A\n\n[quote]\n____\ngreet::[]\n\nifdef::x[]\nX.\nendif::[]\n\n== B\n\ntext\n____",
+        5,
     ),
 ];
 

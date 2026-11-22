@@ -31,7 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was silently dropped while the macro's attribute changes and deferred request
   survived, so `finish()` or a tree processor failed at a location no longer in
   the document. Content without executed extensions still recovers with a
-  warning.
+  warning. A styled quote spanning a conditional now follows the same section
+  boundaries with or without extensions. acdc warns at the interrupting heading
+  and resumes after the quote. Asciidoctor retains the content inside the quote.
 
 - Extensions can register a style for listing and literal blocks, read the body through `RawBlockInput` before substitutions, and return an ordinary block or consume the input. A style registered with `BlockStyle::compound` can also request that its body be parsed as children of an open block.
 - Block styles can report a warning at the styled block's source location and continue parsing with fallback content.

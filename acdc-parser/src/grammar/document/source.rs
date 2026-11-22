@@ -441,20 +441,32 @@ impl<'a> SourceInput<'a> {
         Ok(end.min(self.index.len()))
     }
 
-    fn delimited_end(
+    /// Locate the matching close without constructing children, respecting table cell boundaries.
+    pub(super) fn delimited_boundary(
         &mut self,
         mut offset: usize,
         delimiter: &str,
         table: bool,
         state: &mut ParserState<'a>,
-    ) -> Result<usize, Error> {
-        while let Some(next) = self.line(offset, state)? {
-            offset += next.len();
-            if document_parser::source_block_close(next, state, delimiter, table).is_ok() {
-                break;
+    ) -> Result<(usize, Option<&'a str>), Error> {
+        while let Some(line) = self.line(offset, state)? {
+            if document_parser::source_block_close(line, state, delimiter, table).is_ok() {
+                return Ok((offset, Some(line)));
             }
+            offset += line.len();
         }
-        Ok(offset.min(self.index.len()))
+        Ok((offset.min(self.index.len()), None))
+    }
+
+    fn delimited_end(
+        &mut self,
+        offset: usize,
+        delimiter: &str,
+        table: bool,
+        state: &mut ParserState<'a>,
+    ) -> Result<usize, Error> {
+        let (end, close) = self.delimited_boundary(offset, delimiter, table, state)?;
+        Ok(end + close.map_or(0, str::len))
     }
 
     fn metadata_end(

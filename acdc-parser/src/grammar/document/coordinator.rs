@@ -157,6 +157,16 @@ impl BlockCursor {
         }
     }
 
+    /// Ordered child cursor with the section boundary supplied by its builder.
+    pub(super) fn content(offset: usize, base_offset: usize, level: Option<SectionLevel>) -> Self {
+        Self {
+            offset,
+            base_offset,
+            parent: BlockParent { level, kind: None },
+            mode: ConstructionMode::Ordered,
+        }
+    }
+
     #[cfg(test)]
     pub(super) fn advance<'a>(
         &mut self,
@@ -480,15 +490,7 @@ where
         state: &mut ParserState<'a>,
         request: ContentRequest<'a>,
     ) -> Result<Vec<Block<'a>>, Error> {
-        let mut cursor = BlockCursor {
-            offset: 0,
-            base_offset: request.offset,
-            parent: BlockParent {
-                level: request.parent_section_level,
-                kind: None,
-            },
-            mode: ConstructionMode::Ordered,
-        };
+        let mut cursor = BlockCursor::content(0, request.offset, request.parent_section_level);
         let mut blocks = Vec::new();
         let toc_start = state.toc_entries.len();
         let callbacks = self.accepted.block_callbacks();
@@ -518,13 +520,7 @@ where
                 // Recovery discards this child tree. Retain no provisional TOC
                 // entries for headings that cannot survive in the document.
                 state.toc_entries.truncate(toc_start);
-                crate::grammar::inline_processing::adjust_and_log_parse_error(
-                    &error,
-                    request.source,
-                    request.offset,
-                    state,
-                    request.error_context,
-                );
+                request.warn_recovery(&error, state);
                 Ok(Vec::new())
             }
         }

@@ -137,3 +137,60 @@ fn unquoted_none_arguments_follow_compatibility_mode() -> TestResult {
     }
     Ok(())
 }
+
+#[test]
+fn streamed_styled_quote_recovers_at_its_parent_section_boundary() -> TestResult {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let registry = greet_registry(&calls)?;
+    for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        for (intro, ending) in [
+            ("\\greet::[]", "____\n\nAfter."),
+            ("=== Child\n\n\\greet::[]", "____\n\nAfter."),
+            ("\\greet::[]", ""),
+        ] {
+            let source = format!(
+                "= Doc\n\n== A\n\n[quote]\n____\n{intro}\n\nifdef::x[]\nX.\nendif::[]\n\n== B\n\ngreet::discarded[]\n{ending}"
+            );
+            let ordinary = acdc_parser::parse(&source, &options)?;
+            let extended = registry.parse(&source, &options)?.finish()?;
+            assert!(
+                ordinary
+                    .warnings()
+                    .iter()
+                    .any(|w| matches!(w.kind, WarningKind::ContentRecovery { .. }))
+            );
+            assert_eq!(extended.warnings(), ordinary.warnings(), "{mode:?}");
+            assert_eq!(
+                serde_json::to_value(extended.document())?,
+                serde_json::to_value(ordinary.document())?,
+                "{mode:?}"
+            );
+            assert_eq!(extended.document().toc_entries().len(), 1);
+            assert_eq!(ordinary.document().toc_entries().len(), 1);
+        }
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    Ok(())
+}
+
+#[test]
+fn streamed_styled_quote_retains_a_deeper_section() -> TestResult {
+    let source = "== A\n\n[quote]\n____\n\\greet::[]\n\nifdef::x[]\nX.\nendif::[]\n\n=== Child\n\ntext\n____\n\nAfter.";
+    let calls = Arc::new(AtomicUsize::new(0));
+    let registry = greet_registry(&calls)?;
+    for mode in [CompatibilityMode::Draft, CompatibilityMode::Asciidoctor] {
+        let options = Options::builder().with_compatibility_mode(mode).build()?;
+        let ordinary = acdc_parser::parse(source, &options)?;
+        let extended = registry.parse(source, &options)?.finish()?;
+        assert_eq!(ordinary.document().toc_entries().len(), 2);
+        assert_eq!(extended.document().toc_entries().len(), 2);
+        assert_eq!(extended.warnings(), ordinary.warnings(), "{mode:?}");
+        assert_eq!(
+            serde_json::to_value(extended.document())?,
+            serde_json::to_value(ordinary.document())?,
+            "{mode:?}"
+        );
+    }
+    Ok(())
+}

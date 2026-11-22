@@ -34,6 +34,53 @@ pub(super) struct ContentRequest<'a> {
     pub(super) error_context: &'static str,
 }
 
+impl<'a> ContentRequest<'a> {
+    /// An enclosing section ends the child sequence before the quote closes.
+    /// Report the heading itself regardless of how the PEG input was split.
+    pub(super) fn section_boundary_warning(
+        &self,
+        tail: &'a str,
+        offset: usize,
+        state: &mut ParserState<'a>,
+    ) -> Option<crate::Warning> {
+        if !matches!(self.kind, ContentKind::Blocks) || self.context != BlockContext::Document {
+            return None;
+        }
+        let position = document_parser::content_section_boundary(
+            tail,
+            state,
+            offset,
+            self.parent_section_level,
+        )
+        .ok()?;
+        let location =
+            state.create_error_source_location(state.create_location(position, position));
+        Some(crate::Warning::new(
+            crate::WarningKind::ContentRecovery {
+                message: "A section at the enclosing level or higher interrupts the quote. Its body was discarded.".into(),
+            },
+            Some(location),
+        ))
+    }
+
+    pub(super) fn warn_recovery(
+        &self,
+        error: &super::RecognitionError,
+        state: &mut ParserState<'a>,
+    ) {
+        let offset = error.location.offset;
+        if let Some(warning) = self
+            .source
+            .get(offset..)
+            .and_then(|tail| self.section_boundary_warning(tail, self.offset + offset, state))
+        {
+            state.add_warning(warning);
+            return;
+        }
+        adjust_and_log_parse_error(error, self.source, self.offset, state, self.error_context);
+    }
+}
+
 pub(super) trait ContentParser<'a> {
     /// Buffered cells have already passed through the table decoder.
     fn raw_cell_separator(&self) -> Option<char> {
@@ -65,6 +112,7 @@ impl<'a> ContentParser<'a> for GrammarContent {
         state: &mut ParserState<'a>,
         request: ContentRequest<'a>,
     ) -> Result<Vec<Block<'a>>, Error> {
+        let toc_start = state.toc_entries.len();
         let result = match request.kind {
             ContentKind::Compound => document_parser::compound_blocks(
                 request.source,
@@ -81,13 +129,8 @@ impl<'a> ContentParser<'a> for GrammarContent {
             ),
         };
         result.unwrap_or_else(|error| {
-            adjust_and_log_parse_error(
-                &error,
-                request.source,
-                request.offset,
-                state,
-                request.error_context,
-            );
+            state.toc_entries.truncate(toc_start);
+            request.warn_recovery(&error, state);
             Ok(Vec::new())
         })
     }
