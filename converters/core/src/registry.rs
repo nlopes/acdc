@@ -77,7 +77,19 @@ pub enum SelectionError {
     /// No backend or alias matches this spelling.
     #[error("backend '{0}' is not available")]
     Unavailable(String),
-    /// A plain backend or fixed shortcut does not allow an explicit variant.
+    /// A fixed backend shortcut already selects a specific variant.
+    #[error(
+        "--backend {shortcut} does not accept a variant — it is a backwards-compat alias for `--backend {backend} --variant {variant}`. Drop --variant, or use `--backend {backend}` with the variant of your choice."
+    )]
+    FixedVariant {
+        /// Shortcut used for the selection.
+        shortcut: String,
+        /// Canonical backend.
+        backend: &'static str,
+        /// Variant selected by the shortcut.
+        variant: &'static str,
+    },
+    /// A plain backend does not allow an explicit variant.
     #[error("backend '{0}' does not accept a variant")]
     NoVariants(String),
     /// A variant belongs to another backend or has an unknown spelling.
@@ -248,7 +260,14 @@ impl<T> ConverterRegistry<T> {
             .families
             .get(canonical)
             .ok_or_else(|| SelectionError::Unavailable(name.to_owned()))?;
-        if variant.is_some() && (fixed.is_some() || family.variants.is_empty()) {
+        if let (Some(pinned), Some(_)) = (fixed, variant) {
+            return Err(SelectionError::FixedVariant {
+                shortcut: name.to_owned(),
+                backend: canonical,
+                variant: pinned,
+            });
+        }
+        if variant.is_some() && family.variants.is_empty() {
             return Err(SelectionError::NoVariants(name.to_owned()));
         }
         let Some(requested) = fixed.or(variant) else {
@@ -310,7 +329,11 @@ mod tests {
         ));
         assert_eq!(
             catalog.resolve("format2", Some("alt")),
-            Err(SelectionError::NoVariants("format2".into()))
+            Err(SelectionError::FixedVariant {
+                shortcut: "format2".into(),
+                backend: "format",
+                variant: "alternate"
+            })
         );
         assert!(matches!(
             catalog.resolve("format", Some("other")),

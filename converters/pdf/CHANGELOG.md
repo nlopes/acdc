@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Applications can register this converter using its built-in backend names and variant choices.
+- Applications can register the PDF backend by name and determine its default file destination before processing a batch.
 
 - Extension-generated caption and captured-title links now use explicit labels,
   preserving title formatting and source attributes while following final captions

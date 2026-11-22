@@ -8,22 +8,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-#[cfg(any(
-    test,
-    feature = "manpage",
-    feature = "markdown",
-    feature = "pdf",
-    feature = "terminal"
-))]
+#[cfg(any(test, feature = "terminal"))]
 use acdc_converters_core::Converter as _;
 use acdc_converters_core::{
     ConversionResult, Doctype, GeneratorMetadata, Options, OutputDestination,
     pipeline::{ExtensionCatalog, Extensions, Pipeline},
 };
-#[cfg(feature = "html")]
-use acdc_converters_html::HtmlVariant;
-#[cfg(feature = "markdown")]
-use acdc_converters_markdown::MarkdownVariant;
 #[cfg(feature = "pdf")]
 use acdc_converters_pdf::{PageOrientation, PageSize, PdfOptions, ThemeFormat};
 #[cfg(feature = "terminal")]
@@ -32,13 +22,18 @@ use acdc_parser::{
     AttributeValue, Options as ParserOptions, OptionsBuilder, ParseResult, SafeMode, Warning,
 };
 
-use clap::{ArgAction, Args as ClapArgs, ValueEnum};
+#[cfg(feature = "pdf")]
+use clap::ValueEnum;
+use clap::{ArgAction, Args as ClapArgs};
 use rayon::prelude::*;
 
 use crate::{
     error::{self, WarningReport, WarningReportContext},
     timing::{TimingEntry, render_summary},
 };
+
+#[path = "convert/selection.rs"]
+mod selection;
 
 type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<'a>>;
 
@@ -79,9 +74,9 @@ pub(crate) struct Args {
     ///
     /// `html` is the default when its feature is compiled in; otherwise
     /// `--backend` must be supplied explicitly.
-    #[arg(short = 'b', long, value_enum)]
+    #[arg(short = 'b', long, value_parser = selection::backend_parser())]
     #[cfg_attr(feature = "html", arg(default_value = "html"))]
-    backend: BackendArg,
+    backend: Box<str>,
 
     /// Backend output variant
     ///
@@ -93,9 +88,8 @@ pub(crate) struct Args {
     ///
     /// `--backend html5s` is preserved as a shortcut for
     /// `--backend html --variant semantic` and rejects `--variant`.
-    #[cfg(any(feature = "html", feature = "markdown"))]
-    #[arg(long, value_enum, verbatim_doc_comment)]
-    variant: Option<VariantArg>,
+    #[arg(long, value_parser = selection::variant_parser(), hide = selection::installed().is_ok_and(|registry| registry.variant_spellings().next().is_none()), verbatim_doc_comment)]
+    variant: Option<Box<str>>,
 
     /// Document type to use when converting document
     #[arg(short = 'd', long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
@@ -295,17 +289,24 @@ pub(crate) fn run(args: &Args) -> MietteResult<()> {
 }
 
 fn run_with_extensions(args: &Args, available: &ExtensionCatalog) -> MietteResult<()> {
-    #[cfg(any(feature = "html", feature = "markdown"))]
-    let backend = args.backend.resolve(args.variant)?;
-    #[cfg(not(any(feature = "html", feature = "markdown")))]
-    let backend = args.backend.resolve();
+    run_with_registries(args, available, selection::installed()?)
+}
+
+fn run_with_registries(
+    args: &Args,
+    available: &ExtensionCatalog,
+    converters: &acdc_converters_core::registry::ConverterRegistry<selection::Runner>,
+) -> MietteResult<()> {
+    let backend = converters
+        .resolve(&args.backend, args.variant.as_deref())
+        .map_err(|e| error::display(&e))?;
 
     let extensions = available
         .select(&args.extensions)
         .map_err(|error| error::display(&error))?;
 
     #[cfg(feature = "pdf")]
-    validate_pdf_options(args, backend)?;
+    validate_pdf_options(args, backend.pdf_options)?;
 
     let safe_mode = if args.safe {
         SafeMode::Safe
@@ -328,63 +329,7 @@ fn run_with_extensions(args: &Args, available: &ExtensionCatalog) -> MietteResul
         .build();
 
     let document_attributes = build_parser_options(args, &options);
-    let summary = match backend {
-        #[cfg(feature = "html")]
-        Backend::Html(variant) => run_converter::<acdc_converters_html::Converter, _>(
-            args,
-            &options,
-            document_attributes,
-            extensions.as_ref(),
-            move |opts, attrs| {
-                acdc_converters_html::Converter::new_with_variant(opts, attrs, variant)
-            },
-        ),
-
-        #[cfg(feature = "terminal")]
-        Backend::Terminal => {
-            // Terminal outputs to stdout with optional pager support
-            run_terminal_with_pager(args, &options, document_attributes, extensions.as_ref())
-                .map_err(|e| error::display(&e))
-        }
-
-        #[cfg(feature = "manpage")]
-        Backend::Manpage => run_converter::<acdc_converters_manpage::Converter, _>(
-            args,
-            &options,
-            document_attributes,
-            extensions.as_ref(),
-            acdc_converters_manpage::Converter::new,
-        ),
-
-        #[cfg(feature = "markdown")]
-        Backend::Markdown(variant) => run_converter::<acdc_converters_markdown::Converter, _>(
-            args,
-            &options,
-            document_attributes,
-            extensions.as_ref(),
-            move |opts, attrs| {
-                acdc_converters_markdown::Converter::new(opts, attrs)
-                    .map(|converter| converter.with_variant(variant))
-            },
-        ),
-
-        #[cfg(feature = "pdf")]
-        Backend::Pdf => {
-            let pdf_options = pdf_options_from_args(args);
-            run_converter::<acdc_converters_pdf::Converter, _>(
-                args,
-                &options,
-                document_attributes,
-                extensions.as_ref(),
-                move |opts, attrs| {
-                    acdc_converters_pdf::Converter::new(opts, attrs)
-                        .map(|converter| converter.with_pdf_options(pdf_options.clone()))
-                },
-            )
-        }
-    };
-
-    let summary = summary?;
+    let summary = (backend.run)(args, &options, document_attributes, extensions.as_ref())?;
 
     if args.fail_on_warnings && summary.warning_count > 0 {
         let count = summary.warning_count;
@@ -404,8 +349,8 @@ fn run_with_extensions(args: &Args, available: &ExtensionCatalog) -> MietteResul
 }
 
 #[cfg(feature = "pdf")]
-fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
-    if matches!(backend, Backend::Pdf) {
+fn validate_pdf_options(args: &Args, accepts_pdf_options: bool) -> MietteResult<()> {
+    if accepts_pdf_options {
         if args.emit_typst.is_some() && !args.stdin && args.files.len() > 1 {
             return Err(miette::miette!(
                 "--emit-typst can only be used with a single input file"
@@ -430,10 +375,12 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
                 .filter(|path| *path != "-")
                 .is_some_and(|output| paths_match(path, Path::new(output)))
                 || args.out_file.is_none()
-                    && args
-                        .files
-                        .iter()
-                        .any(|file| paths_match(path, &file.with_extension("pdf")))
+                    && args.files.iter().any(|file| {
+                        paths_match(
+                            path,
+                            &acdc_converters_pdf::Converter::default_output_path(file),
+                        )
+                    })
             {
                 return Err(miette::miette!(
                     "--emit-theme-config must use a different path from PDF output"
@@ -1004,8 +951,10 @@ mod tests {
             "2",
             "document.adoc",
         ])?;
-        let backend = args.backend.resolve(args.variant)?;
-        assert!(validate_pdf_options(&args, backend).is_err());
+        let backend = selection::installed()?
+            .resolve(&args.backend, args.variant.as_deref())
+            .map_err(|e| error::display(&e))?;
+        assert!(validate_pdf_options(&args, backend.pdf_options).is_err());
         Ok(())
     }
 
@@ -1022,17 +971,10 @@ mod tests {
             "first.adoc",
             "second.adoc",
         ])?;
-        let backend = {
-            #[cfg(any(feature = "html", feature = "markdown"))]
-            {
-                args.backend.resolve(args.variant)?
-            }
-            #[cfg(not(any(feature = "html", feature = "markdown")))]
-            {
-                args.backend.resolve()
-            }
-        };
-        let Err(error) = validate_pdf_options(&args, backend) else {
+        let backend = selection::installed()?
+            .resolve(&args.backend, args.variant.as_deref())
+            .map_err(|e| error::display(&e))?;
+        let Err(error) = validate_pdf_options(&args, backend.pdf_options) else {
             return Err(miette::miette!(
                 "--emit-typst unexpectedly accepted multiple inputs"
             ));
@@ -1054,8 +996,10 @@ mod tests {
             "Architecture",
             "document.adoc",
         ])?;
-        let backend = args.backend.resolve(args.variant)?;
-        let Err(error) = validate_pdf_options(&args, backend) else {
+        let backend = selection::installed()?
+            .resolve(&args.backend, args.variant.as_deref())
+            .map_err(|e| error::display(&e))?;
+        let Err(error) = validate_pdf_options(&args, backend.pdf_options) else {
             return Err(miette::miette!(
                 "PDF-only option unexpectedly accepted by HTML"
             ));
@@ -1605,30 +1549,6 @@ fn run_terminal_with_pager(
     Ok(summary)
 }
 
-/// CLI-local enum mirroring the surface form of `--backend`.
-///
-/// Each arm is feature-gated so disabling a converter cleanly removes
-/// it from the parser, the resolver, and the dispatch match. `Html5s`
-/// stays in this enum (rather than being normalized to `Html`) so the
-/// resolver can reject the contradictory `--backend html5s --variant
-/// <anything>` form before lowering it to the typed [`Backend`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum BackendArg {
-    #[cfg(feature = "html")]
-    Html,
-    #[cfg(feature = "html")]
-    Html5s,
-    #[cfg(feature = "manpage")]
-    Manpage,
-    #[cfg(feature = "terminal")]
-    Terminal,
-    #[cfg(feature = "markdown")]
-    #[value(alias = "md")]
-    Markdown,
-    #[cfg(feature = "pdf")]
-    Pdf,
-}
-
 /// Input schema selected by `--theme-format`.
 #[cfg(feature = "pdf")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -1689,166 +1609,6 @@ impl PdfPageLayoutArg {
         match self {
             Self::Portrait => PageOrientation::Portrait,
             Self::Landscape => PageOrientation::Landscape,
-        }
-    }
-}
-
-impl Display for BackendArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            #[cfg(feature = "html")]
-            Self::Html => f.write_str("html"),
-            #[cfg(feature = "html")]
-            Self::Html5s => f.write_str("html5s"),
-            #[cfg(feature = "manpage")]
-            Self::Manpage => f.write_str("manpage"),
-            #[cfg(feature = "terminal")]
-            Self::Terminal => f.write_str("terminal"),
-            #[cfg(feature = "markdown")]
-            Self::Markdown => f.write_str("markdown"),
-            #[cfg(feature = "pdf")]
-            Self::Pdf => f.write_str("pdf"),
-        }
-    }
-}
-
-/// CLI-local variant choice, parsed from `--variant` before being combined
-/// with the backend into the typed [`Backend`]. Each arm is feature-gated
-/// so disabling its converter removes its variant names from `--variant`
-/// entirely.
-#[cfg(any(feature = "html", feature = "markdown"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum VariantArg {
-    #[cfg(feature = "html")]
-    Standard,
-    #[cfg(feature = "html")]
-    Semantic,
-    #[cfg(feature = "markdown")]
-    #[value(name = "commonmark", alias = "cm")]
-    CommonMark,
-    #[cfg(feature = "markdown")]
-    #[value(alias = "github", alias = "github-flavored")]
-    Gfm,
-}
-
-#[cfg(any(feature = "html", feature = "markdown"))]
-impl Display for VariantArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            #[cfg(feature = "html")]
-            Self::Standard => f.write_str("standard"),
-            #[cfg(feature = "html")]
-            Self::Semantic => f.write_str("semantic"),
-            #[cfg(feature = "markdown")]
-            Self::CommonMark => f.write_str("commonmark"),
-            #[cfg(feature = "markdown")]
-            Self::Gfm => f.write_str("gfm"),
-        }
-    }
-}
-
-/// The user's `--backend`/`--variant` pair after validation, lowered into
-/// the strongly-typed combination accepted by the converter crates.
-///
-/// Each arm carries the converter's own variant payload (or no payload
-/// for backends that have none). This is the boundary at which CLI
-/// surface concerns (the `html5s` alias, cross-backend mismatches) are
-/// resolved — downstream code only ever sees a well-typed choice. New
-/// variant-bearing backends simply gain a payload here without
-/// rearranging anything else.
-#[derive(Debug, Clone, Copy)]
-enum Backend {
-    #[cfg(feature = "html")]
-    Html(HtmlVariant),
-    #[cfg(feature = "manpage")]
-    Manpage,
-    #[cfg(feature = "terminal")]
-    Terminal,
-    #[cfg(feature = "markdown")]
-    Markdown(MarkdownVariant),
-    #[cfg(feature = "pdf")]
-    Pdf,
-}
-
-/// Reject a `--variant` for a backend that doesn't define any. Interpolating
-/// the backend name keeps the error consistent across no-variant backends
-/// and means a future addition only needs one `resolve` arm, not a bespoke
-/// error string.
-#[cfg(all(
-    any(feature = "manpage", feature = "pdf", feature = "terminal"),
-    any(feature = "html", feature = "markdown")
-))]
-fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> MietteResult<()> {
-    if variant.is_some() {
-        return Err(miette::miette!(
-            "backend '{backend}' does not accept a variant"
-        ));
-    }
-    Ok(())
-}
-
-impl BackendArg {
-    /// Combine the CLI's separate `--backend` / `--variant` flags into a
-    /// fully-typed [`Backend`], rejecting any combination the
-    /// converter layer can't honor: the `html5s` alias paired with any
-    /// variant, a markdown variant on the html backend (or vice versa),
-    /// or any variant on a backend that has none.
-    #[cfg(any(feature = "html", feature = "markdown"))]
-    fn resolve(self, variant: Option<VariantArg>) -> MietteResult<Backend> {
-        match (self, variant) {
-            // The `html5s` alias is the surface spelling of "html + semantic".
-            // Pairing it with `--variant` would be self-contradicting.
-            #[cfg(feature = "html")]
-            (Self::Html5s, Some(_)) => Err(miette::miette!(
-                "--backend html5s does not accept a variant — it is a backwards-compat \
-                 alias for `--backend html --variant semantic`. Drop --variant, or use \
-                 `--backend html` with the variant of your choice."
-            )),
-            #[cfg(feature = "html")]
-            (Self::Html5s, None) | (Self::Html, Some(VariantArg::Semantic)) => {
-                Ok(Backend::Html(HtmlVariant::Semantic))
-            }
-            #[cfg(feature = "html")]
-            (Self::Html, None | Some(VariantArg::Standard)) => {
-                Ok(Backend::Html(HtmlVariant::Standard))
-            }
-            #[cfg(all(feature = "html", feature = "markdown"))]
-            (Self::Html, Some(v @ (VariantArg::CommonMark | VariantArg::Gfm))) => Err(
-                miette::miette!("variant '{v}' is not supported by backend 'html'"),
-            ),
-            #[cfg(feature = "markdown")]
-            (Self::Markdown, None) => Ok(Backend::Markdown(MarkdownVariant::default())),
-            #[cfg(feature = "markdown")]
-            (Self::Markdown, Some(VariantArg::CommonMark)) => {
-                Ok(Backend::Markdown(MarkdownVariant::CommonMark))
-            }
-            #[cfg(feature = "markdown")]
-            (Self::Markdown, Some(VariantArg::Gfm)) => {
-                Ok(Backend::Markdown(MarkdownVariant::GitHubFlavored))
-            }
-            #[cfg(all(feature = "markdown", feature = "html"))]
-            (Self::Markdown, Some(v @ (VariantArg::Standard | VariantArg::Semantic))) => Err(
-                miette::miette!("variant '{v}' is not supported by backend 'markdown'"),
-            ),
-            #[cfg(feature = "manpage")]
-            (Self::Manpage, v) => require_no_variant("manpage", v).map(|()| Backend::Manpage),
-            #[cfg(feature = "pdf")]
-            (Self::Pdf, v) => require_no_variant("pdf", v).map(|()| Backend::Pdf),
-            #[cfg(feature = "terminal")]
-            (Self::Terminal, v) => require_no_variant("terminal", v).map(|()| Backend::Terminal),
-        }
-    }
-
-    /// Resolve the backend when no compiled converter accepts `--variant`.
-    #[cfg(not(any(feature = "html", feature = "markdown")))]
-    fn resolve(self) -> Backend {
-        match self {
-            #[cfg(feature = "manpage")]
-            Self::Manpage => Backend::Manpage,
-            #[cfg(feature = "pdf")]
-            Self::Pdf => Backend::Pdf,
-            #[cfg(feature = "terminal")]
-            Self::Terminal => Backend::Terminal,
         }
     }
 }

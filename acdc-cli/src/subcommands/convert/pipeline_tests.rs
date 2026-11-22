@@ -13,7 +13,7 @@ use acdc_parser::extensions::{
     BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroExecutionContext, MacroInvocation,
     Registry,
 };
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 
 use super::*;
 
@@ -71,17 +71,14 @@ fn available(created: &Arc<AtomicUsize>) -> Result<ExtensionCatalog, Box<dyn Err
 
 #[test]
 fn pipeline_cli_rejects_unavailable_selections_before_files_or_stdin() -> TestResult {
-    let backend = BackendArg::value_variants()
-        .first()
-        .and_then(ValueEnum::to_possible_value)
-        .ok_or("backend")?;
+    let backend = selection::installed()?.names().next().ok_or("backend")?;
     let created = Arc::new(AtomicUsize::new(0));
     let available = available(&created)?;
     for input in ["--stdin", "missing-input.adoc"] {
         let args = args(
             [
                 "--backend",
-                backend.get_name(),
+                backend,
                 "--extension",
                 "probe",
                 "--extension",
@@ -233,5 +230,148 @@ fn pipeline_cli_terminal_reader_files_and_pager_share_processing() -> TestResult
     );
     assert!(std::fs::read_to_string(pager_output)?.contains("file:1"));
     assert_eq!(created.load(Ordering::SeqCst), 4);
+    Ok(())
+}
+
+/// A downstream converter chooses its own parser profile, serialization, and suffix.
+struct NativeJson {
+    options: Options,
+    parser: acdc_parser::Options<'static>,
+}
+
+#[derive(Debug, thiserror::Error)]
+enum JsonError {
+    #[error(transparent)]
+    Parser(#[from] acdc_parser::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+}
+
+impl acdc_converters_core::Converter<'static> for NativeJson {
+    type Error = JsonError;
+
+    fn new(options: Options, parser: OptionsBuilder<'static>) -> Result<Self, Self::Error> {
+        let parser =
+            acdc_converters_core::BackendProfile::new("native-json", "json", "json", ".ast.json")
+                .apply(parser, options.doctype(), options.embedded())
+                .build()?;
+        Ok(Self { options, parser })
+    }
+    fn options(&self) -> &Options {
+        &self.options
+    }
+    fn parser_options(&self) -> &acdc_parser::Options<'static> {
+        &self.parser
+    }
+    fn name(&self) -> &'static str {
+        "native-json"
+    }
+    fn supports_text_output(&self) -> bool {
+        true
+    }
+    fn derive_output_path(
+        &self,
+        input: &Path,
+        _: acdc_parser::ast::DocumentRef<'_>,
+    ) -> Result<Option<PathBuf>, Self::Error> {
+        Ok(Some(input.with_extension("ast.json")))
+    }
+    fn write_to<W: std::io::Write>(
+        &self,
+        doc: acdc_parser::ast::DocumentRef<'_>,
+        writer: W,
+        _: Option<&Path>,
+        _: Option<&Path>,
+        _: &mut acdc_converters_core::Diagnostics<'_>,
+    ) -> Result<(), Self::Error> {
+        Ok(serde_json::to_writer(writer, &doc)?)
+    }
+}
+
+#[test]
+fn static_converter_uses_cli_arguments_the_shared_pipeline_and_its_own_output_path() -> TestResult {
+    use acdc_converters_core::{postprocess::TextPostprocessor, registry::ConverterSpec};
+    use clap::{CommandFactory as _, FromArgMatches as _};
+
+    let mut converters = selection::builtins()?;
+    converters.register(
+        ConverterSpec::new("native-json", ()).with_aliases(&["nj"]),
+        |()| selection::Runner::converter(NativeJson::new),
+    )?;
+    let temp = tempfile::tempdir()?;
+    let file = temp.path().join("doc.adoc");
+    std::fs::write(
+        &file,
+        "ifdef::backend-native-json[]\nSelected before parsing.\nendif::[]",
+    )?;
+    let mut catalog = ExtensionCatalog::default();
+    catalog.register(
+        "wrap",
+        Extensions::default().with_postprocessor(TextPostprocessor::new(
+            "native-json",
+            |text, _, _| {
+                let doc: serde_json::Value = serde_json::from_str(text)?;
+                *text = serde_json::to_string(&serde_json::json!({"wrapped":doc}))?;
+                Ok(())
+            },
+        )),
+    )?;
+    let command = TestArgs::command().mut_arg("backend", |arg| {
+        arg.value_parser(selection::values(converters.backend_spellings()))
+    });
+    let matches = command.try_get_matches_from([
+        OsString::from("convert"),
+        "--backend".into(),
+        "nj".into(),
+        "--extension".into(),
+        "wrap".into(),
+        file.into_os_string(),
+    ])?;
+    let args = TestArgs::from_arg_matches(&matches)?.args;
+    run_with_registries(&args, &catalog, &converters)?;
+    let json = std::fs::read_to_string(temp.path().join("doc.ast.json"))?;
+    assert!(
+        serde_json::from_str::<serde_json::Value>(&json)?
+            .get("wrapped")
+            .is_some()
+    );
+    assert!(json.contains("Selected before parsing."));
+    Ok(())
+}
+
+#[cfg(all(feature = "html", feature = "markdown"))]
+#[test]
+fn cli_backend_spellings_and_variant_errors_follow_the_registry() -> TestResult {
+    let catalog = selection::installed()?;
+    for (backend, variant, canonical, canonical_variant) in [
+        ("html5s", None, "html", "semantic"),
+        ("md", Some("cm"), "markdown", "commonmark"),
+        ("markdown", Some("github-flavored"), "markdown", "gfm"),
+        ("md", None, "markdown", "gfm"),
+    ] {
+        let mut flags = vec!["--backend", backend, "--stdin"];
+        if let Some(v) = variant {
+            flags.extend(["--variant", v]);
+        }
+        let args = args(flags.into_iter().map(OsString::from))?;
+        assert!(std::ptr::eq(
+            catalog.resolve(&args.backend, args.variant.as_deref())?,
+            catalog.resolve(canonical, Some(canonical_variant))?
+        ));
+    }
+    for (backend, variant, diagnostic) in [
+        ("html5s", "semantic", "does not accept a variant"),
+        ("html", "gfm", "not supported by backend 'html'"),
+        ("md", "standard", "not supported by backend 'markdown'"),
+    ] {
+        let args =
+            args(["--backend", backend, "--variant", variant, "missing.adoc"].map(OsString::from))?;
+        let error = run_with_extensions(&args, &ExtensionCatalog::default())
+            .err()
+            .ok_or("expected a selection error")?;
+        assert!(error.to_string().contains(diagnostic), "{error}");
+    }
     Ok(())
 }

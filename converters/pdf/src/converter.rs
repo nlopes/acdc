@@ -11,6 +11,15 @@ use acdc_parser::ast::DocumentRef;
 
 use crate::{Converter, Error, PDF_BACKEND, PdfOptions};
 
+impl Converter<'_> {
+    /// Destination a file input would use when the caller requests derived output.
+    /// Applications can check companion paths for conflicts before reading a batch.
+    #[must_use]
+    pub fn default_output_path(input: &Path) -> PathBuf {
+        input.with_extension("pdf")
+    }
+}
+
 impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
     type Error = Error;
 
@@ -47,7 +56,7 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         input: &Path,
         _doc: DocumentRef<'_>,
     ) -> Result<Option<PathBuf>, Error> {
-        let pdf_path = input.with_extension("pdf");
+        let pdf_path = Self::default_output_path(input);
         if pdf_path == input {
             return Err(Error::OutputPathSameAsInput(input.to_path_buf()));
         }

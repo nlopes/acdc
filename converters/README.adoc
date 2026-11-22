@@ -6,6 +6,25 @@
 - `link:./pdf[pdf]` - `AsciiDoc` PDF backend backed by the Rust Typst engine
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
 
+== Selecting a static converter
+
+Each converter crate exports a `REGISTRATION` with its backend names and typed
+variants. Register it in `acdc_converters_core::registry::ConverterRegistry`
+and bind each choice to a factory. A statically linked external crate can supply
+its own `ConverterSpec` and factory through the same interface.
+
+Resolve the backend before opening an input. For example, `html5s` selects HTML's
+semantic variant and `md` accepts the same variants as `markdown`. A duplicate
+name or alias fails registration. To replace a family, call `replace` with its
+canonical name. Successful replacement retires old aliases. A conflicting
+replacement preserves the original selection.
+
+The selected factory configures the converter, whose `BackendProfile` supplies
+the intrinsic attributes seen by conditionals and includes. After rendering,
+`ConversionResult::output_path` gives callers the actual file to open. It can
+depend on the document, as it does for a manpage's section number. A stdout
+conversion has no file path.
+
 == Library processing with extensions
 
 Configure the backend before parsing and wrap it in

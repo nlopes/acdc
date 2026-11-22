@@ -5,8 +5,9 @@ use std::error::Error;
 use acdc_converters_core::{
     Converter as _, Diagnostics, Options,
     pipeline::{ExtensionCatalog, Pipeline},
+    registry::ConverterRegistry,
 };
-use acdc_converters_html::Converter;
+use acdc_converters_html::{Converter, REGISTRATION};
 use acdc_parser::{
     Options as ParserOptions,
     extensions::{
@@ -38,7 +39,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Availability alone does not activate a package or invoke its factories.
     let selected = available.select(["greetings"])?.ok_or("empty selection")?;
-    let pipeline = Pipeline::new(Converter::new(
+    let mut backends = ConverterRegistry::default();
+    backends.register(REGISTRATION, |variant| {
+        move |options, parser| Converter::new_with_variant(options, parser, variant)
+    })?;
+    let make_converter = backends.resolve("html", None)?;
+    let pipeline = Pipeline::new(make_converter(
         Options::builder().embedded(true).build(),
         ParserOptions::builder(),
     )?)
