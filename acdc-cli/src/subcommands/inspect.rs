@@ -308,7 +308,7 @@ impl<'doc, W: Write> BlockVisitor<'doc> for TreeVisitor<W> {
                 self.print_tree_line("DiscreteHeader", Some(&detail), location)
             }
             BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
-            _ => self.print_tree_line("Unknown", None, location),
+            BlockKind::Extension(_) | _ => self.print_tree_line("Unknown", None, location),
         }
     }
 }

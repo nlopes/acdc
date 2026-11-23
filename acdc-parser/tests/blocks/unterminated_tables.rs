@@ -152,3 +152,19 @@ fn empty_open_delimiter_at_eof() -> TestResult {
     );
     Ok(())
 }
+
+#[rstest::rstest]
+fn adjacent_matching_delimiters_close_an_empty_table(
+    #[values("|===", "!===", ",===", ":====")] delimiter: &str,
+) -> TestResult {
+    let source = format!("{delimiter}\n{delimiter}");
+    let parsed = acdc_parser::parse(&source, &Options::default())?;
+    assert_eq!(parsed.warnings(), &[]);
+    let block = parsed.document().blocks().next().ok_or("missing table")?;
+    let acdc_parser::ast::BlockKind::Table(table) = block.kind() else {
+        return Err("expected an empty table".into());
+    };
+    assert_eq!(table.rows().count(), 0);
+    assert!(table.close_delimiter_location().is_some());
+    Ok(())
+}

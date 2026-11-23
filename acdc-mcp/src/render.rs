@@ -294,7 +294,7 @@ pub(super) fn render_block(
         BlockKind::TableOfContents(_) | BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => {
             String::new()
         }
-        _ => "[unsupported block]".into(),
+        BlockKind::Extension(_) | _ => "[unsupported block]".into(),
     };
     if format == Format::Asciidoc {
         if !title.is_empty() && !matches!(block.kind(), BlockKind::DiscreteHeading(_)) {

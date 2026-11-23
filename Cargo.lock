@@ -40,6 +40,9 @@ dependencies = [
  "percent-encoding",
  "relative-path 2.0.3",
  "rustc-hash",
+ "serde_json",
+ "stats_alloc",
+ "tempfile",
  "thiserror",
  "tracing",
 ]

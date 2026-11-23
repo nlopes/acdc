@@ -12,7 +12,145 @@ use crate::{
         inline_processing::{adjust_and_log_parse_error, process_inlines},
         state::BlockContext,
     },
+    model::SectionLevel,
 };
+
+use super::{RecognitionError, table::InitialAttributes};
+
+#[derive(Clone, Copy)]
+pub(super) enum ContentKind {
+    Compound,
+    Blocks,
+}
+
+/// A child parse requested by a committed block's existing builder.
+#[derive(Clone, Copy)]
+pub(super) struct ContentRequest<'a> {
+    pub(super) source: &'a str,
+    pub(super) offset: usize,
+    pub(super) parent_section_level: Option<SectionLevel>,
+    pub(super) context: BlockContext,
+    pub(super) kind: ContentKind,
+    pub(super) error_context: &'static str,
+}
+
+impl<'a> ContentRequest<'a> {
+    /// An enclosing section ends the child sequence before the quote closes.
+    /// Report the heading itself regardless of how the PEG input was split.
+    pub(super) fn section_boundary_warning(
+        &self,
+        tail: &'a str,
+        offset: usize,
+        state: &mut ParserState<'a>,
+    ) -> Option<crate::Warning> {
+        if !matches!(self.kind, ContentKind::Blocks) || self.context != BlockContext::Document {
+            return None;
+        }
+        let position = document_parser::content_section_boundary(
+            tail,
+            state,
+            offset,
+            self.parent_section_level,
+        )
+        .ok()?;
+        let location =
+            state.create_error_source_location(state.create_location(position, position));
+        Some(crate::Warning::new(
+            crate::WarningKind::ContentRecovery {
+                message: "A section at the enclosing level or higher interrupts the quote. Its body was discarded.".into(),
+            },
+            Some(location),
+        ))
+    }
+
+    pub(super) fn warn_recovery(
+        &self,
+        error: &super::RecognitionError,
+        state: &mut ParserState<'a>,
+    ) {
+        let offset = error.location.offset;
+        if let Some(warning) = self
+            .source
+            .get(offset..)
+            .and_then(|tail| self.section_boundary_warning(tail, self.offset + offset, state))
+        {
+            state.add_warning(warning);
+            return;
+        }
+        adjust_and_log_parse_error(error, self.offset, state, self.error_context);
+    }
+}
+
+pub(super) trait ContentParser<'a> {
+    /// Buffered cells have already passed through the table decoder.
+    fn raw_cell_separator(&self) -> Option<char> {
+        None
+    }
+
+    fn parse(
+        &mut self,
+        state: &mut ParserState<'a>,
+        request: ContentRequest<'a>,
+    ) -> Result<Vec<Block<'a>>, Error>;
+
+    fn nested_document(
+        &mut self,
+        state: &mut ParserState<'a>,
+        source: &'a str,
+        offset: usize,
+        initial_attributes: &mut InitialAttributes<'a>,
+    ) -> Result<Result<Vec<Block<'a>>, Error>, RecognitionError> {
+        document_parser::nested_document_blocks(source, state, offset, initial_attributes)
+    }
+}
+
+pub(super) struct GrammarContent;
+
+impl<'a> ContentParser<'a> for GrammarContent {
+    fn parse(
+        &mut self,
+        state: &mut ParserState<'a>,
+        request: ContentRequest<'a>,
+    ) -> Result<Vec<Block<'a>>, Error> {
+        let toc_start = state.toc_entries.len();
+        let result = match request.kind {
+            ContentKind::Compound => document_parser::compound_blocks(
+                request.source,
+                state,
+                request.offset,
+                request.parent_section_level,
+            ),
+            ContentKind::Blocks => document_parser::blocks(
+                request.source,
+                state,
+                request.offset,
+                request.parent_section_level,
+                None,
+            ),
+        };
+        result.unwrap_or_else(|error| {
+            state.toc_entries.truncate(toc_start);
+            request.warn_recovery(&error, state);
+            Ok(Vec::new())
+        })
+    }
+}
+
+pub(super) fn parse_content<'a>(
+    state: &mut ParserState<'a>,
+    request: ContentRequest<'a>,
+    parser: &mut impl ContentParser<'a>,
+) -> Result<Vec<Block<'a>>, Error> {
+    let outer_context = std::mem::replace(&mut state.block_context, request.context);
+    let outer_scope = state.source_scope_offset;
+    if state.input_origin.is_some() {
+        state.source_scope_offset = request.offset;
+    }
+    let result = parser.parse(state, request);
+    state.block_context = outer_context;
+    state.source_scope_offset = outer_scope;
+    result
+}
 
 /// Return an error if the closing delimiter does not match the opening delimiter.
 pub(super) fn check_delimiters(
@@ -31,7 +169,7 @@ pub(super) fn check_delimiters(
 /// Validate a closing delimiter and return its location.
 /// If the block has no closing delimiter, warn at the opening delimiter and
 /// return `None`. The caller keeps the block through end of input.
-fn resolve_delimited_close<'input>(
+pub(super) fn resolve_delimited_close<'input>(
     state: &mut ParserState<'input>,
     p: &DelimitedParams<'input>,
 ) -> Result<Option<Location>, Error> {
@@ -80,6 +218,27 @@ pub(super) enum DelimitedKind {
 }
 
 impl DelimitedKind {
+    pub(super) fn has_compound_body(self, style: Option<&str>) -> bool {
+        matches!(
+            self.with_style(style),
+            Self::Example | Self::Open | Self::Sidebar | Self::Quote
+        ) && !matches!(style, Some("comment" | "verse"))
+    }
+
+    pub(super) fn raw_context(self) -> Option<crate::extensions::RawBlockContext> {
+        use crate::extensions::RawBlockContext;
+        match self {
+            Self::Listing => Some(RawBlockContext::Listing),
+            Self::Literal => Some(RawBlockContext::Literal),
+            Self::Comment
+            | Self::Example
+            | Self::Open
+            | Self::Sidebar
+            | Self::Passthrough
+            | Self::Quote => None,
+        }
+    }
+
     pub(super) fn with_style(self, style: Option<&str>) -> Self {
         match (self, style) {
             (Self::Open | Self::Literal, Some("source" | "listing")) => Self::Listing,
@@ -120,24 +279,26 @@ fn parse_block_content<'input>(
     content: &'input str,
     content_start: usize,
     offset: usize,
-    error_context: &str,
+    error_context: &'static str,
+    parser: &mut impl ContentParser<'input>,
 ) -> Result<Vec<Block<'input>>, Error> {
-    if content.trim().is_empty() {
-        Ok(Vec::new())
-    } else {
-        let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Compound);
-        let result = document_parser::compound_blocks(
-            content,
-            state,
-            content_start + offset,
-            block_metadata.parent_section_level,
-        );
-        state.block_context = outer_context;
-        result.unwrap_or_else(|e| {
-            adjust_and_log_parse_error(&e, content, content_start + offset, state, error_context);
-            Ok(Vec::new())
-        })
+    // Empty source can be a streamed opener. Its builder still needs the
+    // child request to know the parsing context and where the body starts.
+    if !content.is_empty() && content.trim().is_empty() {
+        return Ok(Vec::new());
     }
+    parse_content(
+        state,
+        ContentRequest {
+            source: content,
+            offset: content_start + offset,
+            parent_section_level: block_metadata.parent_section_level,
+            context: BlockContext::Compound,
+            kind: ContentKind::Compound,
+            error_context,
+        },
+        parser,
+    )
 }
 
 /// Source ranges and delimiters for a block.
@@ -159,6 +320,12 @@ pub(super) struct DelimitedParams<'input> {
     pub(super) close: Option<(usize, &'input str)>,
 }
 
+struct DelimitedLocations {
+    block: Location,
+    open: Location,
+    close: Option<Location>,
+}
+
 /// Build a block from its matched delimiters and content.
 /// If the closing delimiter is missing, keep the block and warn, as in asciidoctor.
 pub(super) fn build_delimited_block<'input>(
@@ -166,41 +333,45 @@ pub(super) fn build_delimited_block<'input>(
     block_metadata: &BlockParsingMetadata<'input>,
     p: &DelimitedParams<'input>,
 ) -> Result<Block<'input>, Error> {
+    build_delimited_block_with_parser(state, block_metadata, p, &mut GrammarContent)
+}
+
+pub(super) fn build_delimited_block_with_parser<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    p: &DelimitedParams<'input>,
+    parser: &mut impl ContentParser<'input>,
+) -> Result<Block<'input>, Error> {
     let close_delimiter_location = resolve_delimited_close(state, p)?;
     let resolved = DelimitedParams {
         kind: p.kind.with_style(block_metadata.metadata.style),
         ..*p
     };
     let p = &resolved;
-    let location = state.create_block_location(p.start, p.end, p.offset);
-    let open_delimiter_location = state.create_location(
-        p.open_start + p.offset,
-        p.open_start + p.offset + p.open_delim.len().saturating_sub(1),
-    );
+    let locations = DelimitedLocations {
+        block: state.create_block_location(p.start, p.end, p.offset),
+        open: state.create_location(
+            p.open_start + p.offset,
+            p.open_start + p.offset + p.open_delim.len().saturating_sub(1),
+        ),
+        close: close_delimiter_location,
+    };
     let mut metadata = block_metadata.metadata.clone();
 
     let inner = match p.kind {
         // An example block can become an admonition (a different `Block` variant),
         // so it constructs and returns the whole block itself.
         DelimitedKind::Example => {
-            return build_example_block(
-                state,
-                block_metadata,
-                metadata,
-                p,
-                location,
-                open_delimiter_location,
-                close_delimiter_location,
-            );
+            return build_example_block(state, block_metadata, metadata, p, locations, parser);
         }
         DelimitedKind::Comment => comment_inner(state, &mut metadata, p),
         DelimitedKind::Listing | DelimitedKind::Literal => {
             verbatim_inner(state, block_metadata, &mut metadata, p)?
         }
-        DelimitedKind::Open => open_inner(state, block_metadata, &mut metadata, p)?,
-        DelimitedKind::Sidebar => sidebar_inner(state, block_metadata, &mut metadata, p)?,
+        DelimitedKind::Open => open_inner(state, block_metadata, &mut metadata, p, parser)?,
+        DelimitedKind::Sidebar => sidebar_inner(state, block_metadata, &mut metadata, p, parser)?,
         DelimitedKind::Passthrough => pass_inner(state, &mut metadata, p),
-        DelimitedKind::Quote => quote_inner(state, block_metadata, &mut metadata, p)?,
+        DelimitedKind::Quote => quote_inner(state, block_metadata, &mut metadata, p, parser)?,
     };
 
     Ok(assemble_delimited(
@@ -208,9 +379,7 @@ pub(super) fn build_delimited_block<'input>(
         p,
         inner,
         block_metadata.title.clone(),
-        location,
-        open_delimiter_location,
-        close_delimiter_location,
+        locations,
     ))
 }
 
@@ -220,18 +389,16 @@ fn assemble_delimited<'input>(
     p: &DelimitedParams<'input>,
     inner: DelimitedBlockType<'input>,
     title: Title<'input>,
-    location: Location,
-    open_delimiter_location: Location,
-    close_delimiter_location: Option<Location>,
+    locations: DelimitedLocations,
 ) -> Block<'input> {
     Block::DelimitedBlock(DelimitedBlock {
         metadata,
         delimiter: p.open_delim,
         inner,
         title,
-        location,
-        open_delimiter_location: Some(open_delimiter_location),
-        close_delimiter_location,
+        location: locations.block,
+        open_delimiter_location: Some(locations.open),
+        close_delimiter_location: locations.close,
         source_text: Some(p.source_text),
     })
 }
@@ -242,9 +409,8 @@ fn build_example_block<'input>(
     block_metadata: &BlockParsingMetadata<'input>,
     mut metadata: BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
-    location: Location,
-    open_delimiter_location: Location,
-    close_delimiter_location: Option<Location>,
+    locations: DelimitedLocations,
+    parser: &mut impl ContentParser<'input>,
 ) -> Result<Block<'input>, Error> {
     metadata.move_positional_attributes_to_attributes();
     let blocks = parse_block_content(
@@ -254,13 +420,14 @@ fn build_example_block<'input>(
         p.content_start,
         p.offset,
         "Error parsing example content as blocks in example block",
+        parser,
     )?;
     // An admonition style (NOTE/TIP/…) turns the example block into an admonition.
     if let Some(style) = block_metadata.metadata.style
         && let Ok(variant) = style.parse::<AdmonitionVariant>()
     {
         metadata.style = None;
-        let mut admonition = Admonition::new(variant, blocks, location)
+        let mut admonition = Admonition::new(variant, blocks, locations.block)
             .with_form(AdmonitionForm::Delimited(p.open_delim))
             .with_title(block_metadata.title.clone());
         admonition.metadata = metadata;
@@ -271,9 +438,7 @@ fn build_example_block<'input>(
         p,
         DelimitedBlockType::DelimitedExample(blocks),
         block_metadata.title.clone(),
-        location,
-        open_delimiter_location,
-        close_delimiter_location,
+        locations,
     ))
 }
 
@@ -298,6 +463,7 @@ fn open_inner<'input>(
     block_metadata: &BlockParsingMetadata<'input>,
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
+    parser: &mut impl ContentParser<'input>,
 ) -> Result<DelimitedBlockType<'input>, Error> {
     metadata.move_positional_attributes_to_attributes();
     if block_metadata.metadata.style == Some("comment") {
@@ -319,6 +485,7 @@ fn open_inner<'input>(
         p.content_start,
         p.offset,
         "Error parsing content as blocks in open block",
+        parser,
     )?;
     Ok(DelimitedBlockType::DelimitedOpen(blocks))
 }
@@ -329,6 +496,7 @@ fn sidebar_inner<'input>(
     block_metadata: &BlockParsingMetadata<'input>,
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
+    parser: &mut impl ContentParser<'input>,
 ) -> Result<DelimitedBlockType<'input>, Error> {
     metadata.move_positional_attributes_to_attributes();
     let blocks = parse_block_content(
@@ -338,6 +506,7 @@ fn sidebar_inner<'input>(
         p.content_start,
         p.offset,
         "Error parsing sidebar content as blocks",
+        parser,
     )?;
     Ok(DelimitedBlockType::DelimitedSidebar(blocks))
 }
@@ -413,6 +582,7 @@ fn quote_inner<'input>(
     block_metadata: &BlockParsingMetadata<'input>,
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
+    parser: &mut impl ContentParser<'input>,
 ) -> Result<DelimitedBlockType<'input>, Error> {
     metadata.move_positional_attributes_to_attributes();
 
@@ -428,23 +598,15 @@ fn quote_inner<'input>(
         Ok(DelimitedBlockType::DelimitedVerse(inlines))
     } else if metadata.style.is_some() {
         // A styled (non-verse) quote always parses its body, even when empty.
-        let blocks = document_parser::blocks(
-            p.content,
-            state,
-            p.content_start + p.offset,
-            block_metadata.parent_section_level,
-            None,
-        )
-        .unwrap_or_else(|e| {
-            adjust_and_log_parse_error(
-                &e,
-                p.content,
-                p.content_start + p.offset,
-                state,
-                "Error parsing example content as blocks in quote block",
-            );
-            Ok(Vec::new())
-        })?;
+        let request = ContentRequest {
+            source: p.content,
+            offset: p.content_start + p.offset,
+            parent_section_level: block_metadata.parent_section_level,
+            context: state.block_context,
+            kind: ContentKind::Blocks,
+            error_context: "Error parsing example content as blocks in quote block",
+        };
+        let blocks = parse_content(state, request, parser)?;
         Ok(DelimitedBlockType::DelimitedQuote(blocks))
     } else {
         let blocks = parse_block_content(
@@ -454,6 +616,7 @@ fn quote_inner<'input>(
             p.content_start,
             p.offset,
             "Error parsing content as blocks in quote block",
+            parser,
         )?;
         Ok(DelimitedBlockType::DelimitedQuote(blocks))
     }

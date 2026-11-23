@@ -238,7 +238,7 @@ impl<'a> BlockVisitor<'a> for PdfVisitor<'a, '_, '_> {
             | BlockKind::Table(_)
             | BlockKind::Stem(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block(traversal, block),
-            _ => {
+            BlockKind::Extension(_) | _ => {
                 self.warn_unsupported_parser_variant("block", None);
                 Ok(())
             }

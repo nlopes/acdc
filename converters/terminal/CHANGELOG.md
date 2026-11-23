@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Applications can register this converter using its built-in backend names and variant choices.
+
+- Selected text postprocessors can transform the completed terminal output for each document, including documents sent to a pager.
+
+- Extension-generated caption and captured-title links now use explicit labels,
+  preserving title formatting and source attributes while following final captions
+  and renamed targets. Repeated conversion preserves the shared parsed document.
+
 - Source blocks with a line longer than 16 KiB render as plain source, preserving
   their text and returning one structured warning per document. This acdc limit
   avoids excessive highlighting time on long lines. HTML terminal previews

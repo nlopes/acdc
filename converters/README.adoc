@@ -6,6 +6,104 @@
 - `link:./pdf[pdf]` - `AsciiDoc` PDF backend backed by the Rust Typst engine
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
 
+== Selecting a static converter
+
+Each converter crate exports a `REGISTRATION` with its backend names and typed
+variants. Register it in `acdc_converters_core::registry::ConverterRegistry`
+and bind each choice to a factory. A statically linked external crate can supply
+its own `ConverterSpec` and factory through the same interface.
+
+Resolve the backend before opening an input. For example, `html5s` selects HTML's
+semantic variant and `md` accepts the same variants as `markdown`. A duplicate
+name or alias fails registration. To replace a family, call `replace` with its
+canonical name. Successful replacement retires old aliases. A conflicting
+replacement preserves the original selection.
+
+The selected factory configures the converter, whose `BackendProfile` supplies
+the intrinsic attributes seen by conditionals and includes. After rendering,
+`ConversionResult::output_path` gives callers the actual file to open. It can
+depend on the document, as it does for a manpage's section number. A stdout
+conversion has no file path.
+
+== Library processing with extensions
+
+Configure the backend before parsing and wrap it in
+`acdc_converters_core::pipeline::Pipeline`. Its `parse`, `parse_file`, and
+`parse_from_reader` methods run the selected macros, ordered tree processors,
+and structural finalization. `write_to` and `convert` resolve deferred display
+labels before handing the finalized document to the backend.
+
+`ExtensionCatalog` separates named build availability from explicit activation.
+Registering a package invokes no factories. `select` validates all names and
+registration conflicts before input processing; packages run in selection order,
+preserving their own registration order. Repeated selections count once. Attach
+the returned `Extensions` with `Pipeline::with_extensions`. Parser registries are
+also accepted directly. An empty selection keeps
+the ordinary parser path without extension indexes or retained title snapshots.
+
+The link:./html/examples/extension_pipeline.rs[extension pipeline example]
+registers and selects an application macro, configures HTML, parses, and writes
+output while retaining both parser and converter warnings:
+
+[source,console]
+----
+cargo run -p acdc-converters-html --example extension_pipeline --all-features
+----
+
+Use the parser registry directly when you need a working session for checked
+edits. Queries observe repairs when issued again; copied selections remain
+snapshots. Document-local handles survive insertion and replacement, and removed
+handles cannot select another block. Normalization repeats without callbacks or
+renumbering. Finishing consumes the session and rejects unresolved requests;
+pipeline parse methods return this finalized, ordinary `ParseResult`.
+
+Each document gets fresh handlers, including when factories are shared across
+parallel callers. Each conversion gets fresh counters and display content while
+preserving the parsed document. Custom backends must create their render state
+per conversion. A processor failure stops processing; earlier successful edits
+and external callback effects remain. Structured parser warnings stay on the
+parse result, and conversion warnings stay in `Diagnostics` or `ConversionResult`
+until the application presents them.
+
+Native block renderers use the same selection. They receive a fresh handler for
+each conversion and can use the backend's streaming output, title/caption, and
+metadata services. Declined blocks use ordinary rendering.
+
+=== Targeting output hooks
+
+Use `BackendTarget::family("html")` for every HTML variant, or
+`BackendTarget::variant("html", "semantic")` for semantic HTML alone.
+`BlockRenderer::for_target`, `DocinfoHook::for_target`, and
+`TextPostprocessor::for_target` accept the same targets. Use canonical family
+and variant names from the converter registration. For example, the CLI shortcut
+`html5s` selects the `html` family and the `semantic` variant, and
+`--backend md --variant cm` selects `markdown` and `commonmark`.
+
+[source,rust]
+----
+use acdc_converters_core::{BackendTarget, postprocess::TextPostprocessor};
+
+let footer = TextPostprocessor::for_target(
+    BackendTarget::variant("markdown", "gfm"),
+    |output, _, _| {
+        output.push_str("\nGenerated with acdc.\n");
+        Ok(())
+    },
+);
+----
+
+Matching hooks run in registration order within each selected package.
+HTML includes script hashes from matching block renderers and runs docinfo
+hooks only for a full document. The string constructors for block renderers
+and docinfo hooks select a family. The string constructor for text
+postprocessors selects the converter's display name: `"html"` selects standard
+HTML, `"html5s"` selects semantic HTML, and `"markdown"` selects both Markdown
+variants.
+
+A converter with variants implements `Converter::hook_target()` to report its
+canonical family and current variant. A converter without variants defaults to
+its `Converter::name()` as the family.
+
 == Development prerequisites
 
 Converter tests are run with `cargo nextest run --all-features`. The terminal

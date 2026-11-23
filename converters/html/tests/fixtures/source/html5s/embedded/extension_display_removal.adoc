@@ -1,0 +1,1 @@
+../../html/embedded/extension_display_removal.adoc

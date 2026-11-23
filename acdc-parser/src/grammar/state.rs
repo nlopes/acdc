@@ -14,8 +14,8 @@ use bumpalo::Bump;
 
 use crate::{
     CalloutMarker, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
-    FootnoteDefinition, Location, Options, Passthrough, SourceLocation, TocEntry, Warning,
-    WarningKind, XrefCaptionLabel, XrefSignifier,
+    FootnoteDefinition, Location, Options, Passthrough, Position, SourceLocation, TocEntry,
+    Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
     document_attribute::{
         AttributeDeclaration, RawAttributeValue, is_header_only, normalize_toc_attributes,
         normalized_entry_name, starts_like_entry_name,
@@ -23,6 +23,8 @@ use crate::{
     grammar::{
         LineMap,
         document::lists::{DescriptionListScope, OrdinaryListScope},
+        source::{self, SourceView, WindowOrigin},
+        utf8_utils::{self, RoundDirection},
     },
     model::{
         DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange,
@@ -88,6 +90,8 @@ pub(crate) struct ParserState<'a> {
     /// Original references for index labels and code boundaries checked before attributes.
     pub(super) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
     /// Boundary left by the last completed inline node in this parse.
+    pub(super) inline_candidates: Option<Box<super::inlines::extensions::Candidates<'a>>>,
+    pub(super) retained_inline: Option<Rc<Cell<bool>>>,
     pub(super) last_url_boundary: Option<InlineUrlBoundary>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
@@ -99,6 +103,8 @@ pub(crate) struct ParserState<'a> {
     /// model nodes can hold `Cow::Borrowed` references into it without
     /// allocating per-token strings.
     pub(crate) input: &'a str,
+    pub(super) input_origin: Option<Rc<WindowOrigin<'a>>>,
+    pub(super) source_scope_offset: usize,
     /// Bump arena for transient strings that downstream inline parsing must
     /// borrow from with lifetime `'a`. Used for substitution buffers, escape
     /// unwrapping, and other grammar sites that historically built local
@@ -156,6 +162,9 @@ pub(crate) struct ParserState<'a> {
     /// Inline owners share this buffer, map their newly collected diagnostics,
     /// then reinsert them in their parent's coordinates.
     pub(crate) warnings: Rc<RefCell<WarningCollection>>,
+    /// Raw cooperative cells retain table escapes until syntax interpretation.
+    pub(crate) raw_cell_separator: Option<char>,
+    deferred_section_warnings: Vec<(usize, Warning)>,
     // Earlier warnings may use a different substring's coordinates.
     pub(super) warnings_start: usize,
     /// When true, inline parsing uses a reduced rule set that only matches formatting
@@ -278,6 +287,9 @@ pub(super) struct FootnoteTracker<'a> {
     // Ordinary documents need no shared counter allocation.
     shared_next_number: Option<Rc<Cell<u32>>>,
     named_footnotes: HashMap<&'a str, NamedFootnote<'a>>,
+    // Catalog names available to a host-owned inline edit. Authored definitions
+    // in that edit still parse normally and can replace a removed definition.
+    retained_names: Option<Rc<HashMap<&'a str, u32>>>,
     /// Footnote numbers whose stored entry has already had its location/content
     /// finalized to document-absolute coordinates (see [`Self::finalize`]). The first
     /// occurrence of a number wins, so a later bare reference of a named footnote does
@@ -292,6 +304,7 @@ impl<'a> FootnoteTracker<'a> {
             next_number: 1,
             shared_next_number: None,
             named_footnotes: HashMap::new(),
+            retained_names: None,
             location_finalized: HashSet::new(),
         }
     }
@@ -323,7 +336,18 @@ impl<'a> FootnoteTracker<'a> {
     pub(super) fn discard_definitions(&mut self) {
         self.footnotes.clear();
         self.named_footnotes.clear();
+        self.retained_names = None;
         self.location_finalized.clear();
+    }
+
+    /// Start a host-owned inline edit with retained definitions from its owner.
+    pub(super) fn seed(&mut self, definitions: &[FootnoteDefinition<'a>], next_number: u32) {
+        self.next_number = next_number;
+        let names: HashMap<_, _> = definitions
+            .iter()
+            .filter_map(|note| Some((note.id?, note.number)))
+            .collect();
+        self.retained_names = (!names.is_empty()).then(|| Rc::new(names));
     }
 
     /// Update the first definition after its locations become document-absolute.
@@ -371,6 +395,14 @@ impl<'a> FootnoteTracker<'a> {
             return false;
         };
         if content.is_empty() {
+            if let Some(number) = footnote
+                .id
+                .and_then(|id| self.retained_names.as_ref()?.get(id))
+            {
+                footnote.number = *number;
+                footnote.content = None;
+                return true;
+            }
             return false;
         }
         footnote.number = self.next_number();
@@ -396,6 +428,21 @@ impl<'a> FootnoteTracker<'a> {
 }
 
 impl<'a> ParserState<'a> {
+    pub(super) fn defer_section_warning(&mut self, start: usize, warning: Warning) {
+        self.deferred_section_warnings.push((start, warning));
+    }
+
+    pub(super) fn finish_section_warnings(&mut self, start: usize) {
+        while let Some(index) = self
+            .deferred_section_warnings
+            .iter()
+            .position(|(heading, _)| *heading == start)
+        {
+            let (_, warning) = self.deferred_section_warnings.swap_remove(index);
+            self.add_warning(warning);
+        }
+    }
+
     /// Finalize a footnote only after its locations are document-absolute.
     pub(crate) fn finalize_footnote(&self, footnote: &mut Footnote<'a>) {
         if self.scope == ParserScope::Document
@@ -417,7 +464,7 @@ impl<'a> ParserState<'a> {
     /// (attribute substitution, escape unwrapping, …) and need to hand the
     /// result to the inline parser with the outer `'a` lifetime so that the
     /// resulting `InlineNode`s can be returned.
-    pub(super) fn intern_str(&self, s: &str) -> &'a str {
+    pub(crate) fn intern_str(&self, s: &str) -> &'a str {
         self.arena.alloc_str(s)
     }
 
@@ -425,7 +472,7 @@ impl<'a> ParserState<'a> {
     /// into the arena; `Borrowed` values pass through unchanged (no copy)
     /// when their lifetime already outlives `'a`, which is the common case
     /// for substitution results that borrowed from the grammar input.
-    pub(super) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
+    pub(crate) fn intern_cow<'b>(&self, cow: Cow<'b, str>) -> &'a str
     where
         'b: 'a,
     {
@@ -788,6 +835,25 @@ impl<'a> ParserState<'a> {
     }
 
     pub(crate) fn new(input: &'a str, arena: &'a Bump, options: Rc<Options<'a>>) -> Self {
+        Self::with_input(input, Rc::new(LineMap::new(input)), None, arena, options)
+    }
+
+    #[cfg(test)]
+    pub(super) fn new_with_source(
+        view: SourceView<'a>,
+        arena: &'a Bump,
+        options: Rc<Options<'a>>,
+    ) -> Self {
+        Self::with_input(view.input, view.line_map, view.origin, arena, options)
+    }
+
+    fn with_input(
+        input: &'a str,
+        line_map: Rc<LineMap>,
+        input_origin: Option<Rc<WindowOrigin<'a>>>,
+        arena: &'a Bump,
+        options: Rc<Options<'a>>,
+    ) -> Self {
         let substitutions = SubstitutionPlan::for_mode(options.compatibility_mode);
         let mut state = Self {
             attribute_sources: Rc::default(),
@@ -797,15 +863,23 @@ impl<'a> ParserState<'a> {
             body_reftext_source: None,
             untitled_header_entries: None,
             document_attributes: Rc::new(options.document_attributes.clone()),
+            retained_inline: options
+                .extensions
+                .as_ref()
+                .filter(|r| !r.inline_macros().is_empty())
+                .map(|_| Rc::default()),
             options,
             nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            inline_candidates: None,
             last_url_boundary: None,
-            line_map: Rc::new(LineMap::new(input)),
+            line_map,
             input,
+            input_origin,
+            source_scope_offset: 0,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             xref_caption_label_snapshots: Rc::default(),
@@ -821,6 +895,8 @@ impl<'a> ParserState<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::default(),
+            raw_cell_separator: None,
+            deferred_section_warnings: Vec::new(),
             warnings_start: 0,
             quotes_only: false,
             attribute_passthroughs: Rc::default(),
@@ -848,6 +924,7 @@ impl<'a> ParserState<'a> {
             ..Options::default()
         });
         Self {
+            retained_inline: None,
             options: Rc::new(EMPTY_OPTIONS.clone()),
             attribute_sources: Rc::default(),
             reference_text_sources: Rc::default(),
@@ -861,9 +938,12 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            inline_candidates: None,
             last_url_boundary: None,
             line_map: Rc::new(LineMap::new(input)),
             input,
+            input_origin: None,
+            source_scope_offset: 0,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             xref_caption_label_snapshots: Rc::default(),
@@ -879,6 +959,8 @@ impl<'a> ParserState<'a> {
             source_ranges: Vec::new(),
             included_files: HashSet::new(),
             warnings: Rc::default(),
+            raw_cell_separator: None,
+            deferred_section_warnings: Vec::new(),
             warnings_start: 0,
             quotes_only: true,
             attribute_passthroughs: Rc::default(),
@@ -902,6 +984,7 @@ impl<'a> ParserState<'a> {
         inline_ctx: InlineContext,
     ) -> Self {
         Self {
+            retained_inline: parent.retained_inline.clone(),
             options: parent.options.clone(),
             attribute_sources: Rc::clone(&parent.attribute_sources),
             reference_text_sources: Rc::clone(&parent.reference_text_sources),
@@ -915,6 +998,7 @@ impl<'a> ParserState<'a> {
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
             late_attribute_sources: Vec::new(),
+            inline_candidates: None,
             last_url_boundary: None,
             line_map: if std::ptr::eq(input, parent.input) {
                 Rc::clone(&parent.line_map)
@@ -922,6 +1006,8 @@ impl<'a> ParserState<'a> {
                 Rc::new(LineMap::new(input))
             },
             input,
+            input_origin: None,
+            source_scope_offset: 0,
             arena: parent.arena,
             footnote_tracker: Rc::clone(&parent.footnote_tracker),
             xref_caption_label_snapshots: Rc::clone(&parent.xref_caption_label_snapshots),
@@ -940,6 +1026,8 @@ impl<'a> ParserState<'a> {
             included_files: HashSet::new(),
             // Each inline owner maps only the diagnostics appended in its scope.
             warnings: Rc::clone(&parent.warnings),
+            raw_cell_separator: None,
+            deferred_section_warnings: Vec::new(),
             warnings_start: parent.warnings.borrow().len(),
             quotes_only: parent.quotes_only,
             attribute_passthroughs: Rc::clone(&parent.attribute_passthroughs),
@@ -1026,6 +1114,86 @@ impl<'a> ParserState<'a> {
         }
     }
 
+    pub(super) fn set_source_view(&mut self, view: SourceView<'a>) {
+        self.input = view.input;
+        self.line_map = view.line_map;
+        self.input_origin = view.origin;
+    }
+
+    #[inline]
+    pub(super) fn source_view(&self) -> SourceView<'a> {
+        SourceView {
+            input: self.input,
+            line_map: Rc::clone(&self.line_map),
+            origin: self.input_origin.clone(),
+        }
+    }
+
+    #[inline]
+    pub(super) fn list_scope_offset(&self, offset: usize) -> usize {
+        self.input_origin
+            .as_deref()
+            .map_or(offset, |_| self.source_scope_offset)
+    }
+
+    #[inline]
+    pub(crate) fn input_offset(&self, offset: usize) -> usize {
+        self.input_origin
+            .as_ref()
+            .map_or(offset, |origin| origin.base + offset)
+    }
+
+    #[inline]
+    pub(crate) fn source_len(&self) -> usize {
+        source::len(self.input, self.input_origin.as_deref())
+    }
+
+    #[inline]
+    pub(super) fn source_slice(&self, range: Range<usize>) -> Option<&'a str> {
+        source::slice(self.input, self.input_origin.as_deref(), range)
+    }
+
+    #[inline]
+    pub(super) fn source_tail(&self, offset: usize) -> Option<&'a str> {
+        source::tail(self.input, self.input_origin.as_deref(), offset)
+    }
+
+    #[inline]
+    pub(super) fn source_byte(&self, offset: usize) -> Option<u8> {
+        source::byte(self.input, self.input_origin.as_deref(), offset)
+    }
+
+    #[inline]
+    pub(crate) fn source_position(&self, offset: usize) -> Position {
+        source::position(
+            self.input,
+            &self.line_map,
+            self.input_origin.as_deref(),
+            offset,
+        )
+    }
+
+    #[inline]
+    pub(super) fn source_snap(&self, offset: usize, direction: RoundDirection) -> usize {
+        source::snap(self.input, self.input_origin.as_deref(), offset, direction)
+    }
+
+    #[inline]
+    pub(super) fn source_step(&self, offset: usize, direction: RoundDirection) -> usize {
+        source::step(self.input, self.input_origin.as_deref(), offset, direction)
+    }
+
+    #[inline]
+    pub(crate) fn source_line(&self, range: &SourceRange, offset: usize) -> u32 {
+        source::source_line(
+            self.input,
+            &self.line_map,
+            self.input_origin.as_deref(),
+            range,
+            offset,
+        )
+    }
+
     /// Map a diagnostic's endpoints to their original source coordinates.
     pub(crate) fn create_error_source_location(&self, mut location: Location) -> SourceLocation {
         let Some(start_range) =
@@ -1038,20 +1206,18 @@ impl<'a> ParserState<'a> {
         };
         let end_probe = location
             .absolute_end
-            .min(self.input.len().saturating_sub(1))
+            .min(self.source_len().saturating_sub(1))
             .max(location.absolute_start);
         let end_range =
             SourceRange::find_containing(&self.source_ranges, end_probe).unwrap_or(start_range);
         let start = (
             start_range.source_offset(location.absolute_start),
-            self.line_map
-                .source_line(start_range, location.absolute_start),
+            self.source_line(start_range, location.absolute_start),
             start_range,
         );
         let end = (
             end_range.source_offset(location.absolute_end),
-            self.line_map
-                .source_line(end_range, location.absolute_end.min(self.input.len())),
+            self.source_line(end_range, location.absolute_end.min(self.source_len())),
             end_range,
         );
         super::source_remap::remap_endpoints(&mut location, start, end);
@@ -1078,21 +1244,32 @@ impl<'a> ParserState<'a> {
     /// semantics - it represents the last byte of the range, not one past it.
     /// When a byte lands mid-character, rounding backward includes that character.
     pub(crate) fn create_location(&self, start: usize, end: usize) -> Location {
-        use crate::grammar::utf8_utils::ensure_char_boundary;
-
-        // Clamp to input bounds first
-        let clamped_start = start.min(self.input.len());
-        let clamped_end = end.min(self.input.len());
-
-        // Ensure UTF-8 boundaries (both round backward for inclusive semantics)
-        let safe_start = ensure_char_boundary(self.input, clamped_start);
-        let safe_end = ensure_char_boundary(self.input, clamped_end);
-
-        // Ensure start <= end
-        let safe_end = safe_end.max(safe_start);
-
-        let start_pos = self.line_map.offset_to_position(safe_start, self.input);
-        let end_pos = self.line_map.offset_to_position(safe_end, self.input);
+        let (safe_start, safe_end, start_pos, end_pos) = if self.input_origin.is_none() {
+            // Complete inputs use the local map directly. Only resumable input
+            // needs document-wide coordinate lookup across retained windows.
+            let safe_start =
+                utf8_utils::snap_to_boundary(self.input, start, RoundDirection::Backward);
+            let safe_end = utf8_utils::snap_to_boundary(self.input, end, RoundDirection::Backward)
+                .max(safe_start);
+            (
+                safe_start,
+                safe_end,
+                self.line_map.offset_to_position(safe_start, self.input),
+                self.line_map.offset_to_position(safe_end, self.input),
+            )
+        } else {
+            let safe_start =
+                self.source_snap(start.min(self.source_len()), RoundDirection::Backward);
+            let safe_end = self
+                .source_snap(end.min(self.source_len()), RoundDirection::Backward)
+                .max(safe_start);
+            (
+                safe_start,
+                safe_end,
+                self.source_position(safe_start),
+                self.source_position(safe_end),
+            )
+        };
 
         // Positions carry no `file` at construction (the ASG omits the primary file).
         // The post-parse remap pass stamps the originating file on `include::`d nodes;
@@ -1117,8 +1294,6 @@ impl<'a> ParserState<'a> {
         end: usize,
         offset: usize,
     ) -> Location {
-        use crate::grammar::utf8_utils::safe_decrement_offset;
-
         let adjusted_start = start + offset;
         let adjusted_end = end + offset;
 
@@ -1126,7 +1301,7 @@ impl<'a> ParserState<'a> {
         let final_end = if adjusted_end == 0 {
             0
         } else {
-            safe_decrement_offset(self.input, adjusted_end)
+            self.source_step(adjusted_end, RoundDirection::Backward)
         };
 
         // create_location handles all UTF-8 boundary enforcement
@@ -1346,7 +1521,7 @@ mod tests {
             file_chain: vec!["included.adoc".to_string()],
             start_line: 1,
             source_start_offset: 0,
-            column_shift: 0,
+            column_shift: Some(0),
         });
 
         // Location inside the included range (second line of include: "inc_line2")
@@ -1388,7 +1563,7 @@ mod tests {
                 file_chain: vec!["outer.adoc".to_string(), "inner.adoc".to_string()],
                 start_line: 4,
                 source_start_offset: 0,
-                column_shift: shift,
+                column_shift: Some(shift),
             });
             let start = input.find("<<").ok_or("missing reference")?;
             let location = state.create_location(start, input.len() - 2);
@@ -1417,7 +1592,7 @@ mod tests {
                 file_chain: chain,
                 start_line: 4,
                 source_start_offset: 100,
-                column_shift: 0,
+                column_shift: Some(0),
             },
             SourceRange {
                 start_offset: 4,
@@ -1426,7 +1601,7 @@ mod tests {
                 file_chain: vec!["b.adoc".to_owned()],
                 start_line: 2,
                 source_start_offset: 0,
-                column_shift: 0,
+                column_shift: Some(0),
             },
         ];
         let source = state.create_error_source_location(state.create_location(0, 6));

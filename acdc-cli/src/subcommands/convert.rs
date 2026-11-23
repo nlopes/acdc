@@ -8,23 +8,23 @@ use std::{
     time::{Duration, Instant},
 };
 
+#[cfg(any(test, feature = "terminal"))]
+use acdc_converters_core::Converter as _;
 use acdc_converters_core::{
-    ConversionResult, Converter as _, Doctype, GeneratorMetadata, Options, OutputDestination,
+    ConversionResult, Doctype, GeneratorMetadata, Options, OutputDestination,
+    pipeline::{ExtensionCatalog, Extensions, Pipeline},
 };
-#[cfg(feature = "html")]
-use acdc_converters_html::HtmlVariant;
-#[cfg(feature = "markdown")]
-use acdc_converters_markdown::MarkdownVariant;
 #[cfg(feature = "pdf")]
 use acdc_converters_pdf::{PageOrientation, PageSize, PdfOptions, ThemeFormat};
 #[cfg(feature = "terminal")]
 use acdc_converters_terminal::Error as TerminalError;
 use acdc_parser::{
     AttributeValue, Options as ParserOptions, OptionsBuilder, ParseResult, SafeMode, Warning,
-    parse_file,
 };
 
-use clap::{ArgAction, Args as ClapArgs, ValueEnum};
+#[cfg(feature = "pdf")]
+use clap::ValueEnum;
+use clap::{ArgAction, Args as ClapArgs};
 use rayon::prelude::*;
 
 use crate::{
@@ -32,7 +32,14 @@ use crate::{
     timing::{TimingEntry, render_summary},
 };
 
+#[path = "convert/selection.rs"]
+mod selection;
+
 type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<'a>>;
+
+#[cfg(test)]
+#[path = "convert/pipeline_tests.rs"]
+mod pipeline_tests;
 
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
@@ -59,13 +66,17 @@ pub(crate) struct Args {
     #[arg(conflicts_with = "stdin", required_unless_present = "stdin")]
     files: Vec<PathBuf>,
 
+    /// Enable a compiled extension for each document (repeatable)
+    #[arg(long = "extension", value_name = "NAME", action = ArgAction::Append)]
+    extensions: Vec<String>,
+
     /// Backend output format
     ///
     /// `html` is the default when its feature is compiled in; otherwise
     /// `--backend` must be supplied explicitly.
-    #[arg(short = 'b', long, value_enum)]
+    #[arg(short = 'b', long, value_parser = selection::backend_parser())]
     #[cfg_attr(feature = "html", arg(default_value = "html"))]
-    backend: BackendArg,
+    backend: Box<str>,
 
     /// Backend output variant
     ///
@@ -77,9 +88,8 @@ pub(crate) struct Args {
     ///
     /// `--backend html5s` is preserved as a shortcut for
     /// `--backend html --variant semantic` and rejects `--variant`.
-    #[cfg(any(feature = "html", feature = "markdown"))]
-    #[arg(long, value_enum, verbatim_doc_comment)]
-    variant: Option<VariantArg>,
+    #[arg(long, value_parser = selection::variant_parser(), hide = selection::installed().is_ok_and(|registry| registry.variant_spellings().next().is_none()), verbatim_doc_comment)]
+    variant: Option<Box<str>>,
 
     /// Document type to use when converting document
     #[arg(short = 'd', long, value_parser = clap::value_parser!(Doctype), default_value = "article")]
@@ -275,13 +285,28 @@ impl Args {
 }
 
 pub(crate) fn run(args: &Args) -> MietteResult<()> {
-    #[cfg(any(feature = "html", feature = "markdown"))]
-    let backend = args.backend.resolve(args.variant)?;
-    #[cfg(not(any(feature = "html", feature = "markdown")))]
-    let backend = args.backend.resolve();
+    run_with_extensions(args, &ExtensionCatalog::default())
+}
+
+fn run_with_extensions(args: &Args, available: &ExtensionCatalog) -> MietteResult<()> {
+    run_with_registries(args, available, selection::installed()?)
+}
+
+fn run_with_registries(
+    args: &Args,
+    available: &ExtensionCatalog,
+    converters: &acdc_converters_core::registry::ConverterRegistry<selection::Runner>,
+) -> MietteResult<()> {
+    let backend = converters
+        .resolve(&args.backend, args.variant.as_deref())
+        .map_err(|e| error::display(&e))?;
+
+    let extensions = available
+        .select(&args.extensions)
+        .map_err(|error| error::display(&error))?;
 
     #[cfg(feature = "pdf")]
-    validate_pdf_options(args, backend)?;
+    validate_pdf_options(args, backend.pdf_options)?;
 
     let safe_mode = if args.safe {
         SafeMode::Safe
@@ -304,59 +329,7 @@ pub(crate) fn run(args: &Args) -> MietteResult<()> {
         .build();
 
     let document_attributes = build_parser_options(args, &options);
-    let summary = match backend {
-        #[cfg(feature = "html")]
-        Backend::Html(variant) => run_converter::<acdc_converters_html::Converter, _>(
-            args,
-            &options,
-            document_attributes,
-            move |opts, attrs| {
-                acdc_converters_html::Converter::new_with_variant(opts, attrs, variant)
-            },
-        ),
-
-        #[cfg(feature = "terminal")]
-        Backend::Terminal => {
-            // Terminal outputs to stdout with optional pager support
-            run_terminal_with_pager(args, &options, document_attributes)
-                .map_err(|e| error::display(&e))
-        }
-
-        #[cfg(feature = "manpage")]
-        Backend::Manpage => run_converter::<acdc_converters_manpage::Converter, _>(
-            args,
-            &options,
-            document_attributes,
-            acdc_converters_manpage::Converter::new,
-        ),
-
-        #[cfg(feature = "markdown")]
-        Backend::Markdown(variant) => run_converter::<acdc_converters_markdown::Converter, _>(
-            args,
-            &options,
-            document_attributes,
-            move |opts, attrs| {
-                acdc_converters_markdown::Converter::new(opts, attrs)
-                    .map(|converter| converter.with_variant(variant))
-            },
-        ),
-
-        #[cfg(feature = "pdf")]
-        Backend::Pdf => {
-            let pdf_options = pdf_options_from_args(args);
-            run_converter::<acdc_converters_pdf::Converter, _>(
-                args,
-                &options,
-                document_attributes,
-                move |opts, attrs| {
-                    acdc_converters_pdf::Converter::new(opts, attrs)
-                        .map(|converter| converter.with_pdf_options(pdf_options.clone()))
-                },
-            )
-        }
-    };
-
-    let summary = summary?;
+    let summary = (backend.run)(args, &options, document_attributes, extensions.as_ref())?;
 
     if args.fail_on_warnings && summary.warning_count > 0 {
         let count = summary.warning_count;
@@ -376,8 +349,8 @@ pub(crate) fn run(args: &Args) -> MietteResult<()> {
 }
 
 #[cfg(feature = "pdf")]
-fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
-    if matches!(backend, Backend::Pdf) {
+fn validate_pdf_options(args: &Args, accepts_pdf_options: bool) -> MietteResult<()> {
+    if accepts_pdf_options {
         if args.emit_typst.is_some() && !args.stdin && args.files.len() > 1 {
             return Err(miette::miette!(
                 "--emit-typst can only be used with a single input file"
@@ -402,10 +375,12 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
                 .filter(|path| *path != "-")
                 .is_some_and(|output| paths_match(path, Path::new(output)))
                 || args.out_file.is_none()
-                    && args
-                        .files
-                        .iter()
-                        .any(|file| paths_match(path, &file.with_extension("pdf")))
+                    && args.files.iter().any(|file| {
+                        paths_match(
+                            path,
+                            &acdc_converters_pdf::Converter::default_output_path(file),
+                        )
+                    })
             {
                 return Err(miette::miette!(
                     "--emit-theme-config must use a different path from PDF output"
@@ -505,6 +480,14 @@ fn selected_input_files(args: &Args) -> &[PathBuf] {
     }
 }
 
+fn configure_pipeline<P>(converter: P, extensions: Option<&Extensions>) -> Pipeline<P> {
+    let pipeline = Pipeline::new(converter);
+    match extensions {
+        Some(registrations) => pipeline.with_extensions(registrations.clone()),
+        None => pipeline,
+    }
+}
+
 /// Run a converter against the inputs. The factory supplies backend-specific
 /// settings, such as HTML or Markdown variants.
 #[tracing::instrument(skip(base_options, document_attributes, make_converter))]
@@ -512,6 +495,7 @@ fn run_converter<P, F>(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
+    extensions: Option<&Extensions>,
     make_converter: F,
 ) -> MietteResult<ConversionSummary>
 where
@@ -521,22 +505,14 @@ where
 {
     // Handle stdin separately (no parallelization)
     if args.stdin {
-        let converter = make_converter(base_options.clone(), document_attributes)
-            .map_err(|e| error::display(&e))?;
-        let parser_options = converter.parser_options();
+        let converter = configure_pipeline(
+            make_converter(base_options.clone(), document_attributes)
+                .map_err(|e| error::display(&e))?,
+            extensions,
+        );
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
-        let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
-            .map_err(|error| error::display(&error))?;
-        let mut summary = ConversionSummary {
-            warning_count: parsed.warnings().render(WarningRenderContext::new()),
-            ..ConversionSummary::default()
-        };
-        let result = converter
-            .convert(parsed.document(), None)
-            .map_err(|error| error::display(&error))?;
-        summary.record(result, WarningRenderContext::new());
-        return Ok(summary);
+        return convert_reader(&converter, &mut reader);
     }
 
     // When --out-file is specified with multiple files, only process the first file
@@ -545,12 +521,14 @@ where
 
     // Single-file fast path: skip rayon thread pool overhead entirely
     if let [file] = files_to_process {
-        let converter = make_converter(base_options.clone(), document_attributes)
-            .map_err(|e| error::display(&e))?;
-        let parser_options = converter.parser_options();
+        let converter = configure_pipeline(
+            make_converter(base_options.clone(), document_attributes)
+                .map_err(|e| error::display(&e))?,
+            extensions,
+        );
         let parse_result = if base_options.timings() {
             let now = Instant::now();
-            let result = parse_file(file, parser_options);
+            let result = converter.parse_file(file);
             let elapsed = now.elapsed();
             if result.is_ok() {
                 use acdc_converters_core::PrettyDuration;
@@ -558,7 +536,7 @@ where
             }
             result
         } else {
-            parse_file(file, parser_options)
+            converter.parse_file(file)
         };
         let mut parser_warning_count = 0;
         let parse_result = parse_result.map(|mut parsed| {
@@ -581,14 +559,38 @@ where
         base_options,
         &document_attributes,
         files_to_process,
+        extensions,
         make_converter,
     )
+}
+
+fn convert_reader<P>(
+    converter: &Pipeline<P>,
+    reader: impl std::io::Read,
+) -> MietteResult<ConversionSummary>
+where
+    P: acdc_converters_core::Converter<'static>,
+    P::Error: 'static,
+{
+    let parsed = converter
+        .parse_from_reader(reader)
+        .map_err(|error| error::display(&error))?;
+    let mut summary = ConversionSummary {
+        warning_count: parsed.warnings().render(WarningRenderContext::new()),
+        ..ConversionSummary::default()
+    };
+    let result = converter
+        .convert(parsed.document(), None)
+        .map_err(|error| error::display(&error))?;
+    summary.record(result, WarningRenderContext::new());
+    Ok(summary)
 }
 
 fn run_multi_file<P, F>(
     base_options: &Options,
     document_attributes: &OptionsBuilder<'static>,
     files_to_process: &[PathBuf],
+    extensions: Option<&Extensions>,
     make_converter: F,
 ) -> MietteResult<ConversionSummary>
 where
@@ -621,14 +623,16 @@ where
     let file_results: Vec<FileResult<P::Error>> = files_to_process
         .par_iter()
         .map(|file| -> Result<_, P::Error> {
-            let converter = make_converter(converter_options.clone(), document_attributes.clone())?;
-            let parser_options = converter.parser_options();
+            let converter = configure_pipeline(
+                make_converter(converter_options.clone(), document_attributes.clone())?,
+                extensions,
+            );
             let entry = if show_timings {
                 let now = Instant::now();
-                let result = parse_file(file, parser_options);
+                let result = converter.parse_file(file);
                 (file.clone(), result, Some(now.elapsed()))
             } else {
-                let result = parse_file(file, parser_options);
+                let result = converter.parse_file(file);
                 (file.clone(), result, None)
             };
             Ok(convert_parse_result(entry, &converter, show_timings))
@@ -650,7 +654,7 @@ where
 
 fn convert_parse_result<P>(
     (file, parse_result, parse_dur): TimedParseResult,
-    converter: &P,
+    converter: &Pipeline<P>,
     show_timings: bool,
 ) -> FileResult<P::Error>
 where
@@ -947,8 +951,10 @@ mod tests {
             "2",
             "document.adoc",
         ])?;
-        let backend = args.backend.resolve(args.variant)?;
-        assert!(validate_pdf_options(&args, backend).is_err());
+        let backend = selection::installed()?
+            .resolve(&args.backend, args.variant.as_deref())
+            .map_err(|e| error::display(&e))?;
+        assert!(validate_pdf_options(&args, backend.pdf_options).is_err());
         Ok(())
     }
 
@@ -965,17 +971,10 @@ mod tests {
             "first.adoc",
             "second.adoc",
         ])?;
-        let backend = {
-            #[cfg(any(feature = "html", feature = "markdown"))]
-            {
-                args.backend.resolve(args.variant)?
-            }
-            #[cfg(not(any(feature = "html", feature = "markdown")))]
-            {
-                args.backend.resolve()
-            }
-        };
-        let Err(error) = validate_pdf_options(&args, backend) else {
+        let backend = selection::installed()?
+            .resolve(&args.backend, args.variant.as_deref())
+            .map_err(|e| error::display(&e))?;
+        let Err(error) = validate_pdf_options(&args, backend.pdf_options) else {
             return Err(miette::miette!(
                 "--emit-typst unexpectedly accepted multiple inputs"
             ));
@@ -997,8 +996,10 @@ mod tests {
             "Architecture",
             "document.adoc",
         ])?;
-        let backend = args.backend.resolve(args.variant)?;
-        let Err(error) = validate_pdf_options(&args, backend) else {
+        let backend = selection::installed()?
+            .resolve(&args.backend, args.variant.as_deref())
+            .map_err(|e| error::display(&e))?;
+        let Err(error) = validate_pdf_options(&args, backend.pdf_options) else {
             return Err(miette::miette!(
                 "PDF-only option unexpectedly accepted by HTML"
             ));
@@ -1028,7 +1029,10 @@ mod tests {
     #[test]
     fn fail_on_warnings_counts_pager_diagnostics_after_all_inputs_finish()
     -> Result<(), Box<dyn Error>> {
-        use std::process::{Command, Stdio};
+        use std::{
+            fmt::Write as _,
+            process::{Command, Stdio},
+        };
 
         let directory = tempfile::tempdir()?;
         let warning = directory.path().join("warning.adoc");
@@ -1043,8 +1047,24 @@ mod tests {
             .safe_mode(SafeMode::Unsafe)
             .output_destination(OutputDestination::Stdout)
             .build();
-        let converter =
-            acdc_converters_terminal::Converter::new(options.clone(), ParserOptions::builder())?;
+        let converter = Pipeline::new(acdc_converters_terminal::Converter::new(
+            options.clone(),
+            ParserOptions::builder(),
+        )?)
+        .with_extensions(Extensions::default().with_postprocessor(
+            acdc_converters_core::postprocess::TextPostprocessor::new(
+                "terminal",
+                |text, ctx, _| {
+                    let stem = ctx
+                        .source_file
+                        .and_then(Path::file_stem)
+                        .and_then(|name| name.to_str())
+                        .ok_or("missing pager source")?;
+                    writeln!(text, "completed {stem}")?;
+                    Ok(())
+                },
+            ),
+        ));
         let pager = Command::new("/bin/sh")
             .args([
                 "-c",
@@ -1063,7 +1083,117 @@ mod tests {
         let rendered = std::fs::read_to_string(captured)?;
         assert!(rendered.contains("Retained body."));
         assert!(rendered.contains("Clean pager body."));
-        assert!(rendered.ends_with("pager finished\n"));
+        assert!(rendered.contains("completed warning"));
+        assert!(rendered.ends_with("completed clean\npager finished\n"));
+        Ok(())
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_rejects_a_selected_text_postprocessor_before_writing() -> Result<(), Box<dyn Error>> {
+        use acdc_converters_core::postprocess::{PostprocessError, TextPostprocessor};
+
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("existing.pdf");
+        std::fs::write(&path, b"previous output")?;
+        let options = Options::builder()
+            .output_destination(OutputDestination::File(path.clone()))
+            .build();
+        let extension = Extensions::default()
+            .with_postprocessor(TextPostprocessor::new("pdf", |_, _, _| {
+                Err("unexpected PDF callback".into())
+            }));
+        let pipeline = configure_pipeline(
+            acdc_converters_pdf::Converter::new(options, ParserOptions::builder())?,
+            Some(&extension),
+        );
+        let parsed = pipeline.parse("Body")?;
+        let Err(acdc_converters_pdf::Error::Io(error)) = pipeline.convert(parsed.document(), None)
+        else {
+            return Err("expected an unsupported PDF postprocessor".into());
+        };
+        assert!(matches!(
+            error
+                .get_ref()
+                .and_then(|source| source.downcast_ref::<PostprocessError>()),
+            Some(PostprocessError::Unsupported("pdf"))
+        ));
+        assert_eq!(std::fs::read(path)?, b"previous output");
+        Ok(())
+    }
+
+    #[cfg(feature = "html")]
+    #[test]
+    fn postprocessing_sees_one_complete_document_per_reader_and_batch_file() -> MietteResult<()> {
+        use acdc_converters_core::postprocess::TextPostprocessor;
+        use miette::IntoDiagnostic as _;
+
+        let dir = tempfile::tempdir().into_diagnostic()?;
+        let files = ["left.adoc", "right.adoc"].map(|name| dir.path().join(name));
+        for file in &files {
+            std::fs::write(file, "Document body.").into_diagnostic()?;
+        }
+        let extension = Extensions::default().with_postprocessor(TextPostprocessor::new(
+            "html",
+            |text, ctx, _| {
+                assert!(text.contains("Document body.") && text.trim_end().ends_with("</html>"));
+                let input = ctx
+                    .source_file
+                    .and_then(Path::file_stem)
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("stdin");
+                let output = ctx
+                    .output_path
+                    .and_then(Path::file_stem)
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("stdout");
+                *text = format!("{input} to {output}");
+                Ok(())
+            },
+        ));
+        let batch = run_multi_file(
+            &Options::default(),
+            &ParserOptions::builder(),
+            &files,
+            Some(&extension),
+            acdc_converters_html::Converter::new,
+        )?;
+        assert_eq!(batch.output_paths.len(), 2);
+        for name in ["left", "right"] {
+            let text = std::fs::read_to_string(dir.path().join(name).with_extension("html"))
+                .into_diagnostic()?;
+            assert_eq!(text, format!("{name} to {name}"));
+        }
+        let dst = dir.path().join("reader.html");
+        let reader = configure_pipeline(
+            acdc_converters_html::Converter::new(
+                Options::builder()
+                    .output_destination(OutputDestination::File(dst.clone()))
+                    .build(),
+                ParserOptions::builder(),
+            )
+            .into_diagnostic()?,
+            Some(&extension),
+        );
+        convert_reader(&reader, "Document body.".as_bytes())?;
+        assert_eq!(
+            std::fs::read_to_string(dst).into_diagnostic()?,
+            "stdin to reader"
+        );
+        let stdout = configure_pipeline(
+            acdc_converters_html::Converter::new(
+                Options::builder()
+                    .output_destination(OutputDestination::Stdout)
+                    .build(),
+                ParserOptions::builder(),
+            )
+            .into_diagnostic()?,
+            Some(&extension),
+        );
+        assert_eq!(
+            convert_reader(&stdout, "Document body.".as_bytes())?.warning_count,
+            0
+        );
         Ok(())
     }
 
@@ -1236,12 +1366,12 @@ fn spawn_pager(no_pager: bool) -> Option<std::process::Child> {
 #[cfg(feature = "terminal")]
 fn parse_terminal_file(
     base_options: &Options,
-    parser_options: &ParserOptions<'static>,
+    converter: &Pipeline<acdc_converters_terminal::Converter<'static>>,
     file: &Path,
 ) -> Result<ParseResult, acdc_parser::Error> {
     if base_options.timings() {
         let now = Instant::now();
-        let result = parse_file(file, parser_options);
+        let result = converter.parse_file(file);
         if result.is_ok() {
             use acdc_converters_core::PrettyDuration;
             eprintln!(
@@ -1252,7 +1382,7 @@ fn parse_terminal_file(
         }
         result
     } else {
-        parse_file(file, parser_options)
+        converter.parse_file(file)
     }
 }
 
@@ -1262,28 +1392,42 @@ fn run_terminal_stdin(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
+    extensions: Option<&Extensions>,
     output_to_file: bool,
+) -> Result<ConversionSummary, TerminalError> {
+    use acdc_converters_terminal::Converter;
+
+    let converter = configure_pipeline(
+        Converter::new(base_options.clone(), document_attributes)?,
+        extensions,
+    );
+    let stdin = std::io::stdin();
+    let mut reader = BufReader::new(stdin.lock());
+    run_terminal_reader(&converter, &mut reader, || {
+        spawn_pager(args.no_pager || output_to_file)
+    })
+}
+
+#[cfg(feature = "terminal")]
+fn run_terminal_reader(
+    converter: &Pipeline<acdc_converters_terminal::Converter<'static>>,
+    reader: impl std::io::Read,
+    pager: impl FnOnce() -> Option<std::process::Child>,
 ) -> Result<ConversionSummary, TerminalError> {
     use std::io::BufWriter;
 
-    use acdc_converters_terminal::Converter;
-
-    let converter = Converter::new(base_options.clone(), document_attributes)?;
-    let parser_options = converter.parser_options();
-    let stdin = std::io::stdin();
-    let mut reader = BufReader::new(stdin.lock());
-    let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
+    let parsed = converter.parse_from_reader(reader)?;
 
     // Try pager. The pager's screen takeover would visually bury anything we
     // eprintln! before it exits, so we drain warnings up front and print them
     // after pager.wait().
-    if let Some(mut pager) = spawn_pager(args.no_pager || output_to_file) {
+    if let Some(mut pager) = pager() {
         let mut parsed = parsed;
         let parser_warnings = parsed.take_warnings();
         let mut converter_warnings = Vec::new();
         if let Some(pager_stdin) = pager.stdin.take() {
             let writer = BufWriter::new(pager_stdin);
-            let source = converter.warning_source();
+            let source = converter.converter().warning_source();
             let mut diagnostics =
                 acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
             converter.write_to(parsed.document(), writer, None, None, &mut diagnostics)?;
@@ -1313,7 +1457,7 @@ fn run_terminal_stdin(
 /// so they remain visible.
 #[cfg(feature = "terminal")]
 fn run_terminal_through_pager(
-    converter: &acdc_converters_terminal::Converter<'static>,
+    converter: &Pipeline<acdc_converters_terminal::Converter<'static>>,
     base_options: &Options,
     files: &[PathBuf],
     mut pager: std::process::Child,
@@ -1324,13 +1468,19 @@ fn run_terminal_through_pager(
     let mut converter_warnings = Vec::new();
     if let Some(pager_stdin) = pager.stdin.take() {
         let mut writer = BufWriter::new(pager_stdin);
-        let source = converter.warning_source();
+        let source = converter.converter().warning_source();
         let mut diagnostics =
             acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
         for file in files {
-            let mut parsed = parse_terminal_file(base_options, converter.parser_options(), file)?;
+            let mut parsed = parse_terminal_file(base_options, converter, file)?;
             let parser_warnings = parsed.take_warnings();
-            converter.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
+            converter.write_to(
+                parsed.document(),
+                &mut writer,
+                Some(file),
+                None,
+                &mut diagnostics,
+            )?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
         }
@@ -1351,6 +1501,7 @@ fn run_terminal_with_pager(
     args: &Args,
     base_options: &Options,
     document_attributes: OptionsBuilder<'static>,
+    extensions: Option<&Extensions>,
 ) -> Result<ConversionSummary, TerminalError> {
     use acdc_converters_terminal::Converter;
 
@@ -1362,11 +1513,20 @@ fn run_terminal_with_pager(
     );
 
     if args.stdin {
-        return run_terminal_stdin(args, base_options, document_attributes, output_to_file);
+        return run_terminal_stdin(
+            args,
+            base_options,
+            document_attributes,
+            extensions,
+            output_to_file,
+        );
     }
 
     let files_to_process = selected_input_files(args);
-    let converter = Converter::new(base_options.clone(), document_attributes)?;
+    let converter = configure_pipeline(
+        Converter::new(base_options.clone(), document_attributes)?,
+        extensions,
+    );
     let mut summary = ConversionSummary::default();
 
     // Try to spawn pager.
@@ -1375,7 +1535,7 @@ fn run_terminal_with_pager(
             run_terminal_through_pager(&converter, base_options, files_to_process, pager)?;
     } else {
         for file in files_to_process {
-            let parsed = parse_terminal_file(base_options, converter.parser_options(), file)?;
+            let parsed = parse_terminal_file(base_options, &converter, file)?;
             summary.warning_count += parsed
                 .warnings()
                 .render(WarningRenderContext::new().with_file(file));
@@ -1387,30 +1547,6 @@ fn run_terminal_with_pager(
     }
 
     Ok(summary)
-}
-
-/// CLI-local enum mirroring the surface form of `--backend`.
-///
-/// Each arm is feature-gated so disabling a converter cleanly removes
-/// it from the parser, the resolver, and the dispatch match. `Html5s`
-/// stays in this enum (rather than being normalized to `Html`) so the
-/// resolver can reject the contradictory `--backend html5s --variant
-/// <anything>` form before lowering it to the typed [`Backend`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum BackendArg {
-    #[cfg(feature = "html")]
-    Html,
-    #[cfg(feature = "html")]
-    Html5s,
-    #[cfg(feature = "manpage")]
-    Manpage,
-    #[cfg(feature = "terminal")]
-    Terminal,
-    #[cfg(feature = "markdown")]
-    #[value(alias = "md")]
-    Markdown,
-    #[cfg(feature = "pdf")]
-    Pdf,
 }
 
 /// Input schema selected by `--theme-format`.
@@ -1473,166 +1609,6 @@ impl PdfPageLayoutArg {
         match self {
             Self::Portrait => PageOrientation::Portrait,
             Self::Landscape => PageOrientation::Landscape,
-        }
-    }
-}
-
-impl Display for BackendArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            #[cfg(feature = "html")]
-            Self::Html => f.write_str("html"),
-            #[cfg(feature = "html")]
-            Self::Html5s => f.write_str("html5s"),
-            #[cfg(feature = "manpage")]
-            Self::Manpage => f.write_str("manpage"),
-            #[cfg(feature = "terminal")]
-            Self::Terminal => f.write_str("terminal"),
-            #[cfg(feature = "markdown")]
-            Self::Markdown => f.write_str("markdown"),
-            #[cfg(feature = "pdf")]
-            Self::Pdf => f.write_str("pdf"),
-        }
-    }
-}
-
-/// CLI-local variant choice, parsed from `--variant` before being combined
-/// with the backend into the typed [`Backend`]. Each arm is feature-gated
-/// so disabling its converter removes its variant names from `--variant`
-/// entirely.
-#[cfg(any(feature = "html", feature = "markdown"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
-enum VariantArg {
-    #[cfg(feature = "html")]
-    Standard,
-    #[cfg(feature = "html")]
-    Semantic,
-    #[cfg(feature = "markdown")]
-    #[value(name = "commonmark", alias = "cm")]
-    CommonMark,
-    #[cfg(feature = "markdown")]
-    #[value(alias = "github", alias = "github-flavored")]
-    Gfm,
-}
-
-#[cfg(any(feature = "html", feature = "markdown"))]
-impl Display for VariantArg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            #[cfg(feature = "html")]
-            Self::Standard => f.write_str("standard"),
-            #[cfg(feature = "html")]
-            Self::Semantic => f.write_str("semantic"),
-            #[cfg(feature = "markdown")]
-            Self::CommonMark => f.write_str("commonmark"),
-            #[cfg(feature = "markdown")]
-            Self::Gfm => f.write_str("gfm"),
-        }
-    }
-}
-
-/// The user's `--backend`/`--variant` pair after validation, lowered into
-/// the strongly-typed combination accepted by the converter crates.
-///
-/// Each arm carries the converter's own variant payload (or no payload
-/// for backends that have none). This is the boundary at which CLI
-/// surface concerns (the `html5s` alias, cross-backend mismatches) are
-/// resolved — downstream code only ever sees a well-typed choice. New
-/// variant-bearing backends simply gain a payload here without
-/// rearranging anything else.
-#[derive(Debug, Clone, Copy)]
-enum Backend {
-    #[cfg(feature = "html")]
-    Html(HtmlVariant),
-    #[cfg(feature = "manpage")]
-    Manpage,
-    #[cfg(feature = "terminal")]
-    Terminal,
-    #[cfg(feature = "markdown")]
-    Markdown(MarkdownVariant),
-    #[cfg(feature = "pdf")]
-    Pdf,
-}
-
-/// Reject a `--variant` for a backend that doesn't define any. Interpolating
-/// the backend name keeps the error consistent across no-variant backends
-/// and means a future addition only needs one `resolve` arm, not a bespoke
-/// error string.
-#[cfg(all(
-    any(feature = "manpage", feature = "pdf", feature = "terminal"),
-    any(feature = "html", feature = "markdown")
-))]
-fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> MietteResult<()> {
-    if variant.is_some() {
-        return Err(miette::miette!(
-            "backend '{backend}' does not accept a variant"
-        ));
-    }
-    Ok(())
-}
-
-impl BackendArg {
-    /// Combine the CLI's separate `--backend` / `--variant` flags into a
-    /// fully-typed [`Backend`], rejecting any combination the
-    /// converter layer can't honor: the `html5s` alias paired with any
-    /// variant, a markdown variant on the html backend (or vice versa),
-    /// or any variant on a backend that has none.
-    #[cfg(any(feature = "html", feature = "markdown"))]
-    fn resolve(self, variant: Option<VariantArg>) -> MietteResult<Backend> {
-        match (self, variant) {
-            // The `html5s` alias is the surface spelling of "html + semantic".
-            // Pairing it with `--variant` would be self-contradicting.
-            #[cfg(feature = "html")]
-            (Self::Html5s, Some(_)) => Err(miette::miette!(
-                "--backend html5s does not accept a variant — it is a backwards-compat \
-                 alias for `--backend html --variant semantic`. Drop --variant, or use \
-                 `--backend html` with the variant of your choice."
-            )),
-            #[cfg(feature = "html")]
-            (Self::Html5s, None) | (Self::Html, Some(VariantArg::Semantic)) => {
-                Ok(Backend::Html(HtmlVariant::Semantic))
-            }
-            #[cfg(feature = "html")]
-            (Self::Html, None | Some(VariantArg::Standard)) => {
-                Ok(Backend::Html(HtmlVariant::Standard))
-            }
-            #[cfg(all(feature = "html", feature = "markdown"))]
-            (Self::Html, Some(v @ (VariantArg::CommonMark | VariantArg::Gfm))) => Err(
-                miette::miette!("variant '{v}' is not supported by backend 'html'"),
-            ),
-            #[cfg(feature = "markdown")]
-            (Self::Markdown, None) => Ok(Backend::Markdown(MarkdownVariant::default())),
-            #[cfg(feature = "markdown")]
-            (Self::Markdown, Some(VariantArg::CommonMark)) => {
-                Ok(Backend::Markdown(MarkdownVariant::CommonMark))
-            }
-            #[cfg(feature = "markdown")]
-            (Self::Markdown, Some(VariantArg::Gfm)) => {
-                Ok(Backend::Markdown(MarkdownVariant::GitHubFlavored))
-            }
-            #[cfg(all(feature = "markdown", feature = "html"))]
-            (Self::Markdown, Some(v @ (VariantArg::Standard | VariantArg::Semantic))) => Err(
-                miette::miette!("variant '{v}' is not supported by backend 'markdown'"),
-            ),
-            #[cfg(feature = "manpage")]
-            (Self::Manpage, v) => require_no_variant("manpage", v).map(|()| Backend::Manpage),
-            #[cfg(feature = "pdf")]
-            (Self::Pdf, v) => require_no_variant("pdf", v).map(|()| Backend::Pdf),
-            #[cfg(feature = "terminal")]
-            (Self::Terminal, v) => require_no_variant("terminal", v).map(|()| Backend::Terminal),
-        }
-    }
-
-    /// Resolve the backend when no compiled converter accepts `--variant`.
-    #[cfg(not(any(feature = "html", feature = "markdown")))]
-    fn resolve(self) -> Backend {
-        match self {
-            #[cfg(feature = "manpage")]
-            Self::Manpage => Backend::Manpage,
-            #[cfg(feature = "pdf")]
-            Self::Pdf => Backend::Pdf,
-            #[cfg(feature = "terminal")]
-            Self::Terminal => Backend::Terminal,
         }
     }
 }

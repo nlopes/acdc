@@ -5,11 +5,10 @@ use std::{
 };
 
 use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
-use acdc_converters_dev::fixtures::FixtureOutput;
+use acdc_converters_dev::fixtures::{FixtureOutput, parse_fixture_with_options};
 use acdc_converters_pdf::{Converter, PdfOptions};
 use acdc_parser::{
     DocumentAttributes, Options as ParserOptions, OptionsBuilder, SafeMode, ast::DocumentRef,
-    parse_file,
 };
 
 pub(crate) fn converter(builder: OptionsBuilder<'_>) -> Result<Converter<'_>, Box<dyn Error>> {
@@ -33,7 +32,7 @@ fn fixture_theme(doc: DocumentRef<'_>) -> Option<PathBuf> {
 
 pub(crate) fn render(path: &Path) -> Result<(FixtureOutput, String), Box<dyn Error>> {
     let bootstrap = converter(ParserOptions::builder())?;
-    let parsed = parse_file(path, bootstrap.parser_options())?;
+    let parsed = parse_fixture_with_options(path, bootstrap.parser_options())?;
     let doc = parsed.document();
     let directory = tempfile::tempdir()?;
     let typst_path = directory.path().join("fixture.typ");

@@ -46,6 +46,8 @@ use acdc_parser::{
 mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
+pub mod display;
+pub mod docinfo;
 mod doctype;
 mod document_attributes;
 pub mod icon;
@@ -54,6 +56,10 @@ mod inline_text;
 pub mod link;
 pub mod list;
 pub mod media;
+pub mod pipeline;
+pub mod postprocess;
+pub mod registry;
+pub mod render;
 pub mod section;
 pub mod substitutions;
 pub mod table;
@@ -63,7 +69,7 @@ pub mod visitor;
 mod warning;
 pub mod xref;
 
-pub use backend::BackendProfile;
+pub use backend::{BackendProfile, BackendTarget};
 pub use doctype::Doctype;
 pub use document_attributes::TraversalContext;
 pub use inline_text::InlineTextTransform;
@@ -624,6 +630,29 @@ pub trait Converter<'a>: Sized {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error>;
 
+    /// Whether this backend handles any selected hooks during its own traversal.
+    /// The pipeline preserves backend-specific destination routing for other selections.
+    fn uses_render_extensions(&self, _extensions: &pipeline::Extensions) -> bool {
+        false
+    }
+
+    /// Write with explicitly selected native rendering extensions.
+    /// Backends without rendering hooks retain their ordinary output.
+    ///
+    /// # Errors
+    /// Returns processor, conversion, or output errors.
+    fn write_to_with_extensions<W: std::io::Write>(
+        &self,
+        doc: DocumentRef<'_>,
+        writer: W,
+        source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        _extensions: &pipeline::Extensions,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Self::Error> {
+        self.write_to(doc, writer, source_file, output_path, diagnostics)
+    }
+
     /// Returns the converter's display name (e.g. `"html"`, `"html5s"`,
     /// `"manpage"`, `"markdown"`, `"terminal"`).
     ///
@@ -633,6 +662,19 @@ pub trait Converter<'a>: Sized {
     /// semantic mode).
     #[must_use]
     fn name(&self) -> &'static str;
+
+    /// Canonical family and active variant for output-hook selection.
+    /// Converters with variants override this independently of their display name.
+    #[must_use]
+    fn hook_target(&self) -> BackendTarget<'_> {
+        BackendTarget::family(self.name())
+    }
+
+    /// Whether completed output can be delivered to a selected UTF-8 text processor.
+    /// The default keeps opaque and binary converters on their own output paths.
+    fn supports_text_output(&self) -> bool {
+        false
+    }
 
     /// Tag used on warnings emitted by this converter.
     ///
@@ -682,47 +724,15 @@ pub trait Converter<'a>: Sized {
         source_file: Option<&Path>,
         output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {
-        let start = self.options().timings().then(Instant::now);
-
-        if let Some(f) = source_file.filter(|_| self.options().timings()) {
-            println!("Input file: {}", f.display());
-        }
-
-        tracing::debug!(
-            source = ?source_file,
-            destination = ?output_path,
-            "converting document to {}",
-            self.name()
-        );
-
-        if let Some(parent) = output_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let file = std::fs::File::create(output_path)?;
-        let source = self.warning_source();
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        self.write_to(
-            doc,
-            std::io::BufWriter::new(file),
-            source_file,
-            Some(output_path),
-            &mut diagnostics,
-        )?;
-
-        if let Some(start) = start {
-            let elapsed = start.elapsed();
-            tracing::debug!(
-                time = elapsed.format_human_with_precision(3),
-                source = ?source_file,
-                destination = ?output_path,
-                "time to convert document"
-            );
-            println!("  Time to convert document: {}", elapsed.format_human());
-        }
-
-        println!("Generated {} file: {}", self.name(), output_path.display());
-        Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
+        report_file_conversion(self, source_file, output_path, |diagnostics| {
+            self.write_to(
+                doc,
+                create_output(output_path)?,
+                source_file,
+                Some(output_path),
+                diagnostics,
+            )
+        })
     }
 
     /// Main entry point: route based on [`OutputDestination`].
@@ -753,6 +763,55 @@ pub trait Converter<'a>: Sized {
             }
         }
     }
+}
+
+fn create_output(path: &Path) -> std::io::Result<std::io::BufWriter<std::fs::File>> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    Ok(std::io::BufWriter::new(std::fs::File::create(path)?))
+}
+
+fn report_file_conversion<'a, C: Converter<'a>>(
+    converter: &C,
+    source_file: Option<&Path>,
+    output_path: &Path,
+    write: impl FnOnce(&mut Diagnostics<'_>) -> Result<(), C::Error>,
+) -> Result<ConversionResult, C::Error> {
+    let start = converter.options().timings().then(Instant::now);
+
+    if let Some(f) = source_file.filter(|_| converter.options().timings()) {
+        println!("Input file: {}", f.display());
+    }
+
+    tracing::debug!(
+        source = ?source_file,
+        destination = ?output_path,
+        "converting document to {}",
+        converter.name()
+    );
+
+    let source = converter.warning_source();
+    let mut warnings = Vec::new();
+    write(&mut Diagnostics::new(&source, &mut warnings))?;
+
+    if let Some(start) = start {
+        let elapsed = start.elapsed();
+        tracing::debug!(
+            time = elapsed.format_human_with_precision(3),
+            source = ?source_file,
+            destination = ?output_path,
+            "time to convert document"
+        );
+        println!("  Time to convert document: {}", elapsed.format_human());
+    }
+
+    println!(
+        "Generated {} file: {}",
+        converter.name(),
+        output_path.display()
+    );
+    Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
 }
 
 /// Walk the error source chain to find a parser error.

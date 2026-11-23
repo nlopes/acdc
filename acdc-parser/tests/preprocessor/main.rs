@@ -23,3 +23,4 @@ mod max_attribute_value_size;
 mod preprocessed_conditionals;
 mod recoverable_directives;
 mod retained_source;
+mod source_processors;

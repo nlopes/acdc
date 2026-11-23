@@ -3,7 +3,9 @@
 use std::{convert::Infallible, io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics, TraversalContext, document_attribute_text,
+    Diagnostics, TraversalContext,
+    docinfo::{DocinfoContext, DocinfoPosition, DocinfoProcessor},
+    document_attribute_text,
     substitutions::{TextBoundaries, effective_subs},
     visitor::BlockVisitor,
 };
@@ -276,6 +278,7 @@ pub(crate) struct HtmlVisitor<'a, 'd, W: Write> {
     pub(crate) captured_raw_fragments: Option<Vec<String>>,
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
+    pub(super) docinfo_processors: Vec<Box<DocinfoProcessor>>,
     pub(crate) text_boundaries: TextBoundaries,
 }
 
@@ -310,6 +313,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             captured_raw_fragments: None,
             inline_link: None,
             docinfo,
+            docinfo_processors: Vec::new(),
             text_boundaries: TextBoundaries::BOTH,
         }
     }
@@ -539,12 +543,33 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             webfonts: !(stylesheet_disabled
                 || !attrs.contains("webfonts") && attrs.is_explicit("webfonts")),
             icons_font: font_icons,
-            replay: cfg!(feature = "terminal"),
+            extension_script_hashes: self.converter.extension_script_hashes.clone(),
         }
+    }
+
+    fn write_docinfo(
+        &mut self,
+        position: DocinfoPosition,
+        doc: DocumentRef<'a>,
+        traversal: &TraversalContext<'a>,
+    ) -> Result<(), Error> {
+        for hook in &mut self.docinfo_processors {
+            let context = DocinfoContext {
+                backend: self.converter.variant.backend_profile().backend(),
+                position,
+                document: doc,
+                attributes: traversal,
+            };
+            if let Some(fragment) = hook(context, &mut self.diagnostics)? {
+                writeln!(self.writer, "{fragment}")?;
+            }
+        }
+        Ok(())
     }
 
     fn render_head(
         &mut self,
+        traversal: &TraversalContext<'a>,
         document: DocumentRef<'a>,
         stem: bool,
         font_icons: bool,
@@ -606,6 +631,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if let Some(content) = &self.docinfo.head {
             writeln!(self.writer, "{content}")?;
         }
+        self.write_docinfo(DocinfoPosition::Head, document, traversal)?;
         writeln!(self.writer, "</head>")?;
         Ok(())
     }
@@ -735,6 +761,19 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
         context: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
     ) -> Result<(), Self::Error> {
+        if self.render_extension(context, block)? {
+            return Ok(());
+        }
+        self.render_builtin_block(context, block)
+    }
+}
+
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(super) fn render_builtin_block(
+        &mut self,
+        context: &mut TraversalContext<'a>,
+        block: BlockRef<'a>,
+    ) -> Result<(), Error> {
         match block.kind() {
             BlockKind::Section(section) => self.visit_section_ref(context, section),
             BlockKind::Paragraph(paragraph) => self.visit_paragraph_ref(context, paragraph),
@@ -780,7 +819,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
             | BlockKind::Stem(_)
             | BlockKind::Table(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block_ref(context, block),
-            _ => {
+            BlockKind::Extension(_) | _ => {
                 self.warn_unhandled_block();
                 Ok(())
             }
@@ -791,7 +830,7 @@ impl<'a, W: Write> BlockVisitor<'a> for HtmlVisitor<'a, '_, W> {
 impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVisitor<'a, '_, W> {
     fn visit_document_start(
         &mut self,
-        _traversal: &mut TraversalContext<'a>,
+        traversal: &mut TraversalContext<'a>,
         doc: DocumentRef<'a>,
     ) -> Result<(), Self::Error> {
         let attributes = doc.attributes();
@@ -818,7 +857,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         }
 
         let resources = HeadResources::collect(doc);
-        self.render_head(doc, resources.stem, resources.font_icons)?;
+        self.render_head(traversal, doc, resources.stem, resources.font_icons)?;
 
         let converter_attributes =
             DocumentAttributesRef::from(self.converter.document_attributes());
@@ -873,6 +912,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
         if let Some(content) = &self.docinfo.header {
             writeln!(self.writer, "{content}")?;
         }
+        self.write_docinfo(DocinfoPosition::Header, doc, traversal)?;
         Ok(())
     }
 
@@ -917,6 +957,7 @@ impl<'a, W: Write> acdc_converters_core::visitor::DocumentVisitor<'a> for HtmlVi
             if let Some(content) = &self.docinfo.footer {
                 writeln!(self.writer, "{content}")?;
             }
+            self.write_docinfo(DocinfoPosition::Footer, doc, traversal)?;
         }
         Ok(())
     }

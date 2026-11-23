@@ -41,7 +41,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Diagnostics, Doctype, Options, TraversalContext,
+    BackendProfile, Diagnostics, Doctype, Options, TraversalContext, registry::ConverterSpec,
     section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
 };
 
@@ -49,6 +49,9 @@ use acdc_parser::{
     AttributeValue, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
     ast::{DocumentRef, TocEntryRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<()> = ConverterSpec::new("manpage", ());
 
 mod admonition;
 mod delimited;
@@ -119,14 +122,15 @@ impl Converter<'_> {
         _source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let document = doc;
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
         let attrs: DocumentAttributes<'_> = document.attributes().into();
 
         // This converter borrows from `doc`; its lifetime is independent of `self`.
         let converter: Converter<'_> = Converter {
             options: self.options.clone(),
             parser_options: ParserOptions::default().with_document_attributes(attrs),
-            references: Rc::new(doc.references().into()),
+            references: Rc::new(document.references().into()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
                 document
@@ -222,6 +226,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         self.write_document(doc, writer, source_file, diagnostics)
+    }
+
+    fn supports_text_output(&self) -> bool {
+        true
     }
 
     fn name(&self) -> &'static str {

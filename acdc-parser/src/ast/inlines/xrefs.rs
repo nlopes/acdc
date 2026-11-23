@@ -6,6 +6,14 @@ use crate::{
 use super::CrossReferenceRef;
 
 impl<'doc> CrossReferenceRef<'doc> {
+    /// A symbolic label that converter core must lower before rendering.
+    #[must_use]
+    pub fn generated_display(self) -> Option<crate::extensions::GeneratedDisplayRef<'doc>> {
+        self.node
+            .generated_display
+            .as_deref()
+            .map(crate::extensions::GeneratedDisplayRef::new)
+    }
     /// Effective target after local reference resolution.
     #[must_use]
     pub fn target(self) -> &'doc str {

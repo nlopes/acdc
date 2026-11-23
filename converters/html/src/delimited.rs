@@ -28,7 +28,7 @@ fn block_class(base: &str, attributes: Option<AttributesRef<'_>>) -> String {
 }
 
 /// Write the opening `<div>` tag with optional ID and class attributes.
-fn write_block_div_open<W: Write>(
+pub(crate) fn write_block_div_open<W: Write>(
     w: &mut W,
     attributes: Option<AttributesRef<'_>>,
     base_class: &str,
@@ -44,7 +44,7 @@ fn write_block_div_open<W: Write>(
 }
 
 /// Write an opening tag with optional ID and class for semantic mode.
-fn write_semantic_tag_open<W: Write>(
+pub(crate) fn write_semantic_tag_open<W: Write>(
     w: &mut W,
     tag: &str,
     attributes: Option<AttributesRef<'_>>,
@@ -473,7 +473,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             | BlockKind::Comment(_) => {
                 return Err(unsupported_delimited_block(block));
             }
-            _ => return Err(unsupported_delimited_block(block)),
+            BlockKind::Extension(_) | _ => return Err(unsupported_delimited_block(block)),
         }
         Ok(())
     }
@@ -1151,6 +1151,8 @@ mod tests {
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             generate_index: false,
+            extension_script_hashes: Vec::new(),
+            render_session: None,
             variant: crate::HtmlVariant::Standard,
         }
     }

@@ -106,9 +106,9 @@ pub(super) struct ResolvedContentAttribute<'a> {
 /// One slot of a confined attribute list, with byte offsets into its source.
 /// Also used by cross-references and links when their text holds attributes.
 #[derive(Debug)]
-pub(super) struct ScannedAttribute {
-    pub(super) name: Option<String>,
-    pub(super) value: String,
+pub(crate) struct ScannedAttribute {
+    pub(crate) name: Option<String>,
+    pub(crate) value: String,
     pub(super) quote: AttributeQuote,
     pub(super) value_start: usize,
     pub(super) value_end: usize,
@@ -116,6 +116,10 @@ pub(super) struct ScannedAttribute {
 }
 
 impl ScannedAttribute {
+    pub(crate) fn is_empty_slot(&self) -> bool {
+        self.quote == AttributeQuote::Unquoted && self.value.is_empty()
+    }
+
     pub(super) fn resolve_content<'a>(
         &self,
         text: &'a str,
@@ -172,7 +176,7 @@ impl ScannedAttribute {
             .map(crate::model::canonical_attribute_name)
     }
 
-    pub(super) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
+    pub(crate) fn is_ignored(&self, mode: CompatibilityMode) -> bool {
         mode == CompatibilityMode::Asciidoctor
             && self.name.is_some()
             && self.quote == AttributeQuote::Unquoted
@@ -480,4 +484,46 @@ pub(super) fn block_positional_style(
 
 pub(super) fn decode_anchor_shorthand_reftext(value: &str) -> String {
     decode_attribute_escapes(value, ']', CompatibilityMode::Draft, true).0
+}
+
+/// Copy selected named arguments to a new macro attribute list, preserving
+/// quote choice, escapes and authored references for native output processing.
+pub(crate) fn named_arguments_source(
+    source: &str,
+    mode: CompatibilityMode,
+    mut keep: impl FnMut(&str) -> bool,
+) -> String {
+    let mut result = String::new();
+    for slot in scan_block_attribute_list(source, mode, BlockAttributeMode::Macro) {
+        let Some(name) = slot.name.as_deref() else {
+            continue;
+        };
+        if !keep(name) || slot.is_ignored(mode) {
+            continue;
+        }
+        let quote = usize::from(slot.quote != AttributeQuote::Unquoted);
+        if !result.is_empty() {
+            result.push(',');
+        }
+        result.push_str(name);
+        result.push('=');
+        result.push_str(&source[slot.value_start - quote..slot.value_end + quote]);
+    }
+    result
+}
+
+pub(crate) fn extension_attributes(
+    state: &crate::grammar::ParserState<'_>,
+    arguments: &str,
+) -> Vec<ScannedAttribute> {
+    let expanded = expand_attribute_list(
+        arguments,
+        &state.document_attributes,
+        state.options.compatibility_mode,
+    );
+    scan_block_attribute_list(
+        &expanded.text,
+        state.options.compatibility_mode,
+        BlockAttributeMode::Macro,
+    )
 }

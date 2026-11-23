@@ -32,6 +32,7 @@ impl Error {
 
 pub(super) fn inline_construct(value: &InlineNode<'_>) -> &'static str {
     match value {
+        InlineNode::Extension(_) => "pending inline macro",
         InlineNode::PlainText(_) => "plain text",
         InlineNode::RawText(_) => "raw text",
         InlineNode::VerbatimText(_) => "verbatim text",
@@ -71,6 +72,7 @@ pub(super) fn inline_construct(value: &InlineNode<'_>) -> &'static str {
 pub(super) fn block_construct(value: &Block<'_>) -> &'static str {
     match value {
         Block::Paragraph(_) => "paragraph",
+        Block::Extension(_) => "pending extension block",
         Block::Section(_) => "section",
         Block::Comment(_) => "comment",
         Block::TableOfContents(_) => "table of contents",

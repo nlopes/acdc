@@ -396,6 +396,7 @@ type Key<'a> = ContentAttribute<'a>;
 #[derive(Clone)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
+    pub(crate) generated_display: Option<Box<crate::extensions::GeneratedDisplay<'a>>>,
     /// The effective link target. A resolved natural reference contains the
     /// matching ID; references to fully included sources contain the fragment ID.
     /// An empty local target addresses the document top. Unresolved references
@@ -439,6 +440,7 @@ impl<'a> CrossReference<'a> {
             document_reftext: None,
             resolve_natural_target: false,
             source_syntax: XrefSourceSyntax::Literal,
+            generated_display: None,
         }
     }
 
@@ -665,6 +667,7 @@ impl fmt::Debug for CrossReference<'_> {
 impl PartialEq for CrossReference<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.target == other.target
+            && self.generated_display == other.generated_display
             && self.target_is_local == other.target_is_local
             && self.text == other.text
             && self.location == other.location

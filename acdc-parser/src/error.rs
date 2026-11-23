@@ -8,6 +8,9 @@ use crate::{
 #[non_exhaustive]
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
+    #[error("Extension error: {1}, position: {0}")]
+    Extension(Box<SourceLocation>, String),
+
     #[error("Invalid include path: {1}, position: {0}")]
     InvalidIncludePath(Box<SourceLocation>, PathBuf),
 
@@ -121,7 +124,8 @@ impl Error {
     #[must_use]
     pub fn source_location(&self) -> Option<&SourceLocation> {
         match self {
-            Self::NestedSectionLevelMismatch(detail, ..)
+            Self::Extension(detail, ..)
+            | Self::NestedSectionLevelMismatch(detail, ..)
             | Self::MismatchedDelimiters(detail, ..)
             | Self::InvalidAdmonitionVariant(detail, ..)
             | Self::Parse(detail, ..)
@@ -227,7 +231,8 @@ impl Error {
             Self::IncludeExpansionTooLarge(..) => Some(
                 "Select less include text with lines=, tag=, or tags=. For trusted input, the caller can raise max_total_include_bytes (CLI: --max-total-include-bytes).",
             ),
-            Self::ParseGrammar(_)
+            Self::Extension(..)
+            | Self::ParseGrammar(_)
             | Self::Io(_)
             | Self::IncludeSource(_)
             | Self::ParseInt(_)

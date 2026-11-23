@@ -110,13 +110,35 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Diagnostics, Options, TraversalContext, WarningSource,
-    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
+    BackendProfile, BackendTarget, Diagnostics, Options, TraversalContext, WarningSource,
+    registry::{ConverterSpec, Variant},
+    section::contains_index_section,
+    visitor::DocumentVisitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     CaptionKind, Options as ParserOptions, ReferenceTarget,
     ast::{AttributesRef, CaptionRef, DocumentAttributesRef, DocumentRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<MarkdownVariant> =
+    ConverterSpec::new("markdown", MarkdownVariant::GitHubFlavored)
+        .with_aliases(&["md"])
+        .with_variants(&[
+            Variant {
+                name: "commonmark",
+                aliases: &["cm"],
+                shortcut: None,
+                value: MarkdownVariant::CommonMark,
+            },
+            Variant {
+                name: "gfm",
+                aliases: &["github", "github-flavored"],
+                shortcut: None,
+                value: MarkdownVariant::GitHubFlavored,
+            },
+        ]);
 
 mod error;
 mod index;
@@ -353,6 +375,8 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let doc = prepared.document();
         // This converter borrows from `doc`; its lifetime is independent of `self`.
         let converter = Converter {
             options: self.options.clone(),
@@ -376,6 +400,14 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         let mut traversal = TraversalContext::new(doc.attributes());
         let mut visitor = MarkdownVisitor::new(writer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, doc)
+    }
+
+    fn supports_text_output(&self) -> bool {
+        true
+    }
+
+    fn hook_target(&self) -> BackendTarget<'_> {
+        BackendTarget::variant("markdown", self.variant.as_str())
     }
 
     fn name(&self) -> &'static str {

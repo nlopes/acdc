@@ -5,7 +5,7 @@ use crate::{
     SourceLocation,
     grammar::{
         inline_preprocessor::{ProcessedKind, SourceMap},
-        utf8_utils,
+        utf8_utils::RoundDirection,
     },
     inline_preprocessing,
     model::{BibliographyLabel, SourceRange, Substitution, substitution::SubstitutionPlan},
@@ -30,10 +30,7 @@ pub(super) fn process_attribute_inlines<'a>(
     state: &mut ParserState<'a>,
     source: &ResolvedContentAttribute<'a>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let mut substitutions = SubstitutionPlan::default();
-    if state.options.compatibility_mode == crate::CompatibilityMode::Draft {
-        substitutions = substitutions.without(&Substitution::Attributes);
-    }
+    let substitutions = SubstitutionPlan::for_attribute(state.options.compatibility_mode);
     process_attribute_inlines_with_substitutions(
         state,
         source,
@@ -152,40 +149,24 @@ fn position_offset(input: &str, position: &Position) -> usize {
 /// This function converts those positions to the correct positions in the original document.
 fn adjust_peg_error_position(
     err: &peg::error::ParseError<peg::str::LineCol>,
-    parsed_text: &str,
     doc_start_offset: usize,
     state: &ParserState,
 ) -> Error {
-    // Calculate the byte offset within the substring where the error occurred
-    let mut byte_offset = 0;
-    for (line_idx, line) in parsed_text.lines().enumerate() {
-        if line_idx + 1 == err.location.line {
-            byte_offset += err.location.column - 1; // column is 1-indexed
-            break;
-        }
-        byte_offset += line.len() + 1; // +1 for newline
-    }
-
-    // Add the substring's starting position to get the absolute document position
-    let absolute_offset = doc_start_offset + byte_offset;
+    let absolute_offset = doc_start_offset + err.location.offset;
 
     // Resolve file and line from source ranges (for included content)
     let (file, position) =
         if let Some(range) = SourceRange::find_containing(&state.source_ranges, absolute_offset) {
-            let doc_position = state
-                .line_map
-                .offset_to_position(absolute_offset, state.input);
+            let doc_position = state.source_position(absolute_offset);
             (
                 range.file.clone(),
                 Position::new(
-                    state.line_map.source_line(range, absolute_offset),
+                    state.source_line(range, absolute_offset),
                     doc_position.column,
                 ),
             )
         } else {
-            let doc_position = state
-                .line_map
-                .offset_to_position(absolute_offset, state.input);
+            let doc_position = state.source_position(absolute_offset);
             (state.current_file.as_deref().cloned(), doc_position)
         };
 
@@ -205,22 +186,30 @@ fn adjust_peg_error_position(
 /// Records a content-recovery warning at the original source position.
 pub(super) fn adjust_and_log_parse_error(
     err: &peg::error::ParseError<peg::str::LineCol>,
-    parsed_text: &str,
     doc_start_offset: usize,
     state: &ParserState,
     context: &str,
 ) {
-    let adjusted_error = adjust_peg_error_position(err, parsed_text, doc_start_offset, state);
-    state.add_warning(crate::Warning::new(
-        crate::WarningKind::ContentRecovery {
-            message: format!("{context}: {adjusted_error}").into(),
-        },
-        adjusted_error.source_location().cloned(),
-    ));
+    state.add_warning(parse_error_warning(err, doc_start_offset, state, context));
     tracing::error!(
         doc_start_offset,
         "inline parse error; see returned diagnostics"
     );
+}
+
+pub(super) fn parse_error_warning(
+    err: &peg::error::ParseError<peg::str::LineCol>,
+    doc_start_offset: usize,
+    state: &ParserState,
+    context: &str,
+) -> crate::Warning {
+    let adjusted_error = adjust_peg_error_position(err, doc_start_offset, state);
+    crate::Warning::new(
+        crate::WarningKind::ContentRecovery {
+            message: format!("{context}: {adjusted_error}").into(),
+        },
+        adjusted_error.source_location().cloned(),
+    )
 }
 
 #[tracing::instrument(skip_all, fields(content_start = content_start, end = end, offset = offset))]
@@ -233,19 +222,13 @@ fn preprocess_inline_content<'a>(
     substitutions: SubstitutionPlan,
 ) -> Result<(Location, ProcessedContent<'a>), Error> {
     // First, ensure the end position is on a valid UTF-8 boundary
-    let mut adjusted_end = end + offset;
-    if adjusted_end > 0 && adjusted_end <= state.input.len() {
-        // If not on a boundary, round forward to the next valid boundary
-        while adjusted_end < state.input.len() && !state.input.is_char_boundary(adjusted_end) {
-            adjusted_end += 1;
-        }
-    }
+    let adjusted_end = state.source_snap(end + offset, RoundDirection::Forward);
 
     // We adjust the start and end positions to account for the content start offset
     let content_end_offset = if adjusted_end == 0 {
         0
     } else {
-        utf8_utils::safe_decrement_offset(state.input, adjusted_end)
+        state.source_step(adjusted_end, RoundDirection::Backward)
     };
     let location = state.create_location(content_start + offset, content_end_offset);
 
@@ -272,8 +255,7 @@ fn preprocess_inline_content<'a>(
 
     let mut inline_state = InlinePreprocessorParserState::new(
         content,
-        state.line_map.clone(),
-        state.input,
+        state.source_view(),
         state.arena,
         substitutions.enabled(&Substitution::Macros),
         substitutions.enabled(&Substitution::Attributes),
@@ -420,6 +402,11 @@ fn parse_processed_inlines<'a>(
             byte.is_ascii_alphanumeric() || matches!(byte, b' ' | b',' | b';' | b'.' | b'!' | b'?')
         })
         && !text.contains("...")
+        && !state
+            .options
+            .extensions
+            .as_ref()
+            .is_some_and(|r| r.custom_inlines().any(|(_, m)| text.contains(&m.prefix)))
     {
         return Ok(vec![InlineNode::PlainText(Plain {
             content: text,
@@ -462,7 +449,7 @@ fn parse_inline_syntax<'a>(
         if text.contains("[[") || text.contains("anchor:") {
             inline_peg_state.reference_text_context =
                 Some(Rc::new(super::reference_text::ReferenceTextContext {
-                    input: state.input,
+                    source: state.source_view(),
                     passthroughs: processed.passthroughs.clone().into(),
                 }));
         }
@@ -510,19 +497,11 @@ fn parse_inline_syntax<'a>(
         inline_peg_state.late_attribute_sources =
             late_attribute_sources(processed, state, location);
     }
-    let inlines = if verbatim {
-        inline_parser::verbatim_inlines(text, &mut inline_peg_state)
-    } else if !autolinks {
-        inline_parser::inlines_no_autolinks(text, &mut inline_peg_state)
-    } else if inline_peg_state.quotes_only {
-        inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
-    } else {
-        inline_parser::inlines(text, &mut inline_peg_state)
-    };
+    let inlines = parse_inline_nodes(&mut inline_peg_state, text, verbatim, autolinks);
 
     let warnings = inline_peg_state.take_inline_warnings();
     let mut inlines = inlines
-        .map_err(|error| adjust_peg_error_position(&error, text, location.absolute_start, state))?;
+        .map_err(|error| adjust_peg_error_position(&error, location.absolute_start, state))?;
 
     inlines = super::inlines::typography::resolve_plain(
         inlines,
@@ -558,6 +537,29 @@ fn parse_inline_syntax<'a>(
     Ok(inlines)
 }
 
+fn parse_inline_nodes<'a>(
+    inline_peg_state: &mut ParserState<'a>,
+    text: &'a str,
+    verbatim: bool,
+    autolinks: bool,
+) -> Result<Vec<InlineNode<'a>>, peg::error::ParseError<peg::str::LineCol>> {
+    if inline_peg_state.retained_inline.is_some() {
+        inline_peg_state.inline_candidates =
+            super::inlines::extensions::candidates(inline_peg_state);
+    }
+    if inline_peg_state.inline_candidates.is_some() {
+        inline_parser::extension_inlines(text, inline_peg_state, verbatim)
+    } else if verbatim {
+        inline_parser::verbatim_inlines(text, inline_peg_state)
+    } else if !autolinks {
+        inline_parser::inlines_no_autolinks(text, inline_peg_state)
+    } else if inline_peg_state.quotes_only {
+        inline_parser::quotes_only_inlines(text, inline_peg_state)
+    } else {
+        inline_parser::inlines(text, inline_peg_state)
+    }
+}
+
 fn late_attribute_sources<'a>(
     processed: &ProcessedContent<'a>,
     state: &ParserState<'a>,
@@ -579,11 +581,11 @@ fn late_attribute_sources<'a>(
                 && pass.location.absolute_start == replacement.absolute_start
                 && pass.location.absolute_end == replacement.absolute_end
         });
-        if replacement.kind.is_attribute() || attribute_passthrough {
-            sources.push((
-                expanded..expanded + replacement.byte_len,
-                &state.input[replacement.absolute_start..replacement.absolute_end],
-            ));
+        if (replacement.kind.is_attribute() || attribute_passthrough)
+            && let Some(source) =
+                state.source_slice(replacement.absolute_start..replacement.absolute_end)
+        {
+            sources.push((expanded..expanded + replacement.byte_len, source));
         }
         expanded += replacement.byte_len;
         original = replacement.absolute_end;
@@ -620,7 +622,7 @@ fn parse_bibliography_label<'a>(
     let Some(start) = location.absolute_start.checked_sub(1) else {
         return Ok(None);
     };
-    let Some(anchor) = state.input.get(start..location.absolute_end + 2) else {
+    let Some(anchor) = state.source_slice(start..location.absolute_end + 2) else {
         return Ok(None);
     };
     let Some(body) = anchor
@@ -664,8 +666,7 @@ fn parse_bibliography_label<'a>(
         }
         state.add_warning(warning);
     }
-    let content =
-        parsed.map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    let content = parsed.map_err(|error| adjust_peg_error_position(&error, offset, state))?;
     let mut content = super::inlines::typography::resolve_plain(content, &child, false);
     for inline in &mut content {
         super::location_walk::walk_inline_locations_mut(inline, &mut |location| {

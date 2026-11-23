@@ -20,10 +20,7 @@ use crate::{
                 IndexTermForm, IndexTermSegment, expand_escaped_index_terms, parse_index_term,
                 trimmed_index_term_segment,
             },
-            links::{
-                LinkContent, ProcessedLinkContent, force_local_file_xref, process_link_content,
-                xref_macro_text,
-            },
+            links::{LinkContent, ProcessedLinkContent, process_link_content, xref_macro_text},
             recognition::{
                 autolink_start, byte_came_from_attribute, catalog_escape_allowed,
                 catalog_macro_allowed, check_code_opening_boundary, code_followed_by_attribute,
@@ -80,6 +77,26 @@ peg::parser! {
             record_url_boundary(state, &node, span_end, &Substitution::Quotes);
             node
         }
+
+        pub(in crate::grammar) rule extension_inlines(verbatim: bool) -> Vec<InlineNode<'input>>
+        = check_attribute_profiles() chunks:(profiled_attribute() / nodes:registered_inline(verbatim)+ { nodes })+ {? expand_escaped_index_terms(chunks.into_iter().flatten().collect(), state) }
+        / nodes:registered_inline(verbatim)+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule registered_inline(verbatim: bool) -> InlineNode<'input>
+        = node:extension_inline() {
+            record_url_boundary(state, &node, span_end, &Substitution::Quotes);
+            node
+        }
+        / start:position!() node:(({? verbatim.then_some(()).ok_or("prose") }) n:verbatim_inline() { n } / normal_inline()) clipped:clip_extension(start, node) {
+            record_url_boundary(state, &clipped, span_end, &Substitution::Quotes);
+            clipped
+        }
+
+        rule extension_inline() -> InlineNode<'input>
+        = #{|_, pos| crate::grammar::inlines::extensions::recognize(state, pos)}
+
+        rule clip_extension(start: usize, node: InlineNode<'input>) -> InlineNode<'input>
+        = #{|_, end| crate::grammar::inlines::extensions::clip(state, start, end, node)}
 
         rule check_passthrough_attributes()
         = {? (state.options.compatibility_mode == crate::CompatibilityMode::Asciidoctor && !state.attribute_passthroughs.is_empty()).then_some(()).ok_or("literal passthrough prefix") }
@@ -1316,8 +1333,7 @@ peg::parser! {
           check_colon_link_label(start) {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 target,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(target, &state.document_attributes, &inline_state)
@@ -1386,9 +1402,6 @@ peg::parser! {
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
             }
-            if state.options.force_local_file_xrefs() {
-                force_local_file_xref(&mut xref);
-            }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
@@ -1452,9 +1465,6 @@ peg::parser! {
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             if !state.options.compatibility_mode.legacy_controls_enabled(&state.document_attributes) {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
-            }
-            if state.options.force_local_file_xrefs() {
-                force_local_file_xref(&mut xref);
             }
             xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
             // A per-reference `xrefstyle=` wins over the document's, including
@@ -2486,8 +2496,7 @@ peg::parser! {
             // Inline text was already processed; attribute values must not introduce passthroughs.
             let inline_state = InlinePreprocessorParserState::new(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
                 matches!(state.scope, ParserScope::Document),
                 true,
@@ -2509,8 +2518,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
                 matches!(state.scope, ParserScope::Document),
                 true,
@@ -2550,8 +2558,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
                 matches!(state.scope, ParserScope::Document),
                 true,
@@ -2610,8 +2617,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
@@ -2631,8 +2637,7 @@ peg::parser! {
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
-                state.line_map.clone(),
-                state.input,
+                state.source_view(),
                 state.arena,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)

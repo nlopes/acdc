@@ -1,8 +1,49 @@
-//! Backend profiles and their intrinsic document attributes.
+//! Backend hook targets and intrinsic document attributes.
 
 use acdc_parser::AttributeValue;
 
 use crate::Doctype;
+
+/// Canonical converter family and optional variant used to select output hooks.
+/// Family registrations apply to every variant. Variant registrations require
+/// both names to match. Use registration names such as `html` and `semantic`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BackendTarget<'a> {
+    /// Canonical family name, such as `html` or `markdown`.
+    pub family: &'a str,
+    /// Canonical variant name, such as `semantic` or `commonmark`.
+    pub variant: Option<&'a str>,
+}
+
+impl<'a> BackendTarget<'a> {
+    /// Select the whole family, or identify a converter without variants.
+    #[must_use]
+    pub const fn family(family: &'a str) -> Self {
+        Self {
+            family,
+            variant: None,
+        }
+    }
+
+    /// Select or identify one variant within a family.
+    #[must_use]
+    pub const fn variant(family: &'a str, variant: &'a str) -> Self {
+        Self {
+            family,
+            variant: Some(variant),
+        }
+    }
+
+    pub(crate) fn matches(self, active: BackendTarget<'_>) -> bool {
+        self.family == active.family && (self.variant.is_none() || self.variant == active.variant)
+    }
+}
+
+impl<'a, S: AsRef<str> + ?Sized> From<&'a S> for BackendTarget<'a> {
+    fn from(family: &'a S) -> Self {
+        Self::family(family.as_ref())
+    }
+}
 
 /// Intrinsic properties of a converter backend.
 ///

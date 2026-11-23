@@ -298,7 +298,7 @@ impl<'a, W: Write> BlockVisitor<'a> for TerminalVisitor<'a, '_, W> {
             | BlockKind::Table(_)
             | BlockKind::Stem(_)
             | BlockKind::DelimitedComment(_) => self.render_delimited_block(traversal, block),
-            _ => {
+            BlockKind::Extension(_) | _ => {
                 self.visit_unhandled_block(traversal, block);
                 Ok(())
             }

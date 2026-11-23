@@ -1697,6 +1697,222 @@ Add new modules to the appropriate suite's `main.rs`. Allocation measurements,
 tracing tests, fixture support tests, and custom harnesses remain separate targets
 to preserve their isolation. The fixture runner's case names are unchanged.
 
+## Registered extensions
+
+Applications can register source preprocessors, include processors, block macros, and tree processors with
+`extensions::Registry`. Each parse creates fresh processor instances. Block-macro
+callbacks run once when their block commits. `MacroExecutionContext::set_attribute`
+and `unset_attribute` request changes before subsequent conditionals and includes,
+under normal document assignment policy. The invocation retains the original
+source location and a read-only attribute snapshot. Both compatibility modes
+support registrations. Factories are shared; handlers may use document-local,
+non-`Send` state. Completed callback effects remain if later parsing fails.
+In unsafe mode a block macro can read its relative local target with
+`MacroExecutionContext::read_local_target`. The caller's include loader supplies
+the bytes, decoded as UTF-8 or using a Unicode byte order mark. These reads share the include byte budget. Use `warn` to
+report a recoverable problem at the invocation.
+
+Use `RegistryBuilder::register_reference_normalizer` to rewrite the destination of
+a cross-reference before local or external resolution. Both xref forms pass the
+restored target and original source location to each normalizer in registration order.
+Return `Ok(None)` to pass the target through, `Ok(Some(target))` to replace it,
+or an error message to stop parsing at the reference. URI schemes and network paths
+bypass normalization. The built-in `with_force_local_file_xrefs()` option applies
+to the resulting target. Explicit labels keep their authored text and formatting.
+
+A block macro can return an ordinary block directly. For example, a handler for
+`logo::acme[]` can return `Ok(BlockBuilder::image("acme.svg").into())`.
+The image inherits the invocation's title, ID, roles, and source location.
+Tree processors see the image as soon as they run. Use
+`BlockMacroOutput::Deferred` when construction needs the rest of the document.
+
+Register a raw block style with `RegistryBuilder::register_block_style` and
+`BlockStyle::raw`. Select `RawBlockContext::Listing`, `RawBlockContext::Literal`,
+or both. The handler receives `RawBlockInput` after include and conditional processing,
+with whitespace and the final newline before the closing delimiter preserved.
+It can read the original title, body and block locations, source-position
+attributes, and the substitutions declared for the body. Positional arguments
+can be named with `with_positional_attributes`. Named values take precedence,
+and `with_defaults` fills missing values.
+
+Return `Ok(Some(builder))` to emit an ordinary block or `Ok(None)` to consume
+the invocation. The output inherits the title, ID, and roles. An image also
+inherits a named `alt` value, including `alt=""`, ahead of builder defaults. The input style
+has been consumed. Other delimiters keep their ordinary behavior.
+
+Both raw and compound handlers can call `input.warn(message)` and return their
+usual output. The warning points to the start of the styled block in its
+original file. Return `Err(message)` to stop parsing there.
+
+Use `BlockStyle::compound` for a listing or literal style that can choose how
+to handle its body. Returning `BlockStyleOutput::ParseChildren` creates an open
+block with the invocation's title and metadata. Once the handler returns,
+the parser reads the preprocessed body as AsciiDoc blocks and invokes nested
+handlers in source order. Preprocessing runs once. A child macro can affect
+directives the reader encounters after the enclosing body. Returning
+`BlockStyleOutput::Block(builder)` or `BlockStyleOutput::None` skips child parsing.
+Up to eight requested child parses can be active at once (`MAX_STYLE_NESTING`).
+A further request reports an extension error at that invocation.
+
+`Registry::parse`, `parse_file`, and `parse_from_reader` share these stages.
+Reader input preserves ordinary reader attributes and include-origin policy.
+`RegistryBuilder::extend` composes immutable registries in order and rejects
+duplicate registrations within each family before changing the builder.
+
+Use `register_preprocessor` to edit normalized entry text before the reader
+interprets directives. Each processor sees the previous processor's edits.
+Return an empty vector to keep the borrowed source. Removed lines retain the
+original positions of subsequent text. Replacement text points to the start
+of the edited line.
+
+Use `register_include_processor` to supply bytes for a resolved file or HTTP(S)
+target. The callback can read the document attributes at the directive and
+report a located warning. The first processor returning a source handles the
+directive. If all decline, the reader uses the configured loader. Line and tag
+selection, encoding, nesting, indentation, and byte limits apply to virtual
+sources. Secure mode, disabled loading, depth limits, and URI permissions
+are checked before dispatch. A system-local target may be entirely virtual.
+For custom loaders and URI targets the loader must successfully open the
+target before any processor can supply replacement bytes.
+
+Nested source ordering supports compound bodies and pipe/exclamation-delimited
+AsciiDoc cells. CSV, TSV, DSV, and custom table separators retain buffered
+preprocessing. Unlike Asciidoctor 2.0.26, callbacks in supported nested bodies can
+affect later directives in the same body. Cell attributes follow the normal
+inheritance policy and stay local. Table-cell duplication repeats handlers over
+the selected source and gives each deferred request a distinct identity.
+A table layout that discards a cell after its callback ran returns a located
+extension error, since those effects cannot be rolled back.
+
+Use `query()` to inspect typed block, content, attribute, and caption views.
+Traversal visits parents before children, including list attachments, compound
+blocks, and AsciiDoc cell documents. `containing_section()` returns the nearest
+section in the same document scope; a cell starts a new scope.
+`BlockView::title_source()` exposes raw title input after document preprocessing,
+inline substitution order, original location, and attributes captured before
+title interpretation. It preserves titles that expand to empty content and the
+quote-dependent policy of attribute titles. `caption()` reads the host's resolved
+prefix and ordinal. Ordinary parser entry points retain no extension title snapshots.
+Queries and borrowed title views end before an edit or ID assignment; query again
+afterward to observe the repaired tree. Copied handle selections remain snapshots.
+Document-local `TargetId` handles survive insertions and ordinary-block replacement;
+removed handles cannot bind to another block. `DocumentEditor::replace_block()`
+retains the target's handle, location, title, ID, roles, options, and reftext unless
+overridden. Descendant handles and pending requests are removed. Sections have a
+separate `remove_section()` operation. Tree processors run once in registration
+order and observe earlier edits; copied selections and generated summaries remain
+snapshots and are not rerun.
+
+`MacroInvocation::source` retains the accepted call from its name through the
+closing bracket, before target expansion and argument interpretation. Table-cell
+escapes follow the ordinary cell rules. It preserves arguments, quoting, spacing,
+and empty slots; outer block metadata and trailing content are excluded. Callbacks and deferred processors can return
+this source as literal text without reconstructing the call from resolved values.
+
+`BlockBuilder` builds paragraphs, unordered lists, images, listings, and literal
+blocks. Body strings remain literal and converters apply ordinary output escaping.
+`with_attributes()` interprets one attribute-list line, without square brackets,
+using the parser's rules and the target's source-position document attributes.
+`with_default_attributes()` supplies weak defaults; inherited metadata then explicit
+lists take precedence. Positional/named attributes, quote-dependent substitutions,
+empty values, titles, roles, options, and content-bearing attributes use ordinary
+normalization. `without_attribute()` removes selected inherited/default metadata;
+`with_id()` supplies the final explicit ID. Image replacements retain existing alt
+content unless explicitly overridden. No constructor runs block grammar or callbacks.
+`replace_source()` explicitly interprets a paragraph or listing/literal body with
+its captured attributes and `subs=` settings. Raw source, parsed inline content,
+and rendered output are separate views; extensions need no arena allocation or
+whole-document reparse.
+
+Use `DocumentEditor::capture()` to freeze a target's title, including its raw
+source, substitution order, formatting, and source-position attributes. A
+`CapturedTarget` belongs to one working document and remains a snapshot across
+later edits. Its `display()` method accepts `DisplayIntent::Caption`, `Title`, or
+`CaptionAndTitle` and returns an `InlineSpec` with an opaque `DisplayRequest`.
+The host validates the captured document identity when applying an edit.
+
+Compose generated content with `InlineSpec::Text`, `LineBreak`, `Display`, and
+`Sequence`, then pass it to `BlockBuilder::paragraph_inlines()` or
+`unordered_list()`. Strings convert to literal text. Arrays and vectors of
+`InlineSpec`, and `FromIterator` over specifications, compose sequences. Nested
+and empty sequences add no spacing or breaks. A sequence supplied as one list
+item remains one item, including when empty. `InlineSpec::LineBreak` inserts an explicit hard line break. Construction
+never interprets text as markup or exposes document storage.
+
+`CaptionAndTitle` places the captured title outside the caption link. Explicit
+display labels take precedence over `reftext`, including an explicitly empty
+caption.
+Choose `Title` when a target has no caption; an explicit caption request without
+a prefix uses `[id]` rather than the target's generic reference label.
+
+`DocumentEditor::warn()` records a recoverable warning at a live target's source
+location. Repeated messages at the same location are coalesced; diagnostics
+survive later edits and target removal. Foreign or removed targets are rejected.
+
+`finish()` binds requests to surviving handles and their final caption data,
+following renamed output IDs without repeating selection or callbacks. A removed
+handle adds a located unresolved-reference warning and retains a missing target,
+even if another block reuses its old ID. Captions keep their final period and
+omit trailing whitespace in generated links. Captured title inline nodes retain
+their normal formatting and output-stage substitutions; caption resolution does
+not render titles or retain backend strings.
+
+Converter core's `display::prepare()` creates a fresh conversion context whose
+`document()` contains ordinary cross-references with explicit inline labels.
+The standard converters call it automatically. Custom converters should keep the
+returned context alive for traversal. Repeated conversions leave the shared
+`ParseResult` unchanged. Documents without display requests use the borrowed path.
+Native JSON identifies symbolic labels with `generated_display`; checked ASG
+export rejects them in both profiles until prepared through a conversion context.
+
+Direct comparisons with Asciidoctor 2.0.26 and `asciidoctor-lists` confirm explicit
+labels overriding `reftext` and caption punctuation. acdc intentionally freezes
+title attributes at selection and defers captions: the reference extension can
+reevaluate raw titles with later attributes, escape reused rendered titles, and
+retain captions captured before a later edit. These timing behaviors are not
+compatibility claims. User-defined late inline processors remain a later stage.
+
+Successful edits repair references, TOC, scoped footnotes, and unresolved/duplicate
+ID warnings before returning. Other parse and construction warnings retain their
+order; repair refreshes only reference-related warnings. Validation or repair
+errors leave the visible tree, handles, assigned numbers, and diagnostics unchanged. Explicit duplicate IDs are
+rejected; duplicate IDs inside interpreted inline content produce warnings.
+Surviving section/caption numbers and custom, formatted, or disabled captions stay
+unchanged. New numbered captions advance beyond the highest original or generated
+ordinal, including removed figures, using the target's source-position caption label.
+Numeric `<kind>-number` seeds at that position provide a lower bound; a later reset
+cannot reuse an assigned ordinal. Counter expressions in literal builder bodies
+remain literal. Use `with_caption_kind(CaptionKind::Figure)` for textual diagrams. A title that
+expands to empty content still receives a number. Direct HTML comparisons with
+Asciidoctor 2.0.26 confirm surviving numbers after section removal. Its tree-processor
+image helper can reuse lower numbers after body counter state is restored; acdc's
+monotonic allocation is an intentional policy that avoids those collisions.
+
+ID assignment preserves authored IDs, avoids registered targets and unresolved
+reference names, and reuses assigned IDs. Identical conversions produce the same
+IDs regardless of request order; IDs need not remain stable across document edits.
+
+The working `ExtensionParseResult` retains processors, handles, and pending
+requests. `normalize()` repeats catalog repair idempotently without callbacks or
+renumbering. `finish()` consumes the working session and returns the ordinary
+`ParseResult` used for conversion or serialization; unresolved requests return a
+located error. Checked ASG export also rejects pending blocks in either profile.
+Earlier successful edits and external callback effects remain if a later processor
+fails; a processor sequence is not a transaction. See the `extensions` module
+documentation for registration and processor examples. An empty registry uses the
+ordinary parser path.
+
+For backend-aware parsing through conversion, use converter core's
+`pipeline::Pipeline` with an already configured backend. `ExtensionCatalog`
+separates named availability from explicit activation and rejects unavailable
+selections before parsing. Selected `Extensions` can contain parser and native
+renderer registrations; `parser_registry()` exposes parser registrations when a
+working session is needed. Renderer-only selections retain ordinary parsing.
+Pipeline parse methods return finalized `ParseResult`
+values with structured warnings; conversion prepares fresh display content and
+leaves parsed storage unchanged. See the
+[converter guide](../converters/README.adoc) and its runnable library example.
+
 ## Parser fixtures
 
 We use two fixture styles, and they are intentionally different.

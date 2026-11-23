@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Statically linked converter registrations now supply the available backend names, aliases, and variants for CLI help and conversion.
+
+- Selected native text postprocessors run per input, including when multiple terminal documents share a pager.
+
+- Conversion accepts repeatable `--extension NAME` selections and rejects
+  unavailable packages before reading input. All input and output routes share
+  the backend-aware library pipeline.
+
 - Conversion continues after recoverable parser errors and reports structured
   warnings, including non-conforming manpage titles. `convert --fail-on-warnings`
   retains successful output, processes the remaining selected inputs, and exits

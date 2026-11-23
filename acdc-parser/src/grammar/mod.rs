@@ -4,7 +4,7 @@
 //! `inline_preprocessor`. Helpers used by one grammar live beside its PEG rules,
 //! grouped by purpose. Shared helpers, parser state, and source mapping stay here.
 
-mod attributes;
+pub(crate) mod attributes;
 mod brackets;
 mod character_references;
 mod document;
@@ -17,11 +17,14 @@ pub(crate) mod inlines;
 mod line_map;
 mod location_mapping;
 mod location_walk;
+pub(crate) use location_walk::try_walk_document_inline_nodes_mut;
 mod marked_text;
 mod passthrough_processing;
+pub(crate) mod reference_normalization;
 pub(crate) mod reference_text;
 pub(crate) mod reference_walk;
 pub(crate) mod setext;
+mod source;
 mod source_remap;
 mod state;
 mod utf8_utils;
@@ -29,7 +32,10 @@ mod utf8_utils;
 pub(crate) use attributes::{
     BlockAttributeMode, block_attribute_line, block_attribute_style, style_overrides_block_form,
 };
-pub(crate) use document::document_parser;
+pub(crate) use document::{
+    GeneratedContext, SourceAssignments, SourceHandler, document as parse_document,
+    document_from_source, document_parser, prepare_generated, replace_generated_source,
+};
 pub(crate) use inline_preprocessor::{
     InlinePreprocessorParserState, ProcessedContent, inline_preprocessing,
 };

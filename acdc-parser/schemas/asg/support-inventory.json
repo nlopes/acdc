@@ -1312,6 +1312,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "generated_display",
           "target",
           "target_is_local",
           "text",
@@ -1384,6 +1385,9 @@
         },
         "document_reftext": {
           "policy": "named-document-label-context"
+        },
+        "generated_display": {
+          "policy": "reject-symbolic-display-until-conversion-context-lowers-to-ordinary-link"
         }
       },
       "strict_export_group": "references"
@@ -2090,6 +2094,9 @@
           "MonospaceText": [
             "0"
           ],
+          "Extension": [
+            "0"
+          ],
           "PlainText": [
             "0"
           ],
@@ -2197,6 +2204,12 @@
         "MonospaceText.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
+        },
+        "variant:Extension": {
+          "policy": "unsupported"
+        },
+        "Extension.0": {
+          "policy": "unsupported"
         },
         "variant:PlainText": {
           "policy": "candidate",
@@ -3635,6 +3648,7 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "source_context",
           "attribute_positions",
           "prefix_events",
           "caption",
@@ -3662,6 +3676,9 @@
         "upstream": "#/$defs/blockMetadata"
       },
       "properties": {
+        "source_context": {
+          "policy": "source-state"
+        },
         "attribute_positions": {
           "policy": "source-state"
         },
@@ -3976,6 +3993,9 @@
           "DocumentAttribute": [
             "0"
           ],
+          "Extension": [
+            "0"
+          ],
           "Image": [
             "0"
           ],
@@ -4073,6 +4093,12 @@
         "DocumentAttribute.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
+        },
+        "variant:Extension": {
+          "policy": "unsupported"
+        },
+        "Extension.0": {
+          "policy": "unsupported"
         },
         "variant:Image": {
           "policy": "candidate",
@@ -4431,6 +4457,8 @@
       "shape": {
         "kind": "struct",
         "fields": [
+          "has_inline_macros",
+          "generated_displays",
           "header",
           "untitled_header_location",
           "attributes",
@@ -4474,6 +4502,12 @@
         "location": {
           "policy": "use-authored-endpoint-coordinates-omit-an-unavailable",
           "upstream": "#/$defs/location"
+        },
+        "has_inline_macros": {
+          "policy": "source-state"
+        },
+        "generated_displays": {
+          "policy": "source-state"
         }
       },
       "strict_export_group": "core"
@@ -5674,7 +5708,8 @@
       "shape": {
         "kind": "struct",
         "fields": [
-          "0"
+          "content",
+          "source"
         ],
         "variants": {}
       },
@@ -5683,9 +5718,12 @@
         "upstream": "#/$defs/inlines"
       },
       "properties": {
-        "0": {
+        "content": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inlines"
+        },
+        "source": {
+          "policy": "source-state"
         }
       },
       "strict_export_group": "core"
@@ -5897,6 +5935,10 @@
     "named-document-label-context": {
       "handling": "context-dependent",
       "reason": "The named profile retains the document label selected at an automatic reference, including empty content for title fallback and known declaration locations. Strict upstream export rejects this context. Authored inline text remains separate."
+    },
+    "reject-symbolic-display-until-conversion-context-lowers-to-ordinary-link": {
+      "handling": "reject",
+      "reason": "Generated display intent and frozen titles must be lowered into ordinary explicit cross-reference labels by a conversion context before either checked ASG profile is exported."
     }
   },
   "strict_export_groups": {
@@ -6008,6 +6050,10 @@
         {
           "file": "src/asg/projection.rs",
           "name": "unresolved_macro_and_callout_owners_are_rejected"
+        },
+        {
+          "file": "src/extensions/tests/mod.rs",
+          "name": "extensions_pending_blocks_are_rejected_by_checked_asg_exports"
         },
         {
           "file": "tests/asg/asg_references.rs",

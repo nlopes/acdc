@@ -8,12 +8,16 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Converter as _, Diagnostics, InlineTextTransform, Options, TraversalContext,
-    section::contains_index_section, visitor::DocumentVisitor, xref::XrefGuard,
+    registry::ConverterSpec, section::contains_index_section, visitor::DocumentVisitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     CaptionKind, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
     ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef},
 };
+
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<()> = ConverterSpec::new("terminal", ());
 
 pub(crate) use appearance::Appearance;
 
@@ -180,7 +184,8 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         // This converter borrows from `doc`; its lifetime is independent of `self`.
-        let document = doc;
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
         let converter = Converter {
             parser_options: ParserOptions::default()
                 .with_document_attributes(document.attributes().into()),
@@ -210,6 +215,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         let mut traversal = TraversalContext::new(document.attributes());
         let mut visitor = TerminalVisitor::new(writer, &converter, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, document)
+    }
+
+    fn supports_text_output(&self) -> bool {
+        true
     }
 
     fn name(&self) -> &'static str {

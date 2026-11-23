@@ -27,6 +27,7 @@ mod list_anchor_ownership;
 mod missing_footnote_recovery;
 mod named_index_delimiters;
 mod named_title_content;
+mod normalization;
 mod reference_content;
 mod reference_identity;
 mod reference_typography;

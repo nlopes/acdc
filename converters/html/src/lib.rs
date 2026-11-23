@@ -10,8 +10,11 @@ use std::{
 #[cfg(feature = "highlighting")]
 use acdc_converters_core::substitutions::TextBoundaries;
 use acdc_converters_core::{
-    BackendProfile, Converter as _, Diagnostics, Options, TraversalContext, WarningSource,
-    section::contains_index_section, xref::XrefGuard,
+    BackendProfile, BackendTarget, Converter as _, Diagnostics, Options, TraversalContext,
+    WarningSource,
+    registry::{ConverterSpec, Variant},
+    section::contains_index_section,
+    xref::XrefGuard,
 };
 
 use acdc_parser::{
@@ -29,6 +32,23 @@ use acdc_parser::{
     ast::{InlineKind, InlineRef},
 };
 
+/// Static backend selection offered to applications before parsing.
+pub const REGISTRATION: ConverterSpec<HtmlVariant> =
+    ConverterSpec::new("html", HtmlVariant::Standard).with_variants(&[
+        Variant {
+            name: "standard",
+            aliases: &[],
+            shortcut: None,
+            value: HtmlVariant::Standard,
+        },
+        Variant {
+            name: "semantic",
+            aliases: &[],
+            shortcut: Some("html5s"),
+            value: HtmlVariant::Semantic,
+        },
+    ]);
+
 mod admonition;
 mod audio;
 mod callouts;
@@ -38,6 +58,7 @@ mod delimited;
 mod docinfo;
 mod document;
 mod error;
+mod extensions;
 mod html_visitor;
 mod icon;
 mod image;
@@ -177,6 +198,8 @@ pub struct Converter<'a> {
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the header opts into a catalog and the section hierarchy has a seed.
     generate_index: bool,
+    extension_script_hashes: Vec<&'static str>,
+    render_session: Option<Rc<RefCell<acdc_converters_core::render::RenderSession>>>,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -280,7 +303,32 @@ impl<'a> Converter<'a> {
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let document = doc;
+        self.convert_to_writer_with_extensions(
+            doc,
+            writer,
+            options,
+            &acdc_converters_core::pipeline::Extensions::default(),
+            diagnostics,
+        )
+    }
+
+    /// Convert with explicit native renderers and HTML-specific render options.
+    /// Use a pipeline for source parsing and configured file/stdout routing.
+    /// Each call starts fresh render handlers and leaves parsed storage unchanged.
+    ///
+    /// # Errors
+    /// Returns display, native renderer, conversion, or output errors.
+    pub fn convert_to_writer_with_extensions<W: Write>(
+        &self,
+        doc: DocumentRef<'_>,
+        writer: W,
+        options: &RenderOptions,
+        extensions: &acdc_converters_core::pipeline::Extensions,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Error> {
+        let prepared = acdc_converters_core::display::prepare(doc)?;
+        let document = prepared.document();
+        let active = self.hook_target();
         let converter = Converter {
             toc_entries: document.toc_entries().map(TocEntry::from).collect(),
             references: document.references().into(),
@@ -302,9 +350,15 @@ impl<'a> Converter<'a> {
             listing_counter: Rc::new(Cell::new(
                 document.highest_caption_number(CaptionKind::Listing),
             )),
-            index_term_counter: self.index_term_counter.clone(),
-            index_catalog_counter: self.index_catalog_counter.clone(),
+            index_term_counter: Rc::new(Cell::new(0)),
+            index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
+            extension_script_hashes: extensions
+                .html_script_hashes_for_variant(active.variant)
+                .collect(),
+            render_session: extensions
+                .render_session(active)
+                .map(|session| Rc::new(RefCell::new(session))),
             variant: self.variant,
         };
         let mut traversal = TraversalContext::new(document.attributes());
@@ -314,6 +368,9 @@ impl<'a> Converter<'a> {
             options.clone(),
             diagnostics.reborrow(),
         );
+        if !options.embedded {
+            visitor.docinfo_processors = extensions.docinfo_processors(active);
+        }
         acdc_converters_core::visitor::DocumentVisitor::visit_document(
             &mut visitor,
             &mut traversal,
@@ -515,6 +572,32 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
+        self.write_to_with_extensions(
+            doc,
+            writer,
+            source_file,
+            output_path,
+            &acdc_converters_core::pipeline::Extensions::default(),
+            diagnostics,
+        )
+    }
+
+    fn uses_render_extensions(
+        &self,
+        extensions: &acdc_converters_core::pipeline::Extensions,
+    ) -> bool {
+        extensions.has_render_hooks(self.hook_target(), !self.options.embedded())
+    }
+
+    fn write_to_with_extensions<W: Write>(
+        &self,
+        doc: DocumentRef<'_>,
+        writer: W,
+        source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        extensions: &acdc_converters_core::pipeline::Extensions,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Self::Error> {
         let render_options = RenderOptions {
             last_updated: source_file.and_then(|f| {
                 std::fs::metadata(f)
@@ -530,7 +613,13 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
                 .map(String::from),
             ..RenderOptions::default()
         };
-        self.convert_to_writer(doc, writer, &render_options, diagnostics)?;
+        self.convert_to_writer_with_extensions(
+            doc,
+            writer,
+            &render_options,
+            extensions,
+            diagnostics,
+        )?;
 
         // Embedded fragments have no <head> to link companion stylesheets from.
         if let Some(output_path) = output_path
@@ -540,6 +629,14 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
             Self::handle_copy_syntax_css(doc.attributes(), output_path, diagnostics);
         }
         Ok(())
+    }
+
+    fn supports_text_output(&self) -> bool {
+        true
+    }
+
+    fn hook_target(&self) -> BackendTarget<'_> {
+        BackendTarget::variant("html", self.variant.as_str())
     }
 
     fn name(&self) -> &'static str {
@@ -594,6 +691,8 @@ impl<'a> Converter<'a> {
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
+            extension_script_hashes: Vec::new(),
+            render_session: None,
             variant,
         })
     }

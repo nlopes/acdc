@@ -82,7 +82,8 @@ pub(super) fn project(
             settings,
         )
         .map(|result| quotation(result, ["‘", "’"])),
-        InlineNode::PlainText(_)
+        InlineNode::Extension(_)
+        | InlineNode::PlainText(_)
         | InlineNode::VerbatimText(_)
         | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_)

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Applications can register the PDF backend by name and determine its default file destination before processing a batch.
+
+- Extension-generated caption and captured-title links now use explicit labels,
+  preserving title formatting and source attributes while following final captions
+  and renamed targets. Repeated conversion preserves the shared parsed document.
+
 - **Breaking:** use `Converter` in place of `Processor` and
   `PageOrientation` in place of `PageLayout`. PDF settings and output are unchanged.
   Import the shared `acdc_converters_core::Converter` trait as `_` when

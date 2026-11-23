@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Block renderers, docinfo hooks, and text postprocessors can select both HTML variants with `BackendTarget::family("html")`, or just `standard` or `semantic` with `BackendTarget::variant`. Only matching renderers contribute CSP script hashes.
+
+- Applications can register this converter using its built-in backend names and variant choices.
+
+- Selected text postprocessors can transform a complete HTML document or embedded fragment after rendering.
+
+- Full HTML documents accept native docinfo fragments at the end of the head, start of the body, and after the footer. Embedded HTML skips these hooks.
+
+- Native renderers can decorate paragraphs, listings, and literal blocks while retaining the selected HTML variant’s built-in rendering.
+
+- Native HTML renderers now observe body attribute changes in source order
+  and restore the enclosing settings after each AsciiDoc table cell.
+
+- HTML callers can select native block renderers. Their CSP script hashes are
+  included in the document policy. Native renderer failures are
+  exposed through `Error::Extension` with their original error source.
+  Callers using HTML-specific `RenderOptions` can select registrations through
+  `convert_to_writer_with_extensions()`.
+
+- Reusing a converter for the same document or independent documents now produces
+  stable index anchors and catalog links, with numbering restarted per conversion.
+
+- Extension-generated caption and captured-title links now use explicit labels,
+  preserving title formatting and source attributes while following final captions
+  and renamed targets. Repeated conversion preserves the shared parsed document.
+
 - Highlighted source blocks with a line longer than 16 KiB render as plain
   source, with one structured warning per document. Text, callouts, line
   numbers, and selected-line backgrounds are preserved. This acdc limit avoids

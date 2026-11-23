@@ -27,7 +27,7 @@ use crate::{
         substitution::{SubstitutionPlan, parse_subs_attribute},
     },
 };
-use std::{borrow::Cow, collections::BTreeMap, rc::Rc};
+use std::{borrow::Cow, collections::BTreeMap, rc::Rc, sync::Arc};
 
 use super::delimited::{DelimitedKind, DelimitedParams, build_delimited_block};
 
@@ -118,6 +118,57 @@ impl<'a> QuoteSources<'a> {
 }
 
 impl<'a> ParsedAttributeList<'a> {
+    /// A registered style chooses its output after the prefix has been parsed.
+    /// Keep the authored alt input until we know whether it produced an image.
+    pub(super) fn take_style_alt(
+        &mut self,
+        state: &ParserState<'a>,
+        form: AttributeBlockForm<'_>,
+    ) -> Option<Box<crate::model::content_attribute::PendingContentAttribute<'a>>> {
+        self.metadata.alt_source.as_ref()?;
+        let AttributeBlockForm::Delimited(kind, _) = form else {
+            return None;
+        };
+        state
+            .options
+            .extensions
+            .as_ref()?
+            .raw_style(self.metadata.style?, kind.raw_context()?)?;
+        self.metadata.alt_source.take()
+    }
+
+    pub(super) fn overlay_prepared(
+        &mut self,
+        metadata: BlockMetadata<'a>,
+        mode: CompatibilityMode,
+    ) {
+        if metadata.caption.is_some() {
+            self.caption_source = None;
+        }
+        if metadata.attribution.is_some() {
+            self.quote_sources.attribution = None;
+        }
+        if metadata.citetitle.is_some() {
+            self.quote_sources.citetitle = None;
+        }
+        let roles = (!metadata.roles.is_absent()).then(|| metadata.roles.clone());
+        let options = (!metadata.options.is_absent()).then(|| metadata.options.clone());
+        let context = metadata.source_context.clone();
+        let reftext = metadata.reftext.clone();
+        self.merge(Self::from_metadata(metadata), mode);
+        if let Some(roles) = roles {
+            self.metadata.roles = roles;
+        }
+        if let Some(options) = options {
+            self.metadata.options = options;
+        }
+        if reftext.is_some() {
+            self.metadata.reftext = reftext;
+            self.metadata.reftext_source = None;
+        }
+        self.metadata.source_context = context;
+    }
+
     pub(super) fn merge(&mut self, other: Self, mode: CompatibilityMode) {
         merge_attribute_metadata(&mut self.metadata, other.metadata, mode);
         if other.title.is_some() {
@@ -172,6 +223,7 @@ pub(super) fn resolve_title<'a>(
     source: TitleSource<'a>,
     offset: usize,
 ) -> Result<Title<'a>, Error> {
+    let retained = retain_metadata_title(state, &source, offset);
     let inlines = match source {
         TitleSource::Dot { source, start, end } => {
             process_inlines(
@@ -192,7 +244,61 @@ pub(super) fn resolve_title<'a>(
         }
         TitleSource::Attribute(source) => process_attribute_inlines(state, &source)?,
     };
-    Ok(Title::new(inlines))
+    Ok(Title::new(inlines).with_source(retained))
+}
+
+fn retain_metadata_title<'a>(
+    state: &ParserState<'a>,
+    source: &TitleSource<'a>,
+    offset: usize,
+) -> Option<Arc<crate::extensions::TitleSource<'a>>> {
+    state.options.extensions.as_ref()?;
+    let (raw, location, substitutions, attributes) = match source {
+        TitleSource::Dot { source, start, end } => (
+            *source,
+            state.create_block_location(*start, *end, offset),
+            SubstitutionPlan::for_mode(state.options.compatibility_mode),
+            state.document_attributes.as_ref(),
+        ),
+        TitleSource::Attribute(source) => {
+            let substitutions = if state.options.compatibility_mode == CompatibilityMode::Draft
+                && source.quote != AttributeQuote::Single
+            {
+                SubstitutionPlan::only(&Substitution::SpecialChars)
+            } else {
+                SubstitutionPlan::for_attribute(state.options.compatibility_mode)
+            };
+            (
+                state
+                    .source_slice(source.source_range.clone())
+                    .unwrap_or(source.text),
+                state.create_block_location(source.source_range.start, source.source_range.end, 0),
+                substitutions,
+                source.attributes.as_ref(),
+            )
+        }
+    };
+    Some(Arc::new(crate::extensions::TitleSource {
+        source: raw,
+        substitutions: substitutions.stages(),
+        attributes: attributes.clone(),
+        location: state.create_error_source_location(location),
+    }))
+}
+
+pub(super) fn retain_heading_title<'a>(
+    state: &ParserState<'a>,
+    source: &'a str,
+    location: impl FnOnce() -> Location,
+    substitutions: SubstitutionPlan,
+) -> Option<Arc<crate::extensions::TitleSource<'a>>> {
+    state.options.extensions.as_ref()?;
+    Some(Arc::new(crate::extensions::TitleSource {
+        source,
+        substitutions: substitutions.stages(),
+        attributes: state.document_attributes.as_ref().clone(),
+        location: state.create_error_source_location(location()),
+    }))
 }
 
 fn literal_attribute_inlines<'a>(
@@ -402,7 +508,7 @@ pub(super) fn media_attributes_ahead<'input>(
     line_start: usize,
     offset: usize,
 ) -> Option<RawAttributeList<'input>> {
-    let line = state.input.get(line_start + offset..)?.lines().next()?;
+    let line = state.source_tail(line_start + offset)?.lines().next()?;
     let start = line.find('[')? + 1;
     let end = line.rfind(']')?;
     let source = line.get(start..end)?;
@@ -432,6 +538,7 @@ pub(super) fn finish_block_parsing_metadata<'input>(
         mut caption_source,
         ..
     } = attributes;
+    metadata.source_context = crate::extensions::SourceContext::capture(state);
     crate::grammar::reference_text::resolve_metadata(state, &mut metadata)?;
     let discrete = matches!(metadata.style, Some("discrete" | "float"));
     let substitutions = metadata.substitutions.as_ref().map_or_else(
@@ -601,6 +708,15 @@ pub(super) fn route_media_attributes<'a>(
     video: bool,
 ) {
     merge_macro_metadata(metadata, attributes, mode);
+    route_media_positions(metadata, attributes, mode, video);
+}
+
+pub(super) fn route_media_positions<'a>(
+    metadata: &mut BlockMetadata<'a>,
+    attributes: &BlockMetadata<'a>,
+    mode: CompatibilityMode,
+    video: bool,
+) {
     let selected = if mode == CompatibilityMode::Draft {
         &*metadata
     } else {

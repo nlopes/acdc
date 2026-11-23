@@ -1,0 +1,101 @@
+'\" t
+.\"     Title: extension-displays
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"    Manual: Extension displays
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "EXTENSION\-DISPLAYS" "1" "" "acdc" "Extension displays"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+extension\-displays \- captured titles and deferred captions
+.SH "DESCRIPTION"
+.sp
+\fB\fBUpdated\fB <&> Changed \fBlater\fB\fR
+.br
+.EX
+changed
+.EE
+.sp
+\fBCode 2. Attribute \fIEarly\fB <&>\fR
+.br
+.EX
+attribute
+.EE
+.sp
+\fB*Literal* <&> Literal caption\fR
+.br
+.EX
+literal
+.EE
+.sp
+\fBEmpty caption\fR
+.br
+.EX
+empty
+.EE
+.sp
+\fBDisabled \fBcaption\fB\fR
+.br
+.EX
+disabled
+.EE
+.RS 0
+.IP \(bu 2
+\fBUpdated\fR <&>
+.IP \(bu 2
+Dot \fBEarly\fR <&>
+.IP \(bu 2
+\fBUpdated\fR <&> Dot \fBEarly\fR <&>
+.RE
+.RS 0
+.IP \(bu 2
+Code 2.
+.IP \(bu 2
+Attribute \fIEarly\fR <&>
+.IP \(bu 2
+Code 2. Attribute \fIEarly\fR <&>
+.RE
+.RS 0
+.IP \(bu 2
+*Literal* <&>
+.IP \(bu 2
+Literal caption
+.IP \(bu 2
+*Literal* <&> Literal caption
+.RE
+.RS 0
+.IP \(bu 2
+
+.IP \(bu 2
+Empty caption
+.IP \(bu 2
+ Empty caption
+.RE
+.RS 0
+.IP \(bu 2
+[disabled]
+.IP \(bu 2
+Disabled \fBcaption\fR
+.IP \(bu 2
+[disabled] Disabled \fBcaption\fR
+.RE

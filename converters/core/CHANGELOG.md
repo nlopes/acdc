@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Output hooks can target every variant of a backend family or a single canonical variant through `BackendTarget` and the `for_target` constructors.
+
+- Applications can register statically linked converters, resolve names and variants before parsing, and explicitly replace a registration.
+
+- Selected UTF-8 postprocessors can edit complete output in order before it reaches its destination. Conversions stream as usual when no matching processor is selected.
+
+- Selected docinfo hooks can insert trusted fragments during conversion in registration order, with access to the current document attributes and diagnostics.
+
+- Block renderers can decline with a diagnostic before gaining access to output. An accepting renderer can delegate once and wrap the result. Package selection and registration order determine the chain.
+
+- A pipeline can render registered inline macros against its selected backend
+  and attributes after tree edits. Each conversion starts fresh processors and
+  counters and reports warnings at the authored invocation.
+
+- Native block renderers can read the attributes in effect at the block,
+  including accepted body assignments and local table-cell settings.
+  Implementations of `RenderHost::document_attributes` now return a reference
+  to the current `TraversalContext`. Callers of `RenderHost::output` now
+  destructure the returned writer, diagnostics, and traversal context.
+
+- Native extensions can register backend-specific block renderers alongside
+  parser processors. Selection creates fresh render handlers for every conversion,
+  retains structured warnings, and lets the backend render titles and metadata.
+  `ExtensionCatalog::select()` now returns an `Extensions` selection; use
+  `parser_registry()` when a parser-only working session is needed. Existing parser
+  registries can still be attached directly to a pipeline.
+
+- Added a shared library pipeline for backend-aware parsing, selected extensions,
+  finalization, and conversion. Named extensions require explicit activation;
+  unavailable names fail before parsing. Files, readers, and source strings retain
+  structured diagnostics and support repeated conversion without changing the
+  parsed document. Inactive pipelines retain ordinary parsing.
+
+- Added `display::prepare()` for custom converters to resolve extension-generated
+  caption and captured-title labels into ordinary explicit cross-references for
+  each conversion, preserving the shared document and overriding generic `reftext`.
+
 - **Breaking:** removed `TraversalContext::substitute_attributes()`. To expand
   references at a traversal position, call
   `DocumentAttributesRef::substitute_attributes()` from `acdc-parser` on the

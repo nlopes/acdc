@@ -122,6 +122,9 @@ fn inline_value(
     settings: InlineContext,
 ) -> Result<Value, Error> {
     let mut result = match value {
+        InlineNode::Extension(_) => {
+            return Err(unsupported(path, "inline macro requires conversion"));
+        }
         InlineNode::PlainText(text) => literal(settings.text_name(), text.content),
         InlineNode::VerbatimText(_) => {
             return Err(unsupported(
@@ -440,6 +443,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
 
     fn block(&mut self, value: &'a Block<'doc>, at: &str) -> Result<Option<Value>, Error> {
         let projected = match value {
+            Block::Extension(_) => return Err(super::unsupported(at, "pending extension block")),
             Block::Paragraph(paragraph) => self.paragraph(paragraph, at, false)?,
             Block::Section(section) => self.section(section, at)?,
             Block::UnorderedList(list) => {
@@ -625,7 +629,8 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 content.as_inlines().iter().any(|inline| match inline {
                     InlineNode::PlainText(text) => !text.content.trim().is_empty(),
                     InlineNode::RawText(text) => !text.content.trim().is_empty(),
-                    InlineNode::CharacterReference(_)
+                    InlineNode::Extension(_)
+                    | InlineNode::CharacterReference(_)
                     | InlineNode::Symbol(_)
                     | InlineNode::VerbatimText(_)
                     | InlineNode::BoldText(_)
