@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Selected native text postprocessors run per input, including when multiple terminal documents share a pager.
 
+- Builds with the optional `lists` feature accept `convert --extension lists`
+  for native linked lists of document elements across enabled backends. Files,
+  stdin, and batches preserve formatted titles, stable links, and empty-section
+  options. Compilation alone leaves calls inactive; unavailable selections fail
+  before input is read. The Ruby `enhanced_rendering` option is intentionally
+  unsupported because acdc always preserves title formatting.
+
 - Conversion accepts repeatable `--extension NAME` selections and rejects
   unavailable packages before reading input. All input and output routes share
   the backend-aware library pipeline.

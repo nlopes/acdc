@@ -7,7 +7,7 @@ and explicit `subs=` settings work in every build. The former `pre-spec-subs`
 and `setext` Cargo features and `--setext` flag are removed. Asciidoctor mode
 supports Setext headings. See `acdc-parser/AGENTS.md` and `converters/AGENTS.md`.
 
-`network` enables parser remote includes and forwards to selected execute, lint,
+`network` enables parser remote includes and forwards to selected execute, lists, lint,
 HTML and PDF crates. HTML/PDF image access still follows the converter's network
 policy, caller permission and safe mode.
 

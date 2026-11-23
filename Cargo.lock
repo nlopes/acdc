@@ -13,6 +13,7 @@ dependencies = [
  "acdc-converters-pdf",
  "acdc-converters-terminal",
  "acdc-execute",
+ "acdc-extensions-lists",
  "acdc-lint",
  "acdc-parser",
  "chrono",
@@ -118,6 +119,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
+ "acdc-extensions-lists",
  "acdc-parser",
  "acdc-pdf-images",
  "acdc-pdf-render",
@@ -176,6 +178,17 @@ dependencies = [
  "rstest",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "acdc-extensions-lists"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-parser",
+ "serde_json",
+ "stats_alloc",
 ]
 
 [[package]]

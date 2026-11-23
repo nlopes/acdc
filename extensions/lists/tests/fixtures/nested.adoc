@@ -1,0 +1,24 @@
+= Nested lists
+
+== Lists
+
+list-of::image[]
+
+== Targets
+
+--
+.Open image
+image::open.svg[]
+--
+
+* List item
++
+.List image
+image::list.svg[]
+
+[cols=a]
+|===
+|
+.Cell image
+image::cell.svg[]
+|===

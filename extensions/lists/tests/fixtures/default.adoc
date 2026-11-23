@@ -1,0 +1,35 @@
+= Native lists
+:word: Early
+
+== Lists
+
+[.generated]
+list-of::image[]
+
+list-of::quote[]
+
+list-of::image[]
+
+== Targets
+
+.A *bold* {word} & title
+[#authored,reftext="Other reference"]
+image::example.svg[]
+
+:word: Late
+
+[caption=""]
+.Title only
+image::other.svg[]
+
+.A _quoted_ title
+[quote]
+____
+Quoted text.
+____
+
+image::untitled.svg[]
+
+== Keep this empty section
+
+list-of::video[]

@@ -233,6 +233,55 @@ fn pipeline_cli_terminal_reader_files_and_pager_share_processing() -> TestResult
     Ok(())
 }
 
+#[cfg(all(feature = "lists", feature = "terminal", unix))]
+#[test]
+fn pipeline_cli_native_lists_use_terminal_reader_and_pager_paths() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    let source = "list-of::quote[]\n\n.Native title\n[#target]\n[quote]\n____\nQuoted.\n____\n";
+    let input = directory.path().join("input.adoc");
+    let reader_output = directory.path().join("reader.txt");
+    let pager_output = directory.path().join("pager.txt");
+    std::fs::write(&input, source)?;
+    let mut catalog = ExtensionCatalog::default();
+    catalog.register("lists", acdc_extensions_lists::registry()?)?;
+    let selected = catalog.select(["lists"])?;
+    for mode in [
+        acdc_parser::CompatibilityMode::Asciidoctor,
+        acdc_parser::CompatibilityMode::Draft,
+    ] {
+        let options = Options::builder()
+            .output_destination(OutputDestination::File(reader_output.clone()))
+            .build();
+        let converter = configure_pipeline(
+            acdc_converters_terminal::Converter::new(
+                options.clone(),
+                ParserOptions::builder().with_compatibility_mode(mode),
+            )?,
+            selected.as_ref(),
+        );
+        assert_eq!(
+            run_terminal_reader(&converter, source.as_bytes(), || None)?.warning_count,
+            0
+        );
+        let reader = std::fs::read_to_string(&reader_output)?;
+        assert_eq!(reader.matches("Native title").count(), 2, "{reader}");
+        assert!(!reader.contains("list-of::"));
+        let child = pager(&pager_output)?;
+        assert_eq!(
+            run_terminal_reader(&converter, source.as_bytes(), || Some(child))?.warning_count,
+            0
+        );
+        assert_eq!(std::fs::read_to_string(&pager_output)?, reader);
+        let child = pager(&pager_output)?;
+        assert_eq!(
+            run_terminal_through_pager(&converter, &options, std::slice::from_ref(&input), child)?,
+            0
+        );
+        assert_eq!(std::fs::read_to_string(&pager_output)?, reader);
+    }
+    Ok(())
+}
+
 /// A downstream converter chooses its own parser profile, serialization, and suffix.
 struct NativeJson {
     options: Options,
