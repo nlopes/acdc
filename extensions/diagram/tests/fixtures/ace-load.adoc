@@ -1,0 +1,10 @@
+[wavedrom, , svg]
+....
+{reg:[
+    { bits:  7, name: 0x0b, attr: ['custom-0'] },
+    { bits:  5, name: 'context', attr: ['Kd','K{Xd}'] },
+    { bits:  3, name: 'ace.load', attr: ['0    0    0','0    0    1'] },
+    { bits:  5, name: 'Xs1' },
+    { bits: 12, name: 'immed12' },
+]}
+....

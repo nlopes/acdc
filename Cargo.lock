@@ -12,6 +12,7 @@ dependencies = [
  "acdc-converters-markdown",
  "acdc-converters-pdf",
  "acdc-converters-terminal",
+ "acdc-diagram",
  "acdc-execute",
  "acdc-lint",
  "acdc-parser",
@@ -151,6 +152,24 @@ dependencies = [
  "tracing",
  "unicode-width 0.2.3",
  "viuer",
+]
+
+[[package]]
+name = "acdc-diagram"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-parser",
+ "base64 0.23.1",
+ "image",
+ "lopdf",
+ "png",
+ "roxmltree 0.21.1",
+ "sha2",
+ "svgtypes",
+ "tempfile",
+ "url",
 ]
 
 [[package]]

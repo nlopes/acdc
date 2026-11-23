@@ -15,6 +15,7 @@ members = [
   "converters/pdf",
   "converters/pdf/crates/*",
   "converters/terminal",
+  "extensions/diagram",
 ]
 default-members = [
   "acdc-cli",
@@ -31,6 +32,7 @@ default-members = [
   "converters/pdf",
   "converters/pdf/crates/*",
   "converters/terminal",
+  "extensions/diagram",
 ]
 resolver = "2"
 
@@ -47,6 +49,7 @@ acdc-converters-manpage = { path = "converters/manpage", default-features = fals
 acdc-converters-markdown = { path = "converters/markdown" }
 acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
+acdc-diagram = { path = "extensions/diagram" }
 acdc-execute = { path = "acdc-execute", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }

@@ -1,0 +1,307 @@
+= Diagram extensions for acdc
+
+== WaveDrom
+
+Applications can register the `wavedrom` style for listing blocks (`----`) and literal blocks (`....`).
+Supply the path to a trusted `wavedrom-cli` executable and the directory containing the converted document.
+The extension runs the executable only for an explicitly registered style in `SafeMode::Unsafe`.
+Use this mode for trusted input. The acdc CLI accepts `--extension diagram --wavedrom-cli PATH` when built with the optional `diagram` feature.
+For TikZ, supply `--lualatex PATH` and optionally `--pdf2svg PATH`.
+The link:../../acdc-cli/README.adoc[CLI guide] describes asset locations for files, streams, and embedded images.
+
+[source,rust]
+----
+let mut builder = acdc_parser::extensions::Registry::builder();
+builder.register_block_style(acdc_diagram::wavedrom(&tool, &output_dir)?)?;
+let options = acdc_parser::Options::builder()
+    .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+    .build()?;
+let parsed = builder.build().parse(source, &options)?.finish()?;
+----
+
+[source,asciidoc]
+----
+[wavedrom, ,svg]
+....
+{signal: [{name: 'clock', wave: 'p...'}]}
+....
+----
+
+Diagram renderers receive the preprocessed body verbatim by default.
+Use `subs=attributes` to expand references such as `{signal-label}` with the value in effect at the block.
+With expansion enabled, `\{signal-label}` passes a literal `{signal-label}` to the tool. Unknown references stay in the source.
+Only the attribute step of a `subs` setting affects diagram source. Formatting, escaping, and callout processing are left to the renderer.
+
+The first positional argument names the output, e.g. `[wavedrom,clock,svg]` produces `clock.svg`.
+Use a relative target such as `boards/rev-a/clock_signal` to write `boards/rev-a/clock_signal.svg` under the current image directory.
+Each slash-separated segment accepts ASCII letters, digits, hyphens, and underscores.
+Diagram blocks use the final segment as the default alternative text, with hyphens and underscores displayed as spaces.
+An unnamed diagram defaults to `Diagram`. Set `alt="Clock and reset"` to supply a label or `alt=""` for a decorative image.
+An empty target uses a SHA-256 digest of the renderer input, including the selected layout for Graphviz. Named `target=` and `format=` take precedence.
+The image is an ordinary acdc block. Its file is written under the output directory using the `imagesdir` in effect at the block.
+Set `:imagesoutdir: staging` to write diagrams under `staging` while keeping `imagesdir` in published links.
+Embedding reads the staged file directly. Unset the attribute with `:imagesoutdir!:` to resume writing under `imagesdir`.
+The CLI resolves `imagesoutdir` from its working directory. Library callers can set its base with `OutputDirectories::with_imagesoutdir_base`.
+Directories used for writing must be relative and cannot contain symlinks, parent traversal, URI escapes, query strings, or fragments.
+In HTML, the default `static` SVG type produces an `<img>`. Set `:diagram-svg-type: inline` to embed SVG markup or `:diagram-svg-type: interactive` to use an `<object>`.
+A renderer-specific attribute such as `graphviz-svg-type` overrides the shared setting. Each block can override it with `svg-type=static`, `inline`, or `interactive`.
+Explicit `opts=inline` or `opts=interactive` takes precedence over `svg-type`. If both options are present, inline wins.
+For HTML, SVG diagrams supply default image dimensions from their absolute width and height, or from the `viewBox` when either dimension is unavailable.
+PNG diagrams use the pixel width and height of the generated raster.
+Use `scale=0.5` to halve those defaults. Explicit `width` and `height` each override the corresponding default.
+acdc uses Asciidoctor Diagram’s factor of 1.33 for TeX points and truncates fractional pixels after scaling.
+For other physical units acdc uses 96 pixels per inch. A `viewBox` offset does not change its width or height.
+Use `[wavedrom,clock,png]` to generate `clock.png`. WaveDrom defaults to SVG.
+Set `:diagram-format: svg` to select a common format for the registered renderers.
+A block's positional or named format overrides the renderer-specific attribute (such as `graphviz-format`), which in turn overrides `diagram-format`.
+Each block uses the document attributes in effect at its location. Unsetting a renderer-specific format restores the shared default.
+An empty format reports an unsupported format. Use `:diagram-format!:` to restore automatic selection.
+If a renderer fails to generate an image, the default `diagram-on-error=log` reports a warning at the block and continues conversion.
+The output contains a listing with the error and the diagram source, including any requested attribute expansion. A previous image file is preserved.
+Set `:diagram-on-error: abort` to stop at the first failure. The block's `on-error` attribute overrides the renderer-specific attribute (such as `graphviz-on-error`), which overrides `diagram-on-error` in effect at the block.
+Restricted safe modes still stop before running any tool.
+Each render uses a temporary directory under the image output directory. On Unix, acdc creates it with owner-only access. On Windows, it inherits the output directory’s access controls.
+After success or a renderer error, acdc removes the temporary directory.
+
+== TikZ
+
+Register the `tikz` style for listing and literal blocks with the application's LuaLaTeX executable, an optional pdf2svg executable, and the converted document's output directory.
+
+[source,rust]
+----
+builder.register_block_style(acdc_diagram::tikz(&lualatex, Some(&pdf2svg), &output_dir)?)?;
+----
+
+Use `[tikz,figure,svg,preamble=true,command=lualatex]` on a listing or literal block to produce `figure.svg`.
+Put the TeX preamble before a line containing exactly `~~~~`, then the picture after it.
+With no separator the complete body becomes picture content.
+Use `pdf` for native one-page PDF output. With no explicit format, HTML backends prefer SVG when pdf2svg is configured. The PDF backend defaults to SVG and requires pdf2svg to embed the diagram. Other configurations default to PDF.
+
+LuaLaTeX runs only in unsafe mode on trusted documents, with shell escape disabled.
+The block's `command` and document's `tikz-command` can select only `lualatex`.
+Fonts and packages must be discoverable by the caller's TeX installation.
+The existing target naming, source-position `imagesdir`, atomic publication, and located error behavior also apply to TikZ.
+
+== Graphviz
+
+Register `acdc_diagram::graphviz(&dot, &output_dir)` or pass `--extension diagram --graphviz-dot /usr/bin/dot` in the CLI.
+Use `[graphviz,flow,svg]` on a listing or literal block containing DOT source. Graphviz defaults to PNG and also supports PDF.
+Set `:graphviz-layout: dot` for subsequent blocks or select an installed layout per block with `layout=neato`.
+Graphviz reads the diagram on standard input. Relative resources resolve from the caller's source directory for file conversion.
+The CLI also registers `graphviz::graphs/chart.dot[svg,alt="*Graph*"]`. In a library, register `acdc_diagram::graphviz_file(&dot, &output_dir)?` with the registry's `register` method.
+The macro reads DOT through the parser's include loader. It accepts UTF-8 and Unicode files with a byte order mark. The target resolves like a local include and its bytes count toward the same document limit. Graphviz resolves resources inside the graph relative to the DOT file. The example writes `chart.svg`. Without an explicit `target` or `alt`, the alternative text is `Diagram`. The file stem follows the same output-name rules as a diagram block. Use `target=other-name` to override it.
+Only the caller selects the executable. Rendering requires unsafe mode.
+
+== Message sequence charts
+
+Pass `--extension diagram --mscgen /usr/bin/mscgen` to render a listing or literal block styled `[msc]`, or load a local file with `msc::charts/exchange.msc[svg]`.
+In a library, register the block style returned by `acdc_diagram::msc` and the block macro returned by `acdc_diagram::msc_file`.
+Both forms default to PNG. Select SVG with the positional format, `format=svg`, or `:msc-format: svg`.
+Native mscgen uses the `font` argument for PNG output. Set a document default with `:msc-font: DejaVu Sans`.
+The macro reads its source through the parser's include loader. Rendering requires unsafe mode and a caller-selected executable.
+
+== PIC diagrams
+
+Use `--extension diagram --dpic /usr/bin/dpic` to render PIC source as SVG. Use `[dpic,flow]` on a listing or literal block to write `flow.svg`, or `dpic::charts/flow.pic[]` to read a local picture through the parser's include loader.
+In a library, register the block style returned by `acdc_diagram::dpic` and the macro returned by `acdc_diagram::dpic_file`.
+acdc adds missing `.PS` and `.PE` delimiters. Existing delimiters, including a size on the opening line, are preserved.
+The acdc conversion requires unsafe mode to launch the configured executable. acdc always passes dpic's own `-z` flag, which disables external file access inside PIC source.
+
+== Pikchr
+
+Use `--extension diagram --pikchr /usr/bin/pikchr` to render a listing or literal block styled `[pikchr,flow]` as `flow.svg`. Use `pikchr::charts/flow.pikchr[]` to render a local source file. Both forms support SVG.
+Library callers register the style returned by `acdc_diagram::pikchr` and the macro returned by `acdc_diagram::pikchr_file`. The caller selects the executable, and rendering requires unsafe mode.
+A syntax error produces a located diagnostic. With the default error policy, the listing shows the failed source and the previous image is preserved.
+
+== GoAT
+
+Use `--extension diagram --goat /usr/bin/goat` to render ASCII art from a `[goat]` listing or literal block, or from a file with `goat::chart.txt[]`.
+Both forms produce SVG. Set `goat-svg-color-dark-scheme` and `goat-svg-color-light-scheme` on the document to select colors. A block or macro can override either with `svg-color-dark-scheme` or `svg-color-light-scheme`.
+Library callers register `acdc_diagram::goat` and `acdc_diagram::goat_file` with a trusted executable. Rendering requires unsafe mode.
+
+== Bytefield
+
+Use `--extension diagram --bytefield-svg /usr/bin/bytefield-svg` to render packet and binary layouts as SVG.
+Place the diagram source in a `[bytefield]` listing or literal block, or load a local file with `bytefield::layout.edn[]`.
+Library callers register `acdc_diagram::bytefield` and `acdc_diagram::bytefield_file` with a trusted executable. Rendering requires unsafe mode.
+
+== blockdiag
+
+Render `[blockdiag]` blocks and `blockdiag::chart.diag[]` files with `--blockdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
+== seqdiag
+
+Render `[seqdiag]` blocks and `seqdiag::chart.diag[]` files with `--seqdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
+== actdiag
+
+Render `[actdiag]` blocks and `actdiag::chart.diag[]` files with `--actdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
+== nwdiag
+
+Render `[nwdiag]` blocks and `nwdiag::chart.diag[]` files with `--nwdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
+== packetdiag
+
+Render `[packetdiag]` blocks and `packetdiag::chart.diag[]` files with `--packetdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
+== rackdiag
+
+Render `[rackdiag]` blocks and `rackdiag::chart.diag[]` files with `--rackdiag PATH`. PNG is the default. PDF, SVG, and a custom font file via `fontpath` are also supported. Enable the package with `--extension diagram`.
+
+== nomnoml
+
+Render `[nomnoml]` blocks and `nomnoml::chart.nomnoml[]` files with `--nomnoml PATH`. Output is SVG. Enable the package with `--extension diagram`.
+
+== smcat
+
+Render `[smcat]` blocks and `smcat::chart.smcat[]` files with `--smcat PATH`. Set `direction` or `engine` to choose the SVG layout. Enable the package with `--extension diagram`.
+
+== dbml
+
+Render `[dbml]` blocks and `dbml::chart.dbml[]` files with `--dbml-renderer PATH`. Output is SVG. Enable the package with `--extension diagram`.
+
+== graphviz_py
+
+Render `[graphviz_py]` blocks and `graphviz_py::chart.dot[]` files with `--graphviz-py PATH`. Choose PNG (default), PDF, or SVG. Set `layout` and `argument` to pass a layout engine and a preprocessor argument. Enable the package with `--extension diagram`.
+
+== d2
+
+Render `[d2]` blocks and `d2::chart.d2[]` files with `--d2 PATH`. SVG is the default. PNG and PDF require the corresponding D2 browser support. Set `theme`, `layout`, or `sketch` to change the drawing. Enable the package with `--extension diagram`.
+
+== shaape
+
+Render `[shaape]` blocks and `shaape::chart.shaape[]` files with `--shaape PATH`. PNG is the default. Select SVG with `format=svg`. Enable the package with `--extension diagram`.
+
+== symbolator
+
+Render `[symbolator]` blocks and `symbolator::chart.vhd[]` files with `--symbolator PATH`. Choose PNG (default), PDF, or SVG. Enable the package with `--extension diagram`.
+
+== pintora
+
+Render `[pintora]` blocks and `pintora::chart.pintora[]` files with `--pintora PATH`. Choose PNG (default) or SVG. Set `theme`, `width`, `background-color`, or `pixel-ratio` to customize the result. Enable the package with `--extension diagram`.
+
+== a2s
+
+Render `[a2s]` blocks and `a2s::chart.txt[]` files with `--a2s PATH`. SVG is the default. Use `format=txt` for the original text, `scalex` and `scaley` for dimensions, or `noblur=true` for crisp edges. Enable the package with `--extension diagram`.
+
+== svgbob
+
+Render `[svgbob]` blocks and `svgbob::chart.bob[]` files with `--svgbob PATH`. Choose SVG or literal text. The SVG renderer accepts `font-family`, `font-size`, `stroke-width`, and `scale`. Enable the package with `--extension diagram`.
+
+== syntrax
+
+Render `[syntrax]` blocks and `syntrax::chart.spec[]` files with `--syntrax PATH`. Choose PNG or SVG. Use `heading`, `scale`, `style-file`, and `transparent=true` to customize a railroad diagram. Enable the package with `--extension diagram`.
+
+== diagrams
+
+Render `[diagrams]` blocks and `diagrams::chart.py[]` files with `--diagrams-python PATH`. Render Python diagrams as PNG (default), SVG, or PDF with an interpreter that has the diagrams package installed. Enable the package with `--extension diagram`.
+
+== ditaa
+
+Render `[ditaa]` blocks and `ditaa::chart.ditaa[]` files with `--ditaa PATH`. Choose PNG (default), SVG, or literal text. Set `round-corners=true`, `shadows=false`, or `scale` to change the drawing. Enable the package with `--extension diagram`.
+
+== tape
+
+Render `[tape]` blocks and `tape::chart.tape[]` files with `--vhs PATH`. GIF is the default. SVG recording requires a VHS build with SVG support, such as the agentstation fork. Tape scripts run in unsafe mode. Enable the package with `--extension diagram`.
+
+== gnuplot
+
+Render `[gnuplot]` blocks and `gnuplot::chart.gp[]` files with `--gnuplot PATH`. Choose PNG, SVG, GIF, or a literal text plot. Set `width` and `height` together to select a terminal size. Enable the package with `--extension diagram`.
+
+== umlet
+
+Render `[umlet]` blocks and `umlet::chart.uxf[]` files with `--umlet PATH`. Choose SVG (default), PNG, PDF, or GIF using a UMLet command-line launcher. Enable the package with `--extension diagram`.
+
+== bpmn
+
+Render `[bpmn]` blocks and `bpmn::chart.bpmn[]` files with `--bpmn-js PATH`. Choose PNG (default), SVG, PDF, or JPEG. Set `width` and `height` to select the canvas size. Enable the package with `--extension diagram`.
+
+== mermaid
+
+Render `[mermaid]` blocks and `mermaid::chart.mmd[]` files with `--mmdc PATH`. Choose PNG or SVG and set `theme`, `scale`, or a local `config` file. Enable the package with `--extension diagram`. For SVGs with a nonzero viewBox origin, acdc uses the declared width and height. Asciidoctor Diagram 3.2.1 subtracts the origin from those dimensions.
+
+== oxdraw
+
+Render `[oxdraw]` blocks and `oxdraw::chart.mmd[]` files with `--oxdraw PATH`. SVG is the default. Use `background` and `scale` to change the output. Enable the package with `--extension diagram`.
+
+== lilypond
+
+Render `[lilypond]` blocks and `lilypond::chart.ly[]` files with `--lilypond PATH`. The output is a cropped PNG or PDF score. Set `resolution` to select the raster resolution. Enable the package with `--extension diagram`.
+
+== erd
+
+Render `[erd]` blocks and `erd::chart.erd[]` files with `--erd PATH`. Configure Graphviz with `--graphviz-dot PATH`. The ERD renderer produces DOT and Graphviz writes the final PNG or SVG. Enable the package with `--extension diagram`.
+
+== penrose
+
+Render `[penrose]` blocks and `penrose::chart.substance[]` files with `--roger PATH`. Provide `domain_file` and `style_file` relative to the diagram source. Use `variation` to choose a layout. Enable the package with `--extension diagram`.
+
+== plantuml
+
+Render `[plantuml]` blocks and `plantuml::chart.puml[]` files with `--plantuml PATH`. Choose PNG, SVG, ASCII `atxt`, or Unicode `txt` and `utxt`. Local includes resolve from the diagram directory. Configure Graphviz with `--graphviz-dot` or use the built-in Smetana layout. Enable the package with `--extension diagram`.
+
+== salt
+
+Render `[salt]` blocks and `salt::chart.salt[]` files with `--plantuml PATH`. Supply the PlantUML executable to render Salt wireframes as PNG, SVG, or text. Enable the package with `--extension diagram`.
+
+== vega
+
+Render `[vega]` blocks and `vega::chart.json[]` files with `--vg2svg PATH`. SVG uses `--vg2svg`. Supply `--vg2png PATH` for PNG and `--vl2vg PATH` for Vega-Lite specifications. Enable the package with `--extension diagram`.
+
+== vegalite
+
+Render `[vegalite]` blocks and `vegalite::chart.json[]` files with `--vl2vg PATH`. Supply the Vega SVG renderer with `--vg2svg PATH`. The compiler feeds its Vega specification to the selected SVG or PNG renderer. Enable the package with `--extension diagram`.
+
+== Meme
+
+Caption local images with `meme::photo.jpg[Top,Bottom]` and `--extension diagram --magick PATH`. PNG is the default. Use `format=gif` for GIF and `opts=noupcase` to preserve letter case. The third and fourth positional attributes set the output target and format. Use ` // ` to split a caption across lines. Both ImageMagick 7 `magick` and ImageMagick 6 `convert` accept this command line.
+
+== Renderer attributes
+
+External renderers registered through the renderer API accept case-insensitive format names. Use `jpg` for JPEG or `literal` for text when the renderer supports that format.
+Document attributes such as `:svgbob-option-scale:`, `:ditaa-option-round-corners:`, `:plantumlconfig:`, and `:syntrax-style:` set defaults for their renderers.
+PlantUML and Salt also accept `opts="smetana,debug"` on a diagram.
+
+== Verification
+
+With bytefield-svg 1.12.0, acdc and Asciidoctor Diagram 3.2.1 rendered a packet header block and a payload file as 681 × 32 SVGs. The field outlines and labels, image targets, alternative text, and numbered captions matched.
+
+With GoAT 0.5.1, acdc and Asciidoctor Diagram 3.2.1 rendered ASCII routes from a block and a local file as 152 × 58 SVGs. The shapes, light and dark colors, image targets, alternative text, and numbered captions matched.
+
+With Pikchr 1.0 (20250319161943), acdc and Asciidoctor Diagram 3.2.1 rendered a two-box exchange as 292 × 76 SVGs from both a block and a local file macro. Image targets, labels, and figure captions matched. Both reported the renderer’s unrecognized-token diagnostic for malformed input.
+
+With dpic 2023.06.01, acdc and Asciidoctor Diagram 3.2.1 rendered a two-box picture as a 195 × 51 SVG from both a bare block and a file macro. Image targets, labels, and figure captions matched. For a file already ending in `.PE`, acdc rendered the same picture. Asciidoctor Diagram 3.2.1 appended a second `.PE` and dpic reported a syntax error.
+
+With mscgen 0.20, acdc and Asciidoctor Diagram 3.2.1 rendered the same two-entity request and response chart as a 600 × 102 PNG block and a 600 × 78 SVG file macro. The image targets, alternative text, and numbered figure captions matched.
+
+Graphviz 14.1.2 rendered the same DOT graph with the `dot` layout through acdc and Asciidoctor Diagram 3.2.1. The HTML image paths, alternative text, and dimensions matched for PNG, SVG, and PDF.
+For `graphviz::graphs/chart.dot[svg,alt="*Graph*"]`, both CLIs linked `chart.svg`, preserved the literal asterisks in the alternative text, and numbered the titled image as a figure.
+
+The WaveDrom adapter uses the file-to-file protocol from https://github.com/nlopes/acdc/pull/451[acdc-diagram].
+The acceptance fixture reproduces the https://github.com/riscv/riscv-high-assurance-cryptography/blob/6b82dbaf0096747c8acee1749a1e1c188474f478/src/ace-ISA-unpriv.adoc#L1184-L1193[RISC-V ACE register diagram for ace.load], licensed under https://creativecommons.org/licenses/by/4.0/[CC BY 4.0].
+It was verified with `wavedrom-cli` 3.2.0. To run the real-renderer test:
+
+[source,console]
+----
+ACDC_WAVEDROM_CLI=/absolute/path/to/wavedrom-cli cargo nextest run -p acdc-diagram --all-features --run-ignored only -E 'test(=ace_register_diagram_with_real_wavedrom_cli)'
+----
+
+The https://github.com/riscv/riscv-high-assurance-cryptography/blob/6b82dbaf0096747c8acee1749a1e1c188474f478/src/ace-ISA-unpriv.adoc#L513-L587[ACE state diagram fixture] is extracted from a comment in the same CC BY 4.0 source.
+Install the TeX packages for standalone, TikZ, and fontspec and make the four https://github.com/riscv/docs-resources/tree/2aef34ec803cf3475376172bac78a35d5801cb21/fonts[Petrona Light and Medium upright and italic font files] available to LuaLaTeX.
+The reference comparison used LuaHBTeX 1.24.0, pdf2svg 0.2.4, and Asciidoctor Diagram 3.2.1 configured to run the same LuaLaTeX engine with shell escape disabled.
+To verify both formats with the real tools:
+
+[source,console]
+----
+ACDC_LUALATEX=/absolute/path/to/lualatex ACDC_PDF2SVG=/absolute/path/to/pdf2svg cargo nextest run -p acdc-diagram --all-features --run-ignored only -E 'test(=ace_state_diagram_with_real_lualatex)'
+----
+
+=== PDF conversion
+
+The November 2026 comparison used acdc CLI 0.3.0 and Asciidoctor PDF 2.3.19 with Asciidoctor 2.0.26 and Asciidoctor Diagram 3.2.1.
+Both backends rendered the ACE register and state machine from the fixtures above in a single document, using wavedrom-cli 3.2.0, LuaHBTeX 1.24.0 with shell escape disabled, and pdf2svg 0.2.4.
+
+With SVG for both figures, each PDF had one page. The register labels (including `ace.load`, `context`, and `immed12`) were selectable text.
+Both PDFs retained the state machine as vector paths and numbered the captions _Figure 1. ACE register_ and _Figure 2. ACE state machine_.
+Switching just the register to PNG embedded an 800 × 84 image with an alpha mask in each PDF. The page layouts gave the raster different displayed widths (127 ppi in acdc and 115 ppi in Asciidoctor PDF).

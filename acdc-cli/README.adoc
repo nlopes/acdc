@@ -128,6 +128,36 @@ application. Repeat the option to select multiple packages in execution order;
 duplicate selections count once. Compiling or registering a package does not
 activate it. Unknown or unavailable names fail before input is read or parsed.
 
+Build with `cargo build -p acdc-cli --features diagram` to make the `diagram` package available.
+Select it for trusted documents and pass the paths to the tools you want to run.
+Use `graphviz::graphs/chart.dot[svg]` to render an external DOT file as `chart.svg`. Graphviz accepts PNG (default), SVG, or PDF. PIC source in `[dpic]` blocks and `dpic::chart.pic[]` macros renders as SVG. Use `[pikchr]` or `pikchr::chart.pikchr[]` for Pikchr SVGs. Message sequence charts accept PNG (default) or SVG from `[msc]` blocks and `msc::chart.msc[]` macros. WaveDrom accepts SVG (default) or PNG. TikZ uses LuaLaTeX for PDF and can use pdf2svg for SVG.
+
+[source,console]
+....
+acdc convert --extension diagram --graphviz-dot /usr/bin/dot manual.adoc
+acdc convert --extension diagram --mscgen /usr/bin/mscgen manual.adoc
+acdc convert --extension diagram --dpic /usr/bin/dpic manual.adoc
+acdc convert --extension diagram --pikchr /usr/bin/pikchr manual.adoc
+acdc convert --extension diagram --goat /usr/bin/goat manual.adoc
+acdc convert --extension diagram --blockdiag /usr/bin/blockdiag manual.adoc
+acdc convert --extension diagram --bytefield-svg /usr/bin/bytefield-svg manual.adoc
+acdc convert --extension diagram --wavedrom-cli /opt/bin/wavedrom-cli manual.adoc
+acdc convert --extension diagram --lualatex /opt/tex/bin/lualatex --pdf2svg /opt/bin/pdf2svg manual.adoc
+....
+
+The tool paths can be supplied together. Diagram blocks run only in unsafe mode (the CLI default).
+Restricted modes report an error at the block before launching the renderer.
+By default a renderer failure emits a warning and conversion continues with the error and diagram source in a listing.
+Use `--fail-on-warnings` to keep that output and return status 1, or `-a diagram-on-error=abort` to stop at the failed block.
+A document cannot supply an executable path. See the link:../extensions/diagram/README.adoc[diagram guide] for block syntax.
+
+Linked assets follow the `imagesdir` in effect at the block, relative to the converted file's directory.
+Set `:imagesoutdir: staging` to write diagrams under `staging` relative to the working directory, including with `-o`. Links still use `imagesdir`, and embedding reads the staged files.
+For stdout, relative links resolve from the working directory, including when reading stdin.
+For a PDF document, pass `--pdf2svg` with `--lualatex` so TikZ produces an embeddable SVG.
+Embedded HTML images and PDF image inputs resolve from the source directory (the working directory for stdin).
+The terminal backend resolves images from the working directory, including in a pager.
+
 Files, stdin, batches, terminal output, and pager output use the same pipeline.
 The selected backend supplies attributes before preprocessing, and every document
 gets fresh extension handlers. Library callers use
@@ -514,6 +544,10 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | `html-terminal`
 | no
 | HTML terminal previews and session/replay rendering.
+
+| `diagram`
+| no
+| Makes native diagram styles available through `--extension diagram` and caller-supplied tool paths.
 
 | `terminal-emulator`
 | no

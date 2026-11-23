@@ -1,3 +1,7 @@
+#[cfg(feature = "html")]
+#[path = "convert/diagram.rs"]
+mod diagram;
+
 use std::{
     error::Error,
     io::{self, Write},
