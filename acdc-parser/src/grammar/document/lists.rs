@@ -163,18 +163,19 @@ pub(super) const fn calculate_item_end(
 /// This scan avoids a PEG rule call at each byte.
 #[inline]
 pub(super) fn find_dlist_marker(bytes: &[u8], pos: usize) -> bool {
-    let mut i = pos;
-    while let Some(&b) = bytes.get(i) {
+    for (i, &b) in bytes.iter().enumerate().skip(pos) {
         if b == b'\n' {
             return false;
         }
         if i > pos && (b == b':' || b == b';') {
             let marker_len = if b == b':' {
-                let mut k = 1;
-                while k < 4 && bytes.get(i + k) == Some(&b':') {
-                    k += 1;
-                }
-                if k >= 2 { k } else { 0 }
+                let colons = bytes
+                    .iter()
+                    .skip(i)
+                    .take(4)
+                    .take_while(|&&c| c == b':')
+                    .count();
+                if colons >= 2 { colons } else { 0 }
             } else if bytes.get(i + 1) == Some(&b';') {
                 2
             } else {
@@ -187,7 +188,6 @@ pub(super) fn find_dlist_marker(bytes: &[u8], pos: usize) -> bool {
                 }
             }
         }
-        i += 1;
     }
     false
 }

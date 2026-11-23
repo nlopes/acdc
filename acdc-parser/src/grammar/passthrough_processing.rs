@@ -1023,8 +1023,11 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
     let mut result = Vec::new();
     let mut cursor = 0;
     let mut copied_until = 0;
-    while let Some(relative_start) = raw.content[cursor..].find('{') {
-        let start = cursor + relative_start;
+    // Driven by the finite set of braces; `cursor` only skips consumed ones.
+    for (start, _) in raw.content.match_indices('{') {
+        if start < cursor {
+            continue;
+        }
         let Some(relative_end) = raw.content[start + 1..].find('}') else {
             break;
         };
@@ -1047,7 +1050,6 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             continue;
         }
         if !is_reference_name(name, state.options.compatibility_mode) {
-            cursor = start + 1;
             continue;
         }
 

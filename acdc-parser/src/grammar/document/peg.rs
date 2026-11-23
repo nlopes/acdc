@@ -3760,11 +3760,12 @@ peg::parser! {
 
         rule paragraph_text_run(offset: usize)
         = !at_line_start(offset) #{|input, start| {
+            // Match only forward progress, so the enclosing repetition always ends.
             let end = paragraph_text_end(input, start);
-            if end == start {
-                peg::RuleResult::Failed
-            } else {
+            if end > start {
                 peg::RuleResult::Matched(end, ())
+            } else {
+                peg::RuleResult::Failed
             }
         }}
 

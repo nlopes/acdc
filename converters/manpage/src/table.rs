@@ -89,13 +89,13 @@ fn has_hspan_origin(
     row_index: usize,
     column_index: usize,
 ) -> bool {
-    let mut row_index = row_index;
-    while row_index > 0 {
-        row_index -= 1;
-        match grid
-            .get(row_index)
-            .and_then(|row| row.cells.get(column_index))
-        {
+    // Walk upward through VSpan cells. A row index past the grid has nothing
+    // above it to trace.
+    let Some(rows_above) = grid.get(..row_index) else {
+        return false;
+    };
+    for row in rows_above.iter().rev() {
+        match row.cells.get(column_index) {
             Some(CellKind::VSpan) => {}
             Some(CellKind::HSpan) => return true,
             Some(CellKind::Content { .. }) | None => return false,

@@ -65,12 +65,17 @@ fn reference_replacements(
     allowed: impl Fn(Range<usize>, SymbolKind) -> bool,
 ) -> Vec<Replacement> {
     let mut edits = Vec::new();
-    let mut cursor = 0;
-    while cursor < text.len() {
+    let mut next = 0;
+    // Walk each byte at most once so a broken `replacement_at` cannot hang
+    // the oracle; `next` skips bytes the previous step consumed.
+    for cursor in 0..text.len() {
+        if cursor < next {
+            continue;
+        }
         let escaped = text.as_bytes().get(cursor) == Some(&b'\\');
         let start = cursor + usize::from(escaped);
         let Some((mut range, kind)) = replacement_at(text, start, edges, words) else {
-            cursor += text[cursor..].chars().next().map_or(1, char::len_utf8);
+            next = cursor + text[cursor..].chars().next().map_or(1, char::len_utf8);
             continue;
         };
         if escaped
@@ -79,7 +84,7 @@ fn reference_replacements(
                 kind,
             )
         {
-            cursor = start;
+            next = start;
             continue;
         }
         let end = range.end;
@@ -87,7 +92,7 @@ fn reference_replacements(
             .last()
             .is_some_and(|previous: &Replacement| previous.range.end > range.start)
         {
-            cursor = start + 1;
+            next = start + 1;
             continue;
         }
         if escaped {
@@ -116,7 +121,7 @@ fn reference_replacements(
             ReplacementValue::Symbol(kind)
         };
         encoded_arrows::append_edits(text, range, value, &mut edits, &allowed);
-        cursor = edits.last().map_or(end, |edit| edit.range.end);
+        next = edits.last().map_or(end, |edit| edit.range.end);
     }
     edits
 }

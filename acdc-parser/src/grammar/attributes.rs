@@ -301,8 +301,12 @@ fn scan_attributes(
     let mut attributes = Vec::new();
     let mut cursor = 0;
 
-    loop {
-        let slot_start = cursor;
+    // Each slot starts where the previous one ended. Visiting every position
+    // at most once bounds the loop by the source length.
+    for slot_start in 0..=source.len() {
+        if slot_start < cursor {
+            continue;
+        }
         let remaining = &source[slot_start..];
         let leading = remaining.len() - remaining.trim_start_matches([' ', '\t']).len();
         let trimmed_start = slot_start + leading;

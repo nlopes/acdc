@@ -41,19 +41,13 @@ pub(super) fn check_constrained_opening_boundary(
 /// character immediately preceding byte offset `end`). Returns `None` at the
 /// start of input or if the bytes are not valid UTF-8.
 fn char_ending_at(input: &[u8], end: usize) -> Option<char> {
-    if end == 0 || end > input.len() {
-        return None;
-    }
+    let prefix = input.get(..end)?;
     // Walk back over UTF-8 continuation bytes (0b10xx_xxxx) to the lead byte.
-    let mut start = end - 1;
-    while start > 0
-        && input
-            .get(start)
-            .is_some_and(|&b| b & 0b1100_0000 == 0b1000_0000)
-    {
-        start -= 1;
-    }
-    std::str::from_utf8(input.get(start..end)?)
+    let start = prefix
+        .iter()
+        .rposition(|&b| b & 0b1100_0000 != 0b1000_0000)
+        .unwrap_or(0);
+    std::str::from_utf8(prefix.get(start..)?)
         .ok()?
         .chars()
         .next()

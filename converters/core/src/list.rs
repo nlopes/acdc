@@ -142,11 +142,10 @@ fn roman(mut n: usize) -> String {
         return n.to_string();
     }
     let mut out = String::new();
+    // Each symbol repeats a computed number of times; no loop waits on `n`.
     for (value, symbol) in ROMAN {
-        while n >= value {
-            out.push_str(symbol);
-            n -= value;
-        }
+        out.extend(std::iter::repeat_n(symbol, n / value));
+        n %= value;
     }
     out
 }

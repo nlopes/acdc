@@ -153,25 +153,33 @@ impl<'a> DocumentAttributeValue<'a> {
     /// ```
     pub fn parts(&self) -> impl Iterator<Item = TextPartRef<'_>> + Send + Sync {
         let text = self.text().unwrap_or_default();
-        let mut fragments = self.text_fragments().iter().peekable();
+        // Each fragment contributes an optional gap ending at its start and the
+        // fragment itself; the text tail follows. Every part consumes one of
+        // these boundaries, so the iterator is finite.
+        let mut boundaries = self
+            .text_fragments()
+            .iter()
+            .flat_map(|fragment| {
+                [
+                    (fragment.range.start, 1, true),
+                    (fragment.range.end, fragment.special_chars, false),
+                ]
+            })
+            .chain(std::iter::once((text.len(), 1, false)));
         let mut cursor = 0;
         std::iter::from_fn(move || {
-            if cursor == text.len() {
-                return None;
-            }
-            let (end, special_chars) = if let Some(fragment) = fragments.peek() {
-                if cursor < fragment.range.start {
-                    (fragment.range.start, 1)
-                } else {
-                    let fragment = fragments.next()?;
-                    (fragment.range.end, fragment.special_chars)
+            for (end, special_chars, gap) in boundaries.by_ref() {
+                if cursor == text.len() {
+                    return None;
                 }
-            } else {
-                (text.len(), 1)
-            };
-            let part = TextPartRef::with_special_chars(&text[cursor..end], special_chars);
-            cursor = end;
-            Some(part)
+                if gap && cursor >= end {
+                    continue;
+                }
+                let part = TextPartRef::with_special_chars(&text[cursor..end], special_chars);
+                cursor = end;
+                return Some(part);
+            }
+            None
         })
     }
 
@@ -202,10 +210,11 @@ impl<'a> DocumentAttributeValue<'a> {
         if text.len() <= limit {
             return;
         }
-        let mut end = limit;
-        while !text.is_char_boundary(end) {
-            end -= 1;
-        }
+        // `limit < text.len()` and 0 is always a boundary.
+        let end = (0..=limit)
+            .rev()
+            .find(|&index| text.is_char_boundary(index))
+            .unwrap_or_default();
         match text {
             Cow::Borrowed(value) => *value = &value[..end],
             Cow::Owned(value) => value.truncate(end),

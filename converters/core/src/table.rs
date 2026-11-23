@@ -132,22 +132,27 @@ fn build_grid_rows<Row: Copy, Cells: Iterator<Item = (usize, usize)>>(
     for (ast_row, is_header, is_footer) in rows {
         let mut cells = cell_spans(ast_row).enumerate();
         let mut row_cells = Vec::with_capacity(num_cols);
-        let mut col = 0;
+        // Columns still covered by the previous cell's colspan. Visiting every
+        // column exactly once keeps the loop bounded by `num_cols`.
+        let mut covered = 0;
 
-        while col < num_cols {
+        for col in 0..num_cols {
+            if covered > 0 {
+                covered -= 1;
+                continue;
+            }
+
             if let Some(remaining) = rowspan_remaining.get_mut(col)
                 && *remaining > 0
             {
                 row_cells.push(CellKind::VSpan);
                 *remaining -= 1;
-                col += 1;
                 continue;
             }
 
             let Some((cell_index, (colspan, rowspan))) = cells.next() else {
                 // Shouldn't happen in well-formed input; fill remaining
                 row_cells.push(CellKind::HSpan);
-                col += 1;
                 continue;
             };
 
@@ -170,7 +175,7 @@ fn build_grid_rows<Row: Copy, Cells: Iterator<Item = (usize, usize)>>(
                 }
             }
 
-            col += colspan;
+            covered = colspan - 1;
         }
 
         grid.push(GridRow {

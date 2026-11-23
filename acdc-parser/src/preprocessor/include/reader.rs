@@ -77,19 +77,15 @@ pub(super) fn read(
 
 /// Read only bytes that can be part of a byte order mark (BOM).
 /// An unconditional three-byte read would pass the end of a short line such as "a\n".
+#[expect(
+    clippy::unbuffered_bytes,
+    reason = "A buffer would consume source bytes past the BOM"
+)]
 fn bom_prefix(reader: &mut dyn Read) -> io::Result<Vec<u8>> {
     let mut prefix = Vec::with_capacity(3);
-    let mut next = [0];
-    loop {
-        match reader.read(&mut next) {
-            Ok(0) => break,
-            Ok(_) => {
-                let [byte] = next;
-                prefix.push(byte);
-            }
-            Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
-            Err(error) => return Err(error),
-        }
+    // A BOM has at most three bytes. `Bytes` retries interrupted reads.
+    for byte in Read::take(reader, 3).bytes() {
+        prefix.push(byte?);
         if !matches!(prefix.as_slice(), [0xef | 0xff | 0xfe] | [0xef, 0xbb]) {
             break;
         }
@@ -240,11 +236,11 @@ impl Candidates {
         });
         // A removed line can belong to a range that ends beyond the source.
         // Record the source length that would make this line part of the selection.
-        while self.bytes > MAX_SELECTED_BYTES + 1 {
-            if let Some(line) = self.lines.pop() {
-                self.bytes -= line.text.len() + 1;
-                self.discard(line.required_end);
-            }
+        while self.bytes > MAX_SELECTED_BYTES + 1
+            && let Some(line) = self.lines.pop()
+        {
+            self.bytes -= line.text.len() + 1;
+            self.discard(line.required_end);
         }
     }
 
@@ -571,10 +567,12 @@ impl Line {
             self.trimmed_len = start.saturating_add(trimmed.len());
         }
         if self.required_end.is_some() {
-            let mut end = text.len().min(MAX_SELECTED_BYTES.saturating_sub(start));
-            while !text.is_char_boundary(end) {
-                end -= 1;
-            }
+            let limit = text.len().min(MAX_SELECTED_BYTES.saturating_sub(start));
+            // Offset 0 is always a char boundary.
+            let end = (0..=limit)
+                .rev()
+                .find(|&end| text.is_char_boundary(end))
+                .unwrap_or_default();
             self.prefix.push_str(text.get(..end).unwrap_or_default());
         }
         let mut tail = text.chars().rev();

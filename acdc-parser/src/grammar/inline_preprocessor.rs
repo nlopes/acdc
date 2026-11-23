@@ -329,10 +329,12 @@ impl<'a> InlinePreprocessorParserState<'a> {
     ) -> String {
         let mut output = String::with_capacity(source.len());
         let mut copied_until = 0;
-        let mut search_from = 0;
 
-        while let Some(relative_start) = source[search_from..].find('+') {
-            let start = search_from + relative_start;
+        // Visit each `+` once; those inside an extracted passthrough are skipped.
+        for (start, _) in source.match_indices('+') {
+            if start < copied_until {
+                continue;
+            }
             let previous = if start == 0 {
                 self.full_input[..source_start.saturating_sub(1)]
                     .chars()
@@ -341,12 +343,10 @@ impl<'a> InlinePreprocessorParserState<'a> {
                 source[..start].chars().next_back()
             };
             if !constrained_passthrough_start(previous) {
-                search_from = start + 1;
                 continue;
             }
 
             let Some(end) = constrained_passthrough_end(source, start) else {
-                search_from = start + 1;
                 continue;
             };
 
@@ -380,7 +380,6 @@ impl<'a> InlinePreprocessorParserState<'a> {
             output.push_str(&placeholder);
 
             copied_until = end + 1;
-            search_from = copied_until;
         }
 
         self.append_unprotected_text(
@@ -405,14 +404,15 @@ impl<'a> InlinePreprocessorParserState<'a> {
         }
 
         let mut copied_until = 0;
-        let mut search_from = 0;
-        while let Some(relative_start) = source[search_from..].find('{') {
-            let start = search_from + relative_start;
+        // Visit each `{` once; those inside an expanded reference are skipped.
+        for (start, _) in source.match_indices('{') {
+            if start < copied_until {
+                continue;
+            }
             let name_len =
                 reference_name_len(&source[start + 1..], document_attributes.reference_mode());
             let end = start + name_len + 2;
             if name_len == 0 || source.as_bytes().get(end - 1) != Some(&b'}') {
-                search_from = start + 1;
                 continue;
             }
             let name = &source[start + 1..end - 1];
@@ -421,7 +421,6 @@ impl<'a> InlinePreprocessorParserState<'a> {
             let location = self.location_from_offsets(source_start + start, source_start + end);
             output.push_str(&self.expand_attribute_reference(name, location, document_attributes));
             copied_until = end;
-            search_from = end;
         }
         output.push_str(&source[copied_until..]);
     }

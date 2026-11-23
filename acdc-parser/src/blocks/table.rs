@@ -170,19 +170,17 @@ fn find_csv_field_position(
 
 /// Find the closing quote of a quoted CSV field, handling escaped quotes (`""`).
 fn find_closing_quote(text: &[u8], start: usize) -> usize {
-    let mut pos = start;
-    while let Some(&byte) = text.get(pos) {
+    let mut bytes = text.iter().enumerate().skip(start);
+    while let Some((pos, &byte)) = bytes.next() {
         if byte == b'"' {
             // Check if this is an escaped quote ("")
             if text.get(pos + 1) == Some(&b'"') {
-                // Escaped quote - skip both and continue
-                pos += 2;
+                // Escaped quote - skip its second quote and continue
+                bytes.next();
             } else {
                 // Closing quote found
                 return pos;
             }
-        } else {
-            pos += 1;
         }
     }
     // No closing quote found - return end of text
@@ -345,53 +343,60 @@ impl CellSpecifier {
     ) {
         let mut halign: Option<HorizontalAlignment> = None;
         let mut valign: Option<VerticalAlignment> = None;
+        let markers = bytes.get(pos..).unwrap_or_default();
+        let mut rest = markers;
 
+        // Each recognized marker shortens `rest`. A dot followed by anything
+        // other than `<`, `^` or `>` might be a rowspan, so it ends the scan.
         loop {
-            match bytes.get(pos) {
-                Some(b'<') => {
+            rest = match rest {
+                [b'<', tail @ ..] => {
                     halign = Some(HorizontalAlignment::Left);
-                    pos += 1;
+                    tail
                 }
-                Some(b'^') => {
+                [b'^', tail @ ..] => {
                     halign = Some(HorizontalAlignment::Center);
-                    pos += 1;
+                    tail
                 }
-                Some(b'>') => {
+                [b'>', tail @ ..] => {
                     halign = Some(HorizontalAlignment::Right);
-                    pos += 1;
+                    tail
                 }
-                Some(b'.') => {
-                    // Could be vertical alignment (.< .^ .>) or rowspan (.N)
-                    match bytes.get(pos + 1) {
-                        Some(b'<') => {
-                            valign = Some(VerticalAlignment::Top);
-                            pos += 2;
-                        }
-                        Some(b'^') => {
-                            valign = Some(VerticalAlignment::Middle);
-                            pos += 2;
-                        }
-                        Some(b'>') => {
-                            valign = Some(VerticalAlignment::Bottom);
-                            pos += 2;
-                        }
-                        _ => break, // Not vertical alignment, might be rowspan
-                    }
+                [b'.', b'<', tail @ ..] => {
+                    valign = Some(VerticalAlignment::Top);
+                    tail
+                }
+                [b'.', b'^', tail @ ..] => {
+                    valign = Some(VerticalAlignment::Middle);
+                    tail
+                }
+                [b'.', b'>', tail @ ..] => {
+                    valign = Some(VerticalAlignment::Bottom);
+                    tail
                 }
                 _ => break,
-            }
+            };
         }
 
+        pos += markers.len() - rest.len();
         (halign, valign, pos)
+    }
+
+    /// Return the end of the ASCII digit run starting at `pos`.
+    fn digits_end(bytes: &[u8], pos: usize) -> usize {
+        let digits = bytes
+            .get(pos..)
+            .unwrap_or_default()
+            .iter()
+            .take_while(|byte| byte.is_ascii_digit())
+            .count();
+        pos + digits
     }
 
     /// Parse a number (for colspan) at the current position.
     /// Returns `(parsed_value, new_position)`.
-    fn parse_number(content: &str, bytes: &[u8], mut pos: usize) -> (Option<usize>, usize) {
-        let start = pos;
-        while bytes.get(pos).is_some_and(u8::is_ascii_digit) {
-            pos += 1;
-        }
+    fn parse_number(content: &str, bytes: &[u8], start: usize) -> (Option<usize>, usize) {
+        let pos = Self::digits_end(bytes, start);
         let value = if pos > start {
             content
                 .get(start..pos)
@@ -404,17 +409,13 @@ impl CellSpecifier {
 
     /// Parse `rowspan` (dot followed by digits) at the current position.
     /// Returns `(parsed_value, new_position)`.
-    fn parse_rowspan(content: &str, bytes: &[u8], mut pos: usize) -> (Option<usize>, usize) {
-        if bytes.get(pos) != Some(&b'.') {
-            return (None, pos);
+    fn parse_rowspan(content: &str, bytes: &[u8], dot_pos: usize) -> (Option<usize>, usize) {
+        if bytes.get(dot_pos) != Some(&b'.') {
+            return (None, dot_pos);
         }
 
-        let dot_pos = pos;
-        pos += 1;
-        let start = pos;
-        while bytes.get(pos).is_some_and(u8::is_ascii_digit) {
-            pos += 1;
-        }
+        let start = dot_pos + 1;
+        let pos = Self::digits_end(bytes, start);
 
         if pos > start {
             let value = content
@@ -794,18 +795,27 @@ fn group_cells_into_rows(
     while next.is_some() {
         let mut row = Vec::new();
         let mut new_spans: Vec<(usize, usize, usize)> = Vec::new();
-        let mut col = 0;
 
-        while col < ncols {
+        // Columns still covered by the previous rowspan or cell. Visiting every
+        // column exactly once keeps the loop bounded by `ncols`.
+        let mut covered = 0;
+        let mut complete = true;
+
+        for col in 0..ncols {
+            if covered > 0 {
+                covered -= 1;
+                continue;
+            }
             // Skip columns occupied by an active rowspan from a previous row.
             if let Some(&(_, _, width)) = active
                 .iter()
                 .find(|(pos, _, width)| col >= *pos && col < pos + width)
             {
-                col += width;
+                covered = width - 1;
                 continue;
             }
             let Some(cell) = next.take() else {
+                complete = false;
                 break;
             };
             next = iter.next();
@@ -819,10 +829,10 @@ fn group_cells_into_rows(
                 new_spans.push((col, cell.spec.rowspan - 1, occupied));
             }
             row.push(cell);
-            col += occupied;
+            covered = occupied - 1;
         }
 
-        if col < ncols {
+        if !complete {
             // Incomplete final row — asciidoctor drops it and warns. Capture
             // the span of the dropped cells for the warning location.
             if let (Some(first), Some(last)) = (row.first(), row.last()) {

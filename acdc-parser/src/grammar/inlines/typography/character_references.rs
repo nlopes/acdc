@@ -142,12 +142,13 @@ fn resolve_text<'a>(
         }
     };
     let mut cursor = 0;
-    let mut search = 0;
-    while let Some(relative) = text[search..].find('&') {
-        let amp = search + relative;
+    // Driven by the finite set of ampersands; `cursor` only skips consumed ones.
+    for (amp, _) in text.match_indices('&') {
+        if amp < cursor {
+            continue;
+        }
         let Some(reference) = reference_at(text, amp, start, plan, raw_subs.is_none(), state)
         else {
-            search = amp + 1;
             continue;
         };
         if cursor < reference.range.start {
@@ -174,7 +175,6 @@ fn resolve_text<'a>(
             })),
         }
         cursor = reference.range.end;
-        search = cursor;
     }
     if cursor < text.len() {
         result.push(fragment(cursor..text.len()));

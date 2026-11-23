@@ -503,11 +503,13 @@ fn visible_line_len(line: &str) -> usize {
 /// This means the vertical separator should also be removed for `VSpan` rows
 /// that are part of a combined colspan+rowspan.
 fn is_hspan_origin(grid: &[GridRow<TableRowRef<'_>>], row_idx: usize, col_idx: usize) -> bool {
-    // Walk upward through VSpan cells until we find the row that isn't VSpan
-    let mut r = row_idx;
-    while r > 0 {
-        r -= 1;
-        match grid.get(r).and_then(|row| row.cells.get(col_idx)) {
+    // Walk upward through VSpan cells until we find the row that isn't VSpan.
+    // A row index past the grid has nothing above it to trace.
+    let Some(rows_above) = grid.get(..row_idx) else {
+        return false;
+    };
+    for row in rows_above.iter().rev() {
+        match row.cells.get(col_idx) {
             Some(CellKind::VSpan) => {}
             Some(CellKind::HSpan) => return true,
             _ => return false,

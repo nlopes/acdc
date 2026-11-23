@@ -1892,9 +1892,11 @@ fn expand_attribute_entry_references(
     let mut output = String::with_capacity(text.len());
     let mut prepared = Vec::new();
     let mut cursor = 0;
-    let mut search_from = 0;
-    while let Some(relative) = text[search_from..].find('{') {
-        let start = search_from + relative;
+    // Driven by the finite set of braces; `cursor` only skips consumed ones.
+    for (start, _) in text.match_indices('{') {
+        if start < cursor {
+            continue;
+        }
         let Some(close) = text[start..].find('}') else {
             break;
         };
@@ -1904,7 +1906,6 @@ fn expand_attribute_entry_references(
             name.strip_suffix('\\').unwrap_or(name),
             attributes.reference_mode(),
         ) {
-            search_from = start + 1;
             continue;
         }
         let escaped_start = text[cursor..start].ends_with('\\');
@@ -1953,7 +1954,6 @@ fn expand_attribute_entry_references(
             append_attribute_slice(&mut output, &mut prepared, text, cursor..end, fragments, 0);
         }
         cursor = end;
-        search_from = end;
     }
     append_attribute_slice(
         &mut output,

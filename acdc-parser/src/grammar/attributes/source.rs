@@ -23,15 +23,18 @@ pub(in crate::grammar) fn expand_attribute_list<'a>(
     let mut source_map = SourceMap::default();
     let mut cursor = 0;
     let mut unwritten = 0;
-    while let Some(relative) = source[cursor..].find('{') {
-        let open = cursor + relative;
-        cursor = open + 1;
-        let name_len = reference_name_len(&source[cursor..], mode);
-        let close = cursor + name_len;
+    // Driven by the finite set of braces; `cursor` only skips consumed ones.
+    for (open, _) in source.match_indices('{') {
+        if open < cursor {
+            continue;
+        }
+        let name_start = open + 1;
+        let name_len = reference_name_len(&source[name_start..], mode);
+        let close = name_start + name_len;
         if name_len == 0 || !source[close..].starts_with('}') {
             continue;
         }
-        let name = &source[cursor..close];
+        let name = &source[name_start..close];
         cursor = close + 1;
         let slashes = source[..open]
             .bytes()
@@ -106,8 +109,11 @@ pub(super) fn decode_attribute_escapes(
     let mut output = String::with_capacity(source.len());
     let mut source_map = SourceMap::default();
     let mut cursor = 0;
-    while let Some(relative) = source[cursor..].find('\\') {
-        let start = cursor + relative;
+    // Driven by the finite set of backslashes; `cursor` only skips consumed ones.
+    for (start, _) in source.match_indices('\\') {
+        if start < cursor {
+            continue;
+        }
         output.push_str(&source[cursor..start]);
         let count = source[start..]
             .bytes()

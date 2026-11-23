@@ -4,11 +4,10 @@ use unicode_width::UnicodeWidthChar;
 
 /// Skip past an ANSI escape sequence (CSI or OSC) without collecting it.
 ///
-/// The iterator must be positioned at the `\x1b` character. On return,
-/// the iterator is advanced past the entire escape sequence.
+/// The caller has already consumed the `\x1b` character, so the caller's scan
+/// advances even when nothing follows. On return, the iterator is advanced
+/// past the rest of the escape sequence.
 fn skip_ansi_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) {
-    // consume '\x1b'
-    chars.next();
     match chars.peek() {
         Some(&'[') => {
             // CSI sequence: \x1b[...letter
@@ -38,13 +37,10 @@ fn skip_ansi_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) {
     }
 }
 
-/// Consume an ANSI escape sequence starting at '\x1b' and return it as a string.
+/// Consume the rest of an ANSI escape sequence whose `\x1b` the caller has
+/// already consumed, and return the whole sequence as a string.
 fn collect_ansi_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -> String {
-    let mut seq = String::new();
-    // consume '\x1b'
-    if let Some(esc) = chars.next() {
-        seq.push(esc);
-    }
+    let mut seq = String::from('\x1b');
     match chars.peek() {
         Some(&'[') => {
             // CSI sequence: \x1b[...letter
@@ -90,11 +86,10 @@ fn collect_ansi_escape(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -> 
 fn visible_len(s: &str) -> usize {
     let mut len = 0;
     let mut chars = s.chars().peekable();
-    while let Some(&ch) = chars.peek() {
+    while let Some(ch) = chars.next() {
         if ch == '\x1b' {
             skip_ansi_escape(&mut chars);
         } else {
-            chars.next();
             len += UnicodeWidthChar::width(ch).unwrap_or(0);
         }
     }
@@ -157,14 +152,13 @@ pub(crate) fn indent_ansi_lines(text: &str, indent: usize) -> String {
             }
         }
         let mut chars = line.chars().peekable();
-        while let Some(&ch) = chars.peek() {
+        while let Some(ch) = chars.next() {
             if ch == '\x1b' {
                 let seq = collect_ansi_escape(&mut chars);
                 update_ansi_state_full(&seq, &mut active_codes);
                 result.push_str(&seq);
             } else {
                 result.push(ch);
-                chars.next();
             }
         }
     }
@@ -187,7 +181,9 @@ fn tokenize(line: &str) -> Vec<Token> {
     let mut chars = line.chars().peekable();
     let mut current_word = String::new();
 
-    while let Some(&ch) = chars.peek() {
+    // Each iteration consumes at least one character, so the scan is bounded
+    // by the line length.
+    while let Some(ch) = chars.next() {
         if ch == '\x1b' {
             // Flush any in-progress word
             if !current_word.is_empty() {
@@ -202,12 +198,9 @@ fn tokenize(line: &str) -> Vec<Token> {
                 tokens.push(Token::Word(std::mem::take(&mut current_word)));
             }
             // Consume consecutive spaces as a single Space token
-            while chars.peek() == Some(&' ') {
-                chars.next();
-            }
+            while chars.next_if_eq(&' ').is_some() {}
             tokens.push(Token::Space);
         } else {
-            chars.next();
             current_word.push(ch);
         }
     }

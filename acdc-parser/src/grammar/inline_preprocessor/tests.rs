@@ -800,3 +800,14 @@ fn test_pass_macro_a_q_with_macros_disabled_expands_attributes() -> Result<(), E
     assert_eq!(result.passthroughs, []);
     Ok(())
 }
+
+#[test]
+fn test_escaped_passthrough_expands_adjacent_attribute_references() -> Result<(), Error> {
+    let attributes = setup_attributes();
+    let input = r"\+{version}{title}+";
+    let state = setup_state(input);
+    let result = inline_preprocessing::run(input, &attributes, &state)?;
+    assert_eq!(result.text, "+1.0My Title+");
+    assert_eq!(result.passthroughs, []);
+    Ok(())
+}

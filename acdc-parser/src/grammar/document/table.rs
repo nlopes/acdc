@@ -431,17 +431,16 @@ pub(super) fn parse_table_block_impl<'input>(
             }
         }
         for cell in &columns {
-            // Skip over positions occupied by rowspans
-            while active_rowspans
-                .iter()
-                .any(|(pos, _, width)| col_position >= *pos && col_position < pos + width)
-            {
-                if let Some((_, _, width)) = active_rowspans
+            // Skip over positions occupied by rowspans. Each skip moves past the
+            // rowspan it hit, so no rowspan can be hit twice.
+            for _ in 0..active_rowspans.len() {
+                let Some((_, _, width)) = active_rowspans
                     .iter()
-                    .find(|(pos, _, w)| col_position >= *pos && col_position < pos + w)
-                {
-                    col_position += width;
-                }
+                    .find(|(pos, _, width)| col_position >= *pos && col_position < pos + width)
+                else {
+                    break;
+                };
+                col_position += width;
             }
             if cell.rowspan > 1 {
                 active_rowspans.push((col_position, cell.rowspan - 1, cell.colspan));

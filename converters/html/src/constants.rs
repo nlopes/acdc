@@ -34,48 +34,35 @@ fn html_entity_end(bytes: &[u8], start: usize) -> Option<usize> {
         let next = *bytes.get(after_amp + 1)?;
         if next == b'x' || next == b'X' {
             // Hex NCR: &#x[0-9a-fA-F]+;
-            let mut i = after_amp + 2;
-            let digit_start = i;
-            while let Some(&b) = bytes.get(i) {
-                if b.is_ascii_hexdigit() {
-                    i += 1;
-                } else {
-                    break;
-                }
-            }
+            let digit_start = after_amp + 2;
+            let i = run_end(bytes, digit_start, u8::is_ascii_hexdigit);
             if i > digit_start && bytes.get(i) == Some(&b';') {
                 return Some(i);
             }
         } else if next.is_ascii_digit() {
             // Decimal NCR: &#[0-9]+;
-            let mut i = after_amp + 1;
-            while let Some(&b) = bytes.get(i) {
-                if b.is_ascii_digit() {
-                    i += 1;
-                } else {
-                    break;
-                }
-            }
+            let i = run_end(bytes, after_amp + 1, u8::is_ascii_digit);
             if bytes.get(i) == Some(&b';') {
                 return Some(i);
             }
         }
     } else if first.is_ascii_alphabetic() {
         // Named entity: &[a-zA-Z][a-zA-Z0-9]*;
-        let mut i = after_amp + 1;
-        while let Some(&b) = bytes.get(i) {
-            if b.is_ascii_alphanumeric() {
-                i += 1;
-            } else {
-                break;
-            }
-        }
+        let i = run_end(bytes, after_amp + 1, u8::is_ascii_alphanumeric);
         if bytes.get(i) == Some(&b';') {
             return Some(i);
         }
     }
 
     None
+}
+
+/// Index just past the run of bytes from `start` that satisfy `accept`.
+fn run_end(bytes: &[u8], start: usize, accept: fn(&u8) -> bool) -> usize {
+    let run = bytes
+        .get(start..)
+        .map_or(0, |rest| rest.iter().take_while(|&b| accept(b)).count());
+    start + run
 }
 
 /// Escape bare `&` characters to `&amp;`, preserving valid HTML entity references.
@@ -86,21 +73,19 @@ fn html_entity_end(bytes: &[u8], start: usize) -> Option<usize> {
 pub(crate) fn escape_ampersands(text: &str) -> String {
     let bytes = text.as_bytes();
     let mut result = String::with_capacity(text.len());
-    let mut i = 0;
+    // Every iteration consumes at least one character, so the scan is bounded
+    // by the input length.
+    let mut chars = text.char_indices().peekable();
 
-    while i < bytes.len() {
-        if bytes.get(i) == Some(&b'&') {
-            if let Some(end) = html_entity_end(bytes, i) {
-                // Valid entity — copy it verbatim (all ASCII, safe to slice)
-                result.push_str(&text[i..=end]);
-                i = end + 1;
-            } else {
-                result.push_str("&amp;");
-                i += 1;
-            }
-        } else if let Some(ch) = text[i..].chars().next() {
+    while let Some((i, ch)) = chars.next() {
+        if ch != '&' {
             result.push(ch);
-            i += ch.len_utf8();
+        } else if let Some(end) = html_entity_end(bytes, i) {
+            // Valid entity — copy it verbatim (all ASCII, safe to slice)
+            result.push_str(&text[i..=end]);
+            while chars.next_if(|&(j, _)| j <= end).is_some() {}
+        } else {
+            result.push_str("&amp;");
         }
     }
 

@@ -299,21 +299,20 @@ pub(crate) fn replacements(
 ) -> Vec<Replacement> {
     let mut edits = Vec::new();
     let mut cursor = 0;
-    while let Some(offset) = text
-        .as_bytes()
-        .get(cursor..)
-        .unwrap_or_default()
-        .iter()
-        .position(|byte| matches!(byte, b'(' | b'.' | b'-' | b'=' | b'<' | b'\'' | b'&'))
-    {
+    // Every iteration consumes a byte, so the loop is bounded by the text.
+    let mut scan = text.bytes().enumerate();
+    while let Some((start, byte)) = scan.next() {
+        if !matches!(byte, b'(' | b'.' | b'-' | b'=' | b'<' | b'\'' | b'&') {
+            continue;
+        }
         // Every candidate is ASCII, so both it and an immediately preceding
-        // escape are UTF-8 boundaries. Keep a rejected escape eligible for the
-        // unescaped retry, as required by substitution provenance.
-        let start = cursor + offset;
-        let escaped = offset > 0 && text.as_bytes().get(start - 1) == Some(&b'\\');
+        // escape are UTF-8 boundaries. An escape counts only when it was not
+        // consumed by the previous edit.
+        let mut escaped = start > cursor && text.as_bytes().get(start - 1) == Some(&b'\\');
         cursor = start - usize::from(escaped);
+        // A rejected candidate leaves `cursor` before the next one; it is not
+        // a backslash, so it cannot escape what follows.
         let Some((mut range, kind)) = replacement_at(text, start, edges, words) else {
-            cursor = start + 1;
             continue;
         };
         if escaped
@@ -322,15 +321,16 @@ pub(crate) fn replacements(
                 kind,
             )
         {
+            // Retry the rejected escape unescaped, as required by
+            // substitution provenance.
+            escaped = false;
             cursor = start;
-            continue;
         }
         let end = range.end;
         if edits
             .last()
             .is_some_and(|previous: &Replacement| previous.range.end > range.start)
         {
-            cursor = start + 1;
             continue;
         }
         if escaped {
@@ -360,6 +360,10 @@ pub(crate) fn replacements(
         };
         encoded_arrows::append_edits(text, range, value, &mut edits, &allowed);
         cursor = edits.last().map_or(end, |edit| edit.range.end);
+        // Skip the bytes the edit consumed, up to `cursor`.
+        if let Some(rest) = cursor.checked_sub(start + 2) {
+            scan.nth(rest);
+        }
     }
     edits
 }

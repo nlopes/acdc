@@ -95,7 +95,10 @@ pub(super) fn resolve_verbatim_callouts<'a>(
                     }
                 }
                 previous_end = marker.end;
-                let Some(next) = next_callout_marker(line, previous_end) else {
+                // Every marker ends after it starts; accept only forward progress.
+                let Some(next) =
+                    next_callout_marker(line, previous_end).filter(|next| next.end > previous_end)
+                else {
                     break;
                 };
                 marker = next;

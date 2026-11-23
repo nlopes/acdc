@@ -55,29 +55,31 @@ pub(super) fn catalog_escape_allowed(state: &ParserState<'_>, start: usize) -> b
 /// Candidates still go through the grammar's substitution and boundary checks.
 pub(super) fn plain_text_end(state: &ParserState<'_>, start: usize) -> usize {
     let bytes = state.input.as_bytes();
-    let mut end = start;
-    while let Some(&byte) = bytes.get(end) {
+    // Every iteration consumes a byte, so the loop is bounded by the input.
+    let mut scan = bytes.iter().enumerate().skip(start);
+    while let Some((end, &byte)) = scan.next() {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' => {
                 if has_at_sign_ahead(state, end) || macro_prefix(&state.input[end..]) {
-                    break;
+                    return end;
                 }
             }
-            b' ' if bytes.get(end + 1) == Some(&b'+') => break,
+            b' ' if bytes.get(end + 1) == Some(&b'+') => return end,
             b' ' | b'\t' | b',' | b';' | b'.' | b'?' | b'!' | b':' | b'/' | b'>' | b')' | b']'
             | b'}' | b'|' | b'@' | b'&' | b'=' | b'{' | b'-' => {}
             0xef => {
                 let Some(next) = plain_placeholder_end(state, end) else {
-                    break;
+                    return end;
                 };
-                end = next;
-                continue;
+                // Skip the rest of the accepted placeholder, ending before `next`.
+                if let Some(rest) = next.checked_sub(end + 2) {
+                    scan.nth(rest);
+                }
             }
-            _ => break,
+            _ => return end,
         }
-        end += 1;
     }
-    end
+    bytes.len().max(start)
 }
 
 /// Avoid trying every node recognizer when the first character is ordinary text.

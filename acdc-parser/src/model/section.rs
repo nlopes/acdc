@@ -987,10 +987,10 @@ fn to_upper_roman(mut number: usize) -> String {
     ];
     let mut result = String::new();
     for &(value, numeral) in NUMERALS {
-        while number >= value {
+        for _ in 0..number / value {
             result.push_str(numeral);
-            number -= value;
         }
+        number %= value;
     }
     result
 }

@@ -150,12 +150,12 @@ pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
     let mut result = String::with_capacity(text.len());
     let mut rest = text;
 
-    while let Some(start) = rest.find("&#") {
-        result.push_str(&rest[..start]);
-        let after_amp = &rest[start + 2..];
+    // Each iteration moves `rest` to a suffix of `after_amp`, so it always
+    // shrinks.
+    while let Some((before, after_amp)) = rest.split_once("&#") {
+        result.push_str(before);
 
-        if let Some(end) = after_amp.find(';') {
-            let ref_body = &after_amp[..end];
+        if let Some((ref_body, after_ref)) = after_amp.split_once(';') {
             let decoded = if let Some(hex) = ref_body
                 .strip_prefix('x')
                 .or_else(|| ref_body.strip_prefix('X'))
@@ -167,7 +167,7 @@ pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
 
             if let Some(ch) = decoded {
                 result.push(ch);
-                rest = &after_amp[end + 1..];
+                rest = after_ref;
             } else {
                 result.push_str("&#");
                 rest = after_amp;

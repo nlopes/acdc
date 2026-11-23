@@ -409,9 +409,14 @@ fn consumed_dash_prefix(
     boundary: bool,
     initial_skip: usize,
 ) -> usize {
-    let mut cursor = initial_skip;
-    let mut consumed = cursor.checked_sub(1);
-    while cursor <= prefix && cursor + 2 < characters.len() {
+    let mut consumed = initial_skip.checked_sub(1);
+    // The range bounds the scan. A match needs no skip: its second dash has a
+    // dash on its left and its trailing space is not a dash, so neither can
+    // start another match.
+    for cursor in initial_skip..characters.len().saturating_sub(2) {
+        if cursor > prefix {
+            break;
+        }
         let before = cursor.checked_sub(1);
         let left = before.map_or(boundary, |index| {
             matches!(characters.get(index), Some((' ' | '\n', true))) && Some(index) != consumed
@@ -420,13 +425,11 @@ fn consumed_dash_prefix(
             && left
             && matches!(characters.get(cursor + 2), Some((' ' | '\n', true)))
         {
-            cursor += 3;
-            consumed = Some(cursor - 1);
-            if cursor > prefix {
-                return cursor - prefix;
+            let next = cursor + 3;
+            consumed = Some(next - 1);
+            if next > prefix {
+                return next - prefix;
             }
-        } else {
-            cursor += 1;
         }
     }
     0
@@ -948,13 +951,18 @@ pub fn replace_em_dashes(
 ) -> String {
     let fragment = TextFragment::new(text, text_boundaries);
     let mut result = String::with_capacity(text.len());
-    let mut cursor = fragment.prefix_consumed;
-    let mut consumed_space = cursor.checked_sub(1).filter(|&index| {
+    let mut consumed_space = fragment.prefix_consumed.checked_sub(1).filter(|&index| {
         fragment
             .character(Some(index))
             .is_some_and(|ch| matches!(ch, ' ' | '\n'))
     });
-    while cursor < fragment.characters.len() {
+    // The range bounds the scan; a match only skips the cursors it consumed.
+    let mut skip = 0;
+    for cursor in fragment.prefix_consumed..fragment.characters.len() {
+        if skip > 0 {
+            skip -= 1;
+            continue;
+        }
         if fragment.editable(cursor, '\\')
             && fragment.editable(cursor + 1, '-')
             && fragment.editable(cursor + 2, '-')
@@ -963,7 +971,7 @@ pub fn replace_em_dashes(
             // backslash; each dash stays with its own source fragment.
             fragment.push_character(&mut result, cursor + 1);
             fragment.push_character(&mut result, cursor + 2);
-            cursor += 3;
+            skip = 2;
         } else if fragment.editable(cursor, '-')
             && fragment.editable(cursor + 1, '-')
             && fragment.character(cursor.checked_sub(1)) != Some('-')
@@ -983,18 +991,16 @@ pub fn replace_em_dashes(
                 if fragment.local.contains(&cursor) {
                     result.push_str(if spaced_match { spaced } else { word_bounded });
                 }
-                cursor += 2;
-                if spaced_match && fragment.character(Some(cursor)).is_some() {
-                    consumed_space = Some(cursor);
-                    cursor += 1;
+                skip = 1;
+                if spaced_match && fragment.character(Some(after)).is_some() {
+                    consumed_space = Some(after);
+                    skip = 2;
                 }
             } else {
                 fragment.push_character(&mut result, cursor);
-                cursor += 1;
             }
         } else {
             fragment.push_character(&mut result, cursor);
-            cursor += 1;
         }
     }
     result
@@ -1102,8 +1108,13 @@ fn replace_contextual_apostrophes(
 ) -> String {
     let fragment = TextFragment::new(text, boundaries);
     let mut result = String::with_capacity(text.len());
-    let mut cursor = 0;
-    while cursor < fragment.characters.len() {
+    // The range bounds the scan; an escaped match skips its apostrophe.
+    let mut skip = false;
+    for cursor in 0..fragment.characters.len() {
+        if skip {
+            skip = false;
+            continue;
+        }
         let escaped = fragment.editable(cursor, '\\') && fragment.editable(cursor + 1, '\'');
         let apostrophe = cursor + usize::from(escaped);
         if fragment.editable(apostrophe, '\'')
@@ -1117,10 +1128,9 @@ fn replace_contextual_apostrophes(
             if fragment.local.contains(&apostrophe) {
                 result.push_str(if escaped { "'" } else { curly_apostrophe });
             }
-            cursor = apostrophe + 1;
+            skip = escaped;
         } else {
             fragment.push_character(&mut result, cursor);
-            cursor += 1;
         }
     }
     result
@@ -1131,6 +1141,43 @@ mod tests {
     mod inline_boundaries;
 
     use super::*;
+
+    fn editable(text: &str) -> Vec<(char, bool)> {
+        text.chars().map(|character| (character, true)).collect()
+    }
+
+    #[test]
+    fn consumed_dash_prefix_counts_characters_past_the_prefix() {
+        assert_eq!(consumed_dash_prefix(&editable(" -- x"), 2, false, 0), 2);
+        assert_eq!(consumed_dash_prefix(&editable(" -- x"), 3, false, 0), 1);
+        assert_eq!(consumed_dash_prefix(&editable("-- x"), 0, true, 0), 3);
+        assert_eq!(consumed_dash_prefix(&editable("-- x"), 0, false, 0), 0);
+        // A match that ends inside the prefix belongs to the previous fragment.
+        assert_eq!(consumed_dash_prefix(&editable(" -- x"), 4, false, 0), 0);
+    }
+
+    #[test]
+    fn consumed_dash_prefix_skips_consumed_spaces() {
+        // The second pair's left space was consumed by the first match.
+        assert_eq!(consumed_dash_prefix(&editable(" -- -- x"), 5, false, 0), 0);
+        // With a separate space, the second pair matches after the skip.
+        assert_eq!(consumed_dash_prefix(&editable(" --  -- x"), 5, false, 0), 3);
+        // An inherited skip marks its last character as consumed.
+        assert_eq!(consumed_dash_prefix(&editable(" -- x"), 2, false, 1), 0);
+        assert_eq!(consumed_dash_prefix(&editable("  -- x"), 3, false, 1), 2);
+    }
+
+    #[test]
+    fn consumed_dash_prefix_ignores_protected_dashes() {
+        let characters = [
+            (' ', true),
+            ('-', false),
+            ('-', true),
+            (' ', true),
+            ('x', true),
+        ];
+        assert_eq!(consumed_dash_prefix(&characters, 2, false, 0), 0);
+    }
 
     #[test]
     fn typed_block_settings_keep_defaults_and_empty_values() {
