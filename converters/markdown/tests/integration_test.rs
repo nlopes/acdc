@@ -1,8 +1,14 @@
-use std::path::{Path, PathBuf};
+use std::{
+    io,
+    path::{Path, PathBuf},
+    sync::mpsc,
+};
 
 use acdc_converters_core::{
-    Converter as _, Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning,
-    WarningSource,
+    BackendTarget, Converter as _, Diagnostics, GeneratorMetadata, Options as ConverterOptions,
+    Warning, WarningSource,
+    pipeline::{Extensions, Pipeline},
+    postprocess::TextPostprocessor,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html as html;
@@ -16,6 +22,61 @@ use pulldown_cmark::{
 mod support;
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn markdown_postprocessors_match_canonical_family_and_variant_in_order() -> Result<(), Error> {
+    let (calls, recorded_calls) = mpsc::channel();
+    let name_calls = calls.clone();
+    let mut selection = Extensions::default().with_postprocessor(TextPostprocessor::new(
+        "markdown",
+        move |_, ctx, _| {
+            assert_eq!(ctx.backend, "markdown");
+            name_calls.send("markdown")?;
+            Ok(())
+        },
+    ));
+    for (target, hook_name) in [
+        (BackendTarget::family("markdown"), "family"),
+        (BackendTarget::variant("markdown", "gfm"), "gfm"),
+        (
+            BackendTarget::variant("markdown", "commonmark"),
+            "commonmark",
+        ),
+        (BackendTarget::variant("markdown", "cm"), "alias"),
+        (BackendTarget::variant("html", "gfm"), "other-family"),
+    ] {
+        let calls = calls.clone();
+        selection =
+            selection.with_postprocessor(TextPostprocessor::for_target(target, move |_, _, _| {
+                calls.send(hook_name)?;
+                Ok(())
+            }));
+    }
+    for (variant, expected) in [
+        (
+            MarkdownVariant::CommonMark,
+            ["markdown", "family", "commonmark"],
+        ),
+        (
+            MarkdownVariant::GitHubFlavored,
+            ["markdown", "family", "gfm"],
+        ),
+    ] {
+        let converter = Converter::new(ConverterOptions::default(), ParserOptions::builder())?
+            .with_variant(variant);
+        let p = Pipeline::new(converter).with_extensions(selection.clone());
+        let doc = p.parse("Paragraph.")?;
+        p.write_to(
+            doc.document(),
+            io::sink(),
+            None,
+            None,
+            &mut Diagnostics::new(&p.warning_source(), &mut Vec::new()),
+        )?;
+        assert_eq!(recorded_calls.try_iter().collect::<Vec<_>>(), expected);
+    }
+    Ok(())
+}
 
 #[test]
 fn decoded_media_links_keep_literal_values_in_markdown() -> Result<(), Error> {

@@ -69,6 +69,41 @@ Native block renderers use the same selection. They receive a fresh handler for
 each conversion and can use the backend's streaming output, title/caption, and
 metadata services. Declined blocks use ordinary rendering.
 
+=== Targeting output hooks
+
+Use `BackendTarget::family("html")` for every HTML variant, or
+`BackendTarget::variant("html", "semantic")` for semantic HTML alone.
+`BlockRenderer::for_target`, `DocinfoHook::for_target`, and
+`TextPostprocessor::for_target` accept the same targets. Use canonical family
+and variant names from the converter registration. For example, the CLI shortcut
+`html5s` selects the `html` family and the `semantic` variant, and
+`--backend md --variant cm` selects `markdown` and `commonmark`.
+
+[source,rust]
+----
+use acdc_converters_core::{BackendTarget, postprocess::TextPostprocessor};
+
+let footer = TextPostprocessor::for_target(
+    BackendTarget::variant("markdown", "gfm"),
+    |output, _, _| {
+        output.push_str("\nGenerated with acdc.\n");
+        Ok(())
+    },
+);
+----
+
+Matching hooks run in registration order within each selected package.
+HTML includes script hashes from matching block renderers and runs docinfo
+hooks only for a full document. The string constructors for block renderers
+and docinfo hooks select a family. The string constructor for text
+postprocessors selects the converter's display name: `"html"` selects standard
+HTML, `"html5s"` selects semantic HTML, and `"markdown"` selects both Markdown
+variants.
+
+A converter with variants implements `Converter::hook_target()` to report its
+canonical family and current variant. A converter without variants defaults to
+its `Converter::name()` as the family.
+
 == Development prerequisites
 
 Converter tests are run with `cargo nextest run --all-features`. The terminal

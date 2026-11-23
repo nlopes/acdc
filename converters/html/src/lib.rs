@@ -10,7 +10,8 @@ use std::{
 #[cfg(feature = "highlighting")]
 use acdc_converters_core::substitutions::TextBoundaries;
 use acdc_converters_core::{
-    BackendProfile, Converter as _, Diagnostics, Options, TraversalContext, WarningSource,
+    BackendProfile, BackendTarget, Converter as _, Diagnostics, Options, TraversalContext,
+    WarningSource,
     registry::{ConverterSpec, Variant},
     section::contains_index_section,
     xref::XrefGuard,
@@ -327,6 +328,7 @@ impl<'a> Converter<'a> {
     ) -> Result<(), Error> {
         let prepared = acdc_converters_core::display::prepare(doc)?;
         let document = prepared.document();
+        let active = self.hook_target();
         let converter = Converter {
             toc_entries: document.toc_entries().map(TocEntry::from).collect(),
             references: document.references().into(),
@@ -351,9 +353,11 @@ impl<'a> Converter<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            extension_script_hashes: extensions.html_script_hashes().collect(),
+            extension_script_hashes: extensions
+                .html_script_hashes_for_variant(active.variant)
+                .collect(),
             render_session: extensions
-                .render_session("html")
+                .render_session(active)
                 .map(|session| Rc::new(RefCell::new(session))),
             variant: self.variant,
         };
@@ -365,7 +369,7 @@ impl<'a> Converter<'a> {
             diagnostics.reborrow(),
         );
         if !options.embedded {
-            visitor.docinfo_processors = extensions.docinfo_processors("html");
+            visitor.docinfo_processors = extensions.docinfo_processors(active);
         }
         acdc_converters_core::visitor::DocumentVisitor::visit_document(
             &mut visitor,
@@ -582,7 +586,7 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
         &self,
         extensions: &acdc_converters_core::pipeline::Extensions,
     ) -> bool {
-        extensions.has_render_hooks("html", !self.options.embedded())
+        extensions.has_render_hooks(self.hook_target(), !self.options.embedded())
     }
 
     fn write_to_with_extensions<W: Write>(
@@ -629,6 +633,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
 
     fn supports_text_output(&self) -> bool {
         true
+    }
+
+    fn hook_target(&self) -> BackendTarget<'_> {
+        BackendTarget::variant("html", self.variant.as_str())
     }
 
     fn name(&self) -> &'static str {

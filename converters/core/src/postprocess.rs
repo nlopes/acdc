@@ -1,9 +1,9 @@
 //! Ordered transformations of one completed UTF-8 document.
 //!
 //! Selected hooks edit the rendered text in place after all docinfo insertions.
-//! Register against the converter name: `html`, `html5s`, `markdown`, `manpage`,
-//! or `terminal`. Both Markdown variants use `markdown`. Other converters can opt
-//! in through [`crate::Converter::supports_text_output`].
+//! Use [`TextPostprocessor::for_target`] for a canonical family or variant.
+//! [`TextPostprocessor::new`] matches the converter's display name. Other
+//! converters can opt in through [`crate::Converter::supports_text_output`].
 //! If rendering or a callback fails, the pipeline discards the text before writing
 //! the destination. Earlier diagnostics, companion files and other external effects
 //! persist. Once writing starts, ordinary destination I/O errors may leave partial output.
@@ -12,7 +12,7 @@ use std::{fmt, path::Path, sync::Arc};
 
 use acdc_parser::ast::DocumentRef;
 
-use crate::{Diagnostics, render::RenderError};
+use crate::{BackendTarget, Diagnostics, render::RenderError};
 
 /// The converter and paths used for this document. Streams can have no path.
 #[derive(Clone, Copy)]
@@ -56,24 +56,30 @@ type Callback = dyn Fn(&mut String, PostprocessContext<'_>, &mut Diagnostics<'_>
     + Send
     + Sync;
 
-/// A callback for one named backend. The pipeline calls it once per document.
+#[derive(Debug, Clone, Copy)]
+enum Target {
+    Name(&'static str),
+    Backend(BackendTarget<'static>),
+}
+
+/// A callback for one named backend, family, or variant. The pipeline calls it once per document.
 /// Local variables are per call; explicitly captured shared state belongs to the author.
 #[derive(Clone)]
 pub struct TextPostprocessor {
-    pub(crate) backend: &'static str,
+    target: Target,
     pub(crate) process: Arc<Callback>,
 }
 
 impl fmt::Debug for TextPostprocessor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TextPostprocessor")
-            .field("backend", &self.backend)
+            .field("target", &self.target)
             .finish_non_exhaustive()
     }
 }
 
 impl TextPostprocessor {
-    /// Register a complete-text transformation without executing it.
+    /// Match the exact display name returned by [`crate::Converter::name`].
     pub fn new(
         backend: &'static str,
         process: impl Fn(
@@ -86,8 +92,33 @@ impl TextPostprocessor {
         + 'static,
     ) -> Self {
         Self {
-            backend,
+            target: Target::Name(backend),
             process: Arc::new(process),
+        }
+    }
+
+    /// Match a canonical family or one of its variants.
+    pub fn for_target(
+        target: BackendTarget<'static>,
+        process: impl Fn(
+            &mut String,
+            PostprocessContext<'_>,
+            &mut Diagnostics<'_>,
+        ) -> Result<(), RenderError>
+        + Send
+        + Sync
+        + 'static,
+    ) -> Self {
+        Self {
+            target: Target::Backend(target),
+            process: Arc::new(process),
+        }
+    }
+
+    pub(crate) fn matches(&self, name: &str, active: BackendTarget<'_>) -> bool {
+        match self.target {
+            Target::Name(expected) => expected == name,
+            Target::Backend(target) => target.matches(active),
         }
     }
 }

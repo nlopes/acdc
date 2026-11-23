@@ -69,7 +69,7 @@ pub mod visitor;
 mod warning;
 pub mod xref;
 
-pub use backend::BackendProfile;
+pub use backend::{BackendProfile, BackendTarget};
 pub use doctype::Doctype;
 pub use document_attributes::TraversalContext;
 pub use inline_text::InlineTextTransform;
@@ -662,6 +662,13 @@ pub trait Converter<'a>: Sized {
     /// semantic mode).
     #[must_use]
     fn name(&self) -> &'static str;
+
+    /// Canonical family and active variant for output-hook selection.
+    /// Converters with variants override this independently of their display name.
+    #[must_use]
+    fn hook_target(&self) -> BackendTarget<'_> {
+        BackendTarget::family(self.name())
+    }
 
     /// Whether completed output can be delivered to a selected UTF-8 text processor.
     /// The default keeps opaque and binary converters on their own output paths.

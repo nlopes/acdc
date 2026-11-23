@@ -155,7 +155,7 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
 
     fn has_postprocessors(&self) -> bool {
         self.extensions
-            .postprocessors(self.converter.name())
+            .postprocessors(self.converter.name(), self.converter.hook_target())
             .next()
             .is_some()
     }
@@ -202,7 +202,10 @@ impl<'options, C: Converter<'options>> Pipeline<C> {
                 },
             )
         })?;
-        for processor in self.extensions.postprocessors(backend) {
+        for processor in self
+            .extensions
+            .postprocessors(backend, self.converter.hook_target())
+        {
             (processor.process)(&mut text, context, diagnostics)
                 .map_err(|source| IoError::other(PostprocessError::Callback { backend, source }))?;
         }
@@ -297,6 +300,9 @@ impl<'options, C: Converter<'options>> Converter<'options> for Pipeline<C> {
     }
     fn name(&self) -> &'static str {
         self.converter.name()
+    }
+    fn hook_target(&self) -> crate::BackendTarget<'_> {
+        self.converter.hook_target()
     }
     fn supports_text_output(&self) -> bool {
         self.converter.supports_text_output()

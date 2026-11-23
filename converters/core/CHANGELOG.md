@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Output hooks can target every variant of a backend family or a single canonical variant through `BackendTarget` and the `for_target` constructors.
+
 - Applications can register statically linked converters, resolve names and variants before parsing, and explicitly replace a registration.
 
 - Selected UTF-8 postprocessors can edit complete output in order before it reaches its destination. Conversions stream as usual when no matching processor is selected.

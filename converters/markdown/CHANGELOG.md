@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Text postprocessors can select CommonMark or GitHub Flavored Markdown independently with `BackendTarget::variant("markdown", "commonmark")` or `BackendTarget::variant("markdown", "gfm")`.
+
 - Applications can register this converter using its built-in backend names and variant choices.
 
 - Selected text postprocessors can transform the completed Markdown for either variant.

@@ -1,6 +1,6 @@
 //! Check delivery boundaries and measure the output buffer independently of parser allocations.
 use acdc_converters_core::{
-    Converter, Diagnostics, Options, OutputDestination,
+    BackendTarget, Converter, Diagnostics, Options, OutputDestination,
     pipeline::{ExtensionCatalog, Extensions, Pipeline},
     postprocess::{PostprocessError, TextPostprocessor},
 };
@@ -111,9 +111,14 @@ fn only_selected_postprocessors_allocate_a_complete_output_buffer() -> TestResul
         .with_postprocessor(TextPostprocessor::new("other", |_, _, _| {
             Err("unexpected callback".into())
         }));
+    let wrong_variant = Extensions::default().with_postprocessor(TextPostprocessor::for_target(
+        BackendTarget::variant("chunked", "alternate"),
+        |_, _, _| Err("unexpected variant callback".into()),
+    ));
     for (extensions, active) in [
         (Extensions::default(), false),
         (wrong, false),
+        (wrong_variant, false),
         (
             catalog
                 .select(["first", "second", "first"])?

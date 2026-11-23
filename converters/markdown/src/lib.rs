@@ -110,7 +110,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Diagnostics, Options, TraversalContext, WarningSource,
+    BackendProfile, BackendTarget, Diagnostics, Options, TraversalContext, WarningSource,
     registry::{ConverterSpec, Variant},
     section::contains_index_section,
     visitor::DocumentVisitor,
@@ -404,6 +404,10 @@ impl<'a> acdc_converters_core::Converter<'a> for Converter<'a> {
 
     fn supports_text_output(&self) -> bool {
         true
+    }
+
+    fn hook_target(&self) -> BackendTarget<'_> {
+        BackendTarget::variant("markdown", self.variant.as_str())
     }
 
     fn name(&self) -> &'static str {

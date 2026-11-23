@@ -6,15 +6,18 @@ use std::{
     sync::{
         Arc, Mutex,
         atomic::{AtomicUsize, Ordering},
+        mpsc,
     },
 };
 
 use acdc_converters_core::{
-    Converter as _, Diagnostics, Options,
+    BackendTarget, Converter as _, Diagnostics, Options,
+    docinfo::{DocinfoContext, DocinfoHook, DocinfoPosition},
     pipeline::{ExtensionCatalog, Extensions, Pipeline},
+    postprocess::TextPostprocessor,
     render::{BlockRenderProcessor, BlockRenderer, Next, RenderContext, RenderError},
 };
-use acdc_converters_html::Converter;
+use acdc_converters_html::{Converter, HtmlVariant};
 use acdc_parser::{
     Options as ParserOptions,
     ast::{BlockKind, BlockRef},
@@ -271,5 +274,103 @@ fn decorators_wrap_the_next_handler_and_declines_only_emit_diagnostics() -> Test
     assert!(html.ends_with("</inner></outer>"), "{html}");
     assert_eq!(html.matches("<p>ordinary</p>").count(), 1);
     assert_eq!(warnings.len(), 1);
+    Ok(())
+}
+
+#[test]
+fn variant_target_filters_renderers_docinfo_factories_and_csp() -> TestResult {
+    const HASH: &str = "sha256-0123456789abcdef";
+    let semantic = BackendTarget::variant("html", "semantic");
+    let renders = Arc::new(AtomicUsize::new(0));
+    let frames = Arc::new(AtomicUsize::new(0));
+    let renderer_count = Arc::clone(&renders);
+    let docinfo_count = Arc::clone(&frames);
+    let renderer = BlockRenderer::for_target(semantic, move || {
+        renderer_count.fetch_add(1, Ordering::SeqCst);
+        Counter {
+            calls: Rc::new(Cell::new(0)),
+        }
+    })
+    .with_html_script_hashes(&[HASH]);
+    let docinfo = DocinfoHook::for_target(semantic, move || {
+        docinfo_count.fetch_add(1, Ordering::SeqCst);
+        |ctx: DocinfoContext<'_>, _: &mut Diagnostics<'_>| {
+            Ok((ctx.position == DocinfoPosition::Footer)
+                .then(|| "<!--semantic-footer-->".to_owned()))
+        }
+    });
+    let renderer_only = Extensions::default().with_renderer(renderer);
+    let docinfo_only = Extensions::default().with_docinfo(docinfo.clone());
+    let selection = renderer_only.clone().with_docinfo(docinfo);
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let selected = variant == HtmlVariant::Semantic;
+        for embedded in [false, true] {
+            let converter = Converter::new_with_variant(
+                Options::builder().embedded(embedded).build(),
+                ParserOptions::builder(),
+                variant,
+            )?;
+            assert_eq!(converter.uses_render_extensions(&renderer_only), selected);
+            assert_eq!(
+                converter.uses_render_extensions(&docinfo_only),
+                selected && !embedded
+            );
+            let p = Pipeline::new(converter).with_extensions(selection.clone());
+            let text = render(&p, "= Title\n:csp:\n\nParagraph.")?;
+            assert_eq!(text.contains("native:1"), selected);
+            assert_eq!(
+                text.contains("<!--semantic-footer-->"),
+                selected && !embedded
+            );
+            assert_eq!(text.contains(HASH), selected && !embedded);
+        }
+    }
+    assert_eq!(renders.load(Ordering::SeqCst), 2);
+    assert_eq!(frames.load(Ordering::SeqCst), 1);
+    Ok(())
+}
+
+#[test]
+fn html_postprocessors_match_family_variant_and_existing_display_names_in_order() -> TestResult {
+    let (calls, recorded_calls) = mpsc::channel();
+    let mut selection = Extensions::default();
+    for (target, hook_name) in [
+        (BackendTarget::family("html"), "family"),
+        (BackendTarget::variant("html", "semantic"), "semantic"),
+        (BackendTarget::variant("html", "standard"), "standard"),
+        (BackendTarget::family("html5s"), "wrong-family"),
+    ] {
+        let calls = calls.clone();
+        selection =
+            selection.with_postprocessor(TextPostprocessor::for_target(target, move |_, _, _| {
+                calls.send(hook_name)?;
+                Ok(())
+            }));
+    }
+    for name in ["html", "html5s"] {
+        let calls = calls.clone();
+        selection = selection.with_postprocessor(TextPostprocessor::new(name, move |_, ctx, _| {
+            assert_eq!(ctx.backend, name);
+            calls.send(name)?;
+            Ok(())
+        }));
+    }
+    for (variant, expected) in [
+        (HtmlVariant::Standard, ["family", "standard", "html"]),
+        (HtmlVariant::Semantic, ["family", "semantic", "html5s"]),
+    ] {
+        let converter = Converter::new_with_variant(
+            Options::builder().embedded(true).build(),
+            ParserOptions::builder(),
+            variant,
+        )?;
+        let p = Pipeline::new(converter).with_extensions(selection.clone());
+        assert_eq!(
+            p.hook_target(),
+            BackendTarget::variant("html", variant.as_str())
+        );
+        render(&p, "Paragraph.")?;
+        assert_eq!(recorded_calls.try_iter().collect::<Vec<_>>(), expected);
+    }
     Ok(())
 }

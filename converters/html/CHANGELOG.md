@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Block renderers, docinfo hooks, and text postprocessors can select both HTML variants with `BackendTarget::family("html")`, or just `standard` or `semantic` with `BackendTarget::variant`. Only matching renderers contribute CSP script hashes.
+
 - Applications can register this converter using its built-in backend names and variant choices.
 
 - Selected text postprocessors can transform a complete HTML document or embedded fragment after rendering.

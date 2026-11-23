@@ -4,7 +4,7 @@ use std::{fmt, io::Write, sync::Arc};
 
 use acdc_parser::ast::BlockRef;
 
-use crate::{Diagnostics, Options, TraversalContext};
+use crate::{BackendTarget, Diagnostics, Options, TraversalContext};
 
 /// A native renderer or host-service failure, preserving its original source.
 pub type RenderError = Box<dyn std::error::Error + Send + Sync>;
@@ -12,7 +12,7 @@ pub type RenderError = Box<dyn std::error::Error + Send + Sync>;
 /// A backend-specific renderer factory. Constructing it executes no processor.
 #[derive(Clone)]
 pub struct BlockRenderer {
-    pub(crate) backend: &'static str,
+    pub(crate) target: BackendTarget<'static>,
     html_script_hashes: &'static [&'static str],
     pub(crate) factory: Arc<dyn Fn() -> Box<dyn BlockRenderProcessor> + Send + Sync>,
 }
@@ -21,7 +21,7 @@ impl fmt::Debug for BlockRenderer {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("BlockRenderer")
-            .field("backend", &self.backend)
+            .field("target", &self.target)
             .finish_non_exhaustive()
     }
 }
@@ -33,8 +33,16 @@ impl BlockRenderer {
         backend: &'static str,
         factory: impl Fn() -> P + Send + Sync + 'static,
     ) -> Self {
+        Self::for_target(BackendTarget::family(backend), factory)
+    }
+
+    /// Register a factory for a canonical backend family or one of its variants.
+    pub fn for_target<P: BlockRenderProcessor + 'static>(
+        target: BackendTarget<'static>,
+        factory: impl Fn() -> P + Send + Sync + 'static,
+    ) -> Self {
         Self {
-            backend,
+            target,
             html_script_hashes: &[],
             factory: Arc::new(move || Box::new(factory())),
         }

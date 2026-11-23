@@ -1,6 +1,7 @@
 use acdc_parser::extensions::Registry;
 
 use crate::{
+    BackendTarget,
     docinfo::{DocinfoHook, DocinfoProcessor},
     postprocess::TextPostprocessor,
     render::{BlockRenderer, RenderSession},
@@ -43,10 +44,14 @@ impl Extensions {
         self
     }
 
-    pub(super) fn postprocessors(&self, backend: &str) -> impl Iterator<Item = &TextPostprocessor> {
+    pub(super) fn postprocessors(
+        &self,
+        name: &'static str,
+        active: BackendTarget<'_>,
+    ) -> impl Iterator<Item = &TextPostprocessor> {
         self.postprocessors
             .iter()
-            .filter(move |p| p.backend == backend)
+            .filter(move |p| p.matches(name, active))
     }
 
     /// Append a docinfo hook. At each insertion point hooks run in selection
@@ -59,17 +64,26 @@ impl Extensions {
 
     /// Whether a backend family has selected renderers or supported docinfo hooks.
     #[must_use]
-    pub fn has_render_hooks(&self, backend: &str, full_document: bool) -> bool {
-        self.renderers.iter().any(|r| r.backend == backend)
-            || (full_document && self.docinfo.iter().any(|r| r.backend == backend))
+    pub fn has_render_hooks<'a>(
+        &self,
+        backend: impl Into<BackendTarget<'a>>,
+        full_document: bool,
+    ) -> bool {
+        let active = backend.into();
+        self.renderers.iter().any(|r| r.target.matches(active))
+            || (full_document && self.docinfo.iter().any(|r| r.target.matches(active)))
     }
 
     /// Instantiate docinfo processors for a backend's available insertion points.
     #[must_use]
-    pub fn docinfo_processors(&self, backend: &str) -> Vec<Box<DocinfoProcessor>> {
+    pub fn docinfo_processors<'a>(
+        &self,
+        backend: impl Into<BackendTarget<'a>>,
+    ) -> Vec<Box<DocinfoProcessor>> {
+        let active = backend.into();
         self.docinfo
             .iter()
-            .filter(|r| r.backend == backend)
+            .filter(|r| r.target.matches(active))
             .map(|r| (r.factory)())
             .collect()
     }
@@ -89,22 +103,38 @@ impl Extensions {
             && self.postprocessors.is_empty()
     }
 
-    /// Trusted script hashes requested by selected HTML block renderers.
+    /// Trusted script hashes from renderers registered for the whole HTML family.
     pub fn html_script_hashes(&self) -> impl Iterator<Item = &'static str> + '_ {
+        self.html_script_hashes_for_variant(None)
+    }
+
+    /// Trusted hashes for renderers matching the active HTML family and variant.
+    pub fn html_script_hashes_for_variant<'a>(
+        &'a self,
+        variant: Option<&'a str>,
+    ) -> impl Iterator<Item = &'static str> + 'a {
+        let active = BackendTarget {
+            family: "html",
+            variant,
+        };
         self.renderers
             .iter()
-            .filter(|r| r.backend == "html")
+            .filter(move |r| r.target.matches(active))
             .flat_map(|r| r.html_script_hashes().iter().copied())
     }
 
     /// Construct document-local renderers for a backend family, in registration order.
     /// Other backends invoke no factories. Empty selections allocate no session.
     #[must_use]
-    pub fn render_session(&self, backend: &str) -> Option<RenderSession> {
+    pub fn render_session<'a>(
+        &self,
+        backend: impl Into<BackendTarget<'a>>,
+    ) -> Option<RenderSession> {
+        let active = backend.into();
         let processors: Vec<_> = self
             .renderers
             .iter()
-            .filter(|registration| registration.backend == backend)
+            .filter(|registration| registration.target.matches(active))
             .map(|registration| (registration.factory)())
             .collect();
         (!processors.is_empty()).then_some(RenderSession::new(processors))

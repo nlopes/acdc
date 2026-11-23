@@ -3,7 +3,7 @@ use std::{fmt, sync::Arc};
 
 use acdc_parser::ast::DocumentRef;
 
-use crate::{Diagnostics, TraversalContext, render::RenderError};
+use crate::{BackendTarget, Diagnostics, TraversalContext, render::RenderError};
 
 /// Full HTML supports these positions, in order. Embedded HTML has no document frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,14 +39,14 @@ pub type DocinfoProcessor =
 /// A docinfo factory for an explicitly selected backend family.
 #[derive(Clone)]
 pub struct DocinfoHook {
-    pub(crate) backend: &'static str,
+    pub(crate) target: BackendTarget<'static>,
     pub(crate) factory: Arc<dyn Fn() -> Box<DocinfoProcessor> + Send + Sync>,
 }
 
 impl fmt::Debug for DocinfoHook {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DocinfoHook")
-            .field("backend", &self.backend)
+            .field("target", &self.target)
             .finish_non_exhaustive()
     }
 }
@@ -59,8 +59,20 @@ impl DocinfoHook {
         F: FnMut(DocinfoContext<'_>, &mut Diagnostics<'_>) -> Result<Option<String>, RenderError>
             + 'static,
     {
+        Self::for_target(BackendTarget::family(backend), factory)
+    }
+
+    /// Register a factory for a canonical backend family or one of its variants.
+    pub fn for_target<F>(
+        target: BackendTarget<'static>,
+        factory: impl Fn() -> F + Send + Sync + 'static,
+    ) -> Self
+    where
+        F: FnMut(DocinfoContext<'_>, &mut Diagnostics<'_>) -> Result<Option<String>, RenderError>
+            + 'static,
+    {
         Self {
-            backend,
+            target,
             factory: Arc::new(move || Box::new(factory())),
         }
     }
