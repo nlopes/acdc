@@ -146,7 +146,7 @@ Programmatically constructed nodes can carry caller-supplied or default location
 === Stage 3: converters
 
 Converters (`converters/`) transform the AST into various output formats.
-They implement the `Processable` trait in link:converters/core/src/lib.rs[`converters/core`].
+They implement the `Converter` trait in link:converters/core/src/lib.rs[`converters/core`].
 The trait owns converter setup and conversion; parser options are validated before parsing.
 
 The converters are:
@@ -220,23 +220,26 @@ The workspace is organized into clearly bounded modules:
 acdc/
 ├── acdc-cli/          # Command-line interface
 ├── acdc-editor-wasm/  # WASM live editor (syntax highlight + HTML preview)
+├── acdc-execute/      # Discovers and runs command blocks (`acdc execute`)
 ├── acdc-lint/         # Lint command support and lint registry
 ├── acdc-lsp/          # Language Server Protocol implementation
 ├── acdc-mcp/          # Model Context Protocol document navigation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
-    ├── core/          # Shared converter helpers and callbacks
+    ├── core/          # Converter trait, AST visitors, shared helpers
     ├── dev/           # Development utilities (unpublished)
     ├── html/          # HTML5 output (standard + html5s semantic variant)
     ├── manpage/       # Native roff/troff manpage output
     ├── markdown/      # CommonMark / GitHub Flavored Markdown output
+    ├── pdf/           # PDF output through the Rust Typst engine
+    │   └── crates/    # images, render (sole Typst dependency), theme, typst
     └── terminal/      # ANSI terminal output
 ----
 
-This keeps clear boundaries - parser, CLI, linting, LSP, and converters are independently testable.
+This keeps clear boundaries - parser, CLI, linting, command execution, LSP, MCP server, and converters are independently testable.
 The parser has no knowledge of output formats or lint policy for the most part.
 An exception to this perhaps is warning on unsupported counters, which it does.
-Converters, linting, and the LSP depend on the parser, not the other way around.
+Everything else depends on the parser.
 New features can be scoped to specific modules without touching everything else.
 
 === Location tracking
@@ -264,12 +267,18 @@ Reindented includes retain preprocessed byte offsets, so use their original line
 
 === Adding new converters
 
-If you want to add a new converter, implement the `Processable` trait. The trait requires:
+If you want to add a new converter, implement the `Converter` trait. You have to provide:
 
-* `document_attributes_defaults()` - Provide converter-specific default attributes (optional override)
+* `Error` - Your error type; it must convert from `std::io::Error` and the parser's `Error`
 * `new()` - Initialize the converter with its options and a parser options builder
-* `convert()` - Convert a parsed document, writing output to the destination
-* `document_attributes()` - Access the document attributes
+* `options()` and `parser_options()` - Return the converter options and the validated parser options
+* `derive_output_path()` - Map an input path to an output path, or return `Ok(None)` when output goes to stdout by default
+* `write_to()` - Render a parsed document into a writer, reporting warnings through `Diagnostics`
+* `name()` - The backend name used in logs and warnings
+
+Everything else has a default.
+The ones you're most likely to override are `document_attributes_defaults()` for converter-specific default attributes and `warning_source()` for backends with variants.
+`convert()` routes output to a file or stdout through `write_to()`, so you rarely need to touch it.
 
 The best way to understand how this works is to look at an existing converter.
 The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
@@ -279,8 +288,8 @@ To add a new converter:
 . Create a new crate under `converters/`
 . Add dependencies on `acdc-converters-core` and `acdc-parser`
 . Define your options and error types
-. Implement the `Processable` trait
-. Walk the AST to generate your output format
+. Implement the `Converter` trait
+. Walk the AST with the `DocumentVisitor`, `BlockVisitor`, and `InlineVisitor` traits from `acdc-converters-core` to generate your output format
 
 === Adding new grammar rules
 
