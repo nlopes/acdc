@@ -127,6 +127,9 @@ Supported backends depend on the features used to build the binary:
 application. Repeat the option to select multiple packages in execution order;
 duplicate selections count once. Compiling or registering a package does not
 activate it. Unknown or unavailable names fail before input is read or parsed.
+The `html-terminal` build feature makes the native `terminal` package available.
+Select it with `--extension terminal` for HTML terminal previews and replay.
+Without that build feature, the name is unavailable.
 
 Files, stdin, batches, terminal output, and pager output use the same pipeline.
 The selected backend supplies attributes before preprocessing, and every document
@@ -248,7 +251,9 @@ Local images remain sequential, and warning order stays the same.
 Interactive terminal output uses `$PAGER`, defaulting to `less -FRX` on Unix and `more` on Windows.
 Use `--no-pager` or an empty `PAGER` to disable it.
 
-The `html-terminal` feature enables acdc-specific terminal previews in HTML, including `[terminal]` blocks and source blocks opted in with `:acdc-terminal:`.
+The `html-terminal` feature makes the native terminal extension available for HTML.
+Use `acdc convert --extension terminal document.adoc` to activate it, including
+`[terminal]` blocks and source blocks opted in with `:acdc-terminal:`.
 See link:../converters/html/README.adoc[the HTML converter documentation] for the rendering syntax, attributes, replay support, and Asciidoctor differences.
 
 The `terminal-emulator` feature enables Ghostty-backed `[terminal]` session rendering in the terminal backend and requires the documented Zig build prerequisite.

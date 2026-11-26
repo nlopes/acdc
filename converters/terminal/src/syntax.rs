@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::{Converter, Error};
+use crate::{Appearance, Error};
 
 /// Highlight code and render to terminal.
 ///
@@ -11,7 +11,7 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     language: &str,
-    converter: &Converter<'_>,
+    appearance: &Appearance,
     diagnostics: Option<&mut acdc_converters_core::Diagnostics<'_>>,
 ) -> Result<(), Error> {
     use acdc_converters_core::code::highlighting;
@@ -21,7 +21,7 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
         writer.write_all(code.as_bytes())?;
         return Ok(());
     }
-    let theme_name = converter.appearance.theme.highlight_theme();
+    let theme_name = appearance.theme.highlight_theme();
     let theme_variant = giallo::ThemeVariant::Single(theme_name);
     let options = giallo::HighlightOptions::new(language, theme_variant).fallback_to_plain(true);
 
@@ -75,7 +75,7 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     _language: &str,
-    _converter: &Converter<'_>,
+    _appearance: &Appearance,
     _diagnostics: Option<&mut acdc_converters_core::Diagnostics<'_>>,
 ) -> Result<(), Error> {
     write!(writer, "{code}")?;
@@ -106,7 +106,7 @@ mod tests {
                 &mut output,
                 &code,
                 "javascript",
-                &converter,
+                &converter.appearance,
                 Some(&mut Diagnostics::new(&source, &mut warnings)),
             )?;
             assert_eq!(output, code.as_bytes());
@@ -130,7 +130,7 @@ mod tests {
             " \n  \n",
         ] {
             let mut output = Vec::new();
-            highlight_text(&mut output, source, "plain", &converter, None)?;
+            highlight_text(&mut output, source, "plain", &converter.appearance, None)?;
             // The plain grammar has no ANSI styles, so compare every byte.
             assert_eq!(output, source.as_bytes());
         }
@@ -143,7 +143,7 @@ mod tests {
         let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "rust", &converter, None)?;
+        highlight_text(&mut buffer, code, "rust", &converter.appearance, None)?;
 
         // Just verify it doesn't crash and produces output
         assert!(!buffer.is_empty(), "Should produce highlighted output");
@@ -157,7 +157,13 @@ mod tests {
         let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "unknown_lang_xyz", &converter, None)?;
+        highlight_text(
+            &mut buffer,
+            code,
+            "unknown_lang_xyz",
+            &converter.appearance,
+            None,
+        )?;
 
         // Should fall back to plain text and not crash
         assert!(
@@ -174,7 +180,7 @@ mod tests {
         let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "python", &converter, None)?;
+        highlight_text(&mut buffer, code, "python", &converter.appearance, None)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 
@@ -187,7 +193,7 @@ mod tests {
         let converter = create_test_converter();
 
         let mut buffer = Vec::new();
-        highlight_text(&mut buffer, code, "javascript", &converter, None)?;
+        highlight_text(&mut buffer, code, "javascript", &converter.appearance, None)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 

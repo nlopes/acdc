@@ -73,11 +73,15 @@ mod source;
 mod source_indent;
 mod syntax;
 mod table;
-#[cfg(feature = "terminal")]
-mod terminal;
 mod toc;
 mod video;
 
+/// The inline terminal-replay player script and its CSP `script-src` hash, for
+/// embedded-mode consumers and hosts that allowlist it without `'unsafe-inline'`.
+#[cfg(feature = "terminal")]
+pub use acdc_extensions_terminal::{
+    REPLAY_PLAYER_SCRIPT, REPLAY_PLAYER_SCRIPT_CSP_HASH, extension as terminal_extension,
+};
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 use html_visitor::HtmlVisitor;
@@ -86,10 +90,6 @@ pub use html_visitor::uses_stem;
 /// consumers can reproduce them: the inline configuration `<script>`, its CSP
 /// hash, and the loader URL.
 pub use html_visitor::{MATHJAX_CONFIG_CSP_HASH, MATHJAX_CONFIG_SCRIPT, MATHJAX_LOADER_URL};
-/// The inline terminal-replay player script and its CSP `script-src` hash, for
-/// embedded-mode consumers and hosts that allowlist it without `'unsafe-inline'`.
-#[cfg(feature = "terminal")]
-pub use terminal::{REPLAY_PLAYER_SCRIPT, REPLAY_PLAYER_SCRIPT_CSP_HASH};
 
 /// HTML output flavour, owned by the html converter.
 ///
@@ -1926,9 +1926,9 @@ This is a paragraph.
 
     #[cfg(feature = "terminal")]
     #[test]
-    fn csp_allowlists_the_replay_player_hash() -> TestResult {
+    fn csp_does_not_allowlist_inactive_replay_player_hash() -> TestResult {
         let html = convert("= T\n:csp:\n\nHi.\n", false)?;
-        assert!(html.contains(REPLAY_PLAYER_SCRIPT_CSP_HASH));
+        assert!(!html.contains(REPLAY_PLAYER_SCRIPT_CSP_HASH));
         Ok(())
     }
 

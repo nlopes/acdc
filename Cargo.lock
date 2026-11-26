@@ -63,7 +63,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
- "acdc-converters-terminal",
+ "acdc-extensions-terminal",
  "acdc-parser",
  "base64 0.23.1",
  "chrono",
@@ -175,6 +175,19 @@ dependencies = [
  "petgraph",
  "rstest",
  "tempfile",
+ "thiserror",
+]
+
+[[package]]
+name = "acdc-extensions-terminal"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-converters-html",
+ "acdc-converters-terminal",
+ "acdc-parser",
+ "base64 0.23.1",
+ "sha2",
  "thiserror",
 ]
 

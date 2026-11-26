@@ -122,6 +122,8 @@ The backend is configured before parsing so its attributes govern source
 processing. An `ExtensionCatalog` lists packages available in the application;
 explicit selection activates them and rejects unavailable names before reading
 input. Selected packages preserve selection order and their registration order.
+The CLI makes the native `terminal` package available when built with
+`html-terminal`; explicit `--extension terminal` selection activates it.
 
 `Pipeline` coordinates parser-owned source processing, committed callbacks,
 tree processors, and finalization for strings, files, and readers. Conversion
@@ -162,6 +164,11 @@ file-based docinfo at each position. A hook supplies trusted backend markup and
 escapes any document values it inserts. For converters that support UTF-8 text
 output, selecting a postprocessor buffers the completed document. Postprocessors
 edit it in registration order before the pipeline writes it to the destination.
+
+`extensions/terminal` owns the terminal preview and replay implementation and
+player script. It uses these generic host services instead of terminal-specific
+branches in HTML's block rendering. The `terminal` HTML feature preserves build
+availability and script-constant exports; it does not activate a renderer.
 
 ==== Inline preprocessing
 

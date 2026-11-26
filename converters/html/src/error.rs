@@ -16,18 +16,6 @@ pub enum Error {
     #[error(transparent)]
     VideoUrl(#[from] acdc_converters_core::video::UrlError),
 
-    #[cfg(feature = "terminal")]
-    #[error(transparent)]
-    Terminal(#[from] acdc_converters_terminal::Error),
-
-    #[cfg(feature = "terminal")]
-    #[error(transparent)]
-    TerminalGrid(#[from] acdc_converters_terminal::cell_grid::Error),
-
-    #[cfg(feature = "terminal")]
-    #[error(transparent)]
-    TerminalReplay(#[from] acdc_converters_terminal::replay::Error),
-
     #[error(transparent)]
     Extension(#[from] acdc_converters_core::render::RenderError),
 
