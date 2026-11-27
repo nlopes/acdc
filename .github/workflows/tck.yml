@@ -38,9 +38,9 @@ jobs:
       run: |
         git init asciidoc-tck
         git -C asciidoc-tck remote add origin https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-tck.git
-        git -C asciidoc-tck fetch --depth 1 origin cdfada9c2768b164eadf4bc12e9f9c68e6caf68a
+        git -C asciidoc-tck fetch --depth 1 origin b2fcd096d085e261def3800f876b6dd82822a1b9
         git -C asciidoc-tck checkout --detach FETCH_HEAD
-        test "$(git -C asciidoc-tck rev-parse HEAD)" = cdfada9c2768b164eadf4bc12e9f9c68e6caf68a
+        test "$(git -C asciidoc-tck rev-parse HEAD)" = b2fcd096d085e261def3800f876b6dd82822a1b9
 
     - name: Install Rust toolchain
       uses: dtolnay/rust-toolchain@stable
@@ -56,7 +56,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v7
       with:
-        node-version: '25.8.2'
+        node-version-file: asciidoc-tck/.node-version
         cache: 'npm'
         cache-dependency-path: asciidoc-tck/package-lock.json
 

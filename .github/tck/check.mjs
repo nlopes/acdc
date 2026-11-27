@@ -4,7 +4,7 @@ import { appendFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const revision = 'cdfada9c2768b164eadf4bc12e9f9c68e6caf68a'
+const revision = 'b2fcd096d085e261def3800f876b6dd82822a1b9'
 export function verifyReport(report) {
   assert.equal(report.pass, 13, 'all 13 pinned TCK cases must pass')
   assert.equal(report.fail, 0, 'no TCK failures are allowed')

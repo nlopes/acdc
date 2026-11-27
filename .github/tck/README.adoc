@@ -1,9 +1,10 @@
 = TCK compatibility check
 
 CI runs the unchanged official TCK at revision
-`cdfada9c2768b164eadf4bc12e9f9c68e6caf68a`, using its selected Node version,
-25.8.2. All 13 cases must pass. A failed or skipped case, harness error or changed
-checkout fails the job. There is no known-failure allowance.
+`b2fcd096d085e261def3800f876b6dd82822a1b9`, using the Node version from its
+`.node-version` file, 25.8.2. All 13 cases must pass. A failed or skipped case,
+harness error or changed checkout fails the job. There is no known-failure
+allowance.
 
 The CLI adapter uses Draft mode and projects a smaller graph for this early TCK:
 
