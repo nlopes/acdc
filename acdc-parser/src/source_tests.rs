@@ -260,13 +260,10 @@ fn nested_list_id_keeps_its_authored_position_in_a_compound_body() -> TestResult
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = crate::parse(input, &options)?;
-        let Some(Block::DelimitedBlock(example)) = parsed.document_storage().blocks.get(1) else {
+        let Some(Block::DelimitedExample(example)) = parsed.document_storage().blocks.get(1) else {
             return Err("missing example".into());
         };
-        let crate::DelimitedBlockType::DelimitedExample(body) = &example.inner else {
-            return Err("missing example body".into());
-        };
-        let Some(Block::OrderedList(parent)) = body.first() else {
+        let Some(Block::OrderedList(parent)) = example.0.body.first() else {
             return Err("missing parent list".into());
         };
         let Some(Block::OrderedList(child)) =

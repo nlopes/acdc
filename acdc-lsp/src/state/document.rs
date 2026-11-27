@@ -12,7 +12,7 @@ use acdc_parser::{
 };
 use tower_lsp_server::ls_types::{Diagnostic, Uri};
 
-/// Owned counterpart to `acdc_parser::Source<'_>`, detached from the parser arena
+/// Owned counterpart to `acdc_parser::edit::Source<'_>`, detached from the parser arena
 /// so it can live in `DocumentState` alongside other extracted index data.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum OwnedSource {

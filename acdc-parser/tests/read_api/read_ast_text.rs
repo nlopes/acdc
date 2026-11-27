@@ -1,10 +1,10 @@
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, LineBreak, Location, Options, PassthroughKind,
-    Plain, Raw, SafeMode, StandaloneCurvedApostrophe, Substitution, Verbatim,
+    CompatibilityMode, Location, Options, PassthroughKind, SafeMode, Substitution,
     ast::{
         BlockKind, ContentRef, DocumentRef, InlineKind, InlinePassthroughRef, InlineRef,
         LineBreakRef, PlainRef, RawRef, StandaloneCurvedApostropheRef, VerbatimRef,
     },
+    edit::{InlineNode, LineBreak, Plain, Raw, StandaloneCurvedApostrophe, Verbatim},
     parse, parse_file, parse_inline,
 };
 
@@ -149,11 +149,11 @@ fn retained_pass_reads_preserve_content_and_empty_values(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let [
-        InlineNode::Macro(InlineMacro::Passthrough(owner)),
+        InlineNode::Passthrough(owner),
         _,
-        InlineNode::Macro(InlineMacro::Passthrough(empty)),
+        InlineNode::Passthrough(empty),
     ] = parsed_inlines.as_slice()
     else {
         return Err("expected retained pass macros".into());
@@ -339,7 +339,7 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
     assert_eq!(location.file, Some(include));
     assert_eq!(location.location.start.column, 4);
     let mut blocks = parsed.document().blocks().skip(1);
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table
@@ -366,7 +366,7 @@ fn text_reads_preserve_includes_table_cells_and_listing_whitespace(
         .ok_or("cell raw text")?;
     assert_eq!(raw.text(), "<cell>");
     assert_eq!(parsed.resolve_location(raw.location()).file, Some(main));
-    let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
+    let BlockKind::DelimitedListing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
     let text = listing

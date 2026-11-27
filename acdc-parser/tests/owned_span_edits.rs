@@ -3,11 +3,14 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Bold, DoubleQuotedSpan, ElementId, FormattingForm, Highlight, InlineNode, Italic, Location,
-    Monospace, Plain, Position, SingleQuotedSpan, Subscript, Superscript,
+    FormattingForm, Location, Position,
     ast::{
         BoldRef, ContentRef, DoubleQuotedSpanRef, HighlightRef, InlineKind, ItalicRef,
         MonospaceRef, SingleQuotedSpanRef, SubscriptRef, SuperscriptRef,
+    },
+    edit::{
+        Bold, DoubleQuotedSpan, ElementId, Highlight, InlineNode, Italic, Monospace, Plain,
+        SingleQuotedSpan, Subscript, Superscript,
     },
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -19,19 +22,19 @@ type Error = Box<dyn std::error::Error>;
 
 macro_rules! all_spans {
     ($case:ident) => {
-        $case!(Bold, BoldRef, BoldText);
-        $case!(Italic, ItalicRef, ItalicText);
-        $case!(Monospace, MonospaceRef, MonospaceText);
-        $case!(Highlight, HighlightRef, HighlightText);
-        $case!(Subscript, SubscriptRef, SubscriptText);
-        $case!(Superscript, SuperscriptRef, SuperscriptText);
+        $case!(Bold, BoldRef, Bold);
+        $case!(Italic, ItalicRef, Italic);
+        $case!(Monospace, MonospaceRef, Monospace);
+        $case!(Highlight, HighlightRef, Highlight);
+        $case!(Subscript, SubscriptRef, Subscript);
+        $case!(Superscript, SuperscriptRef, Superscript);
         $case!(DoubleQuotedSpan, DoubleQuotedSpanRef, DoubleQuotedSpan);
         $case!(SingleQuotedSpan, SingleQuotedSpanRef, SingleQuotedSpan);
     };
 }
 
 fn plain(text: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
+    InlineNode::Plain(Plain::new(text, Location::default()).with_escaped(true))
 }
 
 fn text(content: ContentRef<'_>) -> Result<&str, Error> {

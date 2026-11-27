@@ -95,10 +95,10 @@ fn setext_like_underlines_still_open_delimited_blocks_inside_paragraphs(
     assert_eq!(delimited.location().start().line(), 3);
     assert_eq!(delimited.location().end().line(), 5);
     assert!(match delimiter {
-        "-----" => matches!(delimited.kind(), BlockKind::Listing(_)),
-        "=====" => matches!(delimited.kind(), BlockKind::Example(_)),
-        "+++++" => matches!(delimited.kind(), BlockKind::Passthrough(_)),
-        "~~~~~" => matches!(delimited.kind(), BlockKind::Open(_)),
+        "-----" => matches!(delimited.kind(), BlockKind::DelimitedListing(_)),
+        "=====" => matches!(delimited.kind(), BlockKind::DelimitedExample(_)),
+        "+++++" => matches!(delimited.kind(), BlockKind::DelimitedPassthrough(_)),
+        "~~~~~" => matches!(delimited.kind(), BlockKind::DelimitedOpen(_)),
         _ => false,
     });
     assert_eq!(parsed.document().toc_entries().count(), 0);

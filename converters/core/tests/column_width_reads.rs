@@ -2,10 +2,10 @@
 
 use acdc_converters_core::table::column_widths;
 use acdc_parser::{
-    ColumnFormat,
     ColumnWidth::{Auto, Percentage, Proportional},
     CompatibilityMode, Options,
     ast::{BlockKind, BlockRef, ColumnFormatRef},
+    edit::ColumnFormat,
     parse,
 };
 
@@ -102,7 +102,7 @@ fn typed_table_widths_outlive_temporary_input() -> Result<(), Box<dyn std::error
                     &source,
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
-                let Some(BlockKind::Table(table)) =
+                let Some(BlockKind::DelimitedTable(table)) =
                     parsed.document().blocks().next().map(BlockRef::kind)
                 else {
                     return Err("expected table".into());

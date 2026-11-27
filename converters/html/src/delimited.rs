@@ -233,7 +233,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let attributes = block.attributes();
         let caption_kind = CaptionKind::for_block(block);
         match block.kind() {
-            BlockKind::Quote(data) => {
+            BlockKind::DelimitedQuote(data) => {
                 if converter.variant() == HtmlVariant::Semantic {
                     let has_title = data.title().is_some();
                     if has_title {
@@ -291,7 +291,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     writeln!(self.writer, "</div>")?;
                 }
             }
-            BlockKind::Open(data) => {
+            BlockKind::DelimitedOpen(data) => {
                 if converter.variant() == HtmlVariant::Semantic {
                     let is_abstract = data.style() == Some("abstract");
                     if is_abstract {
@@ -385,14 +385,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     writeln!(self.writer, "</div>")?;
                 }
             }
-            BlockKind::Example(data) => {
+            BlockKind::DelimitedExample(data) => {
                 if converter.variant() == HtmlVariant::Semantic {
                     self.write_example_block_semantic(traversal, data)?;
                 } else {
                     self.write_example_block(traversal, data)?;
                 }
             }
-            BlockKind::Sidebar(data) => {
+            BlockKind::DelimitedSidebar(data) => {
                 self.render_sidebar_content(
                     traversal,
                     data.title(),
@@ -401,23 +401,23 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 )?;
             }
             // Handle tables
-            BlockKind::Table(data) => {
+            BlockKind::DelimitedTable(data) => {
                 let converter = self.converter.clone();
                 crate::table::render_table(traversal, data, self, &converter)?;
             }
-            BlockKind::Passthrough(data) => {
+            BlockKind::DelimitedPassthrough(data) => {
                 self.visit_content(traversal, data.content())?;
             }
-            BlockKind::Listing(data) => {
+            BlockKind::DelimitedListing(data) => {
                 self.render_listing_block(traversal, data, caption_kind)?;
             }
-            BlockKind::Literal(data) => {
+            BlockKind::DelimitedLiteral(data) => {
                 if converter.variant() == HtmlVariant::Semantic {
                     return self.render_literal_block_semantic(traversal, data, caption_kind);
                 }
                 self.render_literal_block(traversal, data, caption_kind)?;
             }
-            BlockKind::Stem(data) => {
+            BlockKind::DelimitedStem(data) => {
                 if converter.variant() == HtmlVariant::Semantic {
                     return self.render_stem_block_semantic(traversal, data);
                 }
@@ -438,7 +438,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 writeln!(self.writer, "</div>")?;
             }
             BlockKind::DelimitedComment(_) => {}
-            BlockKind::Verse(data) => {
+            BlockKind::DelimitedVerse(data) => {
                 if converter.variant() == HtmlVariant::Semantic {
                     return self.render_verse_block_semantic(traversal, data);
                 }
@@ -1114,20 +1114,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 mod tests {
     use super::*;
     use crate::{Converter, RenderOptions};
-    use acdc_parser::{DelimitedBlock, DelimitedBlockType};
 
     use std::{cell::Cell, rc::Rc};
 
     use acdc_converters_core::{Diagnostics, Doctype, Options, WarningSource};
     use acdc_parser::{
-        BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
+        DocumentAttributes, Location, SafeMode,
+        edit::{
+            Block, BlockMetadata, Example, InlineNode, Listing, Literal, Open, Plain, Quote,
+            Sidebar, Title,
+        },
     };
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::PlainText(Plain::new(
-            content,
-            Location::default(),
-        ))]
+        vec![InlineNode::Plain(Plain::new(content, Location::default()))]
     }
 
     fn create_test_converter_raw() -> Converter<'static> {
@@ -1163,11 +1163,10 @@ mod tests {
 
     #[test]
     fn test_listing_block_renders_as_listingblock() -> Result<(), Box<dyn std::error::Error>> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            "----",
+        let block = Block::DelimitedListing(Listing::new(
+            create_test_inlines("code here"),
             Location::default(),
-        );
+        ));
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1192,11 +1191,10 @@ mod tests {
 
     #[test]
     fn test_literal_block_renders_as_literalblock() -> Result<(), Box<dyn std::error::Error>> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            "....",
+        let block = Block::DelimitedLiteral(Literal::new(
+            create_test_inlines("literal text"),
             Location::default(),
-        );
+        ));
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1231,12 +1229,10 @@ mod tests {
             .with_style(Some("source"))
             .with_attributes(attributes)?;
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            "----",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code here"), Location::default())
+                .with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1271,12 +1267,10 @@ mod tests {
     fn test_literal_block_with_style_attribute() -> Result<(), Box<dyn std::error::Error>> {
         let metadata = BlockMetadata::new().with_style(Some("verse"));
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            "....",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedLiteral(
+            Literal::new(create_test_inlines("literal text"), Location::default())
+                .with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1306,17 +1300,14 @@ mod tests {
     #[test]
     fn test_listing_block_without_listing_caption_renders_title_without_number()
     -> Result<(), Box<dyn std::error::Error>> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+        let title = Title::new(vec![InlineNode::Plain(Plain::new(
             "My Code Example",
             Location::default(),
         ))]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            "----",
-            Location::default(),
-        )
-        .with_title(title);
+        let block = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code here"), Location::default()).with_title(title),
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1352,29 +1343,23 @@ mod tests {
     #[test]
     fn test_listing_block_with_listing_caption_renders_title_with_number()
     -> Result<(), Box<dyn std::error::Error>> {
-        let title1 = Title::new(vec![InlineNode::PlainText(Plain::new(
+        let title1 = Title::new(vec![InlineNode::Plain(Plain::new(
             "First Example",
             Location::default(),
         ))]);
 
-        let title2 = Title::new(vec![InlineNode::PlainText(Plain::new(
+        let title2 = Title::new(vec![InlineNode::Plain(Plain::new(
             "Second Example",
             Location::default(),
         ))]);
 
-        let block1 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code 1")),
-            "----",
-            Location::default(),
-        )
-        .with_title(title1);
+        let block1 = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code 1"), Location::default()).with_title(title1),
+        );
 
-        let block2 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code 2")),
-            "----",
-            Location::default(),
-        )
-        .with_title(title2);
+        let block2 = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code 2"), Location::default()).with_title(title2),
+        );
 
         let output = Vec::new();
         let converter = {
@@ -1442,18 +1427,16 @@ mod tests {
 
     #[test]
     fn test_listing_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::Anchor;
+        use acdc_parser::edit::Anchor;
 
         let metadata = BlockMetadata::new()
             .with_id(Some(Anchor::new("my-listing-id", Location::default())))
             .with_roles(vec!["highlight", "special"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            "----",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code here"), Location::default())
+                .with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1478,18 +1461,15 @@ mod tests {
 
     #[test]
     fn test_example_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::Anchor;
+        use acdc_parser::edit::Anchor;
 
         let metadata = BlockMetadata::new()
             .with_id(Some(Anchor::new("example-id", Location::default())))
             .with_roles(vec!["special"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![]),
-            "====",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedExample(
+            Example::new(vec![], Location::default()).with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1514,18 +1494,14 @@ mod tests {
 
     #[test]
     fn test_quote_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::Anchor;
+        use acdc_parser::edit::Anchor;
 
         let metadata = BlockMetadata::new()
             .with_id(Some(Anchor::new("quote-id", Location::default())))
             .with_roles(vec!["highlight"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(vec![]),
-            "____",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block =
+            Block::DelimitedQuote(Quote::new(vec![], Location::default()).with_metadata(metadata)?);
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1550,18 +1526,15 @@ mod tests {
 
     #[test]
     fn test_sidebar_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::Anchor;
+        use acdc_parser::edit::Anchor;
 
         let metadata = BlockMetadata::new()
             .with_id(Some(Anchor::new("sidebar-id", Location::default())))
             .with_roles(vec!["sidebar-role"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedSidebar(vec![]),
-            "****",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedSidebar(
+            Sidebar::new(vec![], Location::default()).with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1586,18 +1559,14 @@ mod tests {
 
     #[test]
     fn test_open_block_with_id_and_role() -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::Anchor;
+        use acdc_parser::edit::Anchor;
 
         let metadata = BlockMetadata::new()
             .with_id(Some(Anchor::new("open-id", Location::default())))
             .with_roles(vec!["open-role"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedOpen(vec![]),
-            "--",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block =
+            Block::DelimitedOpen(Open::new(vec![], Location::default()).with_metadata(metadata)?);
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1622,20 +1591,18 @@ mod tests {
 
     #[test]
     fn test_example_block_collapsible() -> Result<(), Box<dyn std::error::Error>> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+        let title = Title::new(vec![InlineNode::Plain(Plain::new(
             "Click to expand",
             Location::default(),
         ))]);
 
         let metadata = BlockMetadata::new().with_options(vec!["collapsible"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![]),
-            "====",
-            Location::default(),
-        )
-        .with_metadata(metadata)?
-        .with_title(title);
+        let block = Block::DelimitedExample(
+            Example::new(vec![], Location::default())
+                .with_metadata(metadata)?
+                .with_title(title),
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1672,20 +1639,18 @@ mod tests {
 
     #[test]
     fn test_example_block_collapsible_open() -> Result<(), Box<dyn std::error::Error>> {
-        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+        let title = Title::new(vec![InlineNode::Plain(Plain::new(
             "Initially open",
             Location::default(),
         ))]);
 
         let metadata = BlockMetadata::new().with_options(vec!["collapsible", "open"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![]),
-            "====",
-            Location::default(),
-        )
-        .with_metadata(metadata)?
-        .with_title(title);
+        let block = Block::DelimitedExample(
+            Example::new(vec![], Location::default())
+                .with_metadata(metadata)?
+                .with_title(title),
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1712,12 +1677,9 @@ mod tests {
     fn test_example_block_collapsible_without_title() -> Result<(), Box<dyn std::error::Error>> {
         let metadata = BlockMetadata::new().with_options(vec!["collapsible"]);
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![]),
-            "====",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedExample(
+            Example::new(vec![], Location::default()).with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();
@@ -1742,18 +1704,16 @@ mod tests {
 
     #[test]
     fn test_block_with_anchor_fallback() -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::Anchor;
+        use acdc_parser::edit::Anchor;
 
         // Test that anchors are used as fallback when id is None
         let mut metadata = BlockMetadata::new().with_roles(vec!["my-role"]);
         metadata.anchors = vec![Anchor::new("anchor-fallback", Location::default())];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code")),
-            "----",
-            Location::default(),
-        )
-        .with_metadata(metadata)?;
+        let block = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code"), Location::default())
+                .with_metadata(metadata)?,
+        );
 
         let output = Vec::new();
         let converter = create_test_converter();

@@ -132,7 +132,7 @@ pub fn character_reference_text(
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
 ///
-/// Non-HTML converters (terminal, manpage) should call this on `RawText` content
+/// Non-HTML converters (terminal, manpage) should call this on `Raw` content
 /// so that character replacement attributes like `{apos}` (`&#39;`) render as
 /// literal characters instead of HTML entities.
 ///

@@ -13,19 +13,19 @@ use super::{ContentAttribute, InlineNode};
 /// Retained extension source context does not participate in equality or serialization.
 ///
 /// ```compile_fail,E0308
-/// use acdc_parser::{InlineNode, Title};
+/// use acdc_parser::{edit::{InlineNode, Title}};
 /// let title = Title::default();
 /// let _: &[InlineNode<'_>] = &title;
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use acdc_parser::{InlineNode, Title};
+/// use acdc_parser::{edit::{InlineNode, Title}};
 /// let title = Title::default();
 /// let _: &[InlineNode<'_>] = title.as_ref();
 /// ```
 ///
 /// ```compile_fail,E0277
-/// use acdc_parser::Title;
+/// use acdc_parser::edit::Title;
 /// let title = Title::default();
 /// for _ in &title {}
 /// ```

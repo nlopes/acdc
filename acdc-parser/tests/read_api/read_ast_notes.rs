@@ -1,10 +1,10 @@
 use acdc_parser::{
-    Anchor, CalloutMarkerKind, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode,
-    Location, Options, SafeMode,
+    CalloutMarkerKind, CompatibilityMode, Location, Options, SafeMode,
     ast::{
         AnchorRef, BlockKind, CalloutMarkerRef, ContentRef, DocumentRef, FootnoteRef, InlineKind,
         LocationRef,
     },
+    edit::{Anchor, ContentAttribute, InlineNode},
     parse, parse_file, parse_inline,
 };
 
@@ -83,11 +83,11 @@ fn footnote_catalog_reads_preserve_registration_snapshots() -> Result<(), Error>
 #[test]
 fn footnote_owner_reads_do_not_resolve_or_register_content() -> Result<(), Error> {
     let parsed = parse_inline("footnote:n[Body] footnote:n[]", &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let [
-        InlineNode::Macro(InlineMacro::Footnote(owner)),
+        InlineNode::Footnote(owner),
         _,
-        InlineNode::Macro(InlineMacro::Footnote(reference)),
+        InlineNode::Footnote(reference),
     ] = parsed_inlines.as_slice()
     else {
         return Err("definition and reference".into());
@@ -230,7 +230,7 @@ fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error>
     let before = serde_json::to_value(parsed.document())?;
     let mut found = Vec::new();
     for block in parsed.document().blocks() {
-        if let BlockKind::Listing(listing) = block.kind() {
+        if let BlockKind::DelimitedListing(listing) = block.kind() {
             for inline in listing.content().inlines() {
                 if let InlineKind::Callout(callout) = inline.kind() {
                     shared(callout);
@@ -251,7 +251,7 @@ fn callout_leaves_keep_local_numbers_and_marker_locations() -> Result<(), Error>
             (CalloutMarkerKind::Auto, 1, Some("<.>"))
         ]
     );
-    let owner = acdc_parser::CalloutMarker::explicit(9, Location::default());
+    let owner = acdc_parser::edit::CalloutMarker::explicit(9, Location::default());
     assert_eq!(CalloutMarkerRef::from(&owner).number(), 9);
     assert_eq!(serde_json::to_value(parsed.document())?, before);
     Ok(())
@@ -293,7 +293,8 @@ fn footnote_reads_preserve_included_and_table_cell_locations(
         parsed.resolve_location(definition.location()).file,
         Some(include)
     );
-    let BlockKind::Table(table) = parsed.document().blocks().nth(1).ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = parsed.document().blocks().nth(1).ok_or("table")?.kind()
+    else {
         return Err("table".into());
     };
     let cell = table

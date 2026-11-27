@@ -1,6 +1,7 @@
 use crate::{
-    ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, DocumentAttributeAssignment,
-    HorizontalAlignment, Table, TableCell, TablePresentation, TableRow, VerticalAlignment,
+    ColumnFormat, ColumnStyle, ColumnWidth, DocumentAttributeAssignment, HorizontalAlignment,
+    Table, TableCell, TablePresentation, TableRow, VerticalAlignment,
+    model::{Delimited, TableContent},
 };
 
 use super::{
@@ -11,8 +12,8 @@ use super::{
 /// A table block, including its title and local declarations.
 #[derive(Clone, Copy, Debug)]
 pub struct TableRef<'doc> {
-    pub(super) block: &'doc DelimitedBlock<'doc>,
-    pub(super) table: &'doc Table<'doc>,
+    pub(super) block: &'doc Delimited<'doc, TableContent<'doc>>,
+    pub(super) table: &'doc TableContent<'doc>,
 }
 
 impl<'doc> TableRef<'doc> {
@@ -40,8 +41,11 @@ impl<'doc> TableRef<'doc> {
         self.attributes().style()
     }
 
-    pub(super) fn new(block: &'doc DelimitedBlock<'doc>, table: &'doc Table<'doc>) -> Self {
-        Self { block, table }
+    pub(super) fn new(block: &'doc Delimited<'doc, TableContent<'doc>>) -> Self {
+        Self {
+            block,
+            table: &block.body,
+        }
     }
 
     /// The table's caption title, including an explicitly empty title.
@@ -308,9 +312,9 @@ impl TablePresentation {
 }
 
 impl<'doc> From<TableRef<'doc>> for Table<'doc> {
-    /// Copy the table body and retained scope/presentation, excluding enclosing block attributes.
+    /// Copy the table block, including its metadata, title, rows and retained presentation.
     fn from(table: TableRef<'doc>) -> Self {
-        table.table.clone()
+        Self(table.block.clone())
     }
 }
 

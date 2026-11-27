@@ -7,7 +7,7 @@ use acdc_converters_core::{
         number_prefixes, section_numbers,
     },
 };
-use acdc_parser::{AttributeValue, Block, CompatibilityMode, Options, SectionKind, parse};
+use acdc_parser::{AttributeValue, CompatibilityMode, Options, SectionKind, edit::Block, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -19,7 +19,7 @@ fn local_levels_keep_exact_text_parsing_and_document_fallback() -> Result<(), Er
         "= Manual\n:toc: macro\n:toclevels: 4\n\ntoc::[]\n",
         &Options::default(),
     )?;
-    let mut document = acdc_parser::Document::from(parsed.document());
+    let mut document = acdc_parser::edit::Document::from(parsed.document());
     let blocks: Vec<_> = document.take_blocks().collect();
     let Some(Block::TableOfContents(seed)) = blocks.first() else {
         return Err("missing TOC macro".into());
@@ -99,7 +99,7 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(BOOK, &options)?;
-        let mut document = acdc_parser::Document::from(parsed.document());
+        let mut document = acdc_parser::edit::Document::from(parsed.document());
         let entries: Vec<_> = document.take_toc_entries().collect();
         let entries = &entries;
         assert_eq!(entries.len(), 7);
@@ -147,7 +147,7 @@ fn numbering_keeps_catalog_alignment_parts_specials_and_appendix_controls() -> R
         ] {
             let source = BOOK.replacen(":partnums:\n", &format!(":partnums:\n{declaration}"), 1);
             let parsed = parse(&source, &options)?;
-            let mut parsed_document = acdc_parser::Document::from(parsed.document());
+            let mut parsed_document = acdc_parser::edit::Document::from(parsed.document());
             let entries: Vec<_> = parsed_document.take_toc_entries().collect();
             let context = TraversalContext::new(parsed.document().attributes());
             let numbers = section_numbers(&entries, &NumberingConfig::new(&context, None, None));
@@ -179,7 +179,7 @@ fn typed_catalog_helpers_accept_single_pass_and_temporary_inputs() -> Result<(),
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let parsed = parse(BOOK, &options)?;
-        let mut parsed_document = acdc_parser::Document::from(parsed.document());
+        let mut parsed_document = acdc_parser::edit::Document::from(parsed.document());
         let entries: Vec<_> = parsed_document.take_toc_entries().collect();
         let mut remaining = parsed.document().toc_entries();
         let mut pulled = 0;

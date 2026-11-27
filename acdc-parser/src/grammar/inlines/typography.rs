@@ -8,7 +8,7 @@ mod tests;
 use std::{mem::take, ops::Range};
 
 use crate::{
-    IndexTermKind, InlineMacro, InlineNode, Location, Plain, Raw, Substitution, Symbol, SymbolKind,
+    IndexTermKind, InlineNode, Location, Plain, Raw, Substitution, Symbol, SymbolKind,
     grammar::{
         ParserState,
         state::InlineRules,
@@ -28,10 +28,10 @@ pub(in crate::grammar) fn needs_profile_context(
 
 fn contains_raw(nodes: &[InlineNode<'_>]) -> bool {
     nodes.iter().any(|node| {
-        if let InlineNode::RawText(_) = node {
+        if let InlineNode::Raw(_) = node {
             return true;
         }
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+        if let InlineNode::IndexTerm(term) = node {
             return matches!(&term.kind, IndexTermKind::Flow(nodes) if contains_raw(nodes));
         }
         false
@@ -72,7 +72,7 @@ fn resolve_plain_with_context<'a>(
             .and_then(|words| words.get(index))
             .copied()
             .unwrap_or_default();
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = &mut node
+        if let InlineNode::IndexTerm(term) = &mut node
             && matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(|node| neighbors::needs_resolution(node, ordinary)))
         {
             let original = term.catalog.is_none().then(|| Box::new((**term).clone()));
@@ -87,7 +87,7 @@ fn resolve_plain_with_context<'a>(
             result.push(node);
             continue;
         }
-        if let InlineNode::RawText(raw) = node {
+        if let InlineNode::Raw(raw) = node {
             if raw.subs.contains(&Substitution::Replacements)
                 && (words.before.is_some() || words.after.is_some())
             {
@@ -98,16 +98,16 @@ fn resolve_plain_with_context<'a>(
                     words,
                 ));
             } else {
-                result.push(InlineNode::RawText(raw));
+                result.push(InlineNode::Raw(raw));
             }
             continue;
         }
-        let InlineNode::PlainText(text) = node else {
+        let InlineNode::Plain(text) = node else {
             result.push(node);
             continue;
         };
         if text.escaped || !ordinary {
-            result.push(InlineNode::PlainText(text));
+            result.push(InlineNode::Plain(text));
             continue;
         }
         let start = source_start(text.content, &text.location, state);
@@ -133,7 +133,7 @@ fn resolve_plain_with_context<'a>(
             })
         });
         if edits.is_empty() {
-            result.push(InlineNode::PlainText(text));
+            result.push(InlineNode::Plain(text));
         } else {
             append_resolved(
                 &mut result,
@@ -167,7 +167,7 @@ fn resolve_raw_with_context<'a>(
     words: WordContext,
 ) -> Vec<InlineNode<'a>> {
     if !raw.subs.contains(&Substitution::Replacements) {
-        return vec![InlineNode::RawText(raw)];
+        return vec![InlineNode::Raw(raw)];
     }
     let plan = SubstitutionPlan::from_substitutions(&raw.subs);
     let edits = replacements(raw.content, edges, words, |range, kind| {
@@ -181,7 +181,7 @@ fn resolve_raw_with_context<'a>(
             && arrow_allowed(raw.content, range, kind, plan)
     });
     if edits.is_empty() {
-        return vec![InlineNode::RawText(raw)];
+        return vec![InlineNode::Raw(raw)];
     }
     let mut result = Vec::new();
     let start = source_start(raw.content, &raw.location, state);
@@ -496,14 +496,14 @@ fn append_resolved<'a>(
     };
     let plain = |range: Range<usize>| {
         if let Some(subs) = raw_subs {
-            InlineNode::RawText(Raw {
+            InlineNode::Raw(Raw {
                 metadata: None,
                 content: &text[range.clone()],
                 location: locate(range),
                 subs: subs.to_vec(),
             })
         } else {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content: &text[range.clone()],
                 location: locate(range),
                 escaped: false,
@@ -534,14 +534,14 @@ fn append_resolved<'a>(
                             .substitutions
                             .enabled(&Substitution::SpecialChars)
                 {
-                    InlineNode::RawText(Raw {
+                    InlineNode::Raw(Raw {
                         metadata: None,
                         content: &text[range],
                         location: node_location,
                         subs: vec![Substitution::SpecialChars],
                     })
                 } else {
-                    InlineNode::RawText(Raw {
+                    InlineNode::Raw(Raw {
                         metadata: None,
                         content: decoded,
                         location: node_location,
@@ -579,7 +579,7 @@ fn protected_literal<'a>(
     } else {
         literal
     };
-    InlineNode::RawText(Raw {
+    InlineNode::Raw(Raw {
         metadata: None,
         content,
         location,

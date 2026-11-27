@@ -21,7 +21,7 @@ fn lint_one_sentence_structure(
     lines: &[SourceLine<'_>],
 ) {
     if let StructuralRef::Block(block) = node {
-        if let BlockKind::Table(_) = block.kind() {
+        if let BlockKind::DelimitedTable(_) = block.kind() {
             return;
         }
         if let BlockKind::Paragraph(paragraph) = block.kind() {

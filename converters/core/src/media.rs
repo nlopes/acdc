@@ -3,8 +3,8 @@
 use std::{borrow::Cow, path::Path};
 
 use acdc_parser::{
-    ContentAttribute, Source,
     ast::{AttributeValueRef, AttributesRef, ContentRef, SourceRef},
+    edit::{ContentAttribute, Source},
 };
 use relative_path::RelativePath;
 

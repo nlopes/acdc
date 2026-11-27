@@ -5,8 +5,9 @@ use acdc_converters_core::{
     video::{TryUrl, UrlError},
 };
 use acdc_parser::{
-    AttributeValue, Audio, BlockMetadata, ElementAttributes, Location, Source, Video,
+    AttributeValue, ElementAttributes, Location,
     ast::{AudioRef, VideoRef},
+    edit::{Audio, BlockMetadata, Source, Video},
 };
 
 fn video<'a>(

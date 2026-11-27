@@ -4,7 +4,7 @@
 mod tests;
 
 use crate::{
-    InlineMacro, InlineNode, Substitution,
+    InlineNode, Substitution,
     grammar::{
         ParserState,
         inline_boundaries::check_constrained_opening_boundary,
@@ -329,24 +329,24 @@ pub(super) fn record_url_boundary(
     // call this helper, and each nested inline parse starts with no prior node.
     let formatted = matches!(
         node,
-        InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
+        InlineNode::Bold(_)
+            | InlineNode::Italic(_)
+            | InlineNode::Monospace(_)
+            | InlineNode::Highlight(_)
+            | InlineNode::Subscript(_)
+            | InlineNode::Superscript(_)
     ) && state
         .inline_ctx
         .substitutions
         .precedes(substitution, &Substitution::Macros);
     state.last_url_boundary = if formatted {
         Some(InlineUrlBoundary::Formatted(end))
-    } else if matches!(node, InlineNode::Macro(InlineMacro::Passthrough(_))) {
+    } else if matches!(node, InlineNode::Passthrough(_)) {
         Some(InlineUrlBoundary::Protected(end))
     } else if *substitution == Substitution::Attributes {
-        let text = if let InlineNode::PlainText(text) = node {
+        let text = if let InlineNode::Plain(text) = node {
             Some(text.content)
-        } else if let InlineNode::RawText(text) = node {
+        } else if let InlineNode::Raw(text) = node {
             Some(text.content)
         } else {
             None

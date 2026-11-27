@@ -11,8 +11,9 @@ use std::{
 };
 
 use acdc_parser::{
-    InlineNode, Substitution,
+    Substitution,
     ast::{ContentRef, CrossReferenceRef, InlineKind, InlineRef, ReferencesRef},
+    edit::InlineNode,
 };
 
 use crate::{
@@ -351,7 +352,11 @@ fn inlines_to_string(inlines: &[InlineNode<'_>]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use acdc_parser::{Block, InlineNode, LineBreak, Location, Options, Plain, parse};
+    use acdc_parser::{
+        Location, Options,
+        edit::{Block, InlineNode, LineBreak, Plain},
+        parse,
+    };
 
     #[test]
     fn curved_quotes_remain_text_under_every_projection_policy()
@@ -381,7 +386,7 @@ mod tests {
                 let parsed_blocks: Vec<_> = parsed
                     .document()
                     .blocks()
-                    .map(acdc_parser::Block::from)
+                    .map(acdc_parser::edit::Block::from)
                     .collect();
                 let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                     return Err("expected one paragraph".into());
@@ -471,7 +476,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -509,7 +514,7 @@ mod tests {
                         let parsed_blocks: Vec<_> = parsed
                             .document()
                             .blocks()
-                            .map(acdc_parser::Block::from)
+                            .map(acdc_parser::edit::Block::from)
                             .collect();
                         let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                             return Err("expected one paragraph".into());
@@ -554,7 +559,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -622,7 +627,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -723,7 +728,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -761,7 +766,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -792,7 +797,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -833,7 +838,7 @@ mod tests {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("expected one paragraph".into());
@@ -855,7 +860,7 @@ mod tests {
         let parsed_blocks: Vec<_> = parsed
             .document()
             .blocks()
-            .map(acdc_parser::Block::from)
+            .map(acdc_parser::edit::Block::from)
             .collect();
         let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
             return Err("expected one paragraph".into());
@@ -873,7 +878,7 @@ mod tests {
     use super::{InlineTextTransform, inlines_to_string};
 
     fn plain(content: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain::new(content, Location::default()))
+        InlineNode::Plain(Plain::new(content, Location::default()))
     }
 
     #[test]
@@ -917,12 +922,12 @@ mod tests {
     }
 
     /// The inline nodes of the document's first body paragraph.
-    fn body_inlines<'a>(doc: &'a acdc_parser::Document<'a>) -> Vec<InlineNode<'a>> {
+    fn body_inlines<'a>(doc: &'a acdc_parser::edit::Document<'a>) -> Vec<InlineNode<'a>> {
         acdc_parser::ast::DocumentRef::from(doc)
             .blocks()
             .find_map(|block| {
-                if let acdc_parser::Block::Paragraph(mut paragraph) =
-                    acdc_parser::Block::from(block)
+                if let acdc_parser::edit::Block::Paragraph(mut paragraph) =
+                    acdc_parser::edit::Block::from(block)
                 {
                     Some(paragraph.take_content().collect())
                 } else {
@@ -936,7 +941,7 @@ mod tests {
     fn a_cross_reference_without_a_catalog_reads_as_its_target() -> Result<(), acdc_parser::Error> {
         // All an inter-document reference has is its target.
         let parsed = document("See <<titled>>.")?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
         assert_eq!(inlines_to_string(&body_inlines(doc)), "See titled.");
         Ok(())
     }
@@ -944,7 +949,7 @@ mod tests {
     #[test]
     fn a_cross_reference_reads_as_its_target_reference_text() -> Result<(), acdc_parser::Error> {
         let parsed = document("See <<titled>>, <<labelled>>, <<untitled>>, and <<missing>>.")?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
                 .references(acdc_parser::ast::DocumentRef::from(doc).references())
@@ -960,7 +965,7 @@ mod tests {
             "Named: <<Custom Label>>. Explicit: <<Custom Label,Chosen text>>. Title: <<Actual Title>>. ID: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n",
             &acdc_parser::Options::default(),
         )?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
 
         assert_eq!(
             InlineTextTransform::default()
@@ -974,7 +979,7 @@ mod tests {
     #[test]
     fn a_cross_reference_inside_reference_text_reads_as_its_id() -> Result<(), acdc_parser::Error> {
         let parsed = document("See <<recursive>>.")?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
         assert_eq!(
             InlineTextTransform::default()
                 .references(acdc_parser::ast::DocumentRef::from(doc).references())
@@ -987,7 +992,7 @@ mod tests {
     #[test]
     fn a_link_reads_as_its_text_then_its_target() -> Result<(), acdc_parser::Error> {
         let parsed = document("See https://example.com[the site] and https://bare.example[].")?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
         assert_eq!(
             inlines_to_string(&body_inlines(doc)),
             "See the site and https://bare.example."
@@ -998,7 +1003,7 @@ mod tests {
     #[test]
     fn a_menu_reads_as_its_target_then_its_items() -> Result<(), acdc_parser::Error> {
         let parsed = document("Choose menu:File[Open > Recent].")?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
         assert_eq!(
             inlines_to_string(&body_inlines(doc)),
             "Choose File > Open > Recent."
@@ -1009,7 +1014,7 @@ mod tests {
     #[test]
     fn character_references_decode_only_when_asked() -> Result<(), acdc_parser::Error> {
         let parsed = document("It{apos}s here.")?;
-        let doc = &acdc_parser::Document::from(parsed.document());
+        let doc = &acdc_parser::edit::Document::from(parsed.document());
         let inlines = body_inlines(doc);
         assert_eq!(inlines_to_string(&inlines), "It&#39;s here.");
         assert_eq!(
@@ -1034,7 +1039,10 @@ mod tests {
 #[cfg(test)]
 mod character_reference_tests {
     use super::InlineTextTransform;
-    use acdc_parser::{CharacterReference, CharacterReferenceKind, InlineNode, Location};
+    use acdc_parser::{
+        CharacterReferenceKind, Location,
+        edit::{CharacterReference, InlineNode},
+    };
 
     #[test]
     fn character_references_keep_source_identity_and_decode_for_text() -> Result<(), &'static str> {

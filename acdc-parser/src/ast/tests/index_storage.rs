@@ -1,4 +1,4 @@
-use crate::{InlineMacro, InlineNode, Options, parse};
+use crate::{InlineNode, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -16,7 +16,7 @@ fn ordinary_index_labels_do_not_need_an_additional_catalog_snapshot(
         .find_map(|block| {
             if let crate::Block::Paragraph(paragraph) = block {
                 paragraph.content.iter().find_map(|node| {
-                    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+                    if let InlineNode::IndexTerm(term) = node {
                         Some(term.as_ref())
                     } else {
                         None

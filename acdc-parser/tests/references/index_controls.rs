@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, Options,
+    CompatibilityMode, Options,
     ast::{ContentRef, IndexTermRef, InlineKind},
+    edit::{ContentAttribute, InlineNode},
     parse, parse_inline,
 };
 
@@ -8,7 +9,7 @@ type Error = Box<dyn std::error::Error>;
 
 fn index<'a>(nodes: &'a [InlineNode<'a>]) -> Result<IndexTermRef<'a>, Error> {
     match nodes {
-        [InlineNode::Macro(InlineMacro::IndexTerm(term))] => Ok(IndexTermRef::from(term.as_ref())),
+        [InlineNode::IndexTerm(term)] => Ok(IndexTermRef::from(term.as_ref())),
         _ => Err(format!("expected one index term: {nodes:?}").into()),
     }
 }
@@ -42,7 +43,7 @@ fn named_index_controls_stay_out_of_visible_labels(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let term = index(parsed_inlines.as_slice())?;
     assert!(term.is_visible());
     assert_eq!(text(term.term())?, expected);
@@ -74,7 +75,7 @@ fn index_hierarchy_uses_physical_slots(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let term = index(parsed_inlines.as_slice())?;
     assert!(!term.is_visible());
     assert_eq!(text(term.term())?, "Primary");
@@ -122,13 +123,13 @@ fn discarded_index_controls_and_relationships_do_not_register_footnotes() -> Res
 fn named_index_controls_preserve_complete_child_labels() -> Result<(), Error> {
     let source = "indexterm2:[Before link:guide.adoc[Child,role=child] after,custom=outer]";
     let parsed = parse_inline(source, &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let term = index(parsed_inlines.as_slice())?;
     let content = ContentAttribute::from(term.term()).into_inlines();
     let [
-        InlineNode::PlainText(before),
-        InlineNode::Macro(InlineMacro::Link(link)),
-        InlineNode::PlainText(after),
+        InlineNode::Plain(before),
+        InlineNode::Link(link),
+        InlineNode::Plain(after),
     ] = content.as_slice()
     else {
         return Err(format!("expected complete child link: {:?}", term.term()).into());

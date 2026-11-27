@@ -465,6 +465,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of public fields or backing slices. Use constructors, checked setters,
   and prepared transfers to edit owned values; `From` copies a selected read.
   Text can still borrow from the parse result. See the README's 0.11 migration.
+- Owned tree types moved from the crate root to `acdc_parser::edit`, for example
+  `acdc_parser::edit::{Block, Document, InlineNode}`. Shared values such as
+  `Location`, `Substitution`, `DocumentAttributes` and the enums read by `ast`
+  stay at the root. Native JSON is unchanged.
+- `Block` and `InlineNode` have the same variants as `BlockKind` and `InlineKind`.
+  `Block::DelimitedBlock` and `DelimitedBlockType` are replaced by one `Block`
+  variant per delimited kind, with the same names as before:
+  `DelimitedExample(Example)`, `DelimitedListing(Listing)`,
+  `DelimitedStem(StemBlock)`, `DelimitedTable(Table)` and so on.
+  `DelimitedPass` is now `DelimitedPassthrough`. Each kind starts with its
+  default delimiter; `set_delimiter()` changes it. `Table` now holds the whole
+  table block, and `StemBlock` replaces `StemContent`.
+  `InlineMacro` is removed: match `InlineNode::Link`, `InlineNode::Footnote` and
+  the other macro nodes directly. The `Text` suffix is dropped from `BoldText`,
+  `PlainText` and similar variants, `InlineAnchor` is `Anchor`, `CalloutMarker`
+  is `Callout`, and the inline passthrough type is `InlinePassthrough`.
+  `InlineNode::from(node)` boxes the large macro nodes for you.
 - `ContentAttribute` and `Title` no longer expose borrowed slices or `Deref`.
   Use `ContentRef::from(&content)` or `title.content()`, then `inlines()`.
   Standalone inline results use `content()`. `Title::default()` is absent;

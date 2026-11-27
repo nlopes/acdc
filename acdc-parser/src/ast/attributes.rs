@@ -1,9 +1,9 @@
 use crate::{
-    Admonition, Audio, BlockMetadata, Bold, CalloutList, CrossReference, DelimitedBlock,
-    DescriptionList, DiscreteHeading, DoubleQuotedSpan, ElementAttributes, Header, Highlight, Icon,
-    Image, IndexTerm, IndexTermRelationship, InlineImage, Italic, Link, Mailto, Monospace,
-    OrderedList, PageBreak, Paragraph, Raw, Section, SingleQuotedSpan, Subscript, Superscript,
-    TableOfContents, ThematicBreak, UnorderedList, UrlMacro, Video,
+    Admonition, Audio, BlockMetadata, Bold, CalloutList, CrossReference, DescriptionList,
+    DiscreteHeading, DoubleQuotedSpan, ElementAttributes, Header, Highlight, Icon, Image,
+    IndexTerm, IndexTermRelationship, InlineImage, Italic, Link, Mailto, Monospace, OrderedList,
+    PageBreak, Paragraph, Raw, Section, SingleQuotedSpan, Subscript, Superscript, TableOfContents,
+    ThematicBreak, UnorderedList, UrlMacro, Video,
 };
 
 use super::{
@@ -25,7 +25,7 @@ use super::{
 /// tokens; an omitted assignment has no attribute entry.
 ///
 /// ```
-/// use acdc_parser::{Location, Paragraph, ast::{AttributeValueRef, ParagraphRef}};
+/// use acdc_parser::{Location, ast::{AttributeValueRef, ParagraphRef}, edit::Paragraph};
 ///
 /// let mut paragraph = Paragraph::new(Vec::new(), Location::default());
 /// let mut metadata = paragraph.take_metadata();
@@ -34,13 +34,13 @@ use super::{
 /// let attributes = ParagraphRef::from(&paragraph).attributes();
 /// assert_eq!(attributes.get("width"), Some(AttributeValueRef::Text("120")));
 /// assert!(!attributes.contains("title"));
-/// # Ok::<(), acdc_parser::ReservedAttribute>(())
+/// # Ok::<(), acdc_parser::edit::ReservedAttribute>(())
 /// ```
 ///
 /// Attribute reads cannot outlive their owner:
 ///
 /// ```compile_fail,E0597
-/// use acdc_parser::{Location, Paragraph, ast::ParagraphRef};
+/// use acdc_parser::{Location, ast::ParagraphRef, edit::Paragraph};
 ///
 /// let attributes = {
 ///     let paragraph = Paragraph::new(Vec::new(), Location::default());
@@ -69,7 +69,10 @@ enum Owner<'doc> {
     Header(&'doc Header<'doc>),
     Paragraph(&'doc Paragraph<'doc>),
     Section(&'doc Section<'doc>),
-    Delimited(&'doc DelimitedBlock<'doc>),
+    Delimited {
+        metadata: &'doc BlockMetadata<'doc>,
+        title: &'doc crate::Title<'doc>,
+    },
     Admonition(&'doc Admonition<'doc>),
     UnorderedList(&'doc UnorderedList<'doc>),
     OrderedList(&'doc OrderedList<'doc>),
@@ -288,9 +291,12 @@ impl<'doc> AttributesRef<'doc> {
         }
     }
 
-    pub(super) fn delimited(owner: &'doc DelimitedBlock<'doc>) -> Self {
+    pub(super) fn delimited<B>(owner: &'doc crate::model::Delimited<'doc, B>) -> Self {
         Self {
-            owner: Owner::Delimited(owner),
+            owner: Owner::Delimited {
+                metadata: &owner.metadata,
+                title: &owner.title,
+            },
         }
     }
 
@@ -441,7 +447,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Extension(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
-            | Owner::Delimited(_)
+            | Owner::Delimited { .. }
             | Owner::Admonition(_)
             | Owner::UnorderedList(_)
             | Owner::OrderedList(_)
@@ -552,7 +558,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Extension(node) => Some(&node.metadata),
             Owner::Paragraph(node) => Some(&node.metadata),
             Owner::Section(node) => Some(&node.metadata),
-            Owner::Delimited(node) => Some(&node.metadata),
+            Owner::Delimited { metadata, .. } => Some(metadata),
             Owner::Admonition(node) => Some(&node.metadata),
             Owner::UnorderedList(node) => Some(&node.metadata),
             Owner::OrderedList(node) => Some(&node.metadata),
@@ -610,7 +616,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::Extension(node) => &node.title,
             Owner::Paragraph(node) => &node.title,
             Owner::Section(node) => &node.title,
-            Owner::Delimited(node) => &node.title,
+            Owner::Delimited { title, .. } => title,
             Owner::Admonition(node) => &node.title,
             Owner::UnorderedList(node) => &node.title,
             Owner::OrderedList(node) => &node.title,
@@ -697,7 +703,7 @@ impl<'doc> AttributesRef<'doc> {
             Owner::ThematicBreak(node) => node.primary_anchor().map(ElementIdRef::from),
             Owner::Extension(_)
             | Owner::Paragraph(_)
-            | Owner::Delimited(_)
+            | Owner::Delimited { .. }
             | Owner::Admonition(_)
             | Owner::UnorderedList(_)
             | Owner::OrderedList(_)
@@ -764,7 +770,7 @@ impl<'doc> AttributesRef<'doc> {
             | Owner::Extension(_)
             | Owner::Paragraph(_)
             | Owner::Section(_)
-            | Owner::Delimited(_)
+            | Owner::Delimited { .. }
             | Owner::Admonition(_)
             | Owner::UnorderedList(_)
             | Owner::OrderedList(_)

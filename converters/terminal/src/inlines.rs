@@ -1038,15 +1038,17 @@ mod tests {
     use crate::{TerminalVisitor, create_test_converter};
 
     use acdc_parser::{
-        Anchor, Bold, CrossReference, DoubleQuotedSpan, FormattingForm, Highlight, InlineImage,
-        InlineMacro, InlineNode, Italic, KeyboardShortcut, LineBreak, Link, Location, Monospace,
-        Paragraph, Plain, SingleQuotedSpan, Source, StandaloneCurvedApostrophe, Subscript,
-        Superscript,
+        FormattingForm, Location,
+        edit::{
+            Anchor, Bold, CrossReference, DoubleQuotedSpan, Highlight, InlineImage, InlineNode,
+            Italic, KeyboardShortcut, LineBreak, Link, Monospace, Paragraph, Plain,
+            SingleQuotedSpan, Source, StandaloneCurvedApostrophe, Subscript, Superscript,
+        },
     };
 
     /// Create simple plain text inline node for testing
     fn create_plain_text(content: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain::new(content, Location::default()))
+        InlineNode::Plain(Plain::new(content, Location::default()))
     }
 
     /// Helper to render a paragraph with inline nodes and return the output
@@ -1080,7 +1082,7 @@ mod tests {
 
     #[test]
     fn test_bold_text() -> Result<(), Error> {
-        let bold = InlineNode::BoldText(Bold::new(
+        let bold = InlineNode::Bold(Bold::new(
             vec![create_plain_text("bold text")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1098,7 +1100,7 @@ mod tests {
 
     #[test]
     fn test_italic_text() -> Result<(), Error> {
-        let italic = InlineNode::ItalicText(Italic::new(
+        let italic = InlineNode::Italic(Italic::new(
             vec![create_plain_text("italic text")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1119,7 +1121,7 @@ mod tests {
 
     #[test]
     fn test_monospace_text() -> Result<(), Error> {
-        let monospace = InlineNode::MonospaceText(Monospace::new(
+        let monospace = InlineNode::Monospace(Monospace::new(
             vec![create_plain_text("monospace text")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1142,13 +1144,13 @@ mod tests {
     fn test_mixed_formatting() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Normal "),
-            InlineNode::BoldText(Bold::new(
+            InlineNode::Bold(Bold::new(
                 vec![create_plain_text("bold")],
                 FormattingForm::Constrained,
                 Location::default(),
             )),
             create_plain_text(" and "),
-            InlineNode::ItalicText(Italic::new(
+            InlineNode::Italic(Italic::new(
                 vec![create_plain_text("italic")],
                 FormattingForm::Constrained,
                 Location::default(),
@@ -1163,7 +1165,7 @@ mod tests {
 
     #[test]
     fn test_highlight_text() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText(Highlight::new(
+        let highlight = InlineNode::Highlight(Highlight::new(
             vec![create_plain_text("highlighted")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1181,7 +1183,7 @@ mod tests {
 
     #[test]
     fn test_superscript_text() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript::new(
+        let superscript = InlineNode::Superscript(Superscript::new(
             vec![create_plain_text("2")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1199,7 +1201,7 @@ mod tests {
 
     #[test]
     fn test_subscript_text() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript::new(
+        let subscript = InlineNode::Subscript(Subscript::new(
             vec![create_plain_text("2")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1217,7 +1219,7 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_letters() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript::new(
+        let subscript = InlineNode::Subscript(Subscript::new(
             vec![create_plain_text("n")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1237,7 +1239,7 @@ mod tests {
 
     #[test]
     fn test_superscript_fallback_for_letters() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript::new(
+        let superscript = InlineNode::Superscript(Superscript::new(
             vec![create_plain_text("abc")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1312,10 +1314,10 @@ mod tests {
 
     #[test]
     fn test_link_macro() -> Result<(), Error> {
-        let link = InlineNode::Macro(InlineMacro::Link(Box::new(Link::new(
+        let link = InlineNode::Link(Box::new(Link::new(
             Source::Name("https://example.com"),
             Location::default(),
-        ))));
+        )));
 
         let output = render_paragraph(vec![link])?;
         assert!(
@@ -1327,10 +1329,10 @@ mod tests {
 
     #[test]
     fn test_image_macro_placeholder() -> Result<(), Error> {
-        let image = InlineNode::Macro(InlineMacro::Image(Box::new(InlineImage::new(
+        let image = InlineNode::Image(Box::new(InlineImage::new(
             Source::Name("logo.png"),
             Location::default(),
-        ))));
+        )));
 
         let output = render_paragraph(vec![image])?;
         assert!(
@@ -1342,18 +1344,18 @@ mod tests {
 
     #[test]
     fn test_keyboard_macro() -> Result<(), Error> {
-        let kbd = InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut::new(
+        let kbd = InlineNode::KeyboardShortcut(KeyboardShortcut::new(
             ["Ctrl", "C"]
                 .into_iter()
                 .map(|content| {
-                    acdc_parser::ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+                    acdc_parser::edit::ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
                         content,
                         Location::default(),
                     ))])
                 })
                 .collect(),
             Location::default(),
-        )));
+        ));
 
         let output = render_paragraph(vec![kbd])?;
         assert!(
@@ -1365,10 +1367,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_with_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(Box::new(
+        let xref = InlineNode::CrossReference(Box::new(
             CrossReference::new("section-id", Location::default())
                 .with_text(vec![create_plain_text("See Section 1")]),
-        )));
+        ));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -1384,10 +1386,10 @@ mod tests {
 
     #[test]
     fn test_cross_reference_without_text() -> Result<(), Error> {
-        let xref = InlineNode::Macro(InlineMacro::CrossReference(Box::new(CrossReference::new(
+        let xref = InlineNode::CrossReference(Box::new(CrossReference::new(
             "section-id",
             Location::default(),
-        ))));
+        )));
 
         let output = render_paragraph(vec![xref])?;
         assert!(
@@ -1417,7 +1419,7 @@ mod tests {
     fn test_inline_anchor_invisible() -> Result<(), Error> {
         let output = render_paragraph(vec![
             create_plain_text("Before"),
-            InlineNode::InlineAnchor(Anchor::new("anchor-id", Location::default())),
+            InlineNode::Anchor(Anchor::new("anchor-id", Location::default())),
             create_plain_text("After"),
         ])?;
 
@@ -1436,7 +1438,7 @@ mod tests {
 
     #[test]
     fn test_highlight_text_with_underline_role() -> Result<(), Error> {
-        let highlight = InlineNode::HighlightText({
+        let highlight = InlineNode::Highlight({
             let mut span = Highlight::new(
                 vec![create_plain_text("underlined text")],
                 FormattingForm::Constrained,
@@ -1466,7 +1468,7 @@ mod tests {
 
     #[test]
     fn test_superscript_renders_unicode() -> Result<(), Error> {
-        let superscript = InlineNode::SuperscriptText(Superscript::new(
+        let superscript = InlineNode::Superscript(Superscript::new(
             vec![create_plain_text("2")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1483,7 +1485,7 @@ mod tests {
 
     #[test]
     fn test_subscript_renders_unicode() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript::new(
+        let subscript = InlineNode::Subscript(Subscript::new(
             vec![create_plain_text("2")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1501,7 +1503,7 @@ mod tests {
     #[test]
     fn test_superscript_fallback_for_unsupported_chars() -> Result<(), Error> {
         // Characters without Unicode superscript equivalents should fall back
-        let superscript = InlineNode::SuperscriptText(Superscript::new(
+        let superscript = InlineNode::Superscript(Superscript::new(
             vec![create_plain_text("@")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1521,7 +1523,7 @@ mod tests {
 
     #[test]
     fn test_subscript_fallback_for_unsupported_chars() -> Result<(), Error> {
-        let subscript = InlineNode::SubscriptText(Subscript::new(
+        let subscript = InlineNode::Subscript(Subscript::new(
             vec![create_plain_text("@")],
             FormattingForm::Constrained,
             Location::default(),
@@ -1542,8 +1544,8 @@ mod tests {
     #[test]
     fn test_nested_formatting() -> Result<(), Error> {
         // Test bold text containing italic text
-        let nested = InlineNode::BoldText(Bold::new(
-            vec![InlineNode::ItalicText(Italic::new(
+        let nested = InlineNode::Bold(Bold::new(
+            vec![InlineNode::Italic(Italic::new(
                 vec![create_plain_text("bold italic")],
                 FormattingForm::Constrained,
                 Location::default(),

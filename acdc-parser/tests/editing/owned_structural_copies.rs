@@ -1,7 +1,7 @@
 use acdc_parser::{
-    Block, CompatibilityMode, Document, DocumentAttributes, Location, Options, SafeMode,
-    TableFrame,
-    ast::{BlockKind, BlockRef, DocumentRef, StructuralRef},
+    CompatibilityMode, DocumentAttributes, Location, Options, SafeMode, TableFrame,
+    ast::{BlockKind, BlockRef, DocumentRef, StructuralRef, TableRef},
+    edit::{Block, Document},
     parse, parse_file,
 };
 
@@ -49,7 +49,7 @@ fn block_copies_keep_source_position_table_defaults_and_edit_isolation(
     )?;
     let tables = parsed.document().descendants().filter_map(|node| {
         if let StructuralRef::Block(block) = node
-            && matches!(block.kind(), BlockKind::Table(_))
+            && matches!(block.kind(), BlockKind::DelimitedTable(_))
         {
             Some(block)
         } else {
@@ -58,16 +58,14 @@ fn block_copies_keep_source_position_table_defaults_and_edit_isolation(
     });
     let mut frames = Vec::new();
     for block in tables {
-        let BlockKind::Table(original) = block.kind() else {
+        let BlockKind::DelimitedTable(original) = block.kind() else {
             return Err("table".into());
         };
         let stored = original.presentation().ok_or("stored presentation")?;
-        let Block::DelimitedBlock(mut copy) = Block::from(block) else {
+        let Block::DelimitedTable(mut copy) = Block::from(block) else {
             return Err("copy".into());
         };
-        let BlockKind::Table(copied) = BlockRef::from(&copy).kind() else {
-            return Err("copied table".into());
-        };
+        let copied = TableRef::from(&copy);
         assert_eq!(copied.presentation(), Some(stored));
         assert_eq!(
             Location::from(copied.location()),
@@ -84,9 +82,7 @@ fn block_copies_keep_source_position_table_defaults_and_edit_isolation(
         let mut metadata = copy.clone_metadata();
         metadata.attributes.set("frame".into(), "none".into());
         copy.set_metadata(metadata)?;
-        let BlockKind::Table(copied) = BlockRef::from(&copy).kind() else {
-            return Err("edited table".into());
-        };
+        let copied = TableRef::from(&copy);
         assert_eq!(
             copied.presentation().ok_or("edited presentation")?.frame(),
             TableFrame::None
@@ -118,11 +114,11 @@ fn copies_preserve_selected_include_source_and_declaration_ranges(
             .build()?,
     )?;
     let block = parsed.document().blocks().next().ok_or("listing")?;
-    let BlockKind::Listing(original) = block.kind() else {
+    let BlockKind::DelimitedListing(original) = block.kind() else {
         return Err("listing".into());
     };
     let copy = Block::from(block);
-    let BlockKind::Listing(copied) = BlockRef::from(&copy).kind() else {
+    let BlockKind::DelimitedListing(copied) = BlockRef::from(&copy).kind() else {
         return Err("copied listing".into());
     };
     assert_eq!(copied.source_text(), original.source_text());

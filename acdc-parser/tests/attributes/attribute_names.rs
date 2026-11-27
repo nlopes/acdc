@@ -351,7 +351,7 @@ fn every_reference_context_reads_the_same_names(
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Listing(listing) = block.kind() {
+            if let BlockKind::DelimitedListing(listing) = block.kind() {
                 Some(listing)
             } else {
                 None
@@ -419,7 +419,7 @@ fn every_reference_context_reads_join_controls_by_mode(
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Listing(listing) = block.kind() {
+            if let BlockKind::DelimitedListing(listing) = block.kind() {
                 Some(listing)
             } else {
                 None

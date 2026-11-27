@@ -2,9 +2,9 @@
 
 use acdc_converters_core::xref::{XrefDisplay, XrefGuard, resolve_reference};
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, CrossReference, Location, Options, Title,
-    XrefCaptionLabel, XrefSignifier, XrefStyle,
+    CompatibilityMode, Location, Options, XrefCaptionLabel, XrefSignifier, XrefStyle,
     ast::{ContentRef, CrossReferenceRef, InlineKind, ReferenceTargetRef},
+    edit::{ContentAttribute, CrossReference, Title},
     parse,
 };
 
@@ -49,7 +49,7 @@ Body.
 "#;
 
 fn resolve_xref<'doc, 'guard>(
-    reference: Option<&'doc acdc_parser::ReferenceTarget<'doc>>,
+    reference: Option<&'doc acdc_parser::edit::ReferenceTarget<'doc>>,
     xref: impl Into<CrossReferenceRef<'doc>>,
     guard: &'guard XrefGuard,
 ) -> XrefDisplay<'guard, ContentRef<'doc>> {
@@ -105,7 +105,7 @@ fn check_mode(mode: CompatibilityMode) -> Result<(), Error> {
         SOURCE,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let mut document = acdc_parser::Document::from(parsed.document());
+    let mut document = acdc_parser::edit::Document::from(parsed.document());
     let references: std::collections::HashMap<_, _> = document.take_references().collect();
     let outer = CrossReference::new("labelled", Location::default());
     let outer_reference = references.get("labelled").ok_or("labelled")?;

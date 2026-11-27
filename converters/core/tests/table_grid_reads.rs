@@ -5,37 +5,30 @@ use acdc_converters_core::table::{
     column_count, grid_rows, has_spans,
 };
 use acdc_parser::{
-    Block, ColumnFormat, CompatibilityMode, DelimitedBlock, DelimitedBlockType, Location, Options,
-    Table, TableRow,
+    CompatibilityMode, Location, Options,
     ast::{BlockKind, BlockRef, TableRef},
+    edit::{Block, ColumnFormat, Table, TableRow},
     parse,
 };
 
 type TestResult<T = ()> = Result<T, Box<dyn std::error::Error>>;
 
 fn table_ref<'a>(block: &'a Block<'a>) -> TestResult<TableRef<'a>> {
-    let BlockKind::Table(table) = BlockRef::from(block).kind() else {
+    let BlockKind::DelimitedTable(table) = BlockRef::from(block).kind() else {
         return Err("expected table".into());
     };
     Ok(table)
 }
 
 fn owner_table<'a>(block: &'a Block<'a>) -> TestResult<Table<'a>> {
-    let Block::DelimitedBlock(block) = block else {
-        return Err("expected delimited block".into());
-    };
-    let DelimitedBlockType::DelimitedTable(table) = block.clone_body() else {
+    let Block::DelimitedTable(table) = block else {
         return Err("expected table".into());
     };
-    Ok(table)
+    Ok(table.clone())
 }
 
 fn table_block(table: Table<'_>) -> Block<'_> {
-    Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(table),
-        "|===",
-        Location::default(),
-    ))
+    Block::DelimitedTable(table)
 }
 
 fn assert_grid_preserves_source_rows(block: &Block<'_>, width: usize) -> TestResult {
@@ -121,7 +114,7 @@ fn typed_grids_preserve_row_roles_combined_spans_and_source_cells() -> TestResul
         let parsed_blocks: Vec<_> = parsed
             .document()
             .blocks()
-            .map(acdc_parser::Block::from)
+            .map(acdc_parser::edit::Block::from)
             .collect();
         let block = parsed_blocks.first().ok_or("table block")?;
         assert_grid_preserves_source_rows(block, 4)?;
@@ -198,7 +191,7 @@ fn typed_grids_preserve_truncation_padding_and_constructed_spans() -> TestResult
     let parsed_blocks: Vec<_> = parsed
         .document()
         .blocks()
-        .map(acdc_parser::Block::from)
+        .map(acdc_parser::edit::Block::from)
         .collect();
     let seed_block = parsed_blocks.first().ok_or("seed table")?;
     let mut seed_table = owner_table(seed_block)?;

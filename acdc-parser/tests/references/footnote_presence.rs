@@ -1,6 +1,7 @@
 use acdc_parser::{
-    Document, Footnote, FootnoteDefinition, InlineNode, Location, Plain,
+    Location,
     ast::{ContentRef, DocumentRef, FootnoteDefinitionRef, FootnoteRef, InlineKind},
+    edit::{Document, Footnote, FootnoteDefinition, InlineNode, Plain},
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -25,10 +26,7 @@ fn references_and_empty_definitions_have_distinct_content_and_json() -> Result<(
 #[test]
 fn body_transfers_preserve_presence_and_the_original_buffer() -> Result<(), Error> {
     let source = String::from("prepared *text*");
-    let body = vec![InlineNode::PlainText(Plain::new(
-        &source,
-        Location::default(),
-    ))];
+    let body = vec![InlineNode::Plain(Plain::new(&source, Location::default()))];
     let pointer = body.as_ptr();
     let mut note = Footnote::reference(None, 1, Location::default());
     assert_eq!(note.replace_content(Some(body)), None);
@@ -37,10 +35,7 @@ fn body_transfers_preserve_presence_and_the_original_buffer() -> Result<(), Erro
     assert!(FootnoteRef::from(&note).content().is_none());
     note.replace_content(Some(Vec::new()));
     assert_eq!(note.take_content(), Some(Vec::new()));
-    note.push_inline(InlineNode::PlainText(Plain::new(
-        &source,
-        Location::default(),
-    )));
+    note.push_inline(InlineNode::Plain(Plain::new(&source, Location::default())));
     let read = FootnoteRef::from(&note);
     let InlineKind::Plain(text) = read
         .content()
@@ -62,10 +57,7 @@ fn canonical_definitions_always_have_a_body_and_transfer_independently() -> Resu
     let source = String::from("body");
     let mut definition = FootnoteDefinition::new(Vec::new(), 3, Location::default());
     definition.replace_id(Some(&source));
-    definition.push_inline(InlineNode::PlainText(Plain::new(
-        &source,
-        Location::default(),
-    )));
+    definition.push_inline(InlineNode::Plain(Plain::new(&source, Location::default())));
     let read = FootnoteDefinitionRef::from(&definition);
     let mut copy = FootnoteDefinition::from(read);
     assert_eq!(read.id(), Some(source.as_str()));

@@ -1,8 +1,9 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ContentAttribute, Document, Options, ReferenceTarget, SafeMode,
+    Options, SafeMode,
     ast::{ContentRef, DocumentRef, InlineKind, ReferenceTargetRef, ReferencesRef, TocEntryRef},
+    edit::{ContentAttribute, Document, ReferenceTarget},
     parse, parse_file,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};

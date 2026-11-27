@@ -1,8 +1,12 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, Document, InlineImage, InlineMacro, InlineNode,
-    LineBreak, Location, Options, Paragraph, Plain, Source, Title, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{
+        Block, ContentAttribute, Document, InlineImage, InlineNode, LineBreak, Paragraph, Plain,
+        Source, Title,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -60,15 +64,15 @@ fn semantic_breaks_keep_wrapping_literal_text_and_nested_locations() -> Result<(
 #[test]
 fn prepared_content_attributes_keep_breaks_without_markup_or_fake_locations() -> Result<(), Error> {
     let nodes = vec![
-        InlineNode::PlainText(Plain::new("Left", Location::default())),
+        InlineNode::Plain(Plain::new("Left", Location::default())),
         InlineNode::LineBreak(LineBreak::new(Location::default())),
-        InlineNode::PlainText(Plain::new("Right", Location::default())),
+        InlineNode::Plain(Plain::new("Right", Location::default())),
     ];
     let mut image = InlineImage::new(Source::Name("bird.svg"), Location::default());
     image.set_alt(Some(ContentAttribute::new(nodes.clone())));
     image.set_tooltip(Some(ContentAttribute::new(nodes.clone())));
     let paragraph = Paragraph::new(
-        vec![InlineNode::Macro(InlineMacro::Image(Box::new(image)))],
+        vec![InlineNode::Image(Box::new(image))],
         Location::default(),
     )
     .with_title(Title::new(nodes));

@@ -13,15 +13,15 @@ pub const ICON_SIZES: &[&str] = &["1x", "2x", "3x", "4x", "5x", "lg", "fw"];
 /// An inline passthrough with its own substitution settings.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, Passthrough, PassthroughKind};
-/// let mut value = Passthrough::new(
+/// use acdc_parser::{Location, PassthroughKind, edit::InlinePassthrough};
+/// let mut value = InlinePassthrough::new(
 ///     Some("text"), Vec::new(), PassthroughKind::Macro, Location::default(),
 /// );
 /// value.text = Some("changed");
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
-pub struct Passthrough<'a> {
+pub struct InlinePassthrough<'a> {
     pub(crate) attribute_fragments: Box<[crate::model::AttributeInlineFragment]>,
     pub(crate) text: Option<&'a str>,
     pub(crate) substitutions: Vec<Substitution>,
@@ -29,7 +29,7 @@ pub struct Passthrough<'a> {
     pub(crate) kind: PassthroughKind,
 }
 
-impl<'a> Passthrough<'a> {
+impl<'a> InlinePassthrough<'a> {
     /// Construct a passthrough value without processing its text or substitutions.
     #[must_use]
     pub fn new(
@@ -92,7 +92,7 @@ pub enum PassthroughKind {
 /// A `Footnote` represents an inline footnote in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Footnote, Location};
+/// use acdc_parser::{Location, edit::Footnote};
 /// let mut note = Footnote::new(Vec::new(), 1, Location::default());
 /// note.content = Vec::new();
 /// ```
@@ -240,7 +240,7 @@ impl<'a> FootnoteDefinition<'a> {
 /// A `Button` represents an inline button in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Button, ContentAttribute, Location};
+/// use acdc_parser::{Location, edit::{Button, ContentAttribute}};
 /// let mut owner = Button::new(ContentAttribute::default(), Location::default());
 /// owner.label = ContentAttribute::default();
 /// ```
@@ -254,7 +254,7 @@ pub struct Button<'a> {
 /// An inline menu navigation path.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{MenuPath, ContentAttribute, Location};
+/// use acdc_parser::{Location, edit::{ContentAttribute, MenuPath}};
 /// let mut owner = MenuPath::new(ContentAttribute::default(), Vec::new(), Location::default());
 /// owner.items = Vec::new();
 /// ```
@@ -269,7 +269,7 @@ pub struct MenuPath<'a> {
 /// An inline keyboard shortcut.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{KeyboardShortcut, ContentAttribute, Location};
+/// use acdc_parser::{Location, edit::{ContentAttribute, KeyboardShortcut}};
 /// let mut owner = KeyboardShortcut::new(Vec::new(), Location::default());
 /// owner.keys = Vec::new();
 /// ```
@@ -377,19 +377,19 @@ type Key<'a> = ContentAttribute<'a>;
 /// Equality and debug output omit parser-only state.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{CrossReference, Location};
+/// use acdc_parser::{Location, edit::CrossReference};
 /// let mut node = CrossReference::new("target", Location::default());
 /// node.text = Vec::new();
 /// ```
 ///
 /// ```compile_fail,E0624
-/// use acdc_parser::{CrossReference, Location};
+/// use acdc_parser::{Location, edit::CrossReference};
 /// let mut node = CrossReference::new("target", Location::default());
 /// let _ = node.attributes();
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use acdc_parser::{CrossReference, Location};
+/// use acdc_parser::{Location, edit::CrossReference};
 /// let mut node = CrossReference::new("target", Location::default());
 /// node.options_mut().push("option");
 /// ```
@@ -797,7 +797,7 @@ impl XrefStyle {
 /// An `Autolink` represents an inline autolink in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Autolink, Location, Source};
+/// use acdc_parser::{Location, edit::{Autolink, Source}};
 /// let mut link = Autolink::new(Source::Name("target"), Location::default());
 /// link.bracketed = true;
 /// ```
@@ -926,19 +926,19 @@ pub enum IndexTermRelationship<'a> {
 /// An `IndexTerm` represents an index term in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{IndexTerm, IndexTermKind, Location};
+/// use acdc_parser::{Location, edit::{IndexTerm, IndexTermKind}};
 /// let mut node = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
 /// node.kind = IndexTermKind::Flow(Vec::new());
 /// ```
 ///
 /// ```compile_fail,E0624
-/// use acdc_parser::{IndexTerm, IndexTermKind, Location};
+/// use acdc_parser::{Location, edit::{IndexTerm, IndexTermKind}};
 /// let mut node = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
 /// let _ = node.term();
 /// ```
 ///
 /// ```compile_fail,E0624
-/// use acdc_parser::{IndexTerm, IndexTermKind, Location};
+/// use acdc_parser::{Location, edit::{IndexTerm, IndexTermKind}};
 /// let mut node = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
 /// let _ = node.catalog_entry();
 /// ```
@@ -1218,7 +1218,7 @@ impl<'a> IndexTerm<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Document, InlineMacro, Options, grammar::walk_document_inline_nodes_mut, parse};
+    use crate::{Document, Options, grammar::walk_document_inline_nodes_mut, parse};
 
     use super::*;
 
@@ -1235,7 +1235,7 @@ mod tests {
         };
         let mut xrefs = Vec::new();
         walk_document_inline_nodes_mut(&mut document, &mut |inline| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+            if let InlineNode::CrossReference(xref) = inline {
                 xrefs.push(xref.clone());
             }
         });
@@ -1261,8 +1261,8 @@ mod passthrough_edit_tests {
     use super::*;
     use crate::{ast::InlinePassthroughRef, model::AttributeInlineFragment};
 
-    fn expanded() -> Passthrough<'static> {
-        Passthrough {
+    fn expanded() -> InlinePassthrough<'static> {
+        InlinePassthrough {
             attribute_fragments: vec![AttributeInlineFragment {
                 range: 0..4,
                 substitutions: vec![Substitution::Quotes].into(),
@@ -1279,7 +1279,7 @@ mod passthrough_edit_tests {
     #[test]
     fn selected_copy_and_span_edits_keep_declaration_fragments() {
         let original = expanded();
-        let mut copy = Passthrough::from(InlinePassthroughRef::from(&original));
+        let mut copy = InlinePassthrough::from(InlinePassthroughRef::from(&original));
         assert_eq!(copy.attribute_fragments, original.attribute_fragments);
         copy.set_location(Location::point(crate::Position::new(3, 4)));
         assert_eq!(copy.attribute_fragments, original.attribute_fragments);
@@ -1349,10 +1349,7 @@ mod prepared_note_tests {
         assert!(note.definition_source.is_none());
         assert!(note.registration_substitutions.is_none());
         let mut note = pending();
-        note.push_inline(InlineNode::PlainText(Plain::new(
-            "new",
-            Location::default(),
-        )));
+        note.push_inline(InlineNode::Plain(Plain::new("new", Location::default())));
         assert!(note.definition_source.is_none());
         assert!(note.registration_substitutions.is_none());
         let mut note = pending();
@@ -1396,7 +1393,7 @@ mod ownership_tests {
     #[test]
     fn prepared_index_edits_keep_registration_plan_and_labels() {
         let kind = |text| {
-            IndexTermKind::Flow(vec![InlineNode::PlainText(Plain::new(
+            IndexTermKind::Flow(vec![InlineNode::Plain(Plain::new(
                 text,
                 Location::default(),
             ))])

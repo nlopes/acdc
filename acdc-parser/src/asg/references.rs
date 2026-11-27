@@ -1,8 +1,8 @@
 use serde_json::{Map, Value};
 
 use crate::{
-    ContentAttribute, CrossReference, ElementAttributes, InlineMacro, InlineMetadata, InlineNode,
-    Mailto, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    ContentAttribute, CrossReference, ElementAttributes, InlineMetadata, InlineNode, Mailto,
+    XrefCaptionLabel, XrefSignifier, XrefStyle,
 };
 
 use super::{
@@ -14,50 +14,36 @@ use super::{
 type Node = Map<String, Value>;
 
 pub(super) fn project(
-    value: &InlineMacro<'_>,
+    value: &InlineNode<'_>,
     path: &str,
     settings: InlineContext,
 ) -> Result<Node, Error> {
+    // Links and URL macros share a projection but are distinct types.
+    macro_rules! explicit_link {
+        ($link:expr) => {{
+            let target = target(&$link.target, path)?;
+            with_metadata(
+                reference(
+                    "link",
+                    &target,
+                    &$link.text,
+                    Some(display_target(&target, $link.hides_uri_scheme())),
+                    path,
+                    settings,
+                )?,
+                &$link.metadata,
+                $link.attributes(),
+                $link.options(),
+                $link.tooltip.as_ref(),
+                path,
+                settings,
+            )
+        }};
+    }
     match value {
-        InlineMacro::Link(link) => {
-            let target = target(&link.target, path)?;
-            with_metadata(
-                reference(
-                    "link",
-                    &target,
-                    &link.text,
-                    Some(display_target(&target, link.hides_uri_scheme())),
-                    path,
-                    settings,
-                )?,
-                &link.metadata,
-                link.attributes(),
-                link.options(),
-                link.tooltip.as_ref(),
-                path,
-                settings,
-            )
-        }
-        InlineMacro::UrlMacro(link) => {
-            let target = target(&link.target, path)?;
-            with_metadata(
-                reference(
-                    "link",
-                    &target,
-                    &link.text,
-                    Some(display_target(&target, link.hides_uri_scheme())),
-                    path,
-                    settings,
-                )?,
-                &link.metadata,
-                link.attributes(),
-                link.options(),
-                link.tooltip.as_ref(),
-                path,
-                settings,
-            )
-        }
-        InlineMacro::Mailto(link) => {
+        InlineNode::Link(link) => explicit_link!(link),
+        InlineNode::UrlMacro(link) => explicit_link!(link),
+        InlineNode::Mailto(link) => {
             let original = target(&link.target, path)?;
             with_metadata(
                 reference(
@@ -76,45 +62,63 @@ pub(super) fn project(
                 settings,
             )
         }
-        InlineMacro::Autolink(link) => {
+        InlineNode::Autolink(link) => {
             let target = target(&link.url, path)?;
             let display = mailto_address(&target)
                 .unwrap_or_else(|| display_target(&target, link.hides_uri_scheme()));
             reference("link", &target, &[], Some(display), path, settings)
         }
-        InlineMacro::CrossReference(xref) => cross_reference(xref, path, settings),
-        InlineMacro::IndexTerm(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Footnote(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::KeyboardShortcut(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::MenuPath(_)
+        InlineNode::CrossReference(xref) => cross_reference(xref, path, settings),
+        InlineNode::IndexTerm(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Stem(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Button(_)
+        | InlineNode::MenuPath(_)
             if settings.profile == Profile::Acdc =>
         {
             extension(value, path, settings)
         }
-        InlineMacro::Footnote(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::KeyboardShortcut(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::MenuPath(_)
-        | InlineMacro::Passthrough(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => Err(unsupported(
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Button(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::IndexTerm(_) => Err(unsupported(
             path,
             "this inline macro has no supported upstream mapping",
         )),
     }
 }
 
-fn extension(value: &InlineMacro<'_>, path: &str, settings: InlineContext) -> Result<Node, Error> {
+fn extension(value: &InlineNode<'_>, path: &str, settings: InlineContext) -> Result<Node, Error> {
     match value {
-        InlineMacro::Icon(value) => super::icons::project(value, path),
-        InlineMacro::IndexTerm(value) => super::index_terms::project(value, path, settings),
-        InlineMacro::Footnote(note) => super::footnotes::occurrence(note, path),
-        InlineMacro::Stem(value) => {
+        InlineNode::Icon(value) => super::icons::project(value, path),
+        InlineNode::IndexTerm(value) => super::index_terms::project(value, path, settings),
+        InlineNode::Footnote(note) => super::footnotes::occurrence(note, path),
+        InlineNode::Stem(value) => {
             let mut result = Map::from_iter([
                 ("name".into(), "stem".into()),
                 ("type".into(), "inline".into()),
@@ -122,16 +126,34 @@ fn extension(value: &InlineMacro<'_>, path: &str, settings: InlineContext) -> Re
             super::math::apply(&mut result, value.content, &value.notation, true);
             Ok(result)
         }
-        InlineMacro::KeyboardShortcut(_) | InlineMacro::Button(_) | InlineMacro::MenuPath(_) => {
+        InlineNode::KeyboardShortcut(_) | InlineNode::Button(_) | InlineNode::MenuPath(_) => {
             super::ui::project(value, path, settings)
         }
-        InlineMacro::Link(_)
-        | InlineMacro::UrlMacro(_)
-        | InlineMacro::Mailto(_)
-        | InlineMacro::Autolink(_)
-        | InlineMacro::CrossReference(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::Passthrough(_) => Err(unsupported(
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Link(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::Autolink(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Image(_)
+        | InlineNode::Passthrough(_) => Err(unsupported(
             path,
             "this macro has no supported extension mapping",
         )),

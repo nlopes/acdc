@@ -4,8 +4,9 @@ use std::fmt;
 
 use acdc_converters_core::{InlineTextTransform, substitutions::TextBoundaries};
 use acdc_parser::{
-    Block, CompatibilityMode, Options,
+    CompatibilityMode, Options,
     ast::{InlineRef, ParagraphRef},
+    edit::Block,
     parse, parse_inline,
 };
 
@@ -37,7 +38,7 @@ fn text_policy_preserves_content_and_fragment_context() -> Result<(), Error> {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let [Block::Paragraph(paragraph)] = parsed_blocks.as_slice() else {
                 return Err("one paragraph".into());
@@ -117,7 +118,7 @@ fn typed_text_writing_accepts_temporary_inputs_and_appends_to_the_writer() -> Re
 #[test]
 fn typed_catalog_projection_keeps_explicit_empty_labels() -> Result<(), Error> {
     use acdc_converters_core::xref::reference_text;
-    use acdc_parser::{ContentAttribute, ast::ReferencesRef};
+    use acdc_parser::{ast::ReferencesRef, edit::ContentAttribute};
 
     fn project(references: ReferencesRef<'_>, content: acdc_parser::ast::ContentRef<'_>) -> String {
         InlineTextTransform::default()

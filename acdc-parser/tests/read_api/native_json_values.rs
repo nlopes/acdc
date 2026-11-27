@@ -1,5 +1,7 @@
 use acdc_parser::{
-    AttributeValue, BlockMetadata, CompatibilityMode, InlineNode, Options, Raw, Substitution, parse,
+    AttributeValue, CompatibilityMode, Options, Substitution,
+    edit::{BlockMetadata, InlineNode, Raw},
+    parse,
 };
 use serde_json::{Value, json};
 
@@ -119,7 +121,7 @@ fn raw_json_retains_its_independent_substitution_policy(
         acdc_parser::Location::default(),
     );
     let direct = serde_json::to_value(&raw)?;
-    let value = serde_json::to_value(InlineNode::RawText(raw))?;
+    let value = serde_json::to_value(InlineNode::Raw(raw))?;
     assert_eq!(direct, value);
     assert_eq!(value.get("value"), Some(&json!("<literal> &copy;")));
     if substitutions.is_empty() {

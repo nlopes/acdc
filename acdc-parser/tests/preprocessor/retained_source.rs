@@ -4,10 +4,11 @@ use std::{
 };
 
 use acdc_parser::{
-    Options, Paragraph, ParseResult, SafeMode, WarningKind,
+    Options, ParseResult, SafeMode, WarningKind,
     ast::{
         AttributeValueRef, BlockKind, BlockRef, ListItemRef, ListingRef, TableCellRef, TableRowRef,
     },
+    edit::Paragraph,
     parse, parse_file,
 };
 
@@ -18,7 +19,7 @@ fn listing(parsed: &ParseResult) -> Result<ListingRef<'_>, Box<dyn Error>> {
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Listing(listing) = block.kind() {
+            if let BlockKind::DelimitedListing(listing) = block.kind() {
                 Some(listing)
             } else {
                 None
@@ -79,7 +80,8 @@ fn retained_table_cell_source_uses_its_nested_input() -> TestResult {
         "[cols=a]\n|===\n|[source,bash]\n----\ncat <<'EOF'\n<1>\nEOF\n----\n|===",
         &Options::default(),
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::DelimitedTable(table)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected table".into());
     };
@@ -88,7 +90,7 @@ fn retained_table_cell_source_uses_its_nested_input() -> TestResult {
         .flat_map(TableRowRef::cells)
         .flat_map(TableCellRef::blocks)
         .find_map(|block| {
-            if let BlockKind::Listing(inner) = block.kind() {
+            if let BlockKind::DelimitedListing(inner) = block.kind() {
                 Some(inner)
             } else {
                 None

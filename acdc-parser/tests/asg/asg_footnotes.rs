@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, Document, Footnote, FootnoteDefinition, InlineMacro, InlineNode,
-    Location, Options, Paragraph, Plain, asg, parse, parse_file, parse_inline,
+    CompatibilityMode, Location, Options, asg,
+    edit::{Block, Document, Footnote, FootnoteDefinition, InlineNode, Paragraph, Plain},
+    parse, parse_file, parse_inline,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -16,10 +17,7 @@ fn document(
     let mut document = Document::default();
     document.set_footnotes(notes);
     document.push_block(Block::Paragraph(Paragraph::new(
-        occurrences
-            .into_iter()
-            .map(|note| InlineNode::Macro(InlineMacro::Footnote(note)))
-            .collect(),
+        occurrences.into_iter().map(InlineNode::Footnote).collect(),
         Location::default(),
     )));
     document
@@ -122,7 +120,7 @@ fn empty_and_catalog_only_definitions_keep_number_and_presence() -> Result<(), E
 #[test]
 fn stale_and_duplicate_registrations_reject_without_repair() -> Result<(), Error> {
     let definition = FootnoteDefinition::new(Vec::new(), 1, Location::default());
-    let text = vec![InlineNode::PlainText(Plain::new(
+    let text = vec![InlineNode::Plain(Plain::new(
         "Different",
         Location::default(),
     ))];
@@ -143,15 +141,19 @@ fn stale_and_duplicate_registrations_reject_without_repair() -> Result<(), Error
         document(
             vec![
                 FootnoteDefinition::new(
-                    vec![InlineNode::Macro(InlineMacro::Footnote(
-                        Footnote::reference(None, 2, Location::default()),
+                    vec![InlineNode::Footnote(Footnote::reference(
+                        None,
+                        2,
+                        Location::default(),
                     ))],
                     1,
                     Location::default(),
                 ),
                 FootnoteDefinition::new(
-                    vec![InlineNode::Macro(InlineMacro::Footnote(
-                        Footnote::reference(None, 1, Location::default()),
+                    vec![InlineNode::Footnote(Footnote::reference(
+                        None,
+                        1,
+                        Location::default(),
                     ))],
                     2,
                     Location::default(),

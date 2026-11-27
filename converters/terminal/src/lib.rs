@@ -12,8 +12,9 @@ use acdc_converters_core::{
     xref::XrefGuard,
 };
 use acdc_parser::{
-    CaptionKind, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
+    CaptionKind, DocumentAttributes, Options as ParserOptions,
     ast::{AttributesRef, CaptionRef, ContentRef, DocumentRef},
+    edit::ReferenceTarget,
 };
 
 /// Static backend selection offered to applications before parsing.

@@ -2,9 +2,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Anchor, AttributeValue, Block, Caption, CompatibilityMode, ContentAttribute, Document,
-    Location, Options, Paragraph, SubstitutionSpec, asg,
+    AttributeValue, CompatibilityMode, Location, Options, SubstitutionSpec, asg,
     ast::{BlockKind, BlockRef},
+    edit::{Anchor, Block, Caption, ContentAttribute, Document, Paragraph},
     parse,
 };
 use serde_json::json;

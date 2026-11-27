@@ -8,7 +8,7 @@ use std::{
 use bumpalo::Bump;
 
 use crate::{
-    Caption, CrossReference, Document, Error, InlineMacro, InlineNode, SourceLocation, Title,
+    Caption, CrossReference, Document, Error, InlineNode, SourceLocation, Title,
     ast::{CaptionRef, ContentRef},
     grammar::walk_document_inline_nodes_mut,
 };
@@ -89,9 +89,7 @@ impl DisplayRequest {
             origin: origin.clone(),
             resolved: None,
         }));
-        nodes.push(InlineNode::Macro(InlineMacro::CrossReference(Box::new(
-            xref,
-        ))));
+        nodes.push(InlineNode::CrossReference(Box::new(xref)));
         if intent == DisplayIntent::CaptionAndTitle && selection.title.is_present() {
             nodes.push(plain(" ", &origin.location));
             nodes.extend(display_copy(selection.title.as_inlines()));
@@ -289,7 +287,7 @@ impl ExtensionParseResult {
             let mut remapping = Vec::new();
             let mut active = false;
             walk_document_inline_nodes_mut(document, &mut |node| {
-                if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node
+                if let InlineNode::CrossReference(xref) = node
                     && let Some(display) = &mut xref.generated_display
                     && let Some(target) = resolved.get(&display.selection.target)
                 {
@@ -397,60 +395,58 @@ fn display_copy<'a>(nodes: &[InlineNode<'a>]) -> Vec<InlineNode<'a>> {
             let mut link = $link.clone();
             link.metadata.id = None;
             link.text = display_copy(&link.text);
-            InlineNode::Macro(InlineMacro::$variant(link))
+            InlineNode::$variant(link)
         }};
     }
     let mut copied = Vec::with_capacity(nodes.len());
     for node in nodes {
         let node = match node {
-            InlineNode::InlineAnchor(_) | InlineNode::Macro(InlineMacro::Footnote(_)) => continue,
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+            InlineNode::Anchor(_) | InlineNode::Footnote(_) => continue,
+            InlineNode::IndexTerm(term) => {
                 if term.is_visible() {
                     copied.extend(display_copy(term.term()));
                 }
                 continue;
             }
-            InlineNode::BoldText(span) => span!(BoldText, span),
-            InlineNode::ItalicText(span) => span!(ItalicText, span),
-            InlineNode::MonospaceText(span) => span!(MonospaceText, span),
-            InlineNode::HighlightText(span) => span!(HighlightText, span),
-            InlineNode::SubscriptText(span) => span!(SubscriptText, span),
-            InlineNode::SuperscriptText(span) => span!(SuperscriptText, span),
+            InlineNode::Bold(span) => span!(Bold, span),
+            InlineNode::Italic(span) => span!(Italic, span),
+            InlineNode::Monospace(span) => span!(Monospace, span),
+            InlineNode::Highlight(span) => span!(Highlight, span),
+            InlineNode::Subscript(span) => span!(Subscript, span),
+            InlineNode::Superscript(span) => span!(Superscript, span),
             InlineNode::DoubleQuotedSpan(span) => span!(DoubleQuotedSpan, span),
             InlineNode::SingleQuotedSpan(span) => span!(SingleQuotedSpan, span),
-            InlineNode::Macro(InlineMacro::Link(node)) => link!(Link, node),
-            InlineNode::Macro(InlineMacro::UrlMacro(node)) => link!(UrlMacro, node),
-            InlineNode::Macro(InlineMacro::Mailto(node)) => link!(Mailto, node),
-            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
+            InlineNode::Link(node) => link!(Link, node),
+            InlineNode::UrlMacro(node) => link!(UrlMacro, node),
+            InlineNode::Mailto(node) => link!(Mailto, node),
+            InlineNode::CrossReference(xref) => {
                 let mut xref = xref.clone();
                 xref.text = display_copy(&xref.text);
-                InlineNode::Macro(InlineMacro::CrossReference(xref))
+                InlineNode::CrossReference(xref)
             }
-            InlineNode::RawText(raw) => {
+            InlineNode::Raw(raw) => {
                 let mut raw = raw.clone();
                 if let Some(metadata) = &mut raw.metadata {
                     metadata.id = None;
                 }
-                InlineNode::RawText(raw)
+                InlineNode::Raw(raw)
             }
             InlineNode::Extension(_)
-            | InlineNode::PlainText(_)
+            | InlineNode::Plain(_)
             | InlineNode::Symbol(_)
             | InlineNode::CharacterReference(_)
-            | InlineNode::VerbatimText(_)
+            | InlineNode::Verbatim(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::CalloutMarker(_)
-            | InlineNode::Macro(
-                InlineMacro::Icon(_)
-                | InlineMacro::Image(_)
-                | InlineMacro::KeyboardShortcut(_)
-                | InlineMacro::Button(_)
-                | InlineMacro::MenuPath(_)
-                | InlineMacro::Autolink(_)
-                | InlineMacro::Passthrough(_)
-                | InlineMacro::Stem(_),
-            ) => node.clone(),
+            | InlineNode::Callout(_)
+            | InlineNode::Icon(_)
+            | InlineNode::Image(_)
+            | InlineNode::KeyboardShortcut(_)
+            | InlineNode::Button(_)
+            | InlineNode::MenuPath(_)
+            | InlineNode::Autolink(_)
+            | InlineNode::Passthrough(_)
+            | InlineNode::Stem(_) => node.clone(),
         };
         copied.push(node);
     }

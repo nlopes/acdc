@@ -1,10 +1,10 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, ElementAttributes, InlineMacro, InlineNode, Link,
-    Location, Mailto, Options, Source, UrlMacro,
+    CompatibilityMode, ElementAttributes, Location, Options,
     ast::{
         AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, LinkRef, MailtoRef,
         UrlMacroRef,
     },
+    edit::{ContentAttribute, InlineNode, Link, Mailto, Source, UrlMacro},
     parse_inline,
 };
 
@@ -24,7 +24,7 @@ fn hyperlink_reads_preserve_metadata_and_content(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let [inline] = parsed_inlines.as_slice() else {
         return Err("one inline".into());
     };
@@ -91,11 +91,11 @@ fn hyperlink_reads_preserve_metadata_and_content(
         return Err("hyperlink".into());
     }
     let tree = serde_json::to_value(inline)?;
-    let direct = if let InlineNode::Macro(InlineMacro::Link(node)) = inline {
+    let direct = if let InlineNode::Link(node) = inline {
         serde_json::to_value(node)?
-    } else if let InlineNode::Macro(InlineMacro::UrlMacro(node)) = inline {
+    } else if let InlineNode::UrlMacro(node) = inline {
         serde_json::to_value(node)?
-    } else if let InlineNode::Macro(InlineMacro::Mailto(node)) = inline {
+    } else if let InlineNode::Mailto(node) = inline {
         serde_json::to_value(node)?
     } else {
         return Err("hyperlink owner".into());
@@ -126,8 +126,9 @@ fn mail_payload_remains_unencoded_and_separate_from_named_extensions() -> Result
         ),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-        let [InlineNode::Macro(InlineMacro::Mailto(owner))] = parsed_inlines.as_slice() else {
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Mailto(owner)] = parsed_inlines.as_slice() else {
             return Err("mailto".into());
         };
         let mail = MailtoRef::from(owner.as_ref());

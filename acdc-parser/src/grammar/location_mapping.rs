@@ -2,8 +2,7 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     Anchor, AttributeValue, CompatibilityMode, Error, IndexTermKind, IndexTermRelationship,
-    InlineMacro, InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source,
-    Substitution,
+    InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source, Substitution,
     model::substitution::{SubstitutionPlan, character_reference_end},
 };
 
@@ -186,7 +185,7 @@ pub(super) fn map_inner_content_locations<'a>(
             InlineNode::Extension(call) => {
                 ctx.map_extension(call)?;
             }
-            InlineNode::PlainText(plain) => {
+            InlineNode::Plain(plain) => {
                 let expanded = map_plain_text_inline_locations(plain, ctx)?;
                 if expanded.is_none() {
                     plain.location = extend_attribute_location_if_needed(
@@ -197,23 +196,36 @@ pub(super) fn map_inner_content_locations<'a>(
                 }
                 return Ok(expanded);
             }
-            marked_text @ (InlineNode::ItalicText(_)
-            | InlineNode::BoldText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
+            marked_text @ (InlineNode::Italic(_)
+            | InlineNode::Bold(_)
+            | InlineNode::Monospace(_)
+            | InlineNode::Highlight(_)
+            | InlineNode::Subscript(_)
+            | InlineNode::Superscript(_)
             | InlineNode::DoubleQuotedSpan(_)
             | InlineNode::SingleQuotedSpan(_)) => map_marked_text_locations(marked_text, ctx)?,
-            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx)?,
-            InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, ctx)?,
+            inline_macro @ (InlineNode::Autolink(_)
+            | InlineNode::Button(_)
+            | InlineNode::CrossReference(_)
+            | InlineNode::Footnote(_)
+            | InlineNode::Icon(_)
+            | InlineNode::Image(_)
+            | InlineNode::IndexTerm(_)
+            | InlineNode::KeyboardShortcut(_)
+            | InlineNode::Link(_)
+            | InlineNode::Mailto(_)
+            | InlineNode::MenuPath(_)
+            | InlineNode::Passthrough(_)
+            | InlineNode::Stem(_)
+            | InlineNode::UrlMacro(_)) => map_inline_macro(inline_macro, ctx)?,
+            InlineNode::Anchor(anchor) => map_anchor_locations(anchor, ctx)?,
             InlineNode::CharacterReference(reference) => {
                 reference.location = ctx.map_symbol_location(&reference.location)?;
             }
             InlineNode::Symbol(symbol) => {
                 symbol.location = ctx.map_symbol_location(&symbol.location)?;
             }
-            InlineNode::RawText(raw) => {
+            InlineNode::Raw(raw) => {
                 raw.location = ctx.map_location(&raw.location)?;
                 if let Some(id) = raw
                     .metadata
@@ -224,10 +236,10 @@ pub(super) fn map_inner_content_locations<'a>(
                 }
             }
             // Invisible nodes and resolved escapes still use the enclosing text's local coordinates.
-            InlineNode::VerbatimText(_)
+            InlineNode::Verbatim(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::CalloutMarker(_) => {
+            | InlineNode::Callout(_) => {
                 *node.location_mut() = ctx.map_location(node.location())?;
             }
         }
@@ -322,15 +334,15 @@ fn map_locations<'a>(
             InlineNode::Extension(call) => {
                 ctx.map_extension(call)?;
             }
-            InlineNode::PlainText(plain) => {
+            InlineNode::Plain(plain) => {
                 return map_plain_text_inline_locations(plain, &ctx);
             }
-            marked_text @ (InlineNode::ItalicText(_)
-            | InlineNode::BoldText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
+            marked_text @ (InlineNode::Italic(_)
+            | InlineNode::Bold(_)
+            | InlineNode::Monospace(_)
+            | InlineNode::Highlight(_)
+            | InlineNode::Subscript(_)
+            | InlineNode::Superscript(_)
             | InlineNode::DoubleQuotedSpan(_)
             | InlineNode::SingleQuotedSpan(_)) => map_marked_text_locations(marked_text, &ctx)?,
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
@@ -342,9 +354,22 @@ fn map_locations<'a>(
             InlineNode::Symbol(symbol) => {
                 symbol.location = ctx.map_symbol_location(&symbol.location)?;
             }
-            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx)?,
+            inline_macro @ (InlineNode::Autolink(_)
+            | InlineNode::Button(_)
+            | InlineNode::CrossReference(_)
+            | InlineNode::Footnote(_)
+            | InlineNode::Icon(_)
+            | InlineNode::Image(_)
+            | InlineNode::IndexTerm(_)
+            | InlineNode::KeyboardShortcut(_)
+            | InlineNode::Link(_)
+            | InlineNode::Mailto(_)
+            | InlineNode::MenuPath(_)
+            | InlineNode::Passthrough(_)
+            | InlineNode::Stem(_)
+            | InlineNode::UrlMacro(_)) => map_inline_macro(inline_macro, &ctx)?,
             InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location)?,
-            InlineNode::RawText(raw) => {
+            InlineNode::Raw(raw) => {
                 if contains_passthrough_placeholders(raw.content, processed) {
                     let mut plain = Plain {
                         content: raw.content,
@@ -354,8 +379,8 @@ fn map_locations<'a>(
                     let expanded = map_plain_text_inline_locations(&mut plain, &ctx)?;
                     return Ok(expanded.map(|mut nodes| {
                         for node in &mut nodes {
-                            if let InlineNode::PlainText(plain) = node {
-                                *node = InlineNode::RawText(crate::Raw {
+                            if let InlineNode::Plain(plain) = node {
+                                *node = InlineNode::Raw(crate::Raw {
                                     metadata: None,
                                     content: plain.content,
                                     location: plain.location.clone(),
@@ -375,11 +400,11 @@ fn map_locations<'a>(
                     id.location = ctx.map_location(&id.location)?;
                 }
             }
-            InlineNode::VerbatimText(verbatim) => {
+            InlineNode::Verbatim(verbatim) => {
                 verbatim.location = ctx.map_location(&verbatim.location)?;
             }
-            InlineNode::InlineAnchor(anchor) => map_anchor_locations(anchor, &ctx)?,
-            InlineNode::CalloutMarker(callout) => {
+            InlineNode::Anchor(anchor) => map_anchor_locations(anchor, &ctx)?,
+            InlineNode::Callout(callout) => {
                 callout.location = ctx.map_location(&callout.location)?;
             }
         }
@@ -529,7 +554,7 @@ fn restore_inline_metadata<'a>(
 }
 
 fn restore_macro_attributes<'a>(
-    inline_macro: &mut InlineMacro<'a>,
+    inline_macro: &mut InlineNode<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
 ) {
     if ctx.processed.passthroughs.is_empty() {
@@ -538,41 +563,59 @@ fn restore_macro_attributes<'a>(
 
     let restore = |text: &str| ctx.restore_passthrough_text(text);
     let attributes = match inline_macro {
-        InlineMacro::Link(link) => {
+        InlineNode::Link(link) => {
             restore_inline_metadata(&mut link.metadata, &mut link.macro_attributes, ctx);
             &mut link.macro_attributes.attributes
         }
-        InlineMacro::UrlMacro(url) => {
+        InlineNode::UrlMacro(url) => {
             restore_inline_metadata(&mut url.metadata, &mut url.macro_attributes, ctx);
             &mut url.macro_attributes.attributes
         }
-        InlineMacro::Mailto(mailto) => {
+        InlineNode::Mailto(mailto) => {
             restore_inline_metadata(&mut mailto.metadata, &mut mailto.macro_attributes, ctx);
             &mut mailto.macro_attributes.attributes
         }
-        InlineMacro::Icon(icon) => {
+        InlineNode::Icon(icon) => {
             restore_inline_metadata(&mut icon.metadata, &mut icon.macro_attributes, ctx);
             &mut icon.macro_attributes.attributes
         }
-        InlineMacro::CrossReference(xref) => {
+        InlineNode::CrossReference(xref) => {
             restore_inline_metadata(&mut xref.metadata, &mut xref.macro_attributes, ctx);
             &mut xref.macro_attributes.attributes
         }
-        InlineMacro::IndexTerm(term) => {
+        InlineNode::IndexTerm(term) => {
             restore_inline_metadata(&mut term.metadata, &mut term.macro_attributes, ctx);
             &mut term.macro_attributes.attributes
         }
-        InlineMacro::Image(image) => {
+        InlineNode::Image(image) => {
             restore_inline_metadata(&mut image.metadata, &mut image.macro_attributes, ctx);
             &mut image.macro_attributes.attributes
         }
-        InlineMacro::Footnote(_)
-        | InlineMacro::KeyboardShortcut(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::MenuPath(_)
-        | InlineMacro::Autolink(_)
-        | InlineMacro::Passthrough(_)
-        | InlineMacro::Stem(_) => return,
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Button(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Autolink(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_) => return,
     };
 
     // Restore after attribute parsing so protected commas and brackets stay in the value.
@@ -586,7 +629,7 @@ fn restore_macro_attributes<'a>(
 }
 
 fn restore_macro_passthroughs<'a>(
-    inline_macro: &mut InlineMacro<'a>,
+    inline_macro: &mut InlineNode<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> Result<(), Error> {
     if ctx.processed.passthroughs.is_empty() {
@@ -594,7 +637,7 @@ fn restore_macro_passthroughs<'a>(
     }
     restore_macro_attributes(inline_macro, ctx);
 
-    if let InlineMacro::Mailto(mailto) = inline_macro {
+    if let InlineNode::Mailto(mailto) = inline_macro {
         for value in [&mut mailto.subject, &mut mailto.body] {
             if let Some(text) = value
                 && let Some(restored) = ctx.restore_passthrough_text(text)
@@ -605,20 +648,38 @@ fn restore_macro_passthroughs<'a>(
     }
 
     let target = match inline_macro {
-        InlineMacro::Link(link) => Some(&mut link.target),
-        InlineMacro::UrlMacro(url) => Some(&mut url.target),
-        InlineMacro::Mailto(mailto) => Some(&mut mailto.target),
-        InlineMacro::Autolink(autolink) => Some(&mut autolink.url),
-        InlineMacro::Icon(icon) => Some(&mut icon.target),
-        InlineMacro::Image(image) => Some(&mut image.source),
-        InlineMacro::Footnote(_)
-        | InlineMacro::KeyboardShortcut(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::MenuPath(_)
-        | InlineMacro::CrossReference(_)
-        | InlineMacro::Passthrough(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => None,
+        InlineNode::Link(link) => Some(&mut link.target),
+        InlineNode::UrlMacro(url) => Some(&mut url.target),
+        InlineNode::Mailto(mailto) => Some(&mut mailto.target),
+        InlineNode::Autolink(autolink) => Some(&mut autolink.url),
+        InlineNode::Icon(icon) => Some(&mut icon.target),
+        InlineNode::Image(image) => Some(&mut image.source),
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Button(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::IndexTerm(_) => None,
     };
     if let Some(target) = target
         && let Some(restored) = ctx.restore_passthrough_text(&target.to_string())
@@ -627,25 +688,43 @@ fn restore_macro_passthroughs<'a>(
     }
 
     let text = match inline_macro {
-        InlineMacro::Footnote(footnote) => {
+        InlineNode::Footnote(footnote) => {
             footnote.definition_source = footnote
                 .definition_source
                 .map(|body| restore_reference_label_passthroughs(body, ctx.state, ctx.processed));
             None
         }
-        InlineMacro::Stem(stem) => Some(&mut stem.content),
-        InlineMacro::Icon(_)
-        | InlineMacro::Button(_)
-        | InlineMacro::MenuPath(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::KeyboardShortcut(_)
-        | InlineMacro::UrlMacro(_)
-        | InlineMacro::Link(_)
-        | InlineMacro::Mailto(_)
-        | InlineMacro::Autolink(_)
-        | InlineMacro::CrossReference(_)
-        | InlineMacro::Passthrough(_)
-        | InlineMacro::IndexTerm(_) => None,
+        InlineNode::Stem(stem) => Some(&mut stem.content),
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Button(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Image(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::Autolink(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::IndexTerm(_) => None,
     };
     if let Some(text) = text
         && let Some(restored) = ctx.restore_passthrough_text(text)
@@ -656,7 +735,7 @@ fn restore_macro_passthroughs<'a>(
 }
 
 fn map_inline_macro<'a>(
-    inline_macro: &mut InlineMacro<'a>,
+    inline_macro: &mut InlineNode<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> Result<(), Error> {
     restore_macro_passthroughs(inline_macro, ctx)?;
@@ -670,75 +749,104 @@ fn map_inline_macro<'a>(
         base_location: location,
     } = *ctx;
     match inline_macro {
-        InlineMacro::Footnote(footnote) => {
+        InlineNode::Footnote(footnote) => {
             footnote.location = ctx.map_location(&footnote.location)?;
             if let Some(content) = &mut footnote.content {
                 *content = map_inline_locations(state, processed, take(content), location)?;
             }
             state.finalize_footnote(footnote);
         }
-        InlineMacro::UrlMacro(url) => {
+        InlineNode::UrlMacro(url) => {
             url.location = ctx.map_location(&url.location)?;
             if let Some(id) = &mut url.metadata.id {
                 id.location = ctx.map_location(&id.location)?;
             }
             url.text = map_inline_locations(state, processed, take(&mut url.text), location)?;
         }
-        InlineMacro::Mailto(mailto) => {
+        InlineNode::Mailto(mailto) => {
             mailto.location = ctx.map_location(&mailto.location)?;
             if let Some(id) = &mut mailto.metadata.id {
                 id.location = ctx.map_location(&id.location)?;
             }
             mailto.text = map_inline_locations(state, processed, take(&mut mailto.text), location)?;
         }
-        InlineMacro::Link(link) => {
+        InlineNode::Link(link) => {
             link.location = ctx.map_location(&link.location)?;
             if let Some(id) = &mut link.metadata.id {
                 id.location = ctx.map_location(&id.location)?;
             }
             link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
         }
-        InlineMacro::Icon(icon) => {
+        InlineNode::Icon(icon) => {
             icon.location = ctx.map_location(&icon.location)?;
             if let Some(id) = &mut icon.metadata.id {
                 id.location = ctx.map_location(&id.location)?;
             }
         }
-        InlineMacro::Button(button) => {
+        InlineNode::Button(button) => {
             button.location = ctx.map_location(&button.location)?;
         }
-        InlineMacro::Image(image) => {
+        InlineNode::Image(image) => {
             image.location = ctx.map_location(&image.location)?;
             if let Some(id) = &mut image.metadata.id {
                 id.location = ctx.map_location(&id.location)?;
             }
         }
-        InlineMacro::MenuPath(menu) => menu.location = ctx.map_location(&menu.location)?,
-        InlineMacro::KeyboardShortcut(keyboard) => {
+        InlineNode::MenuPath(menu) => menu.location = ctx.map_location(&menu.location)?,
+        InlineNode::KeyboardShortcut(keyboard) => {
             keyboard.location = ctx.map_location(&keyboard.location)?;
         }
-        InlineMacro::CrossReference(xref) => {
-            xref.location = ctx.map_location(&xref.location)?;
-            if let Some(id) = &mut xref.metadata.id {
-                id.location = ctx.map_location(&id.location)?;
-            }
-            xref.text = map_inline_locations(state, processed, take(&mut xref.text), location)?;
-            if !processed.passthroughs.is_empty() {
-                let restored = replace_passthrough_placeholders(xref.target, processed);
-                if restored != xref.target {
-                    xref.target = state.intern_str(&restored);
-                    xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
-                    xref.resolve_natural_target = false;
-                }
-            }
-        }
-        InlineMacro::Autolink(autolink) => {
+        InlineNode::CrossReference(xref) => map_cross_reference_locations(xref, ctx)?,
+        InlineNode::Autolink(autolink) => {
             autolink.location = ctx.map_location(&autolink.location)?;
         }
-        InlineMacro::Stem(stem) => stem.location = ctx.map_location(&stem.location)?,
-        InlineMacro::Passthrough(pass) => pass.location = ctx.map_location(&pass.location)?,
-        InlineMacro::IndexTerm(index_term) => {
+        InlineNode::Stem(stem) => stem.location = ctx.map_location(&stem.location)?,
+        InlineNode::Passthrough(pass) => pass.location = ctx.map_location(&pass.location)?,
+        InlineNode::IndexTerm(index_term) => {
             map_index_term_locations(state, processed, index_term, location)?;
+        }
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_) => {}
+    }
+    Ok(())
+}
+
+fn map_cross_reference_locations<'a>(
+    xref: &mut crate::CrossReference<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) -> Result<(), Error> {
+    let LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    } = *ctx;
+    xref.location = ctx.map_location(&xref.location)?;
+    if let Some(id) = &mut xref.metadata.id {
+        id.location = ctx.map_location(&id.location)?;
+    }
+    xref.text = map_inline_locations(state, processed, take(&mut xref.text), location)?;
+    if !processed.passthroughs.is_empty() {
+        let restored = replace_passthrough_placeholders(xref.target, processed);
+        if restored != xref.target {
+            xref.target = state.intern_str(&restored);
+            xref.target_is_local = xref.source_syntax.target_is_local(xref.target);
+            xref.resolve_natural_target = false;
         }
     }
     Ok(())
@@ -883,7 +991,7 @@ fn attribute_fragment<'a>(
         || {
             let (content, escaping) = super::character_references::literal(content, subs.len());
             subs.resize(escaping, Substitution::SpecialChars);
-            InlineNode::RawText(crate::Raw {
+            InlineNode::Raw(crate::Raw {
                 metadata: None,
                 content: ctx.state.intern_str(&content),
                 location,
@@ -974,7 +1082,7 @@ fn attribute_fragments<'a>(
             fragment.location.absolute_start += cursor;
             fragment.location.absolute_end = plain.location.absolute_start + offset - 1;
             let expanded = map_plain_text_inline_locations(&mut fragment, ctx)?;
-            fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::PlainText(fragment)]));
+            fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::Plain(fragment)]));
         }
         let position = ctx.base_location.absolute_start + plain.location.absolute_start + offset;
         // Each generated character belongs to the complete source reference.
@@ -1008,7 +1116,7 @@ fn attribute_fragments<'a>(
             fragment.content = &plain.content[cursor..];
             fragment.location.absolute_start += cursor;
             let expanded = map_plain_text_inline_locations(&mut fragment, ctx)?;
-            fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::PlainText(fragment)]));
+            fragments.extend(expanded.unwrap_or_else(|| vec![InlineNode::Plain(fragment)]));
         }
         return Ok(Some(fragments));
     }
@@ -1034,7 +1142,7 @@ fn map_plain_text_inline_locations<'a>(
         // Expanded nodes already have mapped locations and bypass map_inline_macro.
         for node in &mut nodes {
             super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
-                if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                if let InlineNode::Footnote(note) = node {
                     ctx.state.finalize_footnote(note);
                 }
             });
@@ -1046,7 +1154,7 @@ fn map_plain_text_inline_locations<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{Block, InlineMacro, InlineNode, Options, parse};
+    use crate::{Block, InlineNode, Options, parse};
 
     #[test]
     fn inline_attribute_passthroughs_restore_image_metadata()
@@ -1068,7 +1176,7 @@ mod tests {
             })
             .flatten()
             .find_map(|node| {
-                if let InlineNode::Macro(InlineMacro::Image(image)) = node {
+                if let InlineNode::Image(image) = node {
                     Some(image)
                 } else {
                     None
@@ -1158,7 +1266,7 @@ mod tests {
                 else {
                     return Err("expected a paragraph".into());
                 };
-                let Some(InlineNode::PlainText(plain)) = paragraph.content.last() else {
+                let Some(InlineNode::Plain(plain)) = paragraph.content.last() else {
                     return Err("expected trailing text".into());
                 };
                 assert_eq!(plain.content, character);

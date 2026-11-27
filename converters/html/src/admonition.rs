@@ -210,7 +210,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             IconMode::Font | IconMode::Image | _ => {
                 let name = admon.variant().to_string();
                 let target = custom.map_or_else(
-                    || image_source(traversal, &acdc_parser::Source::Name(&name)),
+                    || image_source(traversal, &acdc_parser::edit::Source::Name(&name)),
                     |value| acdc_converters_core::icon::custom_image_source(traversal, value),
                 );
                 let source = self.image_uri(&target, traversal);

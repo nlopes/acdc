@@ -1,8 +1,12 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Anchor, Block, CompatibilityMode, ContentAttribute, DescriptionList, DescriptionListItem,
-    Document, InlineNode, Location, Options, Plain, ReferenceTarget, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{
+        Anchor, Block, ContentAttribute, DescriptionList, DescriptionListItem, Document,
+        InlineNode, Plain, ReferenceTarget,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -10,7 +14,7 @@ use std::{fs, path::Path};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn text(value: &'static str) -> ContentAttribute<'static> {
-    ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+    ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
         value,
         Location::default(),
     ))])
@@ -120,7 +124,8 @@ fn prepared_alias_labels_keep_absent_empty_and_formatted_meanings() -> Result<()
 
 #[test]
 fn description_item_declarations_keep_separate_registered_labels() -> Result<(), Error> {
-    let mut term = acdc_parser::DescriptionListTerm::new(Vec::new(), "::", Location::default());
+    let mut term =
+        acdc_parser::edit::DescriptionListTerm::new(Vec::new(), "::", Location::default());
     term.set_anchors([
         Anchor::new("first", Location::default()).with_reftext(Some(text("First"))),
         Anchor::new("second", Location::default()).with_reftext(Some(text("Second"))),

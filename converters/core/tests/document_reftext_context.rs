@@ -49,7 +49,9 @@ fn automatic_document_labels_and_plain_text_share_source_context() -> Result<(),
             assert_eq!(transform.content_to_string(*content), expected);
             assert_eq!(
                 transform.content_to_string(acdc_parser::ast::ContentRef::from(
-                    &acdc_parser::ContentAttribute::new(vec![acdc_parser::InlineNode::from(node)])
+                    &acdc_parser::edit::ContentAttribute::new(vec![
+                        acdc_parser::edit::InlineNode::from(node)
+                    ])
                 )),
                 expected
             );

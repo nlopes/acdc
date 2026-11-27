@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Admonition, AdmonitionForm, AdmonitionVariant, Block, CompatibilityMode, Document, Location,
-    Options, asg, parse, parse_file,
+    AdmonitionForm, AdmonitionVariant, CompatibilityMode, Location, Options, asg,
+    edit::{Admonition, Block, Document},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};

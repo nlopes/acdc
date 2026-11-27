@@ -7,19 +7,19 @@ use crate::{
 /// An explicit link with optional label content.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Link, Location, Source};
+/// use acdc_parser::{Location, edit::{Link, Source}};
 /// let mut link = Link::new(Source::Name("target"), Location::default());
 /// link.text = Vec::new();
 /// ```
 ///
 /// ```compile_fail,E0624
-/// use acdc_parser::{Link, Location, Source};
+/// use acdc_parser::{Location, edit::{Link, Source}};
 /// let link = Link::new(Source::Name("target"), Location::default());
 /// let _ = link.attributes();
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use acdc_parser::{Link, Location, Source};
+/// use acdc_parser::{Location, edit::{Link, Source}};
 /// let mut link = Link::new(Source::Name("target"), Location::default());
 /// link.options_mut().push("first");
 /// ```
@@ -102,7 +102,7 @@ impl UrlMacro<'_> {
 /// An email link with optional positional query values.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Mailto, Location, Source};
+/// use acdc_parser::{Location, edit::{Mailto, Source}};
 /// let mut mail = Mailto::new(Source::Name("reader@example.org"), Location::default());
 /// mail.subject = Some("Subject");
 /// ```

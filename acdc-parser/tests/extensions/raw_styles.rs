@@ -156,11 +156,11 @@ fn style_warnings_keep_the_included_invocation_location_and_allow_fallback() -> 
         }
         let mut blocks = parsed.document().blocks().map(BlockRef::kind);
         assert!(matches!(blocks.next(), Some(BlockKind::Paragraph(_))));
-        let Some(BlockKind::Open(panel)) = blocks.next() else {
+        let Some(BlockKind::DelimitedOpen(panel)) = blocks.next() else {
             return Err("missing panel".into());
         };
         assert!(matches!(panel.blocks().next().map(BlockRef::kind),
-            Some(BlockKind::Literal(literal)) if literal.source_text() == Some("{x} *raw*\n")));
+            Some(BlockKind::DelimitedLiteral(literal)) if literal.source_text() == Some("{x} *raw*\n")));
         assert!(matches!(blocks.next(), Some(BlockKind::Paragraph(_))));
     }
     Ok(())
@@ -249,7 +249,10 @@ fn only_registered_delimiters_are_consumed_and_empty_bodies_are_located() -> Tes
         let kinds: Vec<_> = result.document().blocks().map(BlockRef::kind).collect();
         assert!(matches!(
             kinds.as_slice(),
-            [BlockKind::Listing(_), BlockKind::Literal(_)]
+            [
+                BlockKind::DelimitedListing(_),
+                BlockKind::DelimitedLiteral(_)
+            ]
         ));
     }
     Ok(())
@@ -273,7 +276,7 @@ fn unterminated_style_runs_once_and_handler_failures_keep_the_block_location() -
     assert_eq!(result.warnings().len(), 1);
     assert!(matches!(
         result.document().blocks().next().map(BlockRef::kind),
-        Some(BlockKind::Literal(_))
+        Some(BlockKind::DelimitedLiteral(_))
     ));
     let failed = registry.parse("Intro.\n\n[check]\n----\ninvalid", &Options::default());
     assert!(

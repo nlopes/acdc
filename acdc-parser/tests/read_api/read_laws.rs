@@ -1,11 +1,12 @@
 use std::{collections::BTreeSet, error::Error, fs};
 
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineImage, Location, Options, SafeMode, Source,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{
         AttributeValueRef, AttributesRef, ContentRef, ElementIdRef, InlineImageRef, InlineKind,
         InlineRef, StructuralRef,
     },
+    edit::{ContentAttribute, InlineImage, Source},
     parse_file,
 };
 

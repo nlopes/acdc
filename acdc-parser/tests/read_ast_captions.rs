@@ -1,9 +1,9 @@
 use std::{alloc::System, hint::black_box, num::NonZeroU32, ptr};
 
 use acdc_parser::{
-    Block, Caption, CaptionKind, CompatibilityMode, ContentAttribute, Document, Options,
-    ReferenceTarget,
+    CaptionKind, CompatibilityMode, Options,
     ast::{CaptionRef, DocumentRef, ReferenceTargetRef},
+    edit::{Block, Caption, ContentAttribute, Document, ReferenceTarget},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -51,7 +51,7 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
             .document()
             .references()
             .iter()
-            .map(|(id, reference)| (id, acdc_parser::ReferenceTarget::from(reference))),
+            .map(|(id, reference)| (id, acdc_parser::edit::ReferenceTarget::from(reference))),
     );
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
     references
@@ -108,7 +108,7 @@ fn highest_caption_numbers_use_stored_tree_values_without_allocating(
                 }
             })
             .ok_or("image")?;
-        image.set_title(acdc_parser::Title::default());
+        image.set_title(acdc_parser::edit::Title::default());
         let mut metadata = image.take_metadata();
         metadata.caption = caption;
         image.set_metadata(metadata)?;
@@ -193,7 +193,7 @@ fn caption_reads_preserve_registered_snapshots_after_owner_edits() -> Result<(),
             .document()
             .references()
             .iter()
-            .map(|(id, reference)| (id, acdc_parser::ReferenceTarget::from(reference))),
+            .map(|(id, reference)| (id, acdc_parser::edit::ReferenceTarget::from(reference))),
     );
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
     references.insert(

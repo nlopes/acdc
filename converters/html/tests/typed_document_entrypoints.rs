@@ -5,8 +5,9 @@ use std::path::Path;
 use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
 use acdc_converters_html::{Converter, RenderOptions};
 use acdc_parser::{
-    Block, CompatibilityMode, Document, Error, InlineNode, Location, Paragraph, Plain,
+    CompatibilityMode, Error, Location,
     ast::DocumentRef,
+    edit::{Block, Document, InlineNode, Paragraph, Plain},
     extensions::{
         BlockBuilder, BlockMacro, BlockMacroOutput, BlockMacroProcessor, DocumentEditor,
         MacroInvocation, Registry, TreeProcessor, TreeProcessorRegistration,
@@ -24,10 +25,7 @@ fn parsed_and_constructed_documents_share_conversion_entrypoints()
     let parsed = parse("Hello.", converter.parser_options())?;
     let mut constructed = Document::default();
     constructed.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::PlainText(Plain::new(
-            "Hello.",
-            Location::default(),
-        ))],
+        vec![InlineNode::Plain(Plain::new("Hello.", Location::default()))],
         Location::default(),
     )));
     let options = RenderOptions {

@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, IndexTerm, IndexTermKind, InlineMacro, InlineNode, Location, Options,
+    CompatibilityMode, Location, Options,
     ast::{AttributeValueRef, BlockKind, BlockRef, IndexTermRef, InlineKind, InlineRef},
+    edit::{IndexTerm, IndexTermKind, InlineNode},
     parse, parse_inline,
 };
 
@@ -15,9 +16,8 @@ fn index_metadata_has_one_owner_and_consistent_reads(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [_, inline @ InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice()
-    else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [_, inline @ InlineNode::IndexTerm(owner)] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let node = IndexTermRef::from(owner.as_ref());
@@ -232,7 +232,7 @@ fn index_ids_follow_expansion_includes_and_table_cells(
         node.attributes().get("custom"),
         Some(AttributeValueRef::Text("a,b"))
     );
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table
@@ -269,13 +269,14 @@ fn index_quoted_labels_keep_authored_escape_ranges(
     #[case] authored: &str,
 ) -> Result<(), Error> {
     let parsed = parse_inline(source, &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [_, InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [_, InlineNode::IndexTerm(owner)] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
-    let content = acdc_parser::ContentAttribute::from(IndexTermRef::from(owner.as_ref()).term())
-        .into_inlines();
-    let [InlineNode::PlainText(label)] = content.as_slice() else {
+    let content =
+        acdc_parser::edit::ContentAttribute::from(IndexTermRef::from(owner.as_ref()).term())
+            .into_inlines();
+    let [InlineNode::Plain(label)] = content.as_slice() else {
         return Err(format!("label: {:?}", content.as_slice()).into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(label).text(), expected);
@@ -299,8 +300,8 @@ fn index_unquoted_none_controls_are_ignored(
         "indexterm2:[Visible,custom=before,custom=None,removed=None,title=\"None\",see=None,see-also=Target]",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [InlineNode::Macro(InlineMacro::IndexTerm(owner))] = parsed_inlines.as_slice() else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::IndexTerm(owner)] = parsed_inlines.as_slice() else {
         return Err("index term".into());
     };
     let attributes = IndexTermRef::from(owner.as_ref()).attributes();

@@ -1,12 +1,12 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Anchor, BlockMetadata, CompatibilityMode, Location, Options, Paragraph, SafeMode, Section,
-    Title,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{
         AnchorRef, AttributeValueRef, BlockKind, BlockRef, ElementIdRef, IdOrigin, InlineKind,
         SectionRef, StructuralRef,
     },
+    edit::{Anchor, BlockMetadata, Paragraph, Section, Title},
     parse, parse_file,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -292,7 +292,7 @@ fn caller_built_empty_and_duplicate_ids_remain_explicit_without_generation() -> 
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     paragraph.set_metadata(metadata)?;
     paragraph.set_title(Title::new(Vec::new()));
-    let owner = acdc_parser::Block::Paragraph(paragraph);
+    let owner = acdc_parser::edit::Block::Paragraph(paragraph);
     let read = BlockRef::from(&owner);
     assert_eq!(read.id().ok_or("empty ID")?.as_str(), "");
     assert_eq!(read.id().ok_or("empty ID")?.origin(), IdOrigin::Explicit);

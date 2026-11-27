@@ -1,4 +1,7 @@
-use acdc_parser::{Anchor, ElementId, Location};
+use acdc_parser::{
+    Location,
+    edit::{Anchor, ElementId},
+};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 #[test]
@@ -16,7 +19,10 @@ fn unknown_identity_ranges_are_absent_in_native_json() -> Result<(), Error> {
 #[test]
 #[cfg(feature = "asg")]
 fn partial_identity_ranges_remain_visible_and_fail_export() -> Result<(), Error> {
-    use acdc_parser::{Block, Document, InlineNode, Paragraph, asg};
+    use acdc_parser::{
+        asg,
+        edit::{Block, Document, InlineNode, Paragraph},
+    };
     use serde_json::json;
     let mut location = Location::default();
     location.end.line = 1;
@@ -27,7 +33,7 @@ fn partial_identity_ranges_remain_visible_and_fail_export() -> Result<(), Error>
     );
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::InlineAnchor(anchor)],
+        vec![InlineNode::Anchor(anchor)],
         Location::default(),
     )));
     assert!(
@@ -110,7 +116,11 @@ fn prepared_identity_reads_keep_absent_and_partial_ranges_distinct() {
 #[cfg(feature = "asg")]
 fn generated_ids_have_no_token_spans_and_unknown_anchors_export_without_them() -> Result<(), Error>
 {
-    use acdc_parser::{Block, Document, InlineNode, Options, Paragraph, asg, parse};
+    use acdc_parser::{
+        Options, asg,
+        edit::{Block, Document, InlineNode, Paragraph},
+        parse,
+    };
     use serde_json::json;
     let parsed = parse("== Generated\n\nBody.", &Options::default())?;
     let value = asg::export_document_with_profile(parsed.document(), asg::Profile::Acdc)?;
@@ -119,7 +129,7 @@ fn generated_ids_have_no_token_spans_and_unknown_anchors_export_without_them() -
     assert!(value.pointer("/references/_generated/location").is_some());
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::InlineAnchor(Anchor::new(
+        vec![InlineNode::Anchor(Anchor::new(
             "caller",
             Location::default(),
         ))],

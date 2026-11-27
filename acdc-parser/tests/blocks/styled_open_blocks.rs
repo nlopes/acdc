@@ -27,51 +27,52 @@ fn styled_open_blocks_select_one_content_model(
     let [block] = &*parsed.document().blocks().collect::<Vec<_>>() else {
         return Err("expected one delimited block".into());
     };
-    let (actual, retained_delimiter, open, close) = if let BlockKind::Example(node) = block.kind() {
-        (
-            "example",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::Quote(node) = block.kind() {
-        (
-            "quote",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::Verse(node) = block.kind() {
-        (
-            "verse",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::Sidebar(node) = block.kind() {
-        (
-            "sidebar",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::Passthrough(node) = block.kind() {
-        (
-            "pass",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::DelimitedComment(node) = block.kind() {
-        (
-            "comment",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else {
-        return Err("expected a supported delimited block".into());
-    };
+    let (actual, retained_delimiter, open, close) =
+        if let BlockKind::DelimitedExample(node) = block.kind() {
+            (
+                "example",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedQuote(node) = block.kind() {
+            (
+                "quote",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedVerse(node) = block.kind() {
+            (
+                "verse",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedSidebar(node) = block.kind() {
+            (
+                "sidebar",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedPassthrough(node) = block.kind() {
+            (
+                "pass",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedComment(node) = block.kind() {
+            (
+                "comment",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else {
+            return Err("expected a supported delimited block".into());
+        };
     assert_eq!(actual, expected, "{block:?}");
     assert_eq!(retained_delimiter, "--");
     let open = open.ok_or("missing opener")?;

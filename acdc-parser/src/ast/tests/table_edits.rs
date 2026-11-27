@@ -1,19 +1,16 @@
 use crate::{
-    Block, CompatibilityMode, DelimitedBlock, Options, TableFrame, TableGrid, TableStripes,
-    ast::{AttributeValueRef, BlockKind, BlockRef, TableRef},
+    Block, CompatibilityMode, Options, Table, TableFrame, TableGrid, TableStripes,
+    ast::{AttributeValueRef, TableRef},
     parse,
 };
 type Error = Box<dyn std::error::Error>;
 
-fn table<'doc>(block: &'doc DelimitedBlock<'doc>) -> Result<TableRef<'doc>, Error> {
-    let BlockKind::Table(table) = BlockRef::from(block).kind() else {
-        return Err("expected table".into());
-    };
-    Ok(table)
+fn table<'doc>(block: &'doc Table<'doc>) -> TableRef<'doc> {
+    TableRef::from(block)
 }
 
-fn decoration(block: &DelimitedBlock<'_>) -> Result<(TableFrame, TableGrid, TableStripes), Error> {
-    let value = table(block)?.presentation().ok_or("missing presentation")?;
+fn decoration(block: &Table<'_>) -> Result<(TableFrame, TableGrid, TableStripes), Error> {
+    let value = table(block).presentation().ok_or("missing presentation")?;
     Ok((value.frame(), value.grid(), value.stripes()))
 }
 
@@ -25,15 +22,15 @@ fn metadata_replacement_updates_resolved_table_controls(
         "[frame=none,grid=none,stripes=none]\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(original)) = parsed.document_storage().blocks.first() else {
+    let Some(Block::DelimitedTable(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected delimited block".into());
     };
-    let mut metadata = original.metadata.clone();
+    let mut metadata = original.clone_metadata();
     metadata.attributes.set("frame".into(), "all".into());
     metadata.attributes.set("grid".into(), "rows".into());
     metadata.attributes.set("stripes".into(), "odd".into());
     let edited = original.clone().with_metadata(metadata)?;
-    let table = table(&edited)?;
+    let table = table(&edited);
     assert_eq!(table.declared_frame(), Some(AttributeValueRef::Text("all")));
     assert_eq!(table.declared_grid(), Some(AttributeValueRef::Text("rows")));
     assert_eq!(
@@ -66,7 +63,7 @@ fn removing_controls_restores_defaults_at_each_table(
         .blocks
         .iter()
         .filter_map(|block| {
-            if let Block::DelimitedBlock(block) = block {
+            if let Block::DelimitedTable(block) = block {
                 Some(block)
             } else {
                 None
@@ -81,13 +78,13 @@ fn removing_controls_restores_defaults_at_each_table(
     ]) {
         let mut edited = original.clone();
         for _ in 0..2 {
-            let mut metadata = edited.metadata.clone();
+            let mut metadata = edited.clone_metadata();
             for name in ["frame", "grid", "stripes"] {
                 metadata.attributes.remove(name);
             }
             edited.set_metadata(metadata)?;
             assert_eq!(decoration(&edited)?, expected);
-            let mut metadata = edited.metadata.clone();
+            let mut metadata = edited.clone_metadata();
             for name in ["frame", "grid", "stripes"] {
                 metadata.attributes.set(name.into(), "all".into());
             }
@@ -115,7 +112,7 @@ fn present_controls_mask_document_defaults_after_edits(
         "= Tables\n:table-frame: sides\n:table-grid: rows\n:table-stripes: even\n\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(original)) = parsed.document_storage().blocks.first() else {
+    let Some(Block::DelimitedTable(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected table".into());
     };
     for (value, expected) in [
@@ -145,7 +142,7 @@ fn present_controls_mask_document_defaults_after_edits(
         ),
     ] {
         let mut edited = original.clone();
-        let mut metadata = edited.metadata.clone();
+        let mut metadata = edited.clone_metadata();
         for name in ["frame", "grid", "stripes"] {
             metadata.attributes.set(name.into(), value.clone());
         }
@@ -164,8 +161,6 @@ fn nested_table_edits_keep_scopes_columns_and_cells_independent(
     #[case] nested_expected: (TableFrame, TableGrid, TableStripes),
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use crate::DelimitedBlockType;
-
     let source = format!(
         "= Tables\n{parent_defaults}\n\
          [cols=a]\n|===\n|\n:table-frame: ends\n:table-grid: cols\n:table-stripes: even\n\n\
@@ -175,12 +170,10 @@ fn nested_table_edits_keep_scopes_columns_and_cells_independent(
         &source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(outer)) = parsed.document_storage().blocks.first() else {
+    let Some(Block::DelimitedTable(outer)) = parsed.document_storage().blocks.first() else {
         return Err("expected outer table".into());
     };
-    let DelimitedBlockType::DelimitedTable(outer_table) = &outer.inner else {
-        return Err("expected outer table body".into());
-    };
+    let outer_table = &outer.0.body;
     let cell = &outer_table
         .rows
         .first()
@@ -192,7 +185,7 @@ fn nested_table_edits_keep_scopes_columns_and_cells_independent(
         .content
         .iter()
         .find_map(|block| {
-            if let Block::DelimitedBlock(block) = block {
+            if let Block::DelimitedTable(block) = block {
                 Some(block)
             } else {
                 None
@@ -200,7 +193,7 @@ fn nested_table_edits_keep_scopes_columns_and_cells_independent(
         })
         .ok_or("missing nested table")?;
     let mut edited = nested.clone();
-    let mut metadata = edited.metadata.clone();
+    let mut metadata = edited.clone_metadata();
     for name in ["frame", "grid", "stripes"] {
         metadata.attributes.remove(name);
     }
@@ -213,32 +206,26 @@ fn nested_table_edits_keep_scopes_columns_and_cells_independent(
         decoration(nested)?,
         (TableFrame::None, TableGrid::None, TableStripes::None)
     );
-    let DelimitedBlockType::DelimitedTable(before) = &nested.inner else {
-        return Err("expected table".into());
-    };
-    let DelimitedBlockType::DelimitedTable(after) = &edited.inner else {
-        return Err("expected table".into());
-    };
+    let before = &nested.0.body;
+    let after = &edited.0.body;
     assert_eq!(after.columns, before.columns);
     assert_eq!(after.rows, before.rows);
     assert_eq!(after.header, before.header);
     assert_eq!(after.footer, before.footer);
     assert_eq!(after.location, before.location);
     assert_eq!(
-        table(&edited)?.attributes().get("custom"),
+        table(&edited).attributes().get("custom"),
         Some(AttributeValueRef::Text(""))
     );
     let mut edited_outer = outer.clone();
-    let mut metadata = edited_outer.metadata.clone();
+    let mut metadata = edited_outer.clone_metadata();
     metadata.attributes.set("frame".into(), "none".into());
     edited_outer.set_metadata(metadata)?;
     assert_eq!(
         decoration(&edited_outer)?,
         (TableFrame::None, outer_expected.1, outer_expected.2)
     );
-    let DelimitedBlockType::DelimitedTable(edited_outer_table) = &edited_outer.inner else {
-        return Err("expected table".into());
-    };
+    let edited_outer_table = &edited_outer.0.body;
     assert_eq!(edited_outer_table.rows, outer_table.rows);
     Ok(())
 }
@@ -251,13 +238,13 @@ fn invalid_metadata_replacement_leaves_table_unchanged(
         "[frame=none,grid=none,stripes=none]\n|===\n|Cell\n|===\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(Block::DelimitedBlock(original)) = parsed.document_storage().blocks.first() else {
+    let Some(Block::DelimitedTable(original)) = parsed.document_storage().blocks.first() else {
         return Err("expected table".into());
     };
     for name in ["title", "role", "options"] {
         let mut edited = original.clone();
         let before_json = serde_json::to_value(&edited)?;
-        let mut metadata = edited.metadata.clone();
+        let mut metadata = edited.clone_metadata();
         metadata.attributes.set("frame".into(), "all".into());
         metadata.attributes.set(name.into(), "shadow".into());
         let error = edited

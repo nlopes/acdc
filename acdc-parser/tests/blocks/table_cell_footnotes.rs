@@ -26,7 +26,7 @@ fn catalog<'a>(
 }
 
 fn catalog_values(doc: DocumentRef<'_>) -> Vec<Vec<serde_json::Value>> {
-    cells(doc).into_iter().map(|cell| cell.footnotes().map(|note| serde_json::json!({"id": note.id(), "number": note.number(), "content": acdc_parser::ContentAttribute::from(note.content()), "location": Location::from(note.location())})).collect::<Vec<_>>()).collect::<Vec<_>>()
+    cells(doc).into_iter().map(|cell| cell.footnotes().map(|note| serde_json::json!({"id": note.id(), "number": note.number(), "content": acdc_parser::edit::ContentAttribute::from(note.content()), "location": Location::from(note.location())})).collect::<Vec<_>>()).collect::<Vec<_>>()
 }
 
 fn table(values: &[&str]) -> String {
@@ -181,23 +181,16 @@ fn selected_includes_keep_cell_provenance(
     Ok(())
 }
 
-fn cell_table(cells: Vec<acdc_parser::TableCell<'_>>) -> acdc_parser::Block<'_> {
-    use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Table, TableRow};
-    Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(Table::new(
-            vec![TableRow::new(cells)],
-            Location::default(),
-        )),
-        "|===",
-        Location::default(),
-    ))
+fn cell_table(cells: Vec<acdc_parser::edit::TableCell<'_>>) -> acdc_parser::edit::Block<'_> {
+    use acdc_parser::edit::{Block, Table, TableRow};
+    Block::DelimitedTable(Table::new(vec![TableRow::new(cells)], Location::default()))
 }
 
 #[rstest::rstest]
 fn prepared_cell_repair_uses_local_catalogs_and_one_number_sequence(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{Document, TableCell};
+    use acdc_parser::edit::{Document, TableCell};
     let source = format!(
         "= Notes\n\n{}",
         table(&[
@@ -232,8 +225,9 @@ fn prepared_cell_repair_uses_local_catalogs_and_one_number_sequence(
     }) {
         assert_eq!(catalog(owner.footnotes()), [(Some("same"), number)]);
         let definition = owner.footnotes().next().ok_or("definition")?;
-        let content =
-            serde_json::to_string(&acdc_parser::ContentAttribute::from(definition.content()))?;
+        let content = serde_json::to_string(&acdc_parser::edit::ContentAttribute::from(
+            definition.content(),
+        ))?;
         assert!(content.contains(body));
     }
     let before = serde_json::to_value(DocumentRef::from(&edited))?;
@@ -244,7 +238,7 @@ fn prepared_cell_repair_uses_local_catalogs_and_one_number_sequence(
 
 #[test]
 fn failed_cell_repair_cannot_borrow_a_sibling_definition() -> Result<(), Error> {
-    use acdc_parser::{Document, FootnoteRebuildError, TableCell};
+    use acdc_parser::edit::{Document, FootnoteRebuildError, TableCell};
     let source = format!(
         "= Notes\n\n{}",
         table(&[
@@ -277,7 +271,10 @@ fn failed_cell_repair_cannot_borrow_a_sibling_definition() -> Result<(), Error> 
 fn derived_reference_titles_keep_the_source_owners_number_binding(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{Document, TableCell, ast::InlineKind};
+    use acdc_parser::{
+        ast::InlineKind,
+        edit::{Document, TableCell},
+    };
     let source = format!(
         "= Notes\n\nfootnote:same[Outer.]\n\n{}",
         table(&[
@@ -322,8 +319,10 @@ fn derived_reference_titles_keep_the_source_owners_number_binding(
 #[test]
 fn nested_document_labels_rebind_each_footnote_once() -> Result<(), Error> {
     use acdc_parser::{
-        Block, ContentAttribute, CrossReference, Document, Footnote, InlineMacro, InlineNode,
-        Paragraph, ast::InlineKind,
+        ast::InlineKind,
+        edit::{
+            Block, ContentAttribute, CrossReference, Document, Footnote, InlineNode, Paragraph,
+        },
     };
     let source = format!(
         "= Notes\n\nfootnote:same[Outer.]\n\n{}",
@@ -331,13 +330,13 @@ fn nested_document_labels_rebind_each_footnote_once() -> Result<(), Error> {
     );
     let parsed = parse(&source, &Options::default())?;
     let mut inner = CrossReference::new("", Location::default());
-    inner.set_document_reftext(Some(ContentAttribute::new(vec![InlineNode::Macro(
-        InlineMacro::Footnote(Footnote::reference(Some("same"), 1, Location::default())),
+    inner.set_document_reftext(Some(ContentAttribute::new(vec![InlineNode::Footnote(
+        Footnote::reference(Some("same"), 1, Location::default()),
     )])));
     let mut outer = CrossReference::new("", Location::default());
-    outer.set_document_reftext(Some(ContentAttribute::new(vec![InlineNode::Macro(
-        InlineMacro::CrossReference(Box::new(inner)),
-    )])));
+    outer.set_document_reftext(Some(ContentAttribute::new(vec![
+        InlineNode::CrossReference(Box::new(inner)),
+    ])));
     let mut edited = Document::from(parsed.document());
     let mut blocks = edited.take_blocks();
     let outer_note = blocks.next().ok_or("outer note")?;
@@ -347,8 +346,8 @@ fn nested_document_labels_rebind_each_footnote_once() -> Result<(), Error> {
         outer_note,
         Block::Paragraph(Paragraph::new(
             vec![
-                InlineNode::Macro(InlineMacro::CrossReference(Box::new(outer.clone()))),
-                InlineNode::Macro(InlineMacro::CrossReference(Box::new(outer))),
+                InlineNode::CrossReference(Box::new(outer.clone())),
+                InlineNode::CrossReference(Box::new(outer)),
             ],
             Location::default(),
         )),

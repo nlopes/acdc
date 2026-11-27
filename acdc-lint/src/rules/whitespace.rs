@@ -41,7 +41,7 @@ fn source_block_body_lines(document: DocumentRef<'_>, lines: &[SourceLine<'_>]) 
     let mut source_block_lines = vec![false; lines.len()];
     for node in document.descendants() {
         if let StructuralRef::Block(block) = node
-            && let BlockKind::Listing(listing) = block.kind()
+            && let BlockKind::DelimitedListing(listing) = block.kind()
         {
             mark_delimited_block_body(listing, &mut source_block_lines);
         }

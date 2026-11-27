@@ -1386,7 +1386,7 @@ mod tests {
 
     #[test]
     fn terminal_session_style_preserves_exact_matching() -> TestResult {
-        use acdc_parser::{Location, Paragraph, ast::ParagraphRef};
+        use acdc_parser::{Location, ast::ParagraphRef, edit::Paragraph};
 
         for (style, expected) in [
             ("terminal", true),
@@ -1410,8 +1410,9 @@ mod tests {
     fn replay_controls_preserve_scalar_presence_and_warning_text() -> TestResult {
         use super::{ReplayFormat, positive_attr, replay_format};
         use acdc_parser::{
-            AttributeValue, Location, Paragraph,
+            AttributeValue, Location,
             ast::{AttributeValueRef, ParagraphRef},
+            edit::Paragraph,
         };
 
         for (value, number, presented) in [

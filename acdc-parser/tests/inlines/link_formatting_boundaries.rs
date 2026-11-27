@@ -1,17 +1,17 @@
-use acdc_parser::{InlineMacro, InlineNode, Options, parse, parse_inline};
+use acdc_parser::{Options, edit::InlineNode, parse, parse_inline};
 
 type Error = Box<dyn std::error::Error>;
 
 fn formatted_content<'source>(
     node: &InlineNode<'source>,
 ) -> Result<Vec<InlineNode<'source>>, Error> {
-    if let InlineNode::BoldText(mut span) = node.clone() {
+    if let InlineNode::Bold(mut span) = node.clone() {
         Ok(span.take_content())
-    } else if let InlineNode::ItalicText(mut span) = node.clone() {
+    } else if let InlineNode::Italic(mut span) = node.clone() {
         Ok(span.take_content())
-    } else if let InlineNode::MonospaceText(mut span) = node.clone() {
+    } else if let InlineNode::Monospace(mut span) = node.clone() {
         Ok(span.take_content())
-    } else if let InlineNode::HighlightText(mut span) = node.clone() {
+    } else if let InlineNode::Highlight(mut span) = node.clone() {
         Ok(span.take_content())
     } else {
         Err(format!("expected formatting, got {node:?}").into())
@@ -53,7 +53,7 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
     };
     let source = format!("{marker}Before {link} end{marker}");
     let parsed = parse_inline(&source, &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let [outer] = parsed_inlines.as_slice() else {
         return Err(format!(
             "expected one complete formatted span: {:?}",
@@ -62,8 +62,7 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
         .into());
     };
     let original_content = formatted_content(outer)?;
-    let [InlineNode::PlainText(_), node, InlineNode::PlainText(tail)] = original_content.as_slice()
-    else {
+    let [InlineNode::Plain(_), node, InlineNode::Plain(tail)] = original_content.as_slice() else {
         return Err(format!("expected a link inside the outer formatting: {outer:?}").into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(tail).text(), " end");
@@ -72,18 +71,18 @@ fn link_formatting_boundaries_keep_complete_labels_and_source_spans(
         &source[location.absolute_start..=location.absolute_end],
         link
     );
-    let text = if let InlineNode::Macro(InlineMacro::UrlMacro(link)) = node {
+    let text = if let InlineNode::UrlMacro(link) = node {
         link.clone().take_text()
-    } else if let InlineNode::Macro(InlineMacro::Link(link)) = node {
+    } else if let InlineNode::Link(link) = node {
         link.clone().take_text()
-    } else if let InlineNode::Macro(InlineMacro::Mailto(link)) = node {
+    } else if let InlineNode::Mailto(link) = node {
         link.clone().take_text()
-    } else if let InlineNode::Macro(InlineMacro::CrossReference(link)) = node {
+    } else if let InlineNode::CrossReference(link) = node {
         link.clone().take_text()
     } else {
         return Err(format!("expected a complete link: {node:?}").into());
     };
-    let [inner, InlineNode::PlainText(after)] = text.as_slice() else {
+    let [inner, InlineNode::Plain(after)] = text.as_slice() else {
         return Err(format!("expected independently formatted label: {text:?}").into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");

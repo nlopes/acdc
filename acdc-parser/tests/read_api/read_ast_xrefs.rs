@@ -1,7 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, CrossReference, InlineMacro, InlineNode, Location, Options,
-    XrefCaptionLabel, XrefSignifier, XrefStyle,
+    CompatibilityMode, Location, Options, XrefCaptionLabel, XrefSignifier, XrefStyle,
     ast::{AttributeValueRef, BlockKind, BlockRef, CrossReferenceRef, InlineKind, InlineRef},
+    edit::{CrossReference, InlineNode},
     parse_inline,
 };
 
@@ -18,10 +18,8 @@ fn cross_reference_reads_keep_labels_and_controls_separate(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [inline @ InlineNode::Macro(InlineMacro::CrossReference(owner))] =
-        parsed_inlines.as_slice()
-    else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [inline @ InlineNode::CrossReference(owner)] = parsed_inlines.as_slice() else {
         return Err("one xref".into());
     };
     let InlineKind::CrossReference(node) = InlineRef::from(inline).kind() else {
@@ -91,9 +89,9 @@ fn xref_attributes_do_not_supply_an_explicit_label() -> Result<(), Error> {
         ("xref:target[xrefstyle=unknown]", true, XrefStyle::Basic),
     ] {
         let parsed = parse_inline(source, &Options::default())?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-        let [InlineNode::Macro(InlineMacro::CrossReference(owner))] = parsed_inlines.as_slice()
-        else {
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::CrossReference(owner)] = parsed_inlines.as_slice() else {
             return Err("xref".into());
         };
         let node = CrossReferenceRef::from(owner.as_ref());
@@ -196,8 +194,8 @@ fn xref_source_aliases_share_token_ownership() -> Result<(), Error> {
         "xref:target[role=old,roles=\"one two\",id=first,id=last,opts=old,options=\"new,other\"]",
         &Options::default(),
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [InlineNode::Macro(InlineMacro::CrossReference(owner))] = parsed_inlines.as_slice() else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::CrossReference(owner)] = parsed_inlines.as_slice() else {
         return Err("xref".into());
     };
     let node = CrossReferenceRef::from(owner.as_ref());
@@ -286,7 +284,7 @@ fn xref_ids_follow_expansion_includes_and_table_cells(
         node.attributes().get("custom"),
         Some(AttributeValueRef::Text("a,b"))
     );
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table

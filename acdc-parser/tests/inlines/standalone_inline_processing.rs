@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, Options,
+    CompatibilityMode, Options,
     ast::{BlockKind, BlockRef},
+    edit::InlineNode,
     parse, parse_inline,
 };
 
@@ -26,7 +27,8 @@ fn standalone_fragments_use_document_inline_semantics(
         return Err("expected one paragraph".into());
     };
     let fragment = parse_inline(source, &options)?;
-    let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+    let fragment_inlines =
+        acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
     assert_eq!(
         &serde_json::to_value(fragment.content())?,
         serde_json::to_value(document.document())?
@@ -38,7 +40,7 @@ fn standalone_fragments_use_document_inline_semantics(
         .as_slice()
         .iter()
         .filter_map(|node| {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            if let InlineNode::Footnote(note) = node {
                 Some(acdc_parser::ast::FootnoteRef::from(note).number())
             } else {
                 None
@@ -62,10 +64,10 @@ fn standalone_fragments_preserve_surrounding_whitespace(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let mut text = String::new();
     for node in parsed_inlines.as_slice() {
-        let InlineNode::PlainText(plain) = node else {
+        let InlineNode::Plain(plain) = node else {
             return Err("expected literal whitespace".into());
         };
         text.push_str(acdc_parser::ast::PlainRef::from(plain).text());
@@ -93,7 +95,7 @@ fn standalone_attribute_expansion_obeys_the_selected_mode(
         .build()?;
     let source = "π {word} (C)";
     let parsed = parse_inline(source, &options)?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     assert!(
         parsed_inlines
             .as_slice()
@@ -103,7 +105,7 @@ fn standalone_attribute_expansion_obeys_the_selected_mode(
     let bold = parsed_inlines
         .as_slice()
         .iter()
-        .any(|node| matches!(node, InlineNode::BoldText(_)));
+        .any(|node| matches!(node, InlineNode::Bold(_)));
     assert_eq!(bold, mode == CompatibilityMode::Draft);
     for node in parsed_inlines.as_slice() {
         let location = node.location();

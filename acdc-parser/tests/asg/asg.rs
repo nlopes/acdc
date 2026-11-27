@@ -1,8 +1,10 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, Document, Header, Location, Options,
-    OptionsBuilder, Paragraph, Title, asg, ast::ContentRef, parse,
+    CompatibilityMode, Location, Options, OptionsBuilder, asg,
+    ast::ContentRef,
+    edit::{Block, ContentAttribute, Document, Header, Paragraph, Title},
+    parse,
 };
 use serde_json::{Value, json};
 
@@ -121,11 +123,13 @@ fn asg_rejects_unsupported_meaning_at_any_depth() -> Result<(), Error> {
 
 #[test]
 fn asg_does_not_run_pending_passthrough_operations() {
-    let nodes = [acdc_parser::InlineNode::RawText(acdc_parser::Raw::new(
-        "{missing}",
-        vec![acdc_parser::Substitution::Attributes],
-        Location::default(),
-    ))];
+    let nodes = [acdc_parser::edit::InlineNode::Raw(
+        acdc_parser::edit::Raw::new(
+            "{missing}",
+            vec![acdc_parser::Substitution::Attributes],
+            Location::default(),
+        ),
+    )];
     assert!(
         matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0/substitutions")
     );
@@ -165,8 +169,8 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
     source.end.column = 9;
     source.start.file = Some(vec!["outer.adoc".into(), "α.adoc".into()].into());
     source.end.file = Some(vec!["end.adoc".into()].into());
-    let nodes = [acdc_parser::InlineNode::PlainText(
-        acdc_parser::Plain::new("α", source.clone()).with_escaped(true),
+    let nodes = [acdc_parser::edit::InlineNode::Plain(
+        acdc_parser::edit::Plain::new("α", source.clone()).with_escaped(true),
     )];
     let value = asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec())))?;
     assert_eq!(
@@ -179,8 +183,8 @@ fn asg_preserves_endpoint_include_chains_and_unicode_columns() -> Result<(), Err
     );
     assert_eq!(value.pointer("/0/location/0/col"), Some(&json!(3)));
     source.start.file = Some(Vec::new().into());
-    let nodes = [acdc_parser::InlineNode::PlainText(
-        acdc_parser::Plain::new("α", source).with_escaped(true),
+    let nodes = [acdc_parser::edit::InlineNode::Plain(
+        acdc_parser::edit::Plain::new("α", source).with_escaped(true),
     )];
     assert!(matches!(
         asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))),
@@ -257,7 +261,7 @@ fn asg_exports_use_the_audited_schema_pin() -> Result<(), Error> {
 fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Error> {
     for (title, present) in [(Title::default(), false), (Title::new(Vec::new()), true)] {
         let mut document = Document::default();
-        document.push_block(Block::Section(acdc_parser::Section::new(
+        document.push_block(Block::Section(acdc_parser::edit::Section::new(
             title,
             1,
             Vec::new(),
@@ -277,8 +281,8 @@ fn asg_distinguishes_absent_and_present_empty_section_titles() -> Result<(), Err
 
 #[test]
 fn asg_rejects_verbatim_without_a_literal_block_mapping() {
-    let nodes = [acdc_parser::InlineNode::VerbatimText(
-        acdc_parser::Verbatim::new("  literal\ntext  ", Location::default()),
+    let nodes = [acdc_parser::edit::InlineNode::Verbatim(
+        acdc_parser::edit::Verbatim::new("  literal\ntext  ", Location::default()),
     )];
     assert!(
         matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(nodes.to_vec()))), Err(asg::Error::Unsupported { path, .. }) if path == "/0")

@@ -241,7 +241,7 @@ impl<'doc> BlockVisitor<'doc> for HeadResources {
                     traversal.get("icons").and_then(|value| value.as_str()) == Some("font");
             }
             Ok(())
-        } else if let BlockKind::Table(table) = block.kind() {
+        } else if let BlockKind::DelimitedTable(table) = block.kind() {
             self.visit_table(traversal, table)
         } else {
             self.visit_children(traversal, block.into())
@@ -808,16 +808,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 Ok(())
             }
             BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
-            BlockKind::Example(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Quote(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Stem(_)
-            | BlockKind::Table(_)
+            BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedQuote(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedStem(_)
+            | BlockKind::DelimitedTable(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block_ref(context, block),
             BlockKind::Extension(_) | _ => {
                 self.warn_unhandled_block();
@@ -1210,7 +1210,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         block: BlockRef<'a>,
     ) -> Result<(), Error> {
         let data = block;
-        let is_verbatim = matches!(data.kind(), BlockKind::Listing(_) | BlockKind::Literal(_));
+        let is_verbatim = matches!(
+            data.kind(),
+            BlockKind::DelimitedListing(_) | BlockKind::DelimitedLiteral(_)
+        );
 
         // Compute effective substitutions for this block
         let new_subs = effective_subs(
@@ -1261,8 +1264,9 @@ mod title_media_tests {
         Converter as _, Options as ConverterOptions, WarningSource, visitor::DocumentVisitor,
     };
     use acdc_parser::{
-        Anchor, AttributeValue, Block, CompatibilityMode, Document, Location,
-        Options as ParserOptions, Section, Title, parse, parse_inline,
+        AttributeValue, CompatibilityMode, Location, Options as ParserOptions,
+        edit::{Anchor, Block, Document, Section, Title},
+        parse, parse_inline,
     };
 
     type TestError = Box<dyn std::error::Error>;
@@ -1312,7 +1316,7 @@ mod title_media_tests {
                 "[subs=none]\n++++\nTRIGGER\n++++\n",
             ] {
                 let parsed = parse(input, &ParserOptions::default())?;
-                let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+                let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
                 let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
                 let block = parsed_blocks.first().ok_or("expected block")?;
                 let mut visitor = HtmlVisitor::new(
@@ -1345,7 +1349,7 @@ mod title_media_tests {
         document.set_attributes(acdc_parser::DocumentAttributes::from(
             parsed.document().attributes(),
         ));
-        let mut footnotes: Vec<_> = acdc_parser::Document::from(parsed.document())
+        let mut footnotes: Vec<_> = acdc_parser::edit::Document::from(parsed.document())
             .take_footnotes()
             .collect();
         footnotes.reverse();
@@ -1412,7 +1416,7 @@ mod title_media_tests {
             "[quote,Author,Book]\n____\nTRIGGER\n____\n",
         ] {
             let parsed = parse(input, &ParserOptions::default())?;
-            let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+            let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
             let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
             let block = parsed_blocks.first().ok_or("expected block")?;
             let mut visitor = HtmlVisitor::new(
@@ -1442,16 +1446,21 @@ mod title_media_tests {
             &ParserOptions::default(),
         )?;
         for (author, citation) in [(false, false), (true, false), (false, true), (true, true)] {
-            let mut document = acdc_parser::Document::default();
+            let mut document = acdc_parser::edit::Document::default();
             document.set_attributes(acdc_parser::DocumentAttributes::from(
                 parsed.document().attributes(),
             ));
-            document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+            document.set_blocks(
+                parsed
+                    .document()
+                    .blocks()
+                    .map(acdc_parser::edit::Block::from),
+            );
             let mut blocks: Vec<_> = document.take_blocks().collect();
             for block in &mut blocks {
                 let mut metadata = if let Block::Paragraph(node) = block {
                     node.clone_metadata()
-                } else if let Block::DelimitedBlock(node) = block {
+                } else if let Block::DelimitedQuote(node) = block {
                     node.clone_metadata()
                 } else {
                     return Err("expected quote".into());
@@ -1470,7 +1479,7 @@ mod title_media_tests {
                     metadata.attributes.remove("attribution");
                     metadata.attributes.remove("citetitle");
                     node.set_metadata(metadata)?;
-                } else if let Block::DelimitedBlock(node) = block {
+                } else if let Block::DelimitedQuote(node) = block {
                     assert!(node.set_metadata(metadata.clone()).is_err());
                     metadata.attributes.remove("attribution");
                     metadata.attributes.remove("citetitle");
@@ -1553,13 +1562,13 @@ mod title_media_tests {
     fn constructed_section_and_discrete_ids_keep_fallbacks_and_role_order() -> Result<(), TestError>
     {
         let parsed = parse("== *Heading*\n", &ParserOptions::default())?;
-        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
         let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
         let Some(Block::Section(section)) = parsed_blocks.first() else {
             return Err("expected section".into());
         };
         let discrete = parse("[discrete]\n== *Heading*\n", &ParserOptions::default())?;
-        let mut discrete_stored = acdc_parser::Document::from(discrete.document());
+        let mut discrete_stored = acdc_parser::edit::Document::from(discrete.document());
         let discrete_blocks: Vec<_> = discrete_stored.take_blocks().collect();
         for (primary, fallback, expected) in [
             (None, false, "_heading"),
@@ -1567,7 +1576,7 @@ mod title_media_tests {
             (Some("primary"), true, "primary"),
             (Some(""), true, ""),
         ] {
-            let mut document = acdc_parser::Document::default();
+            let mut document = acdc_parser::edit::Document::default();
             document.set_attributes(acdc_parser::DocumentAttributes::from(
                 parsed.document().attributes(),
             ));
@@ -1699,9 +1708,9 @@ mod title_media_tests {
             },
             Diagnostics::new(&source, &mut warnings),
         );
-        let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
+        let mut paragraph = acdc_parser::edit::Paragraph::new(Vec::new(), Location::default());
         let mut metadata = paragraph.take_metadata();
-        metadata.caption = Some(acdc_parser::Caption::Numbered {
+        metadata.caption = Some(acdc_parser::edit::Caption::Numbered {
             kind: CaptionKind::Figure,
             label: "Figure".into(),
             number: None,
@@ -1744,11 +1753,16 @@ mod title_media_tests {
                 ".Image\nimage::photo.png[Alt]\n\n.Audio\naudio::song.ogg[]\n\n.Video\nvideo::clip.mp4[]\n",
                 &options,
             )?;
-            let mut document = acdc_parser::Document::default();
+            let mut document = acdc_parser::edit::Document::default();
             document.set_attributes(acdc_parser::DocumentAttributes::from(
                 parsed.document().attributes(),
             ));
-            document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+            document.set_blocks(
+                parsed
+                    .document()
+                    .blocks()
+                    .map(acdc_parser::edit::Block::from),
+            );
             let mut blocks: Vec<_> = document.take_blocks().collect();
             for block in &mut blocks {
                 let mut metadata = if let Block::Image(image) = block {
@@ -1853,16 +1867,21 @@ mod title_media_tests {
             ".Note\n[NOTE]\n====\nBody.\n====\n\n.Table\n|===\n|Cell\n|===\n",
             &ParserOptions::default(),
         )?;
-        let mut document = acdc_parser::Document::default();
+        let mut document = acdc_parser::edit::Document::default();
         document.set_attributes(acdc_parser::DocumentAttributes::from(
             parsed.document().attributes(),
         ));
-        document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+        document.set_blocks(
+            parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::edit::Block::from),
+        );
         let mut blocks: Vec<_> = document.take_blocks().collect();
         for block in &mut blocks {
             let mut metadata = if let Block::Admonition(admonition) = block {
                 admonition.clone_metadata()
-            } else if let Block::DelimitedBlock(block) = block {
+            } else if let Block::DelimitedTable(block) = block {
                 block.clone_metadata()
             } else {
                 return Err("expected compound block".into());
@@ -1883,7 +1902,7 @@ mod title_media_tests {
                 .set("icon".into(), AttributeValue::Bool(false));
             if let Block::Admonition(admonition) = block {
                 admonition.set_metadata(metadata)?;
-            } else if let Block::DelimitedBlock(block) = block {
+            } else if let Block::DelimitedTable(block) = block {
                 block.set_metadata(metadata)?;
             } else {
                 return Err("expected compound block".into());
@@ -1919,7 +1938,10 @@ mod title_media_tests {
     #[test]
     fn caption_values_escape_literal_text_and_preserve_counter_ownership() -> Result<(), TestError>
     {
-        use acdc_parser::{Caption, ContentAttribute, Paragraph, ast::ParagraphRef};
+        use acdc_parser::{
+            ast::ParagraphRef,
+            edit::{Caption, ContentAttribute, Paragraph},
+        };
         let converter = Rc::new(Converter::new(
             ConverterOptions::default(),
             ParserOptions::builder(),
@@ -2043,8 +2065,10 @@ mod footnote_repair_tests {
         visitor::DocumentVisitor,
     };
     use acdc_parser::{
-        Block, CompatibilityMode, Document, Footnote, InlineMacro, InlineNode, Location,
-        Options as ParserOptions, Paragraph, ast::DocumentRef, parse,
+        CompatibilityMode, Location, Options as ParserOptions,
+        ast::DocumentRef,
+        edit::{Block, Document, Footnote, InlineNode, Paragraph},
+        parse,
     };
 
     use super::{Converter, HtmlVariant, HtmlVisitor, RenderOptions};
@@ -2069,11 +2093,7 @@ mod footnote_repair_tests {
                 document.set_blocks([Block::Paragraph(Paragraph::new(
                     (0..2)
                         .map(|_| {
-                            InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
-                                id,
-                                1,
-                                Location::default(),
-                            )))
+                            InlineNode::Footnote(Footnote::reference(id, 1, Location::default()))
                         })
                         .collect(),
                     Location::default(),

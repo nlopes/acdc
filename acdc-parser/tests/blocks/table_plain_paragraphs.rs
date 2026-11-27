@@ -10,7 +10,7 @@ fn first_cell(document: DocumentRef<'_>) -> Result<TableCellRef<'_>, Error> {
     let table = document
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Table(table) = block.kind() {
+            if let BlockKind::DelimitedTable(table) = block.kind() {
                 Some(table)
             } else {
                 None

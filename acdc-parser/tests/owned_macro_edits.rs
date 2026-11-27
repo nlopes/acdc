@@ -3,9 +3,9 @@
 use std::alloc::System;
 
 use acdc_parser::{
-    Button, CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, KeyboardShortcut,
-    Location, MenuPath, Options, Plain,
+    CompatibilityMode, Location, Options,
     ast::{ButtonRef, ContentRef, InlineKind, KeyboardShortcutRef, MenuPathRef},
+    edit::{Button, ContentAttribute, InlineNode, KeyboardShortcut, MenuPath, Plain},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -15,7 +15,7 @@ static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 type Error = Box<dyn std::error::Error>;
 
 fn label(text: &str) -> ContentAttribute<'_> {
-    ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+    ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
         text,
         Location::default(),
     ))])
@@ -38,7 +38,7 @@ fn text(content: ContentRef<'_>) -> Result<String, Error> {
 fn button_transfers_prepared_label_without_parsing() -> Result<(), Error> {
     let authored = String::from("*Save* {entry} footnote:[literal]");
     let mut inlines = Vec::with_capacity(2);
-    inlines.push(InlineNode::PlainText(Plain::new(
+    inlines.push(InlineNode::Plain(Plain::new(
         &authored,
         Location::default(),
     )));
@@ -51,7 +51,7 @@ fn button_transfers_prepared_label_without_parsing() -> Result<(), Error> {
     assert_eq!(old.as_ptr(), pointer);
     assert!(ButtonRef::from(&button).label().is_empty());
     let mut old = old;
-    old.push(InlineNode::PlainText(Plain::new("!", Location::default())));
+    old.push(InlineNode::Plain(Plain::new("!", Location::default())));
     assert_eq!(old.as_ptr(), pointer);
     button.replace_label(ContentAttribute::new(old));
     assert_eq!(
@@ -261,15 +261,13 @@ fn parsed_ui_copies_preserve_native_output_and_nested_content(
     for (index, node) in parsed.content().inlines().enumerate() {
         let owned = if let InlineKind::Button(button) = node.kind() {
             kinds.push("button");
-            InlineNode::Macro(InlineMacro::Button(Button::from(button)))
+            InlineNode::Button(Button::from(button))
         } else if let InlineKind::KeyboardShortcut(keyboard) = node.kind() {
             kinds.push("keyboard");
-            InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut::from(
-                keyboard,
-            )))
+            InlineNode::KeyboardShortcut(KeyboardShortcut::from(keyboard))
         } else if let InlineKind::MenuPath(menu) = node.kind() {
             kinds.push("menu");
-            InlineNode::Macro(InlineMacro::MenuPath(MenuPath::from(menu)))
+            InlineNode::MenuPath(MenuPath::from(menu))
         } else {
             continue;
         };
@@ -288,9 +286,9 @@ fn copying_empty_macro_owners_allocates_nothing() {
     let button = Button::new(ContentAttribute::default(), Location::default());
     let menu = MenuPath::new(ContentAttribute::default(), Vec::new(), Location::default());
     let keyboard = KeyboardShortcut::new(Vec::new(), Location::default());
-    let xref = acdc_parser::CrossReference::new("target", Location::default());
-    let index = acdc_parser::IndexTerm::new(
-        acdc_parser::IndexTermKind::Flow(Vec::new()),
+    let xref = acdc_parser::edit::CrossReference::new("target", Location::default());
+    let index = acdc_parser::edit::IndexTerm::new(
+        acdc_parser::edit::IndexTermKind::Flow(Vec::new()),
         Location::default(),
     );
     let region = Region::new(ALLOCATOR);
@@ -298,8 +296,8 @@ fn copying_empty_macro_owners_allocates_nothing() {
         Button::from(ButtonRef::from(&button)),
         MenuPath::from(MenuPathRef::from(&menu)),
         KeyboardShortcut::from(KeyboardShortcutRef::from(&keyboard)),
-        acdc_parser::CrossReference::from(acdc_parser::ast::CrossReferenceRef::from(&xref)),
-        acdc_parser::IndexTerm::from(acdc_parser::ast::IndexTermRef::from(&index)),
+        acdc_parser::edit::CrossReference::from(acdc_parser::ast::CrossReferenceRef::from(&xref)),
+        acdc_parser::edit::IndexTerm::from(acdc_parser::ast::IndexTermRef::from(&index)),
     ));
     let allocations = region.change();
     assert_eq!(allocations.allocations, 0);
@@ -313,7 +311,8 @@ fn copying_empty_macro_owners_allocates_nothing() {
 #[test]
 fn remaining_control_replacement_is_checked_and_atomic() -> Result<(), Error> {
     use acdc_parser::{
-        AttributeValue, CrossReference, ElementAttributes, IndexTerm, IndexTermKind, InlineMetadata,
+        AttributeValue, ElementAttributes,
+        edit::{CrossReference, IndexTerm, IndexTermKind, InlineMetadata},
     };
     macro_rules! check {
         ($owner:expr, $reserved:expr, $extensions:expr) => {{
@@ -399,7 +398,7 @@ fn remaining_control_replacement_is_checked_and_atomic() -> Result<(), Error> {
 
 #[test]
 fn xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots() -> Result<(), Error> {
-    use acdc_parser::{CrossReference, XrefCaptionLabel, XrefStyle, ast::CrossReferenceRef};
+    use acdc_parser::{XrefCaptionLabel, XrefStyle, ast::CrossReferenceRef, edit::CrossReference};
     let authored = String::from("*label* {entry} footnote:[literal]");
     let destination = String::from("chapter.adoc");
     let (content, options, target) = {
@@ -407,13 +406,13 @@ fn xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots() -> Resul
         assert!(!CrossReferenceRef::from(&node).target_is_local());
         node.set_target_is_local(true);
         let mut content = Vec::with_capacity(2);
-        content.push(InlineNode::PlainText(Plain::new(
+        content.push(InlineNode::Plain(Plain::new(
             &authored,
             Location::default(),
         )));
         let pointer = content.as_ptr();
         assert_eq!(node.replace_text(content), []);
-        node.push_inline(InlineNode::PlainText(Plain::new("!", Location::default())));
+        node.push_inline(InlineNode::Plain(Plain::new("!", Location::default())));
         let content = node.take_text();
         assert_eq!(content.as_ptr(), pointer);
         assert!(CrossReferenceRef::from(&node).text().is_empty());
@@ -451,10 +450,13 @@ fn xref_transfers_keep_buffers_source_lifetimes_and_display_snapshots() -> Resul
 
 #[test]
 fn index_transfers_keep_empty_hierarchy_relationship_and_source_values() -> Result<(), Error> {
-    use acdc_parser::{IndexTerm, IndexTermKind, IndexTermRelationship, ast::IndexTermRef};
+    use acdc_parser::{
+        ast::IndexTermRef,
+        edit::{IndexTerm, IndexTermKind, IndexTermRelationship},
+    };
     let authored = String::from("*Term* {entry}");
     let (kind, relationship) = {
-        let term = vec![InlineNode::PlainText(Plain::new(
+        let term = vec![InlineNode::Plain(Plain::new(
             &authored,
             Location::default(),
         ))];
@@ -479,7 +481,7 @@ fn index_transfers_keep_empty_hierarchy_relationship_and_source_values() -> Resu
                 .is_empty()
         );
         assert!(read.tertiary().is_none());
-        let target = vec![InlineNode::PlainText(Plain::new(
+        let target = vec![InlineNode::Plain(Plain::new(
             &authored,
             Location::default(),
         ))];
@@ -521,8 +523,8 @@ fn selected_index_copies_keep_registered_labels_after_display_edits(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
-        IndexTerm, IndexTermKind,
         ast::{BlockKind, IndexTermRef},
+        edit::{IndexTerm, IndexTermKind},
     };
     let parsed = acdc_parser::parse(
         include_str!("../fixtures/tests/subs_index_control_snapshots.adoc"),
@@ -552,9 +554,10 @@ fn selected_index_copies_keep_registered_labels_after_display_edits(
             if displayed != catalog {
                 snapshots += 1;
             }
-            copied.replace_kind(IndexTermKind::Flow(vec![InlineNode::PlainText(
-                Plain::new("Edited", Location::default()),
-            )]));
+            copied.replace_kind(IndexTermKind::Flow(vec![InlineNode::Plain(Plain::new(
+                "Edited",
+                Location::default(),
+            ))]));
             assert_eq!(
                 ContentAttribute::from(IndexTermRef::from(&copied).catalog().term()),
                 catalog

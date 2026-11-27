@@ -1,6 +1,6 @@
 use acdc_converters_core::{Converter as _, Diagnostics, Options, WarningSource};
 use acdc_converters_manpage::Converter;
-use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, edit::Document, parse};
 
 type Error = Box<dyn std::error::Error>;
 

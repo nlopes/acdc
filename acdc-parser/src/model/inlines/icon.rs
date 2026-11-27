@@ -7,19 +7,19 @@ use crate::{
 /// An inline icon with independent content, identity, and macro controls.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Icon, Location, Source};
+/// use acdc_parser::{Location, edit::{Icon, Source}};
 /// let mut node = Icon::new(Source::Name("target"), Location::default());
 /// node.alt = None;
 /// ```
 ///
 /// ```compile_fail,E0624
-/// use acdc_parser::{Icon, Location, Source};
+/// use acdc_parser::{Location, edit::{Icon, Source}};
 /// let node = Icon::new(Source::Name("target"), Location::default());
 /// let _ = node.attributes();
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use acdc_parser::{Icon, Location, Source};
+/// use acdc_parser::{Location, edit::{Icon, Source}};
 /// let mut node = Icon::new(Source::Name("target"), Location::default());
 /// node.options_mut().push("first");
 /// ```

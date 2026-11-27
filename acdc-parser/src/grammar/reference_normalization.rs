@@ -3,7 +3,7 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use crate::{
-    Document, Error, InlineMacro, InlineNode, Options,
+    Document, Error, InlineNode, Options,
     extensions::{ReferenceNormalizer, Registry},
     model::XrefSourceSyntax,
 };
@@ -39,7 +39,7 @@ impl<'a> Normalization<'a> {
         state: &ParserState<'a>,
         node: &mut InlineNode<'a>,
     ) -> Result<(), Error> {
-        let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node else {
+        let InlineNode::CrossReference(xref) = node else {
             return Ok(());
         };
         let target = &mut xref.target;

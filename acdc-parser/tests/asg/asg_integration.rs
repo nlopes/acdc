@@ -1,9 +1,12 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Anchor, Block, CompatibilityMode, ContentAttribute, Document, Footnote, FootnoteDefinition,
-    IndexTerm, IndexTermKind, InlineMacro, InlineNode, Location, Options, Paragraph, Plain,
-    ReferenceTarget, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{
+        Anchor, Block, ContentAttribute, Document, Footnote, FootnoteDefinition, IndexTerm,
+        IndexTermKind, InlineNode, Paragraph, Plain, ReferenceTarget,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -11,18 +14,11 @@ use std::{fs, path::Path};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn text(value: &'static str) -> Vec<InlineNode<'static>> {
-    vec![InlineNode::PlainText(Plain::new(
-        value,
-        Location::default(),
-    ))]
+    vec![InlineNode::Plain(Plain::new(value, Location::default()))]
 }
 
 fn note(number: u32, id: Option<&'static str>) -> InlineNode<'static> {
-    InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
-        id,
-        number,
-        Location::default(),
-    )))
+    InlineNode::Footnote(Footnote::reference(id, number, Location::default()))
 }
 
 fn document(content: Vec<InlineNode<'static>>) -> Document<'static> {
@@ -37,7 +33,7 @@ fn document(content: Vec<InlineNode<'static>>) -> Document<'static> {
 fn captured(content: Vec<InlineNode<'static>>) -> InlineNode<'static> {
     let mut term = IndexTerm::new(IndexTermKind::Flow(content), Location::default());
     term.replace_kind(IndexTermKind::Flow(text("Current")));
-    InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)))
+    InlineNode::IndexTerm(Box::new(term))
 }
 
 fn export(document: &Document<'_>) -> Result<Value, asg::Error> {
@@ -116,11 +112,7 @@ fn captured_footnotes_require_matching_canonical_links() {
             matches!(export(&document), Err(asg::Error::Unsupported{path,construct:Some("footnote"),..}) if path == format!("/blocks/0/inlines/0/catalog/term/0/{suffix}"))
         );
     }
-    let definition = InlineNode::Macro(InlineMacro::Footnote(Footnote::new(
-        Vec::new(),
-        0,
-        Location::default(),
-    )));
+    let definition = InlineNode::Footnote(Footnote::new(Vec::new(), 0, Location::default()));
     assert!(
         matches!(export(&document(vec![captured(vec![definition])])), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/inlines/0/catalog/term/0/number")
     );
@@ -133,7 +125,7 @@ fn historical_bodies_do_not_replace_canonical_bodies_or_resolve_zero() -> Result
     let mut definition = FootnoteDefinition::new(text("Canonical"), 7, Location::default());
     definition.replace_id(Some("note"));
     let mut document = document(vec![captured(vec![
-        InlineNode::Macro(InlineMacro::Footnote(old)),
+        InlineNode::Footnote(old),
         note(0, Some("unresolved")),
     ])]);
     document.set_footnotes([definition]);

@@ -14,7 +14,7 @@ use bumpalo::Bump;
 
 use crate::{
     CalloutMarker, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote,
-    FootnoteDefinition, Location, Options, Passthrough, Position, SourceLocation, TocEntry,
+    FootnoteDefinition, InlinePassthrough, Location, Options, Position, SourceLocation, TocEntry,
     Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
     document_attribute::{
         AttributeDeclaration, RawAttributeValue, is_header_only, normalize_toc_attributes,
@@ -174,7 +174,7 @@ pub(crate) struct ParserState<'a> {
     pub(super) quotes_only: bool,
     /// Profiled attribute placeholders available to this inline grammar. Consume
     /// them in source order so their notes precede later literal references.
-    pub(super) attribute_passthroughs: Rc<[Passthrough<'a>]>,
+    pub(super) attribute_passthroughs: Rc<[InlinePassthrough<'a>]>,
     // Resolved references cannot contribute syntax to a later stage.
     pub(super) resolved_reference_ranges: Vec<Range<usize>>,
     /// When parsing content extracted from a constrained formatting rule, holds

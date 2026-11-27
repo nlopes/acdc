@@ -294,7 +294,7 @@ fn extensions_removal_preserves_cell_footnote_owners_and_prepared_numbers() -> T
         let table = section
             .blocks()
             .find_map(|block| {
-                if let BlockKind::Table(table) = block.kind() {
+                if let BlockKind::DelimitedTable(table) = block.kind() {
                     Some(table)
                 } else {
                     None

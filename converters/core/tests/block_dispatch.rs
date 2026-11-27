@@ -65,7 +65,7 @@ fn constructed_callbacks_see_events_after_before_hooks() -> Result<(), Error> {
     let parsed_blocks: Vec<_> = parsed
         .document()
         .blocks()
-        .map(acdc_parser::Block::from)
+        .map(acdc_parser::edit::Block::from)
         .collect();
     let mut context = TraversalContext::new(parsed.document().attributes());
     let mut trace = ConstructedTrace::default();
@@ -94,7 +94,7 @@ fn constructed_callback_errors_stop_before_later_blocks() -> Result<(), Error> {
     let parsed_blocks: Vec<_> = parsed
         .document()
         .blocks()
-        .map(acdc_parser::Block::from)
+        .map(acdc_parser::edit::Block::from)
         .collect();
     for fail_before in [false, true] {
         let mut context = TraversalContext::new(parsed.document().attributes());
@@ -166,7 +166,7 @@ fn typed_and_constructed_inputs_share_hook_order_and_error_behavior() -> Result<
     let parsed_blocks: Vec<_> = parsed
         .document()
         .blocks()
-        .map(acdc_parser::Block::from)
+        .map(acdc_parser::edit::Block::from)
         .collect();
     for (fail_before, fail_dispatch) in [(false, false), (true, false), (false, true)] {
         let mut owner = ConstructedTrace {
@@ -235,7 +235,7 @@ fn typed_cell_callback_errors_restore_the_parent_scope() -> Result<(), Error> {
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Table(table) = block.kind() {
+            if let BlockKind::DelimitedTable(table) = block.kind() {
                 Some(table)
             } else {
                 None

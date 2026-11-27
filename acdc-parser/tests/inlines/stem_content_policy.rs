@@ -141,7 +141,7 @@ fn block_formula_substitutions_are_shared_and_keep_the_authored_body(
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Stem(block) = block.kind() {
+            if let BlockKind::DelimitedStem(block) = block.kind() {
                 Some(block)
             } else {
                 None

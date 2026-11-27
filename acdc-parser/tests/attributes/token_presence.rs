@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, InlineMetadata, Link, Location, Options, Source, TokenAssignment,
+    CompatibilityMode, Location, Options,
     ast::{AttributeValueRef, AttributesRef, BlockKind, InlineKind, LinkRef},
+    edit::{InlineMetadata, Link, Source, TokenAssignment},
     parse,
 };
 
@@ -223,14 +224,15 @@ fn asg_preserves_empty_inline_tokens_or_reports_the_unsupported_path(
 #[test]
 fn empty_span_roles_stay_distinct_from_absence_in_asg() -> Result<(), Error> {
     use acdc_parser::{
-        Bold, ContentAttribute, FormattingForm, InlineNode,
+        FormattingForm,
         asg::{self, Profile},
         ast::ContentRef,
+        edit::{Bold, ContentAttribute, InlineNode},
     };
 
     let mut span = Bold::new(Vec::new(), FormattingForm::Constrained, Location::default());
     span.replace_role(Some(""));
-    let content = ContentAttribute::new(vec![InlineNode::BoldText(span)]);
+    let content = ContentAttribute::new(vec![InlineNode::Bold(span)]);
     let value = asg::export_inlines_with_profile(ContentRef::from(&content), Profile::Acdc)?;
     assert_eq!(
         value.pointer("/0/metadata/roles"),
@@ -246,16 +248,16 @@ fn empty_span_roles_stay_distinct_from_absence_in_asg() -> Result<(), Error> {
 #[test]
 fn asg_rejects_empty_passthrough_roles_without_a_mapping() {
     use acdc_parser::{
-        ContentAttribute, InlineNode, Raw,
         asg::{self, Profile},
         ast::ContentRef,
+        edit::{ContentAttribute, InlineNode, Raw},
     };
 
     let mut raw = Raw::new("text", Vec::new(), Location::default());
     let mut metadata = InlineMetadata::default();
     metadata.roles = Vec::new().into();
     raw.set_metadata(Some(metadata));
-    let content = ContentAttribute::new(vec![InlineNode::RawText(raw)]);
+    let content = ContentAttribute::new(vec![InlineNode::Raw(raw)]);
     for profile in [Profile::Upstream, Profile::Acdc] {
         assert!(
             matches!(asg::export_inlines_with_profile(ContentRef::from(&content), profile), Err(asg::Error::Unsupported { path, .. }) if path == "/0/metadata/roles")

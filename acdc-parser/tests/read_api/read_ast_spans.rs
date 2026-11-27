@@ -1,6 +1,7 @@
 use acdc_parser::{
-    Bold, CompatibilityMode, FormattingForm, Highlight, Location, Options, Paragraph, SafeMode,
+    CompatibilityMode, FormattingForm, Location, Options, SafeMode,
     ast::{AttributeValueRef, BlockKind, BoldRef, HighlightRef, InlineKind, ParagraphRef},
+    edit::{Bold, Highlight, Paragraph},
     parse, parse_file,
 };
 
@@ -231,7 +232,7 @@ fn included_and_table_cell_spans_keep_original_source_context(
         Some(include)
     );
     assert_eq!(italic.location().start().line(), 1);
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table
@@ -263,7 +264,10 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
             Location::default(),
         );
         span.replace_role(Some("one\ttwo\u{2003}one"));
-        span.set_id(Some(acdc_parser::ElementId::new("", Location::default())));
+        span.set_id(Some(acdc_parser::edit::ElementId::new(
+            "",
+            Location::default(),
+        )));
         span
     };
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
@@ -289,7 +293,10 @@ fn constructed_spans_keep_empty_identity_and_semantic_token_equality() -> Result
     highlight.replace_role(Some(""));
     assert!(!HighlightRef::from(&highlight).is_marked());
     highlight.replace_role(None);
-    highlight.set_id(Some(acdc_parser::ElementId::new("", Location::default())));
+    highlight.set_id(Some(acdc_parser::edit::ElementId::new(
+        "",
+        Location::default(),
+    )));
     assert!(!HighlightRef::from(&highlight).is_marked());
     assert_eq!(
         HighlightRef::from(&highlight).attributes().get("id"),

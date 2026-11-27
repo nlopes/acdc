@@ -1,6 +1,7 @@
 use acdc_parser::{
-    Block, Document, Location, Options, Section, Title,
+    Location, Options,
     ast::{BlockKind, BlockRef, DocumentRef, SectionRef, TocEntryRef},
+    edit::{Block, Document, Section, Title},
     parse,
 };
 

@@ -12,8 +12,9 @@ use acdc_converters_core::{
 use acdc_converters_dev::{fixtures::parse_fixture, output::remove_lines_trailing_whitespace};
 use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{
-    AttributeValue, Block, CompatibilityMode, DelimitedBlockType, Options as ParserOptions,
-    SafeMode, Table, parse, parse_file,
+    AttributeValue, CompatibilityMode, Options as ParserOptions, SafeMode,
+    edit::{Block, Table},
+    parse, parse_file,
 };
 
 mod support;
@@ -3597,41 +3598,51 @@ fn unresolved_table_decoration_matches_the_parsed_presentation() -> Result<(), E
                     .with_compatibility_mode(mode)
                     .build()?,
             )?;
-            let mut resolved = acdc_parser::Document::default();
+            let mut resolved = acdc_parser::edit::Document::default();
             resolved.set_attributes(acdc_parser::DocumentAttributes::from(
                 parsed.document().attributes(),
             ));
-            resolved.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
-            let mut unresolved = acdc_parser::Document::default();
+            resolved.set_blocks(
+                parsed
+                    .document()
+                    .blocks()
+                    .map(acdc_parser::edit::Block::from),
+            );
+            let mut unresolved = acdc_parser::edit::Document::default();
             unresolved.set_attributes(acdc_parser::DocumentAttributes::from(
                 acdc_parser::ast::DocumentRef::from(&resolved).attributes(),
             ));
             unresolved.set_blocks(
                 acdc_parser::ast::DocumentRef::from(&resolved)
                     .blocks()
-                    .map(acdc_parser::Block::from),
+                    .map(acdc_parser::edit::Block::from),
             );
             let mut blocks: Vec<_> = unresolved.take_blocks().collect();
-            let Some(Block::DelimitedBlock(block)) = blocks.first_mut() else {
+            let Some(Block::DelimitedTable(table)) = blocks.first_mut() else {
                 return Err("expected table block".into());
             };
-            let mut body = block.clone_body();
-            let DelimitedBlockType::DelimitedTable(table) = &mut body else {
-                return Err("expected table".into());
-            };
             assert!(table.presentation().is_some());
-            let acdc_parser::ast::BlockKind::Table(source) =
-                acdc_parser::ast::BlockRef::from(&*block).kind()
-            else {
-                return Err("expected table".into());
-            };
-            let location = acdc_parser::Location::from(source.delimited_location());
-            *table = Table::new(table.take_rows().collect(), location)
+            let source = acdc_parser::ast::TableRef::from(&*table);
+            let location = acdc_parser::Location::from(source.location());
+            let delimited_location = acdc_parser::Location::from(source.delimited_location());
+            let open_delimiter = source
+                .open_delimiter_location()
+                .map(acdc_parser::Location::from);
+            let close_delimiter = source
+                .close_delimiter_location()
+                .map(acdc_parser::Location::from);
+            // Rebuild the table without its resolved presentation, keeping the
+            // block's metadata, title and spans.
+            let mut rebuilt = Table::new(table.take_rows().collect(), delimited_location)
                 .with_header(table.take_header())
                 .with_footer(table.take_footer())
-                .with_columns(table.take_columns().collect());
-            assert!(table.presentation().is_none());
-            block.replace_body(body);
+                .with_columns(table.take_columns().collect())
+                .with_title(table.take_title())
+                .with_metadata(table.take_metadata())?;
+            rebuilt.set_location(location);
+            rebuilt.set_delimiter_locations(open_delimiter, close_delimiter);
+            assert!(rebuilt.presentation().is_none());
+            *table = rebuilt;
             unresolved.set_blocks(blocks);
             for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
                 let converter = Converter::new_with_variant(
@@ -3681,11 +3692,16 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let mut document = acdc_parser::Document::default();
+    let mut document = acdc_parser::edit::Document::default();
     document.set_attributes(acdc_parser::DocumentAttributes::from(
         parsed.document().attributes(),
     ));
-    document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+    document.set_blocks(
+        parsed
+            .document()
+            .blocks()
+            .map(acdc_parser::edit::Block::from),
+    );
     for (declarations, classes) in [
         (Some(("none", "none", "none")), "frame-none grid-none"),
         (
@@ -3698,7 +3714,7 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
         let block = blocks
             .iter_mut()
             .find_map(|block| {
-                if let Block::DelimitedBlock(block) = block {
+                if let Block::DelimitedTable(block) = block {
                     Some(block)
                 } else {
                     None
@@ -3737,7 +3753,8 @@ fn checked_table_metadata_edits_reach_rendered_decoration(
 #[test]
 fn constructed_character_references_render_without_double_escaping() -> Result<(), Error> {
     use acdc_parser::{
-        Block, CharacterReference, CharacterReferenceKind, Document, Location, Paragraph,
+        CharacterReferenceKind, Location,
+        edit::{Block, CharacterReference, Document, Paragraph},
     };
     let mut doc = Document::default();
     let mut content = Vec::new();
@@ -3745,7 +3762,7 @@ fn constructed_character_references_render_without_double_escaping() -> Result<(
         CharacterReferenceKind::Named("copy"),
         CharacterReferenceKind::Numeric(65),
     ] {
-        content.push(acdc_parser::InlineNode::CharacterReference(
+        content.push(acdc_parser::edit::InlineNode::CharacterReference(
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         ));
     }

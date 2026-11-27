@@ -27,7 +27,9 @@ impl<'doc, W: Write> HtmlVisitor<'doc, '_, W> {
         };
         if !matches!(
             block.kind(),
-            BlockKind::Paragraph(_) | BlockKind::Listing(_) | BlockKind::Literal(_)
+            BlockKind::Paragraph(_)
+                | BlockKind::DelimitedListing(_)
+                | BlockKind::DelimitedLiteral(_)
         ) {
             return Ok(false);
         }

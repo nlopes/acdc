@@ -2,9 +2,9 @@ use crate::{Block, CompatibilityMode, InlineNode, Options, parse};
 type Error = Box<dyn std::error::Error>;
 
 fn attribute_text<'a>(node: &InlineNode<'a>) -> Result<&'a str, Error> {
-    if let InlineNode::PlainText(text) = node {
+    if let InlineNode::Plain(text) = node {
         Ok(text.content)
-    } else if let InlineNode::RawText(text) = node {
+    } else if let InlineNode::Raw(text) = node {
         Ok(text.content)
     } else {
         Err("expected literal attribute text".into())

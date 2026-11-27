@@ -1,9 +1,10 @@
 use acdc_parser::{
-    CompatibilityMode, Location, Options, Paragraph, SafeMode, Title,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{
         BlockKind, BlockRef, BoldRef, ContentRef, DocumentRef, InlineKind, InlineRef, LocationRef,
         ParagraphRef, SectionRef,
     },
+    edit::{Paragraph, Title},
     parse, parse_file,
 };
 
@@ -140,7 +141,7 @@ fn semantic_kinds_flatten_tables_and_macros() -> Result<(), Error> {
     )?;
     let mut blocks = parsed.document().blocks();
     let table = blocks.next().ok_or("missing table")?;
-    let BlockKind::Table(table_view) = table.kind() else {
+    let BlockKind::DelimitedTable(table_view) = table.kind() else {
         return Err("expected table kind".into());
     };
     assert_eq!(table_view.location().start().line(), 1);

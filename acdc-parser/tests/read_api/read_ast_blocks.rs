@@ -1,10 +1,10 @@
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Caption, CompatibilityMode, ContentAttribute, DelimitedBlock,
-    DelimitedBlockType, Location, Options, SafeMode, StemNotation,
+    AdmonitionVariant, CompatibilityMode, Location, Options, SafeMode, StemNotation,
     ast::{
         AdmonitionRef, AttributeValueRef, BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind,
-        StructuralRef, TocEntryRef,
+        QuoteRef, StructuralRef, TocEntryRef,
     },
+    edit::{Admonition, Caption, ContentAttribute, Quote},
     parse, parse_file,
 };
 
@@ -114,7 +114,8 @@ fn compound_blocks_expose_nested_content_and_distinct_metadata(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let before = serde_json::to_value(parsed.document())?;
-    let BlockKind::Example(example) = parsed.document().blocks().next().ok_or("example")?.kind()
+    let BlockKind::DelimitedExample(example) =
+        parsed.document().blocks().next().ok_or("example")?.kind()
     else {
         return Err("example".into());
     };
@@ -128,13 +129,13 @@ fn compound_blocks_expose_nested_content_and_distinct_metadata(
         example.title().map(AttributeValueRef::Content)
     );
     assert_eq!(example.delimiter(), "====");
-    let BlockKind::Open(open) = example.blocks().next().ok_or("open")?.kind() else {
+    let BlockKind::DelimitedOpen(open) = example.blocks().next().ok_or("open")?.kind() else {
         return Err("open".into());
     };
-    let BlockKind::Sidebar(sidebar) = open.blocks().next().ok_or("sidebar")?.kind() else {
+    let BlockKind::DelimitedSidebar(sidebar) = open.blocks().next().ok_or("sidebar")?.kind() else {
         return Err("sidebar".into());
     };
-    let BlockKind::Quote(quote) = sidebar.blocks().next().ok_or("quote")?.kind() else {
+    let BlockKind::DelimitedQuote(quote) = sidebar.blocks().next().ok_or("quote")?.kind() else {
         return Err("quote".into());
     };
     assert_eq!(text(quote.attribution().ok_or("attribution")?)?, "Ada");
@@ -164,7 +165,7 @@ fn inline_and_math_bodies_keep_their_content_kinds(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut blocks = parsed.document().blocks();
-    let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
+    let BlockKind::DelimitedListing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
     assert_eq!(listing.style(), Some("source"));
@@ -196,17 +197,17 @@ fn inline_and_math_bodies_keep_their_content_kinds(
             .line(),
         4
     );
-    let BlockKind::Literal(literal) = blocks.next().ok_or("literal")?.kind() else {
+    let BlockKind::DelimitedLiteral(literal) = blocks.next().ok_or("literal")?.kind() else {
         return Err("literal".into());
     };
     assert_eq!(text(literal.content())?, "  literal");
-    let BlockKind::Verse(verse) = blocks.next().ok_or("verse")?.kind() else {
+    let BlockKind::DelimitedVerse(verse) = blocks.next().ok_or("verse")?.kind() else {
         return Err("verse".into());
     };
     assert_eq!(text(verse.content())?, "First\nSecond");
     assert_eq!(text(verse.attribution().ok_or("attribution")?)?, "Ada");
     assert_eq!(text(verse.citetitle().ok_or("citation")?)?, "Notes");
-    let BlockKind::Passthrough(pass) = blocks.next().ok_or("pass")?.kind() else {
+    let BlockKind::DelimitedPassthrough(pass) = blocks.next().ok_or("pass")?.kind() else {
         return Err("pass".into());
     };
     assert_eq!(text(pass.content())?, "<b>raw</b>");
@@ -215,7 +216,7 @@ fn inline_and_math_bodies_keep_their_content_kinds(
             .inlines()
             .all(|n| matches!(n.kind(), InlineKind::Raw(_)))
     );
-    let BlockKind::Stem(stem) = blocks.next().ok_or("stem")?.kind() else {
+    let BlockKind::DelimitedStem(stem) = blocks.next().ok_or("stem")?.kind() else {
         return Err("stem".into());
     };
     assert_eq!(stem.text(), "x^2");
@@ -239,7 +240,7 @@ fn reads_preserve_mode_policy_and_explicit_body_substitutions(
     )?;
     let before = serde_json::to_value(parsed.document())?;
     let mut blocks = parsed.document().blocks();
-    let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
+    let BlockKind::DelimitedListing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
     let title = listing.title().ok_or("title")?;
@@ -262,7 +263,7 @@ fn reads_preserve_mode_policy_and_explicit_body_substitutions(
             .any(|n| matches!(n.kind(), InlineKind::Bold(_)))
     );
     assert_eq!(listing.source_text(), Some("*Formatted*\n"));
-    let BlockKind::Verse(verse) = blocks.next().ok_or("verse")?.kind() else {
+    let BlockKind::DelimitedVerse(verse) = blocks.next().ok_or("verse")?.kind() else {
         return Err("verse".into());
     };
     assert!(verse.attribution().ok_or("empty attribution")?.is_empty());
@@ -307,18 +308,13 @@ fn constructed_blocks_keep_empty_content_and_optional_source() -> Result<(), Err
     fn shared<T: Send + Sync>(value: T) -> T {
         value
     }
-    let mut owner = DelimitedBlock::new(
-        DelimitedBlockType::DelimitedQuote(Vec::new()),
-        "",
-        Location::default(),
-    );
+    let mut owner = Quote::new(Vec::new(), Location::default());
+    owner.set_delimiter("");
     let mut metadata = owner.take_metadata();
     metadata.attribution = Some(ContentAttribute::default());
     metadata.caption = Some(Caption::CustomContent(ContentAttribute::default()));
     owner.set_metadata(metadata)?;
-    let BlockKind::Quote(quote) = BlockRef::from(&owner).kind() else {
-        return Err("quote".into());
-    };
+    let quote = QuoteRef::from(&owner);
     assert!(quote.attribution().ok_or("attribution")?.is_empty());
     assert!(quote.citetitle().is_none());
     assert!(quote.caption_content().ok_or("caption")?.is_empty());
@@ -347,7 +343,8 @@ fn included_delimiters_resolve_to_the_authored_file() -> Result<(), Error> {
             .with_safe_mode(SafeMode::Unsafe)
             .build()?,
     )?;
-    let BlockKind::Listing(listing) = parsed.document().blocks().next().ok_or("listing")?.kind()
+    let BlockKind::DelimitedListing(listing) =
+        parsed.document().blocks().next().ok_or("listing")?.kind()
     else {
         return Err("listing".into());
     };
@@ -360,7 +357,7 @@ fn included_delimiters_resolve_to_the_authored_file() -> Result<(), Error> {
     assert_eq!(text(listing.content())?, "λ code");
     assert!(matches!(
         parsed.document().blocks().next().map(BlockRef::kind),
-        Some(BlockKind::Listing(_))
+        Some(BlockKind::DelimitedListing(_))
     ));
     Ok(())
 }

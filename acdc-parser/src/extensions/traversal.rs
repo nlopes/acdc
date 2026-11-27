@@ -1,7 +1,4 @@
-use crate::{
-    Block, ColumnStyle, DelimitedBlockType, Document, FootnoteDefinition, ListItem, Table,
-    TableCell,
-};
+use crate::{Block, ColumnStyle, Document, FootnoteDefinition, ListItem, TableCell};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Children {
@@ -131,12 +128,10 @@ impl Children {
         let Self::Cell { part, row, column } = self else {
             return None;
         };
-        let Block::DelimitedBlock(block) = block else {
+        let Block::DelimitedTable(crate::Table(block)) = block else {
             return None;
         };
-        let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
-            return None;
-        };
+        let table = &block.body;
         let rows = match part {
             TablePart::Head => table.header.as_slice(),
             TablePart::Body => &table.rows,
@@ -149,7 +144,7 @@ impl Children {
         match (self, block) {
             (Self::Body, Block::Section(block)) => Some(&block.content),
             (Self::Body, Block::Admonition(block)) => Some(&block.blocks),
-            (Self::Body, Block::DelimitedBlock(block)) => compound(&block.inner),
+            (Self::Body, crate::model::compound_block!(block)) => Some(&block.body),
             (Self::Item(index), Block::UnorderedList(block)) => {
                 Some(&block.items.get(index)?.blocks)
             }
@@ -158,10 +153,8 @@ impl Children {
             (Self::Item(index), Block::DescriptionList(block)) => {
                 Some(&block.items.get(index)?.definition.as_ref()?.blocks)
             }
-            (Self::Cell { part, row, column }, Block::DelimitedBlock(block)) => {
-                let DelimitedBlockType::DelimitedTable(table) = &block.inner else {
-                    return None;
-                };
+            (Self::Cell { part, row, column }, Block::DelimitedTable(crate::Table(block))) => {
+                let table = &block.body;
                 let rows = match part {
                     TablePart::Head => table.header.as_slice(),
                     TablePart::Body => &table.rows,
@@ -177,19 +170,7 @@ impl Children {
         match (self, block) {
             (Self::Body, Block::Section(block)) => Some(&mut block.content),
             (Self::Body, Block::Admonition(block)) => Some(&mut block.blocks),
-            (Self::Body, Block::DelimitedBlock(block)) => match &mut block.inner {
-                DelimitedBlockType::DelimitedExample(blocks)
-                | DelimitedBlockType::DelimitedOpen(blocks)
-                | DelimitedBlockType::DelimitedSidebar(blocks)
-                | DelimitedBlockType::DelimitedQuote(blocks) => Some(blocks),
-                DelimitedBlockType::DelimitedComment(_)
-                | DelimitedBlockType::DelimitedListing(_)
-                | DelimitedBlockType::DelimitedLiteral(_)
-                | DelimitedBlockType::DelimitedTable(_)
-                | DelimitedBlockType::DelimitedPass(_)
-                | DelimitedBlockType::DelimitedVerse(_)
-                | DelimitedBlockType::DelimitedStem(_) => None,
-            },
+            (Self::Body, crate::model::compound_block!(block)) => Some(&mut block.body),
             (Self::Item(index), block @ (Block::UnorderedList(_) | Block::OrderedList(_))) => {
                 Some(&mut ordinary_list_items_mut(block)?.get_mut(index)?.blocks)
             }
@@ -199,11 +180,8 @@ impl Children {
             (Self::Item(index), Block::DescriptionList(block)) => {
                 Some(&mut block.items.get_mut(index)?.definition.as_mut()?.blocks)
             }
-            (Self::Cell { part, row, column }, Block::DelimitedBlock(block)) => {
-                let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
-                    return None;
-                };
-                Some(&mut table_cell_mut(table, part, row, column)?.content)
+            (Self::Cell { part, row, column }, Block::DelimitedTable(crate::Table(block))) => {
+                Some(&mut table_cell_mut(&mut block.body, part, row, column)?.content)
             }
             _ => None,
         }
@@ -239,7 +217,7 @@ pub(super) fn highest_footnote(document: &Document<'_>) -> u32 {
 }
 
 pub(crate) fn table_cell_mut<'doc, 'a>(
-    table: &'doc mut Table<'a>,
+    table: &'doc mut crate::model::TableContent<'a>,
     part: TablePart,
     row: usize,
     column: usize,
@@ -267,22 +245,6 @@ pub(crate) fn ordinary_list_items_mut<'doc, 'a>(
         Some(&mut block.items)
     } else {
         None
-    }
-}
-
-fn compound<'doc, 'a>(inner: &'doc DelimitedBlockType<'a>) -> Option<&'doc [Block<'a>]> {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => Some(blocks),
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | DelimitedBlockType::DelimitedStem(_) => None,
     }
 }
 
@@ -315,15 +277,15 @@ pub(super) fn visit_children<'doc, 'a>(
                 }
             }
         }
-        Block::DelimitedBlock(block) => {
-            if let Some(blocks) = compound(&block.inner) {
-                visit(Children::Body, blocks);
-            }
-            if let DelimitedBlockType::DelimitedTable(table) = &block.inner {
-                visit_table(table, visit);
-            }
-        }
+        crate::model::compound_block!(block) => visit(Children::Body, &block.body),
+        Block::DelimitedTable(crate::Table(block)) => visit_table(&block.body, visit),
         Block::TableOfContents(_)
+        | Block::DelimitedComment(_)
+        | Block::DelimitedListing(_)
+        | Block::DelimitedLiteral(_)
+        | Block::DelimitedPassthrough(_)
+        | Block::DelimitedStem(_)
+        | Block::DelimitedVerse(_)
         | Block::DiscreteHeading(_)
         | Block::DocumentAttribute(_)
         | Block::ThematicBreak(_)
@@ -338,7 +300,7 @@ pub(super) fn visit_children<'doc, 'a>(
 }
 
 fn visit_table<'doc, 'a>(
-    table: &'doc Table<'a>,
+    table: &'doc crate::model::TableContent<'a>,
     mut visit: impl FnMut(Children, &'doc [Block<'a>]),
 ) {
     for (part, rows) in [

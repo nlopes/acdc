@@ -138,7 +138,7 @@ impl TreeProcessor for Query {
                     "title_line": title.map(|title| title.source_location().location.start.line),
                     "substitutions": title.map(acdc_parser::extensions::TitleSource::substitutions),
                     "label": title.and_then(|title| title.attributes().get("label")).and_then(acdc_parser::DocumentAttributeValue::as_str),
-                    "caption": view.caption().map(|caption| format!("{caption:?}")),
+                    "caption": view.caption().map(caption_observation),
                 })
             }).collect();
         let text = serde_json::Value::Array(observations).to_string();
@@ -146,6 +146,18 @@ impl TreeProcessor for Query {
             editor.replace_placeholder(&request, BlockBuilder::paragraph(text.clone()))?;
         }
         Ok(())
+    }
+}
+
+/// Record a caption for a fixture.
+///
+/// Custom content is recorded as its serialized inlines rather than Rust debug
+/// output, which would change whenever internal type names do.
+fn caption_observation(caption: acdc_parser::ast::CaptionRef<'_>) -> serde_json::Value {
+    if let acdc_parser::ast::CaptionRef::CustomContent(content) = caption {
+        serde_json::json!({ "CustomContent": content })
+    } else {
+        format!("{caption:?}").into()
     }
 }
 

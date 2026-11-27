@@ -73,13 +73,14 @@ fn same_style_reenters_after_return_and_child_macros_keep_their_source() -> Test
             ["panel 1", "panel 2", "acme"]
         );
         let mut top = parsed.document().blocks();
-        let Some(BlockKind::Open(outer)) = top.next().map(BlockRef::kind) else {
+        let Some(BlockKind::DelimitedOpen(outer)) = top.next().map(BlockRef::kind) else {
             return Err("missing outer open block".into());
         };
         assert_eq!(outer.id().ok_or("outer ID")?.as_str(), "outer");
         assert!(outer.roles().contains("wide"));
         assert!(outer.title().is_some());
-        let Some(BlockKind::Open(inner)) = outer.blocks().next().map(BlockRef::kind) else {
+        let Some(BlockKind::DelimitedOpen(inner)) = outer.blocks().next().map(BlockRef::kind)
+        else {
             return Err("missing inner open block".into());
         };
         assert_eq!(inner.id().ok_or("inner ID")?.as_str(), "inner");
@@ -159,7 +160,7 @@ fn tree_edit_of_compound_child_uses_local_attributes_and_clears_stale_warning() 
             .document()
             .blocks()
             .find_map(|block| {
-                if let BlockKind::Open(open) = block.kind() {
+                if let BlockKind::DelimitedOpen(open) = block.kind() {
                     Some(open)
                 } else {
                     None
@@ -253,7 +254,7 @@ fn only_requested_bodies_execute_children() -> TestResult {
     let parsed = registry.parse("[panel,drop]\n----\nfail::[]\n----\n\n[panel,replace]\n----\nfail::[]\n----\n\n[panel]\n----\n----", &Options::default())?.finish()?;
     let kinds: Vec<_> = parsed.document().blocks().map(BlockRef::kind).collect();
     assert!(
-        matches!(kinds.as_slice(), [BlockKind::Paragraph(_), BlockKind::Open(empty)] if empty.blocks().count() == 0)
+        matches!(kinds.as_slice(), [BlockKind::Paragraph(_), BlockKind::DelimitedOpen(empty)] if empty.blocks().count() == 0)
     );
     assert!(
         matches!(registry.parse("[panel]\n----\nfail::[]\n----", &Options::default()), Err(Error::Extension(origin, msg)) if origin.location.start.line == 3 && msg == "child ran")

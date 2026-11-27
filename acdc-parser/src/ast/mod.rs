@@ -26,7 +26,7 @@
 //! To read a constructed node:
 //!
 //! ```
-//! use acdc_parser::{Location, Paragraph, ast::ParagraphRef};
+//! use acdc_parser::{Location, ast::ParagraphRef, edit::Paragraph};
 //!
 //! let paragraph = Paragraph::new(Vec::new(), Location::default());
 //! let node = ParagraphRef::from(&paragraph);
@@ -75,7 +75,7 @@
 //!
 //! let parsed = parse("----\n*literal code*\n----\n", &Options::default())?;
 //! let block = parsed.document().blocks().next().unwrap();
-//! if let BlockKind::Listing(listing) = block.kind() {
+//! if let BlockKind::DelimitedListing(listing) = block.kind() {
 //!     assert_eq!(listing.source_text(), Some("*literal code*\n"));
 //!     for inline in listing.content().inlines() {
 //!         if let InlineKind::Verbatim(code) = inline.kind() {

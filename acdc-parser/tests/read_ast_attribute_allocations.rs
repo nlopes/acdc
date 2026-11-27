@@ -1,20 +1,21 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Bold, ContentAttribute, FormattingForm, Icon, InlineImage, InlineNode, Location, Plain, Source,
+    FormattingForm, Location,
     ast::{AttributeValueRef, BoldRef, IconRef, InlineImageRef},
+    edit::{Bold, ContentAttribute, Icon, InlineImage, InlineNode, Plain, Source},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
 #[test]
 fn block_content_and_substitution_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>>
 {
-    let mut paragraph = acdc_parser::Paragraph::new(Vec::new(), Location::default());
+    let mut paragraph = acdc_parser::edit::Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
     metadata.attribution = Some(ContentAttribute::default());
     metadata.citetitle = Some(ContentAttribute::default());
     metadata.reftext = Some(ContentAttribute::default());
-    metadata.caption = Some(acdc_parser::Caption::CustomContent(
+    metadata.caption = Some(acdc_parser::edit::Caption::CustomContent(
         ContentAttribute::default(),
     ));
     metadata.substitutions = Some(acdc_parser::SubstitutionSpec::Source(vec![
@@ -62,7 +63,7 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
     image_metadata.roles = vec!["one", "two"].into();
     image.set_metadata(image_metadata);
     image.replace_options(vec!["first", "second"]);
-    image.set_alt(Some(ContentAttribute::new(vec![InlineNode::PlainText(
+    image.set_alt(Some(ContentAttribute::new(vec![InlineNode::Plain(
         Plain::new("Bird", Location::default()),
     )])));
     image.set_tooltip(Some(ContentAttribute::default()));
@@ -94,7 +95,7 @@ fn direct_attribute_reads_do_not_allocate_for_owned_text_or_content()
 fn span_attribute_reads_split_role_text_without_allocating() {
     let bold = {
         let mut prepared_span = Bold::new(
-            vec![InlineNode::PlainText(Plain::new(
+            vec![InlineNode::Plain(Plain::new(
                 "content",
                 Location::default(),
             ))],
@@ -102,7 +103,7 @@ fn span_attribute_reads_split_role_text_without_allocating() {
             Location::default(),
         );
         prepared_span.replace_role(Some("one\ttwo\u{2003}one"));
-        prepared_span.set_id(Some(acdc_parser::ElementId::new(
+        prepared_span.set_id(Some(acdc_parser::edit::ElementId::new(
             "span",
             Location::default(),
         )));
@@ -169,7 +170,7 @@ fn icon_reads_borrow_content_and_controls_without_allocating()
 
 #[test]
 fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
-    let mut link = acdc_parser::Link::new(Source::Name("guide.adoc"), Location::default());
+    let mut link = acdc_parser::edit::Link::new(Source::Name("guide.adoc"), Location::default());
     link.set_attribute(
         String::from("window").into(),
         String::from("reading").into(),
@@ -180,7 +181,7 @@ fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
     link.push_option("first");
     link.set_tooltip(Some(ContentAttribute::default()));
     let mut mail =
-        acdc_parser::Mailto::new(Source::Name("mailto:a@example.org"), Location::default());
+        acdc_parser::edit::Mailto::new(Source::Name("mailto:a@example.org"), Location::default());
     mail.replace_subject(Some("Hello & café"));
     mail.replace_body(Some(""));
     let region = Region::new(ALLOCATOR);
@@ -211,7 +212,7 @@ fn hyperlink_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn cross_reference_reads_do_not_allocate() -> Result<(), Box<dyn std::error::Error>> {
-    let mut owner = acdc_parser::CrossReference::new("target", Location::default());
+    let mut owner = acdc_parser::edit::CrossReference::new("target", Location::default());
     owner.set_xrefstyle(acdc_parser::XrefStyle::Short);
     let mut metadata = owner.take_metadata();
     metadata.roles.push("resource");

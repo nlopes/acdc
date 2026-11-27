@@ -308,7 +308,7 @@ fn literal_attribute_inlines<'a>(
     if source.text.is_empty() {
         Vec::new()
     } else {
-        vec![InlineNode::RawText(crate::Raw {
+        vec![InlineNode::Raw(crate::Raw {
             metadata: None,
             content: source.text,
             location: state.create_block_location(

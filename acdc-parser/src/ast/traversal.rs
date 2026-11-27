@@ -79,15 +79,15 @@ impl<'doc> StructuralRef<'doc> {
                 BlockKind::Admonition(admonition) => {
                     Children::Blocks(admonition.node.blocks.iter())
                 }
-                BlockKind::Example(block) => Children::Blocks(block.body.iter()),
-                BlockKind::Open(block) => Children::Blocks(block.body.iter()),
-                BlockKind::Sidebar(block) => Children::Blocks(block.body.iter()),
-                BlockKind::Quote(block) => Children::Blocks(block.body.iter()),
+                BlockKind::DelimitedExample(block) => Children::Blocks(block.body.iter()),
+                BlockKind::DelimitedOpen(block) => Children::Blocks(block.body.iter()),
+                BlockKind::DelimitedSidebar(block) => Children::Blocks(block.body.iter()),
+                BlockKind::DelimitedQuote(block) => Children::Blocks(block.body.iter()),
                 BlockKind::UnorderedList(list) => Children::Items(list.node.items.iter()),
                 BlockKind::OrderedList(list) => Children::Items(list.node.items.iter()),
                 BlockKind::DescriptionList(list) => Children::Descriptions(list.node.items.iter()),
                 BlockKind::CalloutList(list) => Children::Callouts(list.node.items.iter()),
-                BlockKind::Table(table) => Children::Rows {
+                BlockKind::DelimitedTable(table) => Children::Rows {
                     header: table.table.header.as_ref(),
                     rows: table.table.rows.iter(),
                     footer: table.table.footer.as_ref(),
@@ -103,12 +103,12 @@ impl<'doc> StructuralRef<'doc> {
                 | BlockKind::Video(_)
                 | BlockKind::Comment(_)
                 | BlockKind::DelimitedComment(_)
-                | BlockKind::Listing(_)
-                | BlockKind::Literal(_)
-                | BlockKind::Passthrough(_)
-                | BlockKind::Verse(_)
+                | BlockKind::DelimitedListing(_)
+                | BlockKind::DelimitedLiteral(_)
+                | BlockKind::DelimitedPassthrough(_)
+                | BlockKind::DelimitedVerse(_)
                 | BlockKind::Extension(_)
-                | BlockKind::Stem(_) => Children::Empty,
+                | BlockKind::DelimitedStem(_) => Children::Empty,
             },
             Self::ListItem(item) => Children::Blocks(item.node.blocks.iter()),
             Self::DescriptionListItem(item) => Children::DescriptionFields {

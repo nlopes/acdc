@@ -107,7 +107,11 @@ impl TextBoundaries {
     /// barriers. Consumed characters and generated text retain their source owners.
     #[must_use]
     #[cfg(test)]
-    pub(crate) fn for_inline(self, nodes: &[acdc_parser::InlineNode<'_>], index: usize) -> Self {
+    pub(crate) fn for_inline(
+        self,
+        nodes: &[acdc_parser::edit::InlineNode<'_>],
+        index: usize,
+    ) -> Self {
         self.for_inline_refs(
             nodes.get(index).map(InlineRef::from),
             nodes.iter().take(index).rev().map(InlineRef::from),

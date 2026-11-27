@@ -11,7 +11,10 @@ pub use lists::{
 
 use std::borrow::Cow;
 
-use crate::{Block, DelimitedBlockType, Document, Paragraph, Section};
+use crate::{
+    Block, DelimitedComment, Document, Example, Listing, Literal, Open, Paragraph, Passthrough,
+    Quote, Section, Sidebar, StemBlock, Table, Verse, model::Delimited,
+};
 
 use super::{AttributesRef, ContentRef, ElementIdRef, ImageRef, LocationRef, TableRef, TokensRef};
 
@@ -20,17 +23,13 @@ macro_rules! delimited_ref {
         #[doc = $doc]
         #[derive(Clone, Copy, Debug)]
         pub struct $name<$lifetime> {
-            node: &$lifetime crate::DelimitedBlock<$lifetime>,
-            // A thin reference keeps this handle the same size as TableRef.
+            node: &$lifetime Delimited<$lifetime, $body>,
             pub(in crate::ast) body: &$lifetime $body,
         }
 
         impl<$lifetime> $name<$lifetime> {
-            pub(super) fn new(
-                node: &$lifetime crate::DelimitedBlock<$lifetime>,
-                body: &$lifetime $body,
-            ) -> Self {
-                Self { node, body }
+            pub(super) fn new(node: &$lifetime Delimited<$lifetime, $body>) -> Self {
+                Self { node, body: &node.body }
             }
 
             /// The source span of this node.
@@ -134,7 +133,7 @@ delimited_ref!(
 );
 delimited_ref!(
     StemBlockRef<'doc>,
-    crate::StemContent<'doc>,
+    crate::model::StemContent<'doc>,
     "A mathematical block."
 );
 
@@ -166,16 +165,16 @@ pub enum BlockKind<'doc> {
     Video(VideoRef<'doc>),
     Comment(CommentRef<'doc>),
     DelimitedComment(DelimitedCommentRef<'doc>),
-    Example(ExampleRef<'doc>),
-    Listing(ListingRef<'doc>),
-    Literal(LiteralRef<'doc>),
-    Open(OpenRef<'doc>),
-    Sidebar(SidebarRef<'doc>),
-    Table(TableRef<'doc>),
-    Passthrough(PassthroughRef<'doc>),
-    Quote(QuoteRef<'doc>),
-    Verse(VerseRef<'doc>),
-    Stem(StemBlockRef<'doc>),
+    DelimitedExample(ExampleRef<'doc>),
+    DelimitedListing(ListingRef<'doc>),
+    DelimitedLiteral(LiteralRef<'doc>),
+    DelimitedOpen(OpenRef<'doc>),
+    DelimitedSidebar(SidebarRef<'doc>),
+    DelimitedTable(TableRef<'doc>),
+    DelimitedPassthrough(PassthroughRef<'doc>),
+    DelimitedQuote(QuoteRef<'doc>),
+    DelimitedVerse(VerseRef<'doc>),
+    DelimitedStem(StemBlockRef<'doc>),
 }
 
 impl<'doc> BlockRef<'doc> {
@@ -207,16 +206,16 @@ impl<'doc> BlockRef<'doc> {
             BlockKind::Video(node) => node.location(),
             BlockKind::Comment(node) => node.location(),
             BlockKind::DelimitedComment(node) => node.location(),
-            BlockKind::Example(node) => node.location(),
-            BlockKind::Listing(node) => node.location(),
-            BlockKind::Literal(node) => node.location(),
-            BlockKind::Open(node) => node.location(),
-            BlockKind::Sidebar(node) => node.location(),
-            BlockKind::Table(node) => node.location(),
-            BlockKind::Passthrough(node) => node.location(),
-            BlockKind::Quote(node) => node.location(),
-            BlockKind::Verse(node) => node.location(),
-            BlockKind::Stem(node) => node.location(),
+            BlockKind::DelimitedExample(node) => node.location(),
+            BlockKind::DelimitedListing(node) => node.location(),
+            BlockKind::DelimitedLiteral(node) => node.location(),
+            BlockKind::DelimitedOpen(node) => node.location(),
+            BlockKind::DelimitedSidebar(node) => node.location(),
+            BlockKind::DelimitedTable(node) => node.location(),
+            BlockKind::DelimitedPassthrough(node) => node.location(),
+            BlockKind::DelimitedQuote(node) => node.location(),
+            BlockKind::DelimitedVerse(node) => node.location(),
+            BlockKind::DelimitedStem(node) => node.location(),
         }
     }
 }
@@ -454,49 +453,48 @@ impl<'doc> From<&'doc Block<'doc>> for BlockRef<'doc> {
             Block::Audio(node) => BlockKind::Audio(AudioRef::new(node)),
             Block::Video(node) => BlockKind::Video(VideoRef::new(node)),
             Block::Comment(node) => BlockKind::Comment(CommentRef::new(node)),
-            Block::DelimitedBlock(node) => return Self::from(node),
+            Block::DelimitedComment(node) => {
+                BlockKind::DelimitedComment(DelimitedCommentRef::new(&node.0))
+            }
+            Block::DelimitedExample(node) => BlockKind::DelimitedExample(ExampleRef::new(&node.0)),
+            Block::DelimitedListing(node) => BlockKind::DelimitedListing(ListingRef::new(&node.0)),
+            Block::DelimitedLiteral(node) => BlockKind::DelimitedLiteral(LiteralRef::new(&node.0)),
+            Block::DelimitedOpen(node) => BlockKind::DelimitedOpen(OpenRef::new(&node.0)),
+            Block::DelimitedSidebar(node) => BlockKind::DelimitedSidebar(SidebarRef::new(&node.0)),
+            Block::DelimitedTable(node) => BlockKind::DelimitedTable(TableRef::new(&node.0)),
+            Block::DelimitedPassthrough(node) => {
+                BlockKind::DelimitedPassthrough(PassthroughRef::new(&node.0))
+            }
+            Block::DelimitedQuote(node) => BlockKind::DelimitedQuote(QuoteRef::new(&node.0)),
+            Block::DelimitedVerse(node) => BlockKind::DelimitedVerse(VerseRef::new(&node.0)),
+            Block::DelimitedStem(node) => BlockKind::DelimitedStem(StemBlockRef::new(&node.0)),
         };
         Self { kind }
     }
 }
 
-impl<'doc> From<&'doc crate::DelimitedBlock<'doc>> for BlockRef<'doc> {
-    fn from(block: &'doc crate::DelimitedBlock<'doc>) -> Self {
-        let kind = match &block.inner {
-            DelimitedBlockType::DelimitedComment(body) => {
-                BlockKind::DelimitedComment(DelimitedCommentRef::new(block, body))
+macro_rules! delimited_ref_from {
+    ($($kind:ident => $read:ident),+ $(,)?) => { $(
+        impl<'doc> From<&'doc $kind<'doc>> for $read<'doc> {
+            fn from(block: &'doc $kind<'doc>) -> Self {
+                Self::new(&block.0)
             }
-            DelimitedBlockType::DelimitedExample(body) => {
-                BlockKind::Example(ExampleRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedListing(body) => {
-                BlockKind::Listing(ListingRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedLiteral(body) => {
-                BlockKind::Literal(LiteralRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedOpen(body) => BlockKind::Open(OpenRef::new(block, body)),
-            DelimitedBlockType::DelimitedSidebar(body) => {
-                BlockKind::Sidebar(SidebarRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedTable(table) => {
-                BlockKind::Table(TableRef::new(block, table))
-            }
-            DelimitedBlockType::DelimitedPass(body) => {
-                BlockKind::Passthrough(PassthroughRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedQuote(body) => {
-                BlockKind::Quote(QuoteRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedVerse(body) => {
-                BlockKind::Verse(VerseRef::new(block, body))
-            }
-            DelimitedBlockType::DelimitedStem(body) => {
-                BlockKind::Stem(StemBlockRef::new(block, body))
-            }
-        };
-        Self { kind }
-    }
+        }
+    )+ };
+}
+
+delimited_ref_from! {
+    DelimitedComment => DelimitedCommentRef,
+    Example => ExampleRef,
+    Listing => ListingRef,
+    Literal => LiteralRef,
+    Open => OpenRef,
+    Passthrough => PassthroughRef,
+    Quote => QuoteRef,
+    Sidebar => SidebarRef,
+    StemBlock => StemBlockRef,
+    Table => TableRef,
+    Verse => VerseRef,
 }
 
 /// Copy the complete document for independent edits, including its registered
@@ -504,7 +502,7 @@ impl<'doc> From<&'doc crate::DelimitedBlock<'doc>> for BlockRef<'doc> {
 /// Copies can still borrow source text and cannot outlive the parse result.
 ///
 /// ```compile_fail,E0597
-/// use acdc_parser::{Document, Options, parse};
+/// use acdc_parser::{Options, parse, edit::Document};
 ///
 /// let copy = {
 ///     let parsed = parse("Text.", &Options::default()).unwrap();
@@ -568,17 +566,21 @@ impl<'doc> From<BlockRef<'doc>> for Block<'doc> {
             BlockKind::Audio(node) => Self::Audio(node.node.clone()),
             BlockKind::Video(node) => Self::Video(node.node.clone()),
             BlockKind::Comment(node) => Self::Comment(node.node.clone()),
-            BlockKind::DelimitedComment(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Example(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Listing(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Literal(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Open(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Sidebar(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Passthrough(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Quote(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Verse(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Stem(node) => Self::DelimitedBlock(node.node.clone()),
-            BlockKind::Table(node) => Self::DelimitedBlock(node.block.clone()),
+            BlockKind::DelimitedComment(node) => {
+                Self::DelimitedComment(DelimitedComment(node.node.clone()))
+            }
+            BlockKind::DelimitedExample(node) => Self::DelimitedExample(Example(node.node.clone())),
+            BlockKind::DelimitedListing(node) => Self::DelimitedListing(Listing(node.node.clone())),
+            BlockKind::DelimitedLiteral(node) => Self::DelimitedLiteral(Literal(node.node.clone())),
+            BlockKind::DelimitedOpen(node) => Self::DelimitedOpen(Open(node.node.clone())),
+            BlockKind::DelimitedSidebar(node) => Self::DelimitedSidebar(Sidebar(node.node.clone())),
+            BlockKind::DelimitedPassthrough(node) => {
+                Self::DelimitedPassthrough(Passthrough(node.node.clone()))
+            }
+            BlockKind::DelimitedQuote(node) => Self::DelimitedQuote(Quote(node.node.clone())),
+            BlockKind::DelimitedVerse(node) => Self::DelimitedVerse(Verse(node.node.clone())),
+            BlockKind::DelimitedStem(node) => Self::DelimitedStem(StemBlock(node.node.clone())),
+            BlockKind::DelimitedTable(node) => Self::DelimitedTable(Table(node.block.clone())),
         }
     }
 }

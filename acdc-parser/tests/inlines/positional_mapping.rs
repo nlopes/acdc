@@ -92,7 +92,8 @@ fn includes_and_table_cells_keep_selected_content_and_locations() -> Result<(), 
             }
         );
 
-        let Some(BlockKind::Table(table)) = parsed.document().blocks().last().map(BlockRef::kind)
+        let Some(BlockKind::DelimitedTable(table)) =
+            parsed.document().blocks().last().map(BlockRef::kind)
         else {
             return Err("missing table".into());
         };

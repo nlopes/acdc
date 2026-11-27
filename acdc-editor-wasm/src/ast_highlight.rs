@@ -116,17 +116,17 @@ fn collect_block_spans(input: &str, block: BlockRef<'_>, spans: &mut Vec<Span>) 
             collect_block_title_spans(input, block.title(), spans);
             collect_children(input, block.into(), spans);
         }
-        BlockKind::Example(_)
-        | BlockKind::Open(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Quote(_)
-        | BlockKind::Listing(_)
-        | BlockKind::Literal(_)
-        | BlockKind::Passthrough(_)
-        | BlockKind::Verse(_)
+        BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedQuote(_)
+        | BlockKind::DelimitedListing(_)
+        | BlockKind::DelimitedLiteral(_)
+        | BlockKind::DelimitedPassthrough(_)
+        | BlockKind::DelimitedVerse(_)
         | BlockKind::DelimitedComment(_)
-        | BlockKind::Table(_)
-        | BlockKind::Stem(_) => {
+        | BlockKind::DelimitedTable(_)
+        | BlockKind::DelimitedStem(_) => {
             collect_delimited_block_spans(input, block, spans);
             collect_block_title_spans(input, block.title(), spans);
         }
@@ -371,20 +371,20 @@ fn collect_delimited_block_spans(input: &str, block: BlockRef<'_>, spans: &mut V
         BlockKind::DelimitedComment(node) => {
             push_verbatim_spans(input, node.content(), "adoc-comment", spans);
         }
-        BlockKind::Listing(node) => collect_listing_content(input, node.content(), spans),
-        BlockKind::Literal(node) => {
+        BlockKind::DelimitedListing(node) => collect_listing_content(input, node.content(), spans),
+        BlockKind::DelimitedLiteral(node) => {
             push_verbatim_spans(input, node.content(), "adoc-literal-content", spans);
         }
-        BlockKind::Passthrough(node) => {
+        BlockKind::DelimitedPassthrough(node) => {
             push_verbatim_spans(input, node.content(), "adoc-passthrough-content", spans);
         }
-        BlockKind::Verse(node) => collect_inline_spans(input, node.content(), spans),
-        BlockKind::Example(_)
-        | BlockKind::Open(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Quote(_) => collect_children(input, block.into(), spans),
-        BlockKind::Table(_) => collect_table_spans(input, block, block_range, spans),
-        BlockKind::Stem(_) => {
+        BlockKind::DelimitedVerse(node) => collect_inline_spans(input, node.content(), spans),
+        BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedQuote(_) => collect_children(input, block.into(), spans),
+        BlockKind::DelimitedTable(_) => collect_table_spans(input, block, block_range, spans),
+        BlockKind::DelimitedStem(_) => {
             let Some((block_start, block_end)) = block_range else {
                 return;
             };
@@ -425,42 +425,42 @@ fn collect_delimited_block_spans(input: &str, block: BlockRef<'_>, spans: &mut V
 
 fn collect_delimiter_lines(input: &str, kind: BlockKind<'_>, spans: &mut Vec<Span>) {
     let (delimiter, open, close) = match kind {
-        BlockKind::Example(node) => (
+        BlockKind::DelimitedExample(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Open(node) => (
+        BlockKind::DelimitedOpen(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Sidebar(node) => (
+        BlockKind::DelimitedSidebar(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Quote(node) => (
+        BlockKind::DelimitedQuote(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Listing(node) => (
+        BlockKind::DelimitedListing(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Literal(node) => (
+        BlockKind::DelimitedLiteral(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Passthrough(node) => (
+        BlockKind::DelimitedPassthrough(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Verse(node) => (
+        BlockKind::DelimitedVerse(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
@@ -470,12 +470,12 @@ fn collect_delimiter_lines(input: &str, kind: BlockKind<'_>, spans: &mut Vec<Spa
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Table(node) => (
+        BlockKind::DelimitedTable(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
         ),
-        BlockKind::Stem(node) => (
+        BlockKind::DelimitedStem(node) => (
             node.delimiter(),
             node.open_delimiter_location(),
             node.close_delimiter_location(),
@@ -501,7 +501,7 @@ fn collect_delimiter_lines(input: &str, kind: BlockKind<'_>, spans: &mut Vec<Spa
     if delimiter.is_empty() {
         return;
     }
-    let class = if matches!(kind, BlockKind::Table(_)) {
+    let class = if matches!(kind, BlockKind::DelimitedTable(_)) {
         "adoc-table-delimiter"
     } else {
         "adoc-delimiter"

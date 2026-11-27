@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use crate::{
-    CharacterReference, CharacterReferenceKind, IndexTermKind, InlineMacro, InlineNode, Location,
-    Plain, Raw, Substitution,
+    CharacterReference, CharacterReferenceKind, IndexTermKind, InlineNode, Location, Plain, Raw,
+    Substitution,
     grammar::{
         ParserState, character_references::body, inlines::recognition::byte_came_from_attribute,
         state::InlineRules,
@@ -27,7 +27,7 @@ pub(super) fn resolve<'a>(
     }
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
-        if let InlineNode::PlainText(text) = node {
+        if let InlineNode::Plain(text) = node {
             if ordinary && text.content.contains('&') {
                 resolve_text(
                     &mut result,
@@ -38,9 +38,9 @@ pub(super) fn resolve<'a>(
                     state,
                 );
             } else {
-                result.push(InlineNode::PlainText(text));
+                result.push(InlineNode::Plain(text));
             }
-        } else if let InlineNode::RawText(raw) = node {
+        } else if let InlineNode::Raw(raw) = node {
             if raw.content.contains('&') && raw.subs.contains(&Substitution::Replacements) {
                 resolve_text(
                     &mut result,
@@ -51,10 +51,10 @@ pub(super) fn resolve<'a>(
                     state,
                 );
             } else {
-                result.push(InlineNode::RawText(raw));
+                result.push(InlineNode::Raw(raw));
             }
         } else {
-            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = &mut node
+            if let InlineNode::IndexTerm(term) = &mut node
                 && matches!(&term.kind, IndexTermKind::Flow(content) if content.iter().any(|node| needed(node, ordinary)))
             {
                 let original = term.catalog.is_none().then(|| Box::new((**term).clone()));
@@ -74,13 +74,13 @@ pub(super) fn resolve<'a>(
 }
 
 fn needed(node: &InlineNode<'_>, ordinary: bool) -> bool {
-    if let InlineNode::PlainText(text) = node {
+    if let InlineNode::Plain(text) = node {
         return ordinary && text.content.contains('&');
     }
-    if let InlineNode::RawText(raw) = node {
+    if let InlineNode::Raw(raw) = node {
         return raw.subs.contains(&Substitution::Replacements) && raw.content.contains('&');
     }
-    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+    if let InlineNode::IndexTerm(term) = node {
         return matches!(&term.kind, IndexTermKind::Flow(content) if content.iter().any(|node| needed(node, ordinary)));
     }
     false
@@ -127,14 +127,14 @@ fn resolve_text<'a>(
     };
     let fragment = |range: Range<usize>| {
         if let Some(subs) = raw_subs {
-            InlineNode::RawText(Raw {
+            InlineNode::Raw(Raw {
                 metadata: None,
                 content: &text[range.clone()],
                 location: locate(range),
                 subs: subs.to_vec(),
             })
         } else {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content: &text[range.clone()],
                 location: locate(range),
                 escaped,
@@ -162,7 +162,7 @@ fn resolve_text<'a>(
                     result.push(fragment(reference.range.clone()));
                 }
             }
-            Value::Literal(content, escaping) => result.push(InlineNode::RawText(Raw {
+            Value::Literal(content, escaping) => result.push(InlineNode::Raw(Raw {
                 metadata: None,
                 content,
                 location,

@@ -117,7 +117,7 @@ fn selected_media_content_registers_notes_once_at_authored_locations() -> Result
 #[test]
 fn media_content_keeps_documents_send_and_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
-    assert_send_sync::<acdc_parser::Document<'static>>();
+    assert_send_sync::<acdc_parser::edit::Document<'static>>();
 }
 
 #[test]

@@ -1,9 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, ContentAttribute, DelimitedBlock, DelimitedBlockType, Document,
-    InlineMacro, InlineNode, Location, Options, Stem, StemContent, StemNotation, asg, parse,
-    parse_file, parse_inline,
+    CompatibilityMode, Location, Options, StemNotation, asg,
+    edit::{Block, ContentAttribute, Document, InlineNode, Stem, StemBlock},
+    parse, parse_file, parse_inline,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -65,14 +65,16 @@ fn inline_formulas_keep_placement_notation_and_literal_content() -> Result<(), E
 fn prepared_empty_and_literal_formulas_share_the_block_content_policy() -> Result<(), Error> {
     for notation in [StemNotation::Asciimath, StemNotation::Latexmath] {
         for formula in ["", "$x$ *bold* {attribute} &amp; <x> α"] {
-            let content = ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Stem(
-                Stem::new(formula, notation.clone(), Location::default()),
+            let content = ContentAttribute::new(vec![InlineNode::Stem(Stem::new(
+                formula,
+                notation.clone(),
+                Location::default(),
             ))]);
             let value = asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc)?;
             let mut document = Document::default();
-            document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
-                DelimitedBlockType::DelimitedStem(StemContent::new(formula, notation.clone())),
-                "++++",
+            document.push_block(Block::DelimitedStem(StemBlock::new(
+                formula,
+                notation.clone(),
                 Location::default(),
             )));
             let block = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;

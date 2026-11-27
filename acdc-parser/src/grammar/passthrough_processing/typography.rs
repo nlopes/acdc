@@ -77,16 +77,16 @@ pub(super) fn finish_replacement_stage<'a>(
         false,
     );
     for node in &mut resolved {
-        if let InlineNode::RawText(raw) = node {
+        if let InlineNode::Raw(raw) = node {
             raw.subs
                 .retain(|substitution| *substitution != Substitution::Replacements);
         }
     }
     leading
         .into_iter()
-        .map(InlineNode::RawText)
+        .map(InlineNode::Raw)
         .chain(resolved)
-        .chain(trailing.into_iter().map(InlineNode::RawText))
+        .chain(trailing.into_iter().map(InlineNode::Raw))
         .collect()
 }
 
@@ -103,7 +103,7 @@ pub(super) fn resolve_fragments<'a>(
                 .bytes()
                 .any(|byte| matches!(byte, b'(' | b'.' | b'\'' | b'-' | b'=' | b'<'))
     }) {
-        return fragments.into_iter().map(InlineNode::RawText).collect();
+        return fragments.into_iter().map(InlineNode::Raw).collect();
     }
     let text: String = fragments.iter().map(|raw| raw.content).collect();
     let mut offset = 0;
@@ -151,7 +151,7 @@ pub(super) fn resolve_fragments<'a>(
         })
     });
     if edits.is_empty() {
-        return fragments.into_iter().map(InlineNode::RawText).collect();
+        return fragments.into_iter().map(InlineNode::Raw).collect();
     }
     let text = state.intern_str(&text);
     let mut result = Vec::new();
@@ -211,7 +211,7 @@ fn append_encoded_literal<'a>(
     {
         append_fragments(result, text, fragments, range, Some(original.start), state);
     } else {
-        result.push(InlineNode::RawText(Raw {
+        result.push(InlineNode::Raw(Raw {
             metadata: None,
             content: decoded,
             location: locate(text, fragments, original, state),
@@ -250,7 +250,7 @@ fn append_fragments<'a>(
             left
         };
         first = false;
-        result.push(InlineNode::RawText(Raw {
+        result.push(InlineNode::Raw(Raw {
             metadata: None,
             content: &text[left..right],
             location: locate(text, fragments, start..right, state),

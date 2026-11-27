@@ -18,6 +18,7 @@ mod attribution;
 mod boundaries;
 pub(crate) mod caption;
 pub(crate) mod content_attribute;
+mod delimited;
 mod inlines;
 mod lists;
 mod location;
@@ -43,6 +44,11 @@ pub use attributes::{
 pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};
 pub use content_attribute::ContentAttribute;
+pub(crate) use delimited::{Delimited, compound_block, inline_body_block, verbatim_block};
+pub use delimited::{
+    DelimitedComment, Example, Listing, Literal, Open, Passthrough, Quote, Sidebar, StemBlock,
+    Table, Verse,
+};
 pub use inlines::*;
 pub(crate) use lists::ListLevel;
 pub use lists::{
@@ -57,9 +63,10 @@ pub(crate) use metadata::{
 pub use metadata::{BlockMetadata, ElementId, InlineMetadata, ReservedAttribute, Role};
 pub use section::*;
 pub use substitution::*;
+pub(crate) use tables::TableContent;
 pub use tables::{
-    ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, Table, TableCell, TableFrame,
-    TableGrid, TablePresentation, TableRow, TableStripes, VerticalAlignment,
+    ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, TableCell, TableFrame, TableGrid,
+    TablePresentation, TableRow, TableStripes, VerticalAlignment,
 };
 pub use title::{Subtitle, Title};
 pub use token_assignment::TokenAssignment;
@@ -217,7 +224,7 @@ impl<'a> Document<'a> {
             .filter_map(|(target, reference)| Some((*target, reference.section.as_ref()?.name)))
             .collect::<HashMap<_, _>>();
         crate::grammar::walk_document_inline_nodes_mut(self, &mut |inline| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+            if let InlineNode::CrossReference(xref) = inline {
                 xref.refresh_signifier(section_names.get(xref.target).copied());
             }
         });
@@ -501,7 +508,7 @@ impl<'a> Author<'a> {
 /// The syntactic form a [`Comment`] originated from.
 ///
 /// A `[comment]`-styled `--` block is represented as a
-/// [`DelimitedBlockType::DelimitedComment`] (distinguished from a `////` block
+/// [`DelimitedComment`] (distinguished from a `////` block
 /// by its retained `comment` style), so it is not covered here.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -531,7 +538,8 @@ pub struct Comment<'a> {
 /// A `Block` represents a block in a document.
 ///
 /// A block is a structural element in a document that can contain other blocks.
-// The variant sizes differ widely by design — `DelimitedBlock`/`Image` are large
+/// Variants match [`crate::ast::BlockKind`] one to one.
+// The variant sizes differ widely by design: delimited blocks and `Image` are large
 // value types while `PageBreak`/`Comment` are tiny. Boxing the large variants is a
 // separate refactor; the disparity is structural, not a per-node-allocation concern.
 #[allow(clippy::large_enum_variant)]
@@ -539,29 +547,39 @@ pub struct Comment<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
 pub enum Block<'a> {
-    Extension(Box<crate::extensions::ExtensionBlock<'a>>),
-    TableOfContents(TableOfContents<'a>),
     // TODO(nlopes): we shouldn't have an admonition type here, instead it should be
     // picked up from the style attribute from the block metadata.
     //
     // The main one that would need changing is the Paragraph and the Delimited Example
     // blocks, where we currently use this but don't need to.
     Admonition(Admonition<'a>),
+    Audio(Audio<'a>),
+    CalloutList(CalloutList<'a>),
+    Comment(Comment<'a>),
+    DelimitedComment(DelimitedComment<'a>),
+    DelimitedExample(Example<'a>),
+    DelimitedListing(Listing<'a>),
+    DelimitedLiteral(Literal<'a>),
+    DelimitedOpen(Open<'a>),
+    DelimitedPassthrough(Passthrough<'a>),
+    DelimitedQuote(Quote<'a>),
+    DelimitedSidebar(Sidebar<'a>),
+    DelimitedStem(StemBlock<'a>),
+    DelimitedTable(Table<'a>),
+    DelimitedVerse(Verse<'a>),
+    DescriptionList(DescriptionList<'a>),
     DiscreteHeading(DiscreteHeading<'a>),
     DocumentAttribute(DocumentAttribute<'a>),
-    ThematicBreak(ThematicBreak<'a>),
-    PageBreak(PageBreak<'a>),
-    UnorderedList(UnorderedList<'a>),
-    OrderedList(OrderedList<'a>),
-    CalloutList(CalloutList<'a>),
-    DescriptionList(DescriptionList<'a>),
-    Section(Section<'a>),
-    DelimitedBlock(DelimitedBlock<'a>),
-    Paragraph(Paragraph<'a>),
+    Extension(Box<crate::extensions::ExtensionBlock<'a>>),
     Image(Image<'a>),
-    Audio(Audio<'a>),
+    OrderedList(OrderedList<'a>),
+    PageBreak(PageBreak<'a>),
+    Paragraph(Paragraph<'a>),
+    Section(Section<'a>),
+    TableOfContents(TableOfContents<'a>),
+    ThematicBreak(ThematicBreak<'a>),
+    UnorderedList(UnorderedList<'a>),
     Video(Video<'a>),
-    Comment(Comment<'a>),
 }
 
 impl<'a> Block<'a> {
@@ -576,7 +594,10 @@ impl<'a> Block<'a> {
             Block::OrderedList(l) => &l.location,
             Block::DescriptionList(l) => &l.location,
             Block::CalloutList(l) => &l.location,
-            Block::DelimitedBlock(d) => &d.location,
+            crate::model::compound_block!(d) => &d.location,
+            crate::model::inline_body_block!(d) => &d.location,
+            Block::DelimitedStem(crate::model::StemBlock(d)) => &d.location,
+            Block::DelimitedTable(crate::model::Table(d)) => &d.location,
             Block::Admonition(a) => &a.location,
             Block::TableOfContents(t) => &t.location,
             Block::DiscreteHeading(h) => &h.location,
@@ -595,7 +616,7 @@ impl<'a> Block<'a> {
     /// Use [`crate::ast::BlockRef::attributes`] to read attributes without a copy.
     ///
     /// ```compile_fail,E0624
-    /// use acdc_parser::{Block, Location, Paragraph};
+    /// use acdc_parser::{Location, edit::{Block, Paragraph}};
     /// let block = Block::Paragraph(Paragraph::new(Vec::new(), Location::default()));
     /// block.metadata();
     /// ```
@@ -610,7 +631,10 @@ impl<'a> Block<'a> {
         match self {
             Block::Extension(e) => Some(&e.metadata),
             Block::Section(block) => Some(&block.metadata),
-            Block::DelimitedBlock(block) => Some(&block.metadata),
+            crate::model::compound_block!(block) => Some(&block.metadata),
+            crate::model::inline_body_block!(block) => Some(&block.metadata),
+            Block::DelimitedStem(crate::model::StemBlock(block)) => Some(&block.metadata),
+            Block::DelimitedTable(crate::model::Table(block)) => Some(&block.metadata),
             Block::Admonition(block) => Some(&block.metadata),
             Block::DiscreteHeading(block) => Some(&block.metadata),
             Block::PageBreak(block) => Some(&block.metadata),
@@ -632,7 +656,13 @@ impl<'a> Block<'a> {
         match self {
             Block::Extension(e) => Some(&mut e.metadata),
             Block::Section(block) => Some(&mut block.metadata),
-            Block::DelimitedBlock(block) => Some(&mut block.metadata),
+            crate::model::compound_block!(block) => Some(&mut block.metadata),
+            crate::model::verbatim_block!(block) => Some(&mut block.metadata),
+            Block::DelimitedComment(crate::model::DelimitedComment(block)) => {
+                Some(&mut block.metadata)
+            }
+            Block::DelimitedStem(crate::model::StemBlock(block)) => Some(&mut block.metadata),
+            Block::DelimitedTable(crate::model::Table(block)) => Some(&mut block.metadata),
             Block::Admonition(block) => Some(&mut block.metadata),
             Block::DiscreteHeading(block) => Some(&mut block.metadata),
             Block::PageBreak(block) => Some(&mut block.metadata),
@@ -654,7 +684,10 @@ impl<'a> Block<'a> {
         match self {
             Block::Extension(e) => e.metadata.id_anchor(),
             Block::Section(b) => b.metadata.id_anchor(),
-            Block::DelimitedBlock(b) => b.metadata.id_anchor(),
+            crate::model::compound_block!(b) => b.metadata.id_anchor(),
+            crate::model::inline_body_block!(b) => b.metadata.id_anchor(),
+            Block::DelimitedStem(crate::model::StemBlock(b)) => b.metadata.id_anchor(),
+            Block::DelimitedTable(crate::model::Table(b)) => b.metadata.id_anchor(),
             Block::Admonition(b) => b.metadata.id_anchor(),
             Block::DiscreteHeading(b) => b.metadata.id_anchor(),
             Block::PageBreak(b) => b.metadata.id_anchor(),
@@ -678,7 +711,10 @@ impl<'a> Block<'a> {
         let title = match self {
             Block::Extension(e) => &e.title,
             Block::Section(b) => &b.title,
-            Block::DelimitedBlock(b) => &b.title,
+            crate::model::compound_block!(b) => &b.title,
+            crate::model::inline_body_block!(b) => &b.title,
+            Block::DelimitedStem(crate::model::StemBlock(b)) => &b.title,
+            Block::DelimitedTable(crate::model::Table(b)) => &b.title,
             Block::Admonition(b) => &b.title,
             Block::DiscreteHeading(b) => &b.title,
             Block::PageBreak(b) => &b.title,
@@ -711,7 +747,10 @@ impl Block<'_> {
             Block::OrderedList(l) => &mut l.location,
             Block::DescriptionList(l) => &mut l.location,
             Block::CalloutList(l) => &mut l.location,
-            Block::DelimitedBlock(d) => &mut d.location,
+            crate::model::compound_block!(d) => &mut d.location,
+            crate::model::inline_body_block!(d) => &mut d.location,
+            Block::DelimitedStem(crate::model::StemBlock(d)) => &mut d.location,
+            Block::DelimitedTable(crate::model::Table(d)) => &mut d.location,
             Block::Admonition(a) => &mut a.location,
             Block::TableOfContents(t) => &mut t.location,
             Block::DiscreteHeading(h) => &mut h.location,
@@ -1032,166 +1071,6 @@ impl<'a> Paragraph<'a> {
     }
 }
 
-/// A `DelimitedBlock` represents a delimited block in a document.
-#[derive(Clone, Debug)]
-#[non_exhaustive]
-pub struct DelimitedBlock<'a> {
-    pub(crate) metadata: BlockMetadata<'a>,
-    pub(crate) inner: DelimitedBlockType<'a>,
-    pub(crate) delimiter: &'a str,
-    pub(crate) title: Title<'a>,
-    pub(crate) location: Location,
-    pub(crate) open_delimiter_location: Option<Location>,
-    pub(crate) close_delimiter_location: Option<Location>,
-    pub(crate) source_text: Option<&'a str>,
-}
-
-impl PartialEq for DelimitedBlock<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.metadata == other.metadata
-            && self.inner == other.inner
-            && self.delimiter == other.delimiter
-            && self.title == other.title
-            && self.location == other.location
-            && self.open_delimiter_location == other.open_delimiter_location
-            && self.close_delimiter_location == other.close_delimiter_location
-    }
-}
-
-impl<'a> DelimitedBlock<'a> {
-    /// Create a new delimited block.
-    #[must_use]
-    pub fn new(inner: DelimitedBlockType<'a>, delimiter: &'a str, location: Location) -> Self {
-        Self {
-            metadata: BlockMetadata::default(),
-            inner,
-            delimiter,
-            title: Title::default(),
-            location,
-            open_delimiter_location: None,
-            close_delimiter_location: None,
-            source_text: None,
-        }
-    }
-
-    /// The body after document preprocessing, before inline substitutions.
-    ///
-    /// Delimiters and metadata are excluded; a newline before the closing delimiter
-    /// is retained. Absent for programmatically constructed or synthetic blocks.
-    /// This text is not part of ASG serialization or semantic equality.
-    #[must_use]
-    pub fn source_text(&self) -> Option<&'a str> {
-        self.source_text
-    }
-
-    /// Replace metadata without shadowing dedicated fields.
-    ///
-    /// Table decoration is refreshed using the defaults at the table's source position.
-    ///
-    /// # Errors
-    /// Rejects scalar attributes for dedicated metadata or title fields.
-    pub fn with_metadata(
-        mut self,
-        metadata: BlockMetadata<'a>,
-    ) -> Result<Self, crate::ReservedAttribute> {
-        self.set_metadata(metadata)?;
-        Ok(self)
-    }
-
-    /// Replace metadata, retaining a table's source-position decoration defaults.
-    ///
-    /// Column formats and cell content keep their parsed values. Caller-built tables
-    /// without stored defaults remain unresolved for the converter to resolve.
-    ///
-    /// # Errors
-    /// Rejects scalar attributes for dedicated metadata or title fields,
-    /// leaving the block unchanged.
-    pub fn set_metadata(
-        &mut self,
-        metadata: BlockMetadata<'a>,
-    ) -> Result<(), crate::ReservedAttribute> {
-        metadata.validate_attributes(&["title"])?;
-        if let DelimitedBlockType::DelimitedTable(table) = &mut self.inner {
-            table.refresh_presentation(&metadata);
-        }
-        self.metadata = metadata;
-        Ok(())
-    }
-
-    /// Set the title.
-    #[must_use]
-    pub fn with_title(mut self, title: Title<'a>) -> Self {
-        self.set_title(title);
-        self
-    }
-
-    /// Copy metadata to prepare a checked replacement without copying the body.
-    #[must_use]
-    pub fn clone_metadata(&self) -> BlockMetadata<'a> {
-        self.metadata.clone()
-    }
-
-    /// Remove metadata and refresh table decoration from its source-position defaults.
-    #[must_use]
-    pub fn take_metadata(&mut self) -> BlockMetadata<'a> {
-        let metadata = std::mem::take(&mut self.metadata);
-        if let DelimitedBlockType::DelimitedTable(table) = &mut self.inner {
-            table.refresh_presentation(&self.metadata);
-        }
-        metadata
-    }
-
-    /// Replace the title, including an explicitly empty value.
-    pub fn set_title(&mut self, title: Title<'a>) {
-        self.title = title;
-    }
-
-    /// Remove the title, leaving it absent.
-    #[must_use]
-    pub fn take_title(&mut self) -> Title<'a> {
-        std::mem::take(&mut self.title)
-    }
-
-    /// Copy the body to prepare a replacement without copying metadata.
-    #[must_use]
-    pub fn clone_body(&self) -> DelimitedBlockType<'a> {
-        self.inner.clone()
-    }
-
-    /// Consume the block and transfer its body with the original source lifetime.
-    #[must_use]
-    pub fn into_body(self) -> DelimitedBlockType<'a> {
-        self.inner
-    }
-
-    /// Replace the prepared body and return the previous one.
-    ///
-    /// The delimiter, source snapshot and registrations are retained. An incoming
-    /// table resolves local decoration against its own source-position defaults.
-    pub fn replace_body(&mut self, mut body: DelimitedBlockType<'a>) -> DelimitedBlockType<'a> {
-        if let DelimitedBlockType::DelimitedTable(table) = &mut body {
-            table.refresh_presentation(&self.metadata);
-        }
-        std::mem::replace(&mut self.inner, body)
-    }
-
-    /// Replace delimiter spelling without reparsing the body or relocating its spans.
-    pub fn set_delimiter(&mut self, delimiter: &'a str) {
-        self.delimiter = delimiter;
-    }
-
-    /// Replace delimiter spans without relocating the body or the block span.
-    pub fn set_delimiter_locations(&mut self, open: Option<Location>, close: Option<Location>) {
-        self.open_delimiter_location = open;
-        self.close_delimiter_location = close;
-    }
-
-    /// Replace the block span without relocating its body or delimiters.
-    pub fn set_location(&mut self, location: Location) {
-        self.location = location;
-    }
-}
-
 /// Notation type for mathematical expressions.
 /// Parsing accepts `latexmath`, `latex`, and `tex` for LaTeX, or `asciimath`.
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -1231,131 +1110,18 @@ impl FromStr for StemNotation {
     }
 }
 
-/// Content of a stem block with math notation.
-///
-/// ```compile_fail,E0616
-/// use acdc_parser::{StemContent, StemNotation};
-/// let mut formula = StemContent::new("x", StemNotation::Latexmath);
-/// formula.content = "changed";
-/// ```
+/// The formula and notation stored in a [`StemBlock`].
 #[derive(Clone, Debug, PartialEq, Serialize)]
-#[non_exhaustive]
-pub struct StemContent<'a> {
+pub(crate) struct StemContent<'a> {
     pub(crate) content: &'a str,
     pub(crate) notation: StemNotation,
 }
 
 impl<'a> StemContent<'a> {
-    /// The prepared formula text.
-    #[must_use]
-    pub fn text(&self) -> &str {
-        self.content
-    }
-
-    /// The stored formula notation.
-    #[must_use]
-    pub fn notation(&self) -> StemNotation {
-        self.notation.clone()
-    }
-
-    /// Replace protected formula text and return its previous value.
-    pub fn replace_text(&mut self, content: &'a str) -> &'a str {
-        std::mem::replace(&mut self.content, content)
-    }
-
-    /// Replace the notation without translating the formula text.
-    pub fn replace_notation(&mut self, notation: StemNotation) -> StemNotation {
-        std::mem::replace(&mut self.notation, notation)
-    }
-}
-
-impl<'a> StemContent<'a> {
     /// Create a new stem content with the given content and notation.
     #[must_use]
-    pub fn new(content: &'a str, notation: StemNotation) -> Self {
+    pub(crate) fn new(content: &'a str, notation: StemNotation) -> Self {
         Self { content, notation }
-    }
-}
-
-/// The inner content type of a delimited block.
-///
-/// Each variant wraps the content appropriate for that block type:
-/// - **Verbatim content** (`Vec<InlineNode>`): `DelimitedListing`, `DelimitedLiteral`,
-///   `DelimitedPass`, `DelimitedVerse`, `DelimitedComment` - preserves whitespace/formatting
-/// - **Compound content** (`Vec<Block>`): `DelimitedExample`, `DelimitedOpen`,
-///   `DelimitedSidebar`, `DelimitedQuote` - can contain nested blocks
-/// - **Structured content**: `DelimitedTable(Table)`, `DelimitedStem(StemContent)`
-///
-/// # Accessing Content
-///
-/// Use pattern matching to extract the inner content:
-///
-/// ```
-/// # use acdc_parser::{DelimitedBlockType, Block, InlineNode};
-/// fn process_block(block_type: &DelimitedBlockType) {
-///     match block_type {
-///         DelimitedBlockType::DelimitedListing(inlines) => {
-///             // Handle listing content (source code, etc.)
-///         }
-///         DelimitedBlockType::DelimitedExample(blocks) => {
-///             // Handle example with nested blocks
-///         }
-///         DelimitedBlockType::DelimitedTable(table) => {
-///             // Access table.rows, table.header, etc.
-///         }
-///         // ... other variants
-///         _ => {}
-///     }
-/// }
-/// ```
-///
-/// # Note on Variant Names
-///
-/// Variants are prefixed with `Delimited` to disambiguate from potential future
-/// non-delimited block types and to make pattern matching more explicit.
-#[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(untagged)]
-pub enum DelimitedBlockType<'a> {
-    /// Comment block content (not rendered in output).
-    DelimitedComment(Vec<InlineNode<'a>>),
-    /// Example block - can contain nested blocks, admonitions, etc.
-    DelimitedExample(Vec<Block<'a>>),
-    /// Listing block - typically source code with syntax highlighting.
-    DelimitedListing(Vec<InlineNode<'a>>),
-    /// Literal block - preformatted text rendered verbatim.
-    DelimitedLiteral(Vec<InlineNode<'a>>),
-    /// Open block - generic container for nested blocks.
-    DelimitedOpen(Vec<Block<'a>>),
-    /// Sidebar block - supplementary content in a styled container.
-    DelimitedSidebar(Vec<Block<'a>>),
-    /// Table block - structured tabular data.
-    DelimitedTable(Table<'a>),
-    /// Passthrough block - content passed directly to output without processing.
-    DelimitedPass(Vec<InlineNode<'a>>),
-    /// Quote block - blockquote with optional attribution.
-    DelimitedQuote(Vec<Block<'a>>),
-    /// Verse block - poetry/lyrics preserving line breaks.
-    DelimitedVerse(Vec<InlineNode<'a>>),
-    /// STEM (math) block - LaTeX or `AsciiMath` notation.
-    DelimitedStem(StemContent<'a>),
-}
-
-impl DelimitedBlockType<'_> {
-    fn name(&self) -> &'static str {
-        match self {
-            DelimitedBlockType::DelimitedComment(_) => "comment",
-            DelimitedBlockType::DelimitedExample(_) => "example",
-            DelimitedBlockType::DelimitedListing(_) => "listing",
-            DelimitedBlockType::DelimitedLiteral(_) => "literal",
-            DelimitedBlockType::DelimitedOpen(_) => "open",
-            DelimitedBlockType::DelimitedSidebar(_) => "sidebar",
-            DelimitedBlockType::DelimitedTable(_) => "table",
-            DelimitedBlockType::DelimitedPass(_) => "pass",
-            DelimitedBlockType::DelimitedQuote(_) => "quote",
-            DelimitedBlockType::DelimitedVerse(_) => "verse",
-            DelimitedBlockType::DelimitedStem(_) => "stem",
-        }
     }
 }
 
@@ -1377,50 +1143,6 @@ impl Serialize for Document<'_> {
         }
         if !self.blocks.is_empty() {
             state.serialize_entry("blocks", &self.blocks)?;
-        }
-        state.serialize_entry("location", &self.location)?;
-        state.end()
-    }
-}
-
-impl Serialize for DelimitedBlock<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_map(None)?;
-        state.serialize_entry("name", self.inner.name())?;
-        state.serialize_entry("type", "block")?;
-        state.serialize_entry("form", "delimited")?;
-        state.serialize_entry("delimiter", &self.delimiter)?;
-        if !self.metadata.is_empty_for_serialization() {
-            state.serialize_entry("metadata", &self.metadata)?;
-        }
-
-        match &self.inner {
-            DelimitedBlockType::DelimitedStem(stem) => {
-                state.serialize_entry("content", &stem.content)?;
-                state.serialize_entry("notation", &stem.notation)?;
-            }
-            DelimitedBlockType::DelimitedListing(inner)
-            | DelimitedBlockType::DelimitedLiteral(inner)
-            | DelimitedBlockType::DelimitedPass(inner)
-            | DelimitedBlockType::DelimitedVerse(inner) => {
-                state.serialize_entry("inlines", &inner)?;
-            }
-            DelimitedBlockType::DelimitedTable(inner) => {
-                state.serialize_entry("content", &inner)?;
-            }
-            inner @ (DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedExample(_)
-            | DelimitedBlockType::DelimitedOpen(_)
-            | DelimitedBlockType::DelimitedQuote(_)
-            | DelimitedBlockType::DelimitedSidebar(_)) => {
-                state.serialize_entry("blocks", &inner)?;
-            }
-        }
-        if self.title.is_present() {
-            state.serialize_entry("title", &self.title)?;
         }
         state.serialize_entry("location", &self.location)?;
         state.end()

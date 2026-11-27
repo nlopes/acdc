@@ -13,7 +13,7 @@ fn body(document: DocumentRef<'_>) -> Result<ContentRef<'_>, Error> {
     if let BlockKind::Paragraph(paragraph) = block.kind() {
         return Ok(paragraph.content());
     }
-    if let BlockKind::Passthrough(block) = block.kind() {
+    if let BlockKind::DelimitedPassthrough(block) = block.kind() {
         return Ok(block.content());
     }
     Err("expected passthrough content".into())
@@ -152,7 +152,7 @@ fn block_passthroughs_keep_snapshots_and_included_or_cell_locations(
         let StructuralRef::Block(block) = node else {
             continue;
         };
-        let content = if let BlockKind::Passthrough(pass) = block.kind() {
+        let content = if let BlockKind::DelimitedPassthrough(pass) = block.kind() {
             pass.content()
         } else if let BlockKind::Paragraph(paragraph) = block.kind()
             && paragraph.style() == Some("pass")

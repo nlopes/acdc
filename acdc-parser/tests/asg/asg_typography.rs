@@ -1,9 +1,12 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, Document, DoubleQuotedSpan, ElementId, FormattingForm, InlineNode,
-    Location, Options, Paragraph, Plain, Subscript, Superscript, Title, asg, parse_file,
-    parse_inline,
+    CompatibilityMode, FormattingForm, Location, Options, asg,
+    edit::{
+        Block, Document, DoubleQuotedSpan, ElementId, InlineNode, Paragraph, Plain, Subscript,
+        Superscript, Title,
+    },
+    parse_file, parse_inline,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -89,12 +92,12 @@ fn prepared_spans_keep_metadata_empty_content_and_unknown_locations() -> Result<
     quotation.replace_role(Some("one two"));
     quotation.set_id(Some(ElementId::new("quoted", Location::default())));
     let subscript = Subscript::new(
-        vec![InlineNode::PlainText(Plain::new("x", Location::default()))],
+        vec![InlineNode::Plain(Plain::new("x", Location::default()))],
         FormattingForm::Unconstrained,
         Location::default(),
     );
     let superscript = Superscript::new(
-        vec![InlineNode::SubscriptText(subscript)],
+        vec![InlineNode::Subscript(subscript)],
         FormattingForm::Constrained,
         Location::default(),
     );
@@ -102,7 +105,7 @@ fn prepared_spans_keep_metadata_empty_content_and_unknown_locations() -> Result<
         vec![InlineNode::DoubleQuotedSpan(quotation)],
         Location::default(),
     )
-    .with_title(Title::new(vec![InlineNode::SuperscriptText(superscript)]));
+    .with_title(Title::new(vec![InlineNode::Superscript(superscript)]));
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
     let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;

@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    Block, Document, Footnote, FootnoteDefinition, Header, InlineMacro, InlineNode, Location,
+    Block, Document, Footnote, FootnoteDefinition, Header, InlineNode, Location,
     grammar::location_walk::{
         try_walk_content_footnote_roots_mut, try_walk_document_inline_nodes_mut,
         try_walk_document_reftext_inlines_mut, try_walk_footnote_roots_mut,
@@ -72,7 +72,7 @@ impl<'a> Bindings<'a> {
     }
 
     fn rebind(&self, node: &mut InlineNode<'a>) -> Result<(), FootnoteRebuildError> {
-        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+        if let InlineNode::Footnote(note) = node {
             match self.numbers.get(&(note.number, note.id)) {
                 Some(Some(number)) => note.number = *number,
                 Some(None) => {
@@ -251,7 +251,7 @@ impl<'a, 'work> Rebuilder<'a, 'work> {
     }
 
     fn rebind(&self, node: &mut InlineNode<'a>) -> Result<(), FootnoteRebuildError> {
-        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+        if let InlineNode::Footnote(note) = node {
             if note.id.is_none()
                 && self
                     .anonymous
@@ -318,7 +318,7 @@ fn repair_owner<'a>(
     )?;
     let mut definitions = std::mem::take(&mut rebuilder.definitions);
     try_walk_scoped_inline_nodes_mut(header, blocks, &mut definitions, &mut |node| {
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node
+        if let InlineNode::IndexTerm(term) = node
             && let Some(catalog) = &mut term.catalog
         {
             catalog.try_for_each_label_mut(|nodes| {
@@ -415,16 +415,12 @@ impl Document<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        Block, Document, Footnote, IndexTerm, IndexTermKind, InlineMacro, InlineNode, Location,
-        Paragraph, Plain, grammar::walk_document_inline_nodes_mut,
+        Block, Document, Footnote, IndexTerm, IndexTermKind, InlineNode, Location, Paragraph,
+        Plain, grammar::walk_document_inline_nodes_mut,
     };
 
     fn reference() -> InlineNode<'static> {
-        InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
-            None,
-            1,
-            Location::default(),
-        )))
+        InlineNode::Footnote(Footnote::reference(None, 1, Location::default()))
     }
 
     #[test]
@@ -434,33 +430,28 @@ mod tests {
         inner.catalog = Some(Box::new(inner.clone()));
         let mut outer = IndexTerm::new(IndexTermKind::Flow(Vec::new()), Location::default());
         outer.catalog = Some(Box::new(IndexTerm::new(
-            IndexTermKind::Flow(vec![InlineNode::Macro(InlineMacro::IndexTerm(Box::new(
-                inner,
-            )))]),
+            IndexTermKind::Flow(vec![InlineNode::IndexTerm(Box::new(inner))]),
             Location::default(),
         )));
         let mut document = Document::default();
         let notes = [2, 1].map(|number| {
-            InlineNode::Macro(InlineMacro::Footnote(Footnote::new(
-                vec![InlineNode::PlainText(Plain::new(
-                    "body",
-                    Location::default(),
-                ))],
+            InlineNode::Footnote(Footnote::new(
+                vec![InlineNode::Plain(Plain::new("body", Location::default()))],
                 number,
                 Location::default(),
-            )))
+            ))
         });
         document.set_blocks([Block::Paragraph(Paragraph::new(
             notes
                 .into_iter()
-                .chain([InlineNode::Macro(InlineMacro::IndexTerm(Box::new(outer)))])
+                .chain([InlineNode::IndexTerm(Box::new(outer))])
                 .collect(),
             Location::default(),
         ))]);
         document.rebuild_footnotes()?;
         let mut numbers = Vec::new();
         walk_document_inline_nodes_mut(&mut document, &mut |inline| {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = inline {
+            if let InlineNode::Footnote(note) = inline {
                 numbers.push(note.number);
             }
         });

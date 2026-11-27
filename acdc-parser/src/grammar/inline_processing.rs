@@ -107,7 +107,7 @@ pub(super) fn process_mapped_inlines<'a>(
     }
     for node in &mut nodes {
         super::location_walk::walk_inline_nodes_mut(node, &mut |node| {
-            if let InlineNode::Macro(crate::InlineMacro::Footnote(note)) = node {
+            if let InlineNode::Footnote(note) = node {
                 state.finalize_footnote(note);
             }
         });
@@ -408,7 +408,7 @@ fn parse_processed_inlines<'a>(
             .as_ref()
             .is_some_and(|r| r.custom_inlines().any(|(_, m)| text.contains(&m.prefix)))
     {
-        return Ok(vec![InlineNode::PlainText(Plain {
+        return Ok(vec![InlineNode::Plain(Plain {
             content: text,
             escaped: false,
             location: Location {
@@ -513,7 +513,7 @@ fn parse_inline_syntax<'a>(
     let labels = inlines
         .iter_mut()
         .try_for_each(|inline| -> Result<(), Error> {
-            if let InlineNode::InlineAnchor(anchor) = inline {
+            if let InlineNode::Anchor(anchor) = inline {
                 anchor.bibliography_label =
                     parse_bibliography_label(&inline_peg_state, &anchor.location)?;
             }
@@ -722,18 +722,18 @@ pub(super) fn process_verbatim_inlines<'a>(
     Ok(nodes
         .into_iter()
         .map(|node| {
-            let InlineNode::PlainText(text) = node else {
+            let InlineNode::Plain(text) = node else {
                 return node;
             };
             if text.escaped {
-                InlineNode::RawText(crate::Raw {
+                InlineNode::Raw(crate::Raw {
                     metadata: None,
                     content: text.content,
                     location: text.location,
                     subs: vec![Substitution::SpecialChars],
                 })
             } else {
-                InlineNode::VerbatimText(crate::Verbatim {
+                InlineNode::Verbatim(crate::Verbatim {
                     content: text.content,
                     location: text.location,
                 })

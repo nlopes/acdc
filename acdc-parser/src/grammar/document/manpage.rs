@@ -137,21 +137,21 @@ fn extract_plain_text(nodes: &[InlineNode]) -> String {
     for node in nodes {
         match node {
             InlineNode::Extension(call) => result.push_str(call.literal.content),
-            InlineNode::PlainText(text) => result.push_str(text.content),
+            InlineNode::Plain(text) => result.push_str(text.content),
             InlineNode::Symbol(symbol) => result.push_str(symbol.kind.text()),
             InlineNode::CharacterReference(reference) => {
                 result.push_str(&reference.kind().to_string());
             }
-            InlineNode::RawText(text) => result.push_str(text.content),
-            InlineNode::VerbatimText(text) => result.push_str(text.content),
-            InlineNode::BoldText(bold) => result.push_str(&extract_plain_text(&bold.content)),
-            InlineNode::ItalicText(italic) => result.push_str(&extract_plain_text(&italic.content)),
-            InlineNode::MonospaceText(mono) => result.push_str(&extract_plain_text(&mono.content)),
-            InlineNode::HighlightText(highlight) => {
+            InlineNode::Raw(text) => result.push_str(text.content),
+            InlineNode::Verbatim(text) => result.push_str(text.content),
+            InlineNode::Bold(bold) => result.push_str(&extract_plain_text(&bold.content)),
+            InlineNode::Italic(italic) => result.push_str(&extract_plain_text(&italic.content)),
+            InlineNode::Monospace(mono) => result.push_str(&extract_plain_text(&mono.content)),
+            InlineNode::Highlight(highlight) => {
                 result.push_str(&extract_plain_text(&highlight.content));
             }
-            InlineNode::SubscriptText(sub) => result.push_str(&extract_plain_text(&sub.content)),
-            InlineNode::SuperscriptText(sup) => result.push_str(&extract_plain_text(&sup.content)),
+            InlineNode::Subscript(sub) => result.push_str(&extract_plain_text(&sub.content)),
+            InlineNode::Superscript(sup) => result.push_str(&extract_plain_text(&sup.content)),
             InlineNode::DoubleQuotedSpan(quoted) => {
                 result.push_str(&extract_plain_text(&quoted.content));
             }
@@ -159,11 +159,24 @@ fn extract_plain_text(nodes: &[InlineNode]) -> String {
                 result.push_str(&extract_plain_text(&quoted.content));
             }
             // These nodes don't contribute plain text
-            InlineNode::StandaloneCurvedApostrophe(_)
+            InlineNode::Autolink(_)
+            | InlineNode::Button(_)
+            | InlineNode::CrossReference(_)
+            | InlineNode::Footnote(_)
+            | InlineNode::Icon(_)
+            | InlineNode::Image(_)
+            | InlineNode::IndexTerm(_)
+            | InlineNode::KeyboardShortcut(_)
+            | InlineNode::Link(_)
+            | InlineNode::Mailto(_)
+            | InlineNode::MenuPath(_)
+            | InlineNode::Passthrough(_)
+            | InlineNode::Stem(_)
+            | InlineNode::UrlMacro(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::CalloutMarker(_)
-            | InlineNode::Macro(_) => {}
+            | InlineNode::Anchor(_)
+            | InlineNode::Callout(_) => {}
         }
     }
     result

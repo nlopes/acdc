@@ -9,7 +9,7 @@ use std::{borrow::Cow, num::NonZeroU32};
 
 use crate::ast::{BlockKind, BlockRef, CaptionRef};
 
-use super::{AttributeValue, Block, BlockMetadata, DelimitedBlockType, DocumentAttributes, Table};
+use super::{AttributeValue, Block, BlockMetadata, DocumentAttributes, TableContent};
 
 /// The caption a titled block takes.
 #[derive(Clone, Debug, PartialEq)]
@@ -86,11 +86,13 @@ impl CaptionKind {
         match block.kind() {
             BlockKind::Paragraph(paragraph) => Self::for_style(paragraph.style()),
             BlockKind::Image(_) => Some(Self::Figure),
-            BlockKind::Example(_) => Some(Self::Example),
-            BlockKind::Table(_) => Some(Self::Table),
-            BlockKind::Listing(listing) => Self::for_verbatim(listing.style(), Some(Self::Listing)),
-            BlockKind::Literal(literal) => Self::for_verbatim(literal.style(), None),
-            BlockKind::Open(open) => Self::for_style(open.style()),
+            BlockKind::DelimitedExample(_) => Some(Self::Example),
+            BlockKind::DelimitedTable(_) => Some(Self::Table),
+            BlockKind::DelimitedListing(listing) => {
+                Self::for_verbatim(listing.style(), Some(Self::Listing))
+            }
+            BlockKind::DelimitedLiteral(literal) => Self::for_verbatim(literal.style(), None),
+            BlockKind::DelimitedOpen(open) => Self::for_style(open.style()),
             BlockKind::Section(_)
             | BlockKind::Admonition(_)
             | BlockKind::DiscreteHeading(_)
@@ -106,12 +108,12 @@ impl CaptionKind {
             | BlockKind::Comment(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::DelimitedComment(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Quote(_)
-            | BlockKind::Verse(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedQuote(_)
+            | BlockKind::DelimitedVerse(_)
             | BlockKind::Extension(_)
-            | BlockKind::Stem(_) => None,
+            | BlockKind::DelimitedStem(_) => None,
         }
     }
 
@@ -126,34 +128,6 @@ impl CaptionKind {
             Some("example") => Some(Self::Example),
             Some("listing" | "source") => Some(Self::Listing),
             _ => None,
-        }
-    }
-
-    /// The caption category of a delimited block, from its delimiter and style.
-    ///
-    /// Parsed blocks already carry their caption in [`BlockMetadata::caption`]; this is for a
-    /// consumer classifying a block it built itself.
-    #[must_use]
-    pub fn for_delimited(inner: &DelimitedBlockType<'_>, style: Option<&str>) -> Option<Self> {
-        match inner {
-            // These delimiters carry their own caption context, whatever the style says.
-            DelimitedBlockType::DelimitedExample(_) => Some(Self::Example),
-            DelimitedBlockType::DelimitedTable(_) => Some(Self::Table),
-            // A verbatim block is a listing unless the style says otherwise: `[literal]` on
-            // `----` takes no caption, and `[listing]`/`[source]` on `....` takes a listing one.
-            DelimitedBlockType::DelimitedListing(_) => {
-                Self::for_verbatim(style, Some(Self::Listing))
-            }
-            DelimitedBlockType::DelimitedLiteral(_) => Self::for_verbatim(style, None),
-            // An open block has no caption context, so the style supplies one.
-            DelimitedBlockType::DelimitedOpen(_) => Self::for_style(style),
-            // Sidebar, quote, verse, passthrough, comment and stem take no caption.
-            DelimitedBlockType::DelimitedSidebar(_)
-            | DelimitedBlockType::DelimitedQuote(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedStem(_) => None,
         }
     }
 
@@ -377,31 +351,33 @@ fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
                     }
                 }
             }
-            Block::DelimitedBlock(delimited) => match &delimited.inner {
-                DelimitedBlockType::DelimitedExample(blocks)
-                | DelimitedBlockType::DelimitedOpen(blocks)
-                | DelimitedBlockType::DelimitedSidebar(blocks)
-                | DelimitedBlockType::DelimitedQuote(blocks) => visit_captions(blocks, visit),
-                DelimitedBlockType::DelimitedTable(table) => {
-                    for row in table
-                        .header
-                        .iter()
-                        .chain(table.rows.iter())
-                        .chain(table.footer.iter())
-                    {
-                        for column in &row.columns {
-                            visit_captions(&column.content, visit);
-                        }
+            Block::DelimitedExample(crate::model::Example(delimited))
+            | Block::DelimitedOpen(crate::model::Open(delimited))
+            | Block::DelimitedSidebar(crate::model::Sidebar(delimited))
+            | Block::DelimitedQuote(crate::model::Quote(delimited)) => {
+                let blocks = &delimited.body;
+                visit_captions(blocks, visit);
+            }
+            Block::DelimitedTable(crate::model::Table(delimited)) => {
+                let table = &delimited.body;
+                for row in table
+                    .header
+                    .iter()
+                    .chain(table.rows.iter())
+                    .chain(table.footer.iter())
+                {
+                    for column in &row.columns {
+                        visit_captions(&column.content, visit);
                     }
                 }
-                DelimitedBlockType::DelimitedListing(_)
-                | DelimitedBlockType::DelimitedLiteral(_)
-                | DelimitedBlockType::DelimitedVerse(_)
-                | DelimitedBlockType::DelimitedPass(_)
-                | DelimitedBlockType::DelimitedComment(_)
-                | DelimitedBlockType::DelimitedStem(_) => {}
-            },
-            Block::Paragraph(_)
+            }
+            Block::DelimitedListing(_)
+            | Block::DelimitedLiteral(_)
+            | Block::DelimitedVerse(_)
+            | Block::DelimitedPassthrough(_)
+            | Block::DelimitedComment(_)
+            | Block::DelimitedStem(_)
+            | Block::Paragraph(_)
             | Block::DiscreteHeading(_)
             | Block::PageBreak(_)
             | Block::ThematicBreak(_)
@@ -462,20 +438,24 @@ fn renumber_children(block: &mut Block<'_>, counters: &mut CaptionCounters) {
                 }
             }
         }
-        Block::DelimitedBlock(delimited) => match &mut delimited.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks)
-            | DelimitedBlockType::DelimitedQuote(blocks) => renumber_blocks(blocks, counters),
-            DelimitedBlockType::DelimitedTable(table) => renumber_table(table, counters),
-            DelimitedBlockType::DelimitedListing(_)
-            | DelimitedBlockType::DelimitedLiteral(_)
-            | DelimitedBlockType::DelimitedVerse(_)
-            | DelimitedBlockType::DelimitedPass(_)
-            | DelimitedBlockType::DelimitedComment(_)
-            | DelimitedBlockType::DelimitedStem(_) => {}
-        },
-        Block::Paragraph(_)
+        Block::DelimitedExample(crate::model::Example(delimited))
+        | Block::DelimitedOpen(crate::model::Open(delimited))
+        | Block::DelimitedSidebar(crate::model::Sidebar(delimited))
+        | Block::DelimitedQuote(crate::model::Quote(delimited)) => {
+            let blocks = &mut delimited.body;
+            renumber_blocks(blocks, counters);
+        }
+        Block::DelimitedTable(crate::model::Table(delimited)) => {
+            let table = &mut delimited.body;
+            renumber_table(table, counters);
+        }
+        Block::DelimitedListing(_)
+        | Block::DelimitedLiteral(_)
+        | Block::DelimitedVerse(_)
+        | Block::DelimitedPassthrough(_)
+        | Block::DelimitedComment(_)
+        | Block::DelimitedStem(_)
+        | Block::Paragraph(_)
         | Block::DiscreteHeading(_)
         | Block::PageBreak(_)
         | Block::ThematicBreak(_)
@@ -489,7 +469,7 @@ fn renumber_children(block: &mut Block<'_>, counters: &mut CaptionCounters) {
     }
 }
 
-fn renumber_table(table: &mut Table<'_>, counters: &mut CaptionCounters) {
+fn renumber_table(table: &mut TableContent<'_>, counters: &mut CaptionCounters) {
     for row in table
         .header
         .iter_mut()

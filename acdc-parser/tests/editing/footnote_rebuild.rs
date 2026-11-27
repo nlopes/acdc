@@ -1,7 +1,10 @@
 use acdc_parser::{
-    Block, CompatibilityMode, Document, Footnote, FootnoteDefinition, FootnoteRebuildError,
-    InlineMacro, InlineNode, Location, Options, Paragraph, Plain,
+    CompatibilityMode, Location, Options,
     ast::{BlockKind, DocumentRef, FootnoteDefinitionRef, InlineKind},
+    edit::{
+        Block, Document, Footnote, FootnoteDefinition, FootnoteRebuildError, InlineNode, Paragraph,
+        Plain,
+    },
     parse,
 };
 
@@ -10,11 +13,11 @@ type Error = Box<dyn std::error::Error>;
 fn note<'a>(id: Option<&'a str>, body: Option<Vec<InlineNode<'a>>>, number: u32) -> InlineNode<'a> {
     let mut note = Footnote::reference(id, number, Location::default());
     note.replace_content(body);
-    InlineNode::Macro(InlineMacro::Footnote(note))
+    InlineNode::Footnote(note)
 }
 
 fn plain(text: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(text, Location::default()))
+    InlineNode::Plain(Plain::new(text, Location::default()))
 }
 
 fn document(inlines: Vec<InlineNode<'_>>) -> Document<'_> {
@@ -326,15 +329,11 @@ fn included_definition_provenance_survives_promotion_in_an_asciidoc_cell(
             }
         })
         .ok_or("cell")?;
-    let mut cell = acdc_parser::TableCell::from(cell);
+    let mut cell = acdc_parser::edit::TableCell::from(cell);
     let remaining = cell.take_blocks().skip(1);
     cell.set_blocks(remaining);
-    edited.set_blocks([Block::DelimitedBlock(acdc_parser::DelimitedBlock::new(
-        acdc_parser::DelimitedBlockType::DelimitedTable(acdc_parser::Table::new(
-            vec![acdc_parser::TableRow::new(vec![cell])],
-            Location::default(),
-        )),
-        "|===",
+    edited.set_blocks([Block::DelimitedTable(acdc_parser::edit::Table::new(
+        vec![acdc_parser::edit::TableRow::new(vec![cell])],
         Location::default(),
     ))]);
     edited.rebuild_footnotes()?;

@@ -3,8 +3,8 @@ mod grid;
 use serde_json::{Value, json};
 
 use crate::{
-    Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, Table, TableCell, TableFrame,
-    TableGrid, TablePresentation, TableRow, TableStripes,
+    Block, ColumnFormat, ColumnStyle, ColumnWidth, TableCell, TableFrame, TableGrid,
+    TablePresentation, TableRow, TableStripes,
 };
 
 use super::{
@@ -14,10 +14,10 @@ use super::{
 impl<'a, 'doc> Export<'a, 'doc> {
     pub(super) fn table(
         &mut self,
-        block: &'a DelimitedBlock<'doc>,
-        table: &'a Table<'doc>,
+        block: &'a crate::model::Delimited<'doc, crate::model::TableContent<'doc>>,
         path: &str,
     ) -> Result<Node, Error> {
+        let table = &block.body;
         if self.profile == Profile::Upstream {
             return Err(unsupported(
                 &pointer(path, "inner"),

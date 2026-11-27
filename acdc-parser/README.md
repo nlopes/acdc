@@ -169,6 +169,12 @@ child locations. Use the original source before offering an edit.
 
 ### Construction and editing
 
+The owned tree is in `acdc_parser::edit`. Its `Block` and `InlineNode` enums have
+the same variants as `BlockKind` and `InlineKind`, plus `InlineNode::Extension`
+for retained extension spellings. Each delimited kind, such as `Example` or
+`Listing`, starts with its default delimiter; use `set_delimiter()` for another
+spelling.
+
 Copy only what you need with `Document::from(document_ref)`, `Block::from(block_ref)`,
 or a concrete owner's `From` conversion. Copies are independent trees but can
 still borrow text from the parse result. Use constructors, setters, and `take_*`
@@ -553,6 +559,10 @@ migration describes the last released API, 0.11.0.
 | String UI labels | Content values for button labels, keyboard keys, and menu targets/items |
 | Scalar reference labels | Optional parsed content on anchors and registered targets |
 | `Video::sources` | One complete source, including provider playlists; the provider stays in `poster` |
+| Owned tree types at the crate root, such as `acdc_parser::Block` | The `acdc_parser::edit` module, such as `acdc_parser::edit::Block` |
+| `Block::DelimitedBlock` with a `DelimitedBlockType` body | One variant per kind, matching `BlockKind`: `Block::DelimitedExample(Example)`, `Block::DelimitedListing(Listing)`, `Block::DelimitedTable(Table)`, `Block::DelimitedStem(StemBlock)`, and so on |
+| `InlineNode::Macro(InlineMacro::Link(..))` and `InlineNode::BoldText(..)` | One variant per kind, matching `InlineKind`: `InlineNode::Link(..)`, `InlineNode::Bold(..)` |
+| `Table` (rows only) and `StemContent` | The `Table` and `StemBlock` blocks, which also hold metadata, title and delimiter |
 | Feature-controlled language behavior | `CompatibilityMode`; remove `pre-spec-subs` and `setext` from dependency feature lists |
 
 Public names now identify cells, reference targets, formatting spans, and the
@@ -564,7 +574,7 @@ scope of text operations explicitly. Update imports and calls as follows:
 | `CurvedApostrophe` / `CurvedQuotation` | `SingleQuotedSpan` / `DoubleQuotedSpan` |
 | `Reference` | `ReferenceTarget` |
 | `Form` | `FormattingForm` |
-| `Pass` | `Passthrough` |
+| `Pass` | `InlinePassthrough` |
 | `DiscreteHeader` | `DiscreteHeading` |
 | `Keyboard` / `Menu` / `Url` | `KeyboardShortcut` / `MenuPath` / `UrlMacro` |
 | `CalloutRef` / `CalloutRefKind` | `CalloutMarker` / `CalloutMarkerKind` |
@@ -578,8 +588,8 @@ scope of text operations explicitly. Update imports and calls as follows:
 | `parse_text_for_quotes()` | `parse_inline_formatting()` |
 
 The corresponding typed handles and enum variants use the same names. The inline
-passthrough handle is `InlinePassthroughRef`; `PassthroughRef` still reads a
-passthrough block. A callout marker is read through `CalloutMarkerRef`.
+passthrough handle is `InlinePassthroughRef`; `Passthrough` and `PassthroughRef`
+are the passthrough block. A callout marker is read through `CalloutMarkerRef`.
 `OptionsBuilder::with_strict()` remains the general strictness switch.
 ASG exports use `export_document()` / `export_inlines()` and their
 `_with_profile` variants. These name changes preserve parsing, rendered output,
@@ -590,7 +600,7 @@ Use `DocumentRef::from(&document)` to read a constructed document. To edit a
 parsed tree independently:
 
 ```rust
-use acdc_parser::{Document, Options, parse, ast::DocumentRef};
+use acdc_parser::{Options, ast::DocumentRef, edit::Document, parse};
 
 let parsed = parse("First paragraph.", &Options::default())?;
 let mut edited = Document::from(parsed.document());
@@ -719,7 +729,7 @@ Other API and JSON changes:
 | `SourceLocation::positioning` and `Positioning` | `SourceLocation::location`; use `at_position()` or `at_location()`. |
 | `Location::shift`, `shift_inline`, `shift_line_column` | Removed. Locations identify original source; use `ParseResult::source_location()` to resolve files. |
 | `TocEntry::numbered` and `style` | `kind: SectionKind` and `number()`. |
-| Index labels as strings | Inline-node slices from `term()`, `secondary()`, and `tertiary()`; JSON labels are arrays. `InlineMacro::IndexTerm` contains a `Box`. |
+| Index labels as strings | Inline-node slices from `term()`, `secondary()`, and `tertiary()`; JSON labels are arrays. `InlineNode::IndexTerm` contains a `Box`. |
 | Only `Explicit` and `Modifiers` substitution specifications | Also handle `SubstitutionSpec::Source`; parsed lists and JSON retain source entries. |
 | `macros_disabled()` and `attributes_disabled()` | `BlockMetadata::uses_substitution()` or `SubstitutionSpec::resolve()`, with the block's defaults. |
 | Unconditional substitution configuration types | `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata::substitutions` require `pre-spec-subs`. |
@@ -1109,7 +1119,7 @@ attribute-introduced formatting remain separate migration work. See the
 
 ## Source text and diagnostics
 
-`Paragraph::source_text()` and `DelimitedBlock::source_text()` return the body
+`Paragraph::source_text()` and each delimited kind's `source_text()` return the body
 after preprocessing and before inline substitutions. Preprocessing normalizes
 line endings, removes trailing whitespace, and processes includes and conditionals.
 Delimited text excludes metadata and delimiters but retains the newline before

@@ -2,9 +2,13 @@
 
 use crate::section::{contains_index_section, has_index_section, last_section_has_style};
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Block, ColumnFormat, ColumnStyle, CompatibilityMode,
-    DelimitedBlock, DelimitedBlockType, Location, Options, Section, SectionKind, Table, TableRow,
-    Title, ast::BlockRef, parse,
+    AdmonitionVariant, ColumnStyle, CompatibilityMode, Location, Options, SectionKind,
+    ast::BlockRef,
+    edit::{
+        Admonition, Block, ColumnFormat, Example, Open, Quote, Section, Sidebar, Table, TableRow,
+        Title,
+    },
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -34,7 +38,7 @@ fn index_detection_is_independent_of_last_section_style() -> Result<(), Error> {
     let parsed_blocks: Vec<_> = parsed
         .document()
         .blocks()
-        .map(acdc_parser::Block::from)
+        .map(acdc_parser::edit::Block::from)
         .collect();
     let blocks = &parsed_blocks;
     assert_detection(blocks, true);
@@ -52,7 +56,7 @@ fn index_detection_reaches_sections_inside_book_parts() -> Result<(), Error> {
     let parsed_blocks: Vec<_> = parsed
         .document()
         .blocks()
-        .map(acdc_parser::Block::from)
+        .map(acdc_parser::edit::Block::from)
         .collect();
     assert_detection(&parsed_blocks, true);
     Ok(())
@@ -69,7 +73,7 @@ fn index_detection_excludes_styled_paragraphs_and_plain_cells() -> Result<(), Er
         let parsed_blocks: Vec<_> = parsed
             .document()
             .blocks()
-            .map(acdc_parser::Block::from)
+            .map(acdc_parser::edit::Block::from)
             .collect();
         assert_detection(&parsed_blocks, false);
     }
@@ -97,7 +101,7 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             assert_detection(&parsed_blocks, true);
         }
@@ -107,13 +111,12 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
 
 #[test]
 fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Result<(), Error> {
-    for inner in [
-        DelimitedBlockType::DelimitedExample(vec![index_section()?]),
-        DelimitedBlockType::DelimitedOpen(vec![index_section()?]),
-        DelimitedBlockType::DelimitedQuote(vec![index_section()?]),
-        DelimitedBlockType::DelimitedSidebar(vec![index_section()?]),
+    for block in [
+        Block::DelimitedExample(Example::new(vec![index_section()?], Location::default())),
+        Block::DelimitedOpen(Open::new(vec![index_section()?], Location::default())),
+        Block::DelimitedQuote(Quote::new(vec![index_section()?], Location::default())),
+        Block::DelimitedSidebar(Sidebar::new(vec![index_section()?], Location::default())),
     ] {
-        let block = Block::DelimitedBlock(DelimitedBlock::new(inner, "", Location::default()));
         assert_detection(&[block], true);
     }
     assert_detection(
@@ -150,7 +153,7 @@ fn index_detection_preserves_constructed_compound_and_list_boundaries() -> Resul
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let mut blocks = parsed_blocks.clone();
             assert_detection(&blocks, false);
@@ -200,13 +203,10 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
         let parsed_blocks: Vec<_> = parsed
             .document()
             .blocks()
-            .map(acdc_parser::Block::from)
+            .map(acdc_parser::edit::Block::from)
             .collect();
-        let Some(Block::DelimitedBlock(block)) = parsed_blocks.first() else {
+        let Some(Block::DelimitedTable(seed)) = parsed_blocks.first() else {
             return Err("missing table block".into());
-        };
-        let DelimitedBlockType::DelimitedTable(seed) = &block.clone_body() else {
-            return Err("missing table".into());
         };
         let mut seed = seed.clone();
         let mut row = seed.take_rows().next().ok_or("missing table row")?;
@@ -249,12 +249,7 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
                         1 => table.push_row(row.clone()),
                         _ => table.set_footer(Some(row.clone())),
                     }
-                    let block = Block::DelimitedBlock(DelimitedBlock::new(
-                        DelimitedBlockType::DelimitedTable(table),
-                        "|===",
-                        Location::default(),
-                    ));
-                    assert_detection(&[block], expected);
+                    assert_detection(&[Block::DelimitedTable(table)], expected);
                 }
             }
         }
@@ -269,14 +264,7 @@ fn index_detection_preserves_stored_cell_style_fallback_in_every_row_group() -> 
                 .ok_or("missing second cell")?
                 .set_style(local);
             row.set_cells(cells);
-            let block = Block::DelimitedBlock(DelimitedBlock::new(
-                DelimitedBlockType::DelimitedTable(Table::new(
-                    vec![row.clone()],
-                    Location::default(),
-                )),
-                "|===",
-                Location::default(),
-            ));
+            let block = Block::DelimitedTable(Table::new(vec![row.clone()], Location::default()));
             assert_detection(&[block], local == Some(ColumnStyle::AsciiDoc));
         }
     }

@@ -120,7 +120,7 @@ impl<const N: usize> From<[Self; N]> for InlineSpec {
 }
 
 pub(super) fn plain<'a>(text: &'a str, location: &Location) -> InlineNode<'a> {
-    InlineNode::PlainText(Plain {
+    InlineNode::Plain(Plain {
         content: text,
         location: location.clone(),
         escaped: true,

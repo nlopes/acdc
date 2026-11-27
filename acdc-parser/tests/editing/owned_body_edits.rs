@@ -1,10 +1,12 @@
 //! Prepared body edits preserve source snapshots and explicit content presence.
 
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Block, BlockMetadata, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, Location, Options, Paragraph, StemContent, StemNotation, Table, TableFrame,
-    Title,
-    ast::{AdmonitionRef, BlockKind, BlockRef, ContentRef},
+    AdmonitionVariant, CompatibilityMode, Location, Options, StemNotation, TableFrame,
+    ast::{AdmonitionRef, BlockKind, ContentRef, ExampleRef, ListingRef, TableRef},
+    edit::{
+        Admonition, Block, BlockMetadata, DelimitedComment, Example, Listing, Literal, Open,
+        Paragraph, Passthrough, Quote, Sidebar, StemBlock, Table, Title, Verse,
+    },
     parse,
 };
 
@@ -19,43 +21,126 @@ fn owned_block(parsed: &acdc_parser::ParseResult) -> Result<Block<'_>, Error> {
         .ok_or_else(|| "block".into())
 }
 
-fn table_frame(block: &DelimitedBlock<'_>) -> Result<TableFrame, Error> {
-    let BlockKind::Table(table) = BlockRef::from(block).kind() else {
-        return Err("table".into());
+fn table_frame(table: &Table<'_>) -> Result<TableFrame, Error> {
+    Ok(TableRef::from(table)
+        .presentation()
+        .ok_or("table presentation")?
+        .frame())
+}
+
+/// Move a delimited block's body out and back in, then do the same for its
+/// metadata and title, returning the block for comparison.
+macro_rules! transfer_parts {
+    ($block:expr, |$owner:ident| $body:block) => {{
+        let mut $owner = $block;
+        $body
+        let metadata = $owner.take_metadata();
+        let title = $owner.take_title();
+        $owner.set_metadata(metadata)?;
+        $owner.set_title(title);
+        $owner
+    }};
+}
+
+/// Move a compound body out and back in.
+macro_rules! transfer_blocks {
+    ($block:expr) => {
+        transfer_parts!($block, |block| {
+            let body: Vec<_> = block.take_blocks().collect();
+            block.set_blocks(body);
+        })
     };
-    Ok(table.presentation().ok_or("table presentation")?.frame())
+}
+
+/// Move an inline body out and back in.
+macro_rules! transfer_content {
+    ($block:expr) => {
+        transfer_parts!($block, |block| {
+            let body: Vec<_> = block.take_content().collect();
+            block.set_content(body);
+        })
+    };
+}
+
+/// Move every table body part out and back in.
+macro_rules! transfer_table {
+    ($block:expr) => {
+        transfer_parts!($block, |block| {
+            let header = block.take_header();
+            let footer = block.take_footer();
+            let rows: Vec<_> = block.take_rows().collect();
+            let columns: Vec<_> = block.take_columns().collect();
+            block.set_header(header);
+            block.set_footer(footer);
+            block.set_rows(rows);
+            block.set_columns(columns);
+        })
+    };
+}
+
+/// Move a formula out and back in.
+macro_rules! transfer_formula {
+    ($block:expr) => {
+        transfer_parts!($block, |block| {
+            let text = block.replace_text("");
+            let notation = block.replace_notation(StemNotation::Asciimath);
+            block.replace_text(text);
+            block.replace_notation(notation);
+        })
+    };
 }
 
 #[test]
 fn every_delimited_body_round_trips_without_a_placeholder_api() -> Result<(), Error> {
-    for body in [
-        DelimitedBlockType::DelimitedComment(Vec::new()),
-        DelimitedBlockType::DelimitedExample(Vec::new()),
-        DelimitedBlockType::DelimitedListing(Vec::new()),
-        DelimitedBlockType::DelimitedLiteral(Vec::new()),
-        DelimitedBlockType::DelimitedOpen(Vec::new()),
-        DelimitedBlockType::DelimitedSidebar(Vec::new()),
-        DelimitedBlockType::DelimitedTable(Table::new(Vec::new(), Location::default())),
-        DelimitedBlockType::DelimitedPass(Vec::new()),
-        DelimitedBlockType::DelimitedQuote(Vec::new()),
-        DelimitedBlockType::DelimitedVerse(Vec::new()),
-        DelimitedBlockType::DelimitedStem(StemContent::new("λ + x", StemNotation::Latexmath)),
-    ] {
-        let mut block = DelimitedBlock::new(body, "----", Location::default());
-        block.set_title(Title::new(Vec::new()));
-        assert_eq!(block.clone_body(), block.clone().into_body());
-        let before = serde_json::to_value(&block)?;
-        let expected = block.clone();
-        let previous = block.replace_body(DelimitedBlockType::DelimitedOpen(Vec::new()));
-        block.replace_body(previous);
-        let metadata = block.take_metadata();
-        let title = block.take_title();
-        block.set_metadata(metadata)?;
-        block.set_title(title);
-        assert_eq!(block, expected);
-        assert_eq!(serde_json::to_value(&block)?, before);
-        assert_eq!(block.source_text(), None);
+    macro_rules! round_trip {
+        ($block:expr, $transfer:ident) => {{
+            let mut block = $block;
+            block.set_delimiter("----");
+            block.set_title(Title::new(Vec::new()));
+            assert_eq!($transfer!(block.clone()), block);
+            let before = serde_json::to_value(&block)?;
+            let expected = block.clone();
+            let block = $transfer!(block);
+            assert_eq!(block, expected);
+            assert_eq!(serde_json::to_value(&block)?, before);
+            assert_eq!(block.source_text(), None);
+        }};
     }
+    round_trip!(
+        DelimitedComment::new(Vec::new(), Location::default()),
+        transfer_content
+    );
+    round_trip!(
+        Example::new(Vec::new(), Location::default()),
+        transfer_blocks
+    );
+    round_trip!(
+        Listing::new(Vec::new(), Location::default()),
+        transfer_content
+    );
+    round_trip!(
+        Literal::new(Vec::new(), Location::default()),
+        transfer_content
+    );
+    round_trip!(Open::new(Vec::new(), Location::default()), transfer_blocks);
+    round_trip!(
+        Sidebar::new(Vec::new(), Location::default()),
+        transfer_blocks
+    );
+    round_trip!(Table::new(Vec::new(), Location::default()), transfer_table);
+    round_trip!(
+        Passthrough::new(Vec::new(), Location::default()),
+        transfer_content
+    );
+    round_trip!(Quote::new(Vec::new(), Location::default()), transfer_blocks);
+    round_trip!(
+        Verse::new(Vec::new(), Location::default()),
+        transfer_content
+    );
+    round_trip!(
+        StemBlock::new("λ + x", StemNotation::Latexmath, Location::default()),
+        transfer_formula
+    );
     Ok(())
 }
 
@@ -74,21 +159,35 @@ fn parsed_body_transfers_keep_source_spelling_locations_and_prepared_content(
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
         let document_before = serde_json::to_value(parsed.document())?;
-        let Block::DelimitedBlock(mut block) = owned_block(&parsed)? else {
+        let original = owned_block(&parsed)?;
+        let expected = serde_json::to_value(&original)?;
+        let copy = original.clone();
+        let (block, snapshot, transferred_snapshot) = if let Block::DelimitedListing(block) = copy {
+            let snapshot = block.source_text();
+            let block = transfer_content!(block);
+            let transferred = block.source_text();
+            (Block::from(block), snapshot, transferred)
+        } else if let Block::DelimitedQuote(block) = copy {
+            let snapshot = block.source_text();
+            let block = transfer_blocks!(block);
+            let transferred = block.source_text();
+            (Block::from(block), snapshot, transferred)
+        } else if let Block::DelimitedTable(block) = copy {
+            let snapshot = block.source_text();
+            let block = transfer_table!(block);
+            let transferred = block.source_text();
+            (Block::from(block), snapshot, transferred)
+        } else if let Block::DelimitedStem(block) = copy {
+            let snapshot = block.source_text();
+            let block = transfer_formula!(block);
+            let transferred = block.source_text();
+            (Block::from(block), snapshot, transferred)
+        } else {
             return Err("delimited".into());
         };
-        let original = block.clone();
-        let expected = serde_json::to_value(&block)?;
-        let snapshot = block.source_text();
-        let body = block.replace_body(DelimitedBlockType::DelimitedOpen(Vec::new()));
-        let metadata = block.take_metadata();
-        let title = block.take_title();
-        block.replace_body(body);
-        block.set_metadata(metadata)?;
-        block.set_title(title);
         assert_eq!(block, original);
         assert_eq!(serde_json::to_value(&block)?, expected);
-        assert_eq!(block.source_text(), snapshot);
+        assert_eq!(transferred_snapshot, snapshot);
         assert_eq!(serde_json::to_value(parsed.document())?, document_before);
     }
     Ok(())
@@ -102,26 +201,22 @@ fn transferred_body_parts_outlive_the_old_owner(
         "[#example]\n.A *title*\n====\nNested *body*.\n====",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::DelimitedBlock(expected) = owned_block(&parsed)? else {
-        return Err("delimited".into());
+    let Block::DelimitedExample(expected) = owned_block(&parsed)? else {
+        return Err("example".into());
     };
     let (body, metadata, title) = {
-        let Block::DelimitedBlock(mut local) = owned_block(&parsed)? else {
-            return Err("delimited".into());
+        let Block::DelimitedExample(mut local) = owned_block(&parsed)? else {
+            return Err("example".into());
         };
         let result = (
-            local.replace_body(DelimitedBlockType::DelimitedOpen(Vec::new())),
+            local.take_blocks().collect::<Vec<_>>(),
             local.take_metadata(),
             local.take_title(),
         );
         drop(local);
         result
     };
-    let mut rebuilt = DelimitedBlock::new(
-        body,
-        "====",
-        Location::from(BlockRef::from(&expected).location()),
-    );
+    let mut rebuilt = Example::new(body, Location::from(ExampleRef::from(&expected).location()));
     rebuilt.set_metadata(metadata)?;
     rebuilt.set_title(title);
     assert_eq!(
@@ -143,19 +238,20 @@ fn table_body_replacement_and_metadata_removal_refresh_source_position_defaults(
     let mut tables = parsed
         .document()
         .blocks()
-        .filter(|block| matches!(block.kind(), BlockKind::Table(_)))
+        .filter(|block| matches!(block.kind(), BlockKind::DelimitedTable(_)))
         .map(Block::from);
-    let Some(Block::DelimitedBlock(mut first)) = tables.next() else {
+    let Some(Block::DelimitedTable(first)) = tables.next() else {
         return Err("first table".into());
     };
-    let Some(Block::DelimitedBlock(mut second)) = tables.next() else {
+    let Some(Block::DelimitedTable(second)) = tables.next() else {
         return Err("second table".into());
     };
     let mut metadata = first.clone_metadata();
     metadata.attributes.set("frame".into(), "none".into());
+    // A table body carries the defaults of its source position, so the
+    // second table's body takes the first table's metadata.
+    let mut first = second;
     first.set_metadata(metadata)?;
-    let incoming = second.replace_body(DelimitedBlockType::DelimitedOpen(Vec::new()));
-    first.replace_body(incoming);
     assert_eq!(table_frame(&first)?, TableFrame::None);
     let metadata = first.take_metadata();
     assert_eq!(table_frame(&first)?, TableFrame::Ends);
@@ -221,10 +317,9 @@ fn admonition_owned_children_preserve_lifetimes_and_metadata_failures_are_atomic
 -> Result<(), Error> {
     let text = String::from("Borrowed body");
     let body = Paragraph::new(
-        vec![acdc_parser::InlineNode::PlainText(acdc_parser::Plain::new(
-            &text,
-            Location::default(),
-        ))],
+        vec![acdc_parser::edit::InlineNode::Plain(
+            acdc_parser::edit::Plain::new(&text, Location::default()),
+        )],
         Location::default(),
     );
     let mut original =
@@ -276,12 +371,10 @@ fn span_and_delimiter_edits_do_not_reparse_or_relocate_body(
         "----\nλ *literal*\n----",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Block::DelimitedBlock(mut block) = owned_block(&parsed)? else {
+    let Block::DelimitedListing(mut block) = owned_block(&parsed)? else {
         return Err("listing".into());
     };
-    let BlockKind::Listing(before) = BlockRef::from(&block).kind() else {
-        return Err("listing".into());
-    };
+    let before = ListingRef::from(&block);
     let content = serde_json::to_value(&block)?
         .get("inlines")
         .ok_or("inlines")?
@@ -298,9 +391,7 @@ fn span_and_delimiter_edits_do_not_reparse_or_relocate_body(
     block.set_location(Location::default());
     block.set_delimiter("....");
     block.set_delimiter_locations(None, None);
-    let BlockKind::Listing(after) = BlockRef::from(&block).kind() else {
-        return Err("body reparsed".into());
-    };
+    let after = ListingRef::from(&block);
     assert_eq!(serde_json::to_value(&block)?.get("inlines"), Some(&content));
     assert_eq!(after.source_text(), source);
     assert_eq!(after.delimiter(), "....");

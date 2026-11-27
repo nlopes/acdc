@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineNode, Location, Options, Plain, asg,
+    CompatibilityMode, Location, Options, asg,
     ast::{BlockKind, ContentRef, InlineKind},
+    edit::{ContentAttribute, InlineNode, Plain},
     parse, parse_inline,
 };
 use serde_json::json;
@@ -134,7 +135,7 @@ fn caller_built_content_exports_literal_text_without_reparsing() -> Result<(), E
     for text in [None, Some("*literal* {name} α")] {
         let content = ContentAttribute::new(
             text.into_iter()
-                .map(|content| InlineNode::PlainText(Plain::new(content, Location::default())))
+                .map(|content| InlineNode::Plain(Plain::new(content, Location::default())))
                 .collect(),
         );
         let before = serde_json::to_value(&content)?;

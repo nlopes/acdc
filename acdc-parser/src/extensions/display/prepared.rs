@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt, sync::Arc};
 use bumpalo::Bump;
 
 use crate::{
-    Caption, Document, Error, InlineMacro, InlineNode, ast::DocumentRef,
+    Caption, Document, Error, InlineNode, ast::DocumentRef,
     grammar::try_walk_document_inline_nodes_mut,
 };
 
@@ -108,7 +108,7 @@ impl<'doc> PreparedDocument<'doc> {
                 let mut document = Document::from(owner.source);
                 let mut expanded: HashMap<_, InlineNode<'_>> = HashMap::new();
                 try_walk_document_inline_nodes_mut(&mut document, &mut |node| {
-                    if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = node
+                    if let InlineNode::CrossReference(xref) = node
                         && let Some(display) = xref.generated_display.take()
                     {
                         let target = display.resolved.as_ref().ok_or_else(|| {
@@ -201,11 +201,11 @@ fn build_label<'a>(
 
 fn trim_caption(nodes: &mut Vec<InlineNode<'_>>) {
     while let Some(node) = nodes.last_mut() {
-        let text = if let InlineNode::PlainText(text) = node {
+        let text = if let InlineNode::Plain(text) = node {
             let trimmed = text.content.trim_end();
             text.replace_text(trimmed);
             trimmed
-        } else if let InlineNode::RawText(text) = node {
+        } else if let InlineNode::Raw(text) = node {
             let trimmed = text.content.trim_end();
             text.replace_text(trimmed);
             trimmed

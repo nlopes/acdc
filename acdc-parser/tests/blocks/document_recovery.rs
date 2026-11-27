@@ -62,7 +62,8 @@ fn mismatched_table_delimiters_continue_until_an_exact_close_or_eof(
         "{:?}",
         parsed.document().blocks().collect::<Vec<_>>()
     );
-    let Some(BlockKind::Table(table)) = parsed.document().blocks().nth(1).map(BlockRef::kind)
+    let Some(BlockKind::DelimitedTable(table)) =
+        parsed.document().blocks().nth(1).map(BlockRef::kind)
     else {
         return Err(format!(
             "expected recovered table: {:?}",
@@ -143,7 +144,8 @@ fn oversized_column_width_uses_one_and_keeps_other_controls(
         "[cols=\"2*<.>4294967296a,2\"]\n|===\n|A |B |C\n|===",
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::DelimitedTable(table)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected table".into());
     };

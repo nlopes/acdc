@@ -1,9 +1,10 @@
 //! Ordered construction at accepted block boundaries.
 
 use crate::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttributes, Error, SourceLocation,
+    Block, Document, DocumentAttributes, Error, SourceLocation,
     extensions::{Invocation, MAX_STYLE_NESTING},
     grammar::{ParserState, helpers::PositionWithOffset},
+    model::Delimited,
     model::{SectionKind, SectionLevel},
 };
 
@@ -441,15 +442,11 @@ where
             format!("block style child parsing exceeds the nesting limit of {MAX_STYLE_NESTING}"),
         ));
     }
-    let mut parent = DelimitedBlock::new(
-        DelimitedBlockType::DelimitedOpen(Vec::new()),
-        "--",
-        extension.location.clone(),
-    );
+    let mut parent = Delimited::new(Vec::new(), "--", extension.location.clone());
     parent.title = std::mem::take(&mut extension.title);
     parent.metadata = std::mem::take(&mut extension.metadata);
     parent.source_text = Some(request.source);
-    *block = Block::DelimitedBlock(parent);
+    *block = Block::DelimitedOpen(crate::Open(parent));
 
     accepted.style_depth += 1;
     let result = construct_requested_content(block, state, request, accepted);

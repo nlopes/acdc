@@ -1,7 +1,8 @@
 #![cfg(feature = "asg")]
 use acdc_parser::{
-    Block, CompatibilityMode, Document, ListItem, ListItemCheckedStatus, Location, Options,
-    OrderedList, asg, parse, parse_file,
+    CompatibilityMode, ListItemCheckedStatus, Location, Options, asg,
+    edit::{Block, Document, ListItem, OrderedList},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};

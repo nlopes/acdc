@@ -80,13 +80,16 @@ pub(super) fn heading_location(section: SectionRef<'_>) -> Location {
 
 #[cfg(test)]
 mod tests {
-    use acdc_parser::{Anchor, Block, Document, InlineNode, Location, Paragraph};
+    use acdc_parser::{
+        Location,
+        edit::{Anchor, Block, Document, InlineNode, Paragraph},
+    };
 
     #[test]
     fn ids_without_source_ranges_do_not_create_navigation_targets() {
         let mut document = Document::default();
         document.push_block(Block::Paragraph(Paragraph::new(
-            vec![InlineNode::InlineAnchor(Anchor::new(
+            vec![InlineNode::Anchor(Anchor::new(
                 "unlocated",
                 Location::default(),
             ))],

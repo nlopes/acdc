@@ -5,8 +5,9 @@ use acdc_converters_core::{
     code::{SourceLineOptions, default_line_comment, source_language},
 };
 use acdc_parser::{
-    CaptionKind, InlineNode, Location,
+    CaptionKind, Location,
     ast::{AttributesRef, BlockKind, BlockRef, ContentRef, InlineKind, InlineRef},
+    edit::InlineNode,
 };
 use crossterm::{
     QueueableCommand,
@@ -100,7 +101,7 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let caption_kind = CaptionKind::for_block(block);
         match block.kind() {
-            BlockKind::Table(table) => {
+            BlockKind::DelimitedTable(table) => {
                 self.render_captioned_title_with_wrapper(
                     traversal,
                     table.title(),
@@ -112,39 +113,41 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 let converter = self.converter;
                 crate::table::visit_table(traversal, table, self, converter)
             }
-            BlockKind::Listing(node) => self.render_preformatted_block(
+            BlockKind::DelimitedListing(node) => self.render_preformatted_block(
                 traversal,
                 node.title(),
                 node.content(),
                 node.attributes(),
                 caption_kind,
             ),
-            BlockKind::Literal(node) => self.render_preformatted_block(
+            BlockKind::DelimitedLiteral(node) => self.render_preformatted_block(
                 traversal,
                 node.title(),
                 node.content(),
                 node.attributes(),
                 caption_kind,
             ),
-            BlockKind::Example(node) => {
+            BlockKind::DelimitedExample(node) => {
                 self.render_example_block(traversal, node.title(), node.blocks(), node.attributes())
             }
-            BlockKind::Quote(node) => {
+            BlockKind::DelimitedQuote(node) => {
                 self.render_quote_block(traversal, node.title(), node.blocks(), node.attributes())
             }
-            BlockKind::Sidebar(node) => {
+            BlockKind::DelimitedSidebar(node) => {
                 self.render_sidebar_block(traversal, node.title(), node.blocks())
             }
-            BlockKind::Open(node) => self.render_open_block(traversal, node.title(), node.blocks()),
-            BlockKind::Verse(node) => {
+            BlockKind::DelimitedOpen(node) => {
+                self.render_open_block(traversal, node.title(), node.blocks())
+            }
+            BlockKind::DelimitedVerse(node) => {
                 self.render_verse_block(traversal, node.title(), node.content(), node.attributes())
             }
-            BlockKind::Passthrough(node) => {
+            BlockKind::DelimitedPassthrough(node) => {
                 self.write_content(traversal, node.content())?;
                 writeln!(self.writer_mut())?;
                 Ok(())
             }
-            BlockKind::Stem(node) => self.render_stem_block(
+            BlockKind::DelimitedStem(node) => self.render_stem_block(
                 traversal,
                 node.title(),
                 &node.notation().to_string(),
@@ -599,7 +602,7 @@ fn source_with_callout_placeholders(
                     content = strip_callout_guard(&content, comment_prefix);
                 }
             }
-            let text = InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+            let text = InlineNode::Verbatim(acdc_parser::edit::Verbatim::new(
                 &content,
                 Location::from(verbatim.location()),
             ));
@@ -791,22 +794,24 @@ fn apply_source_line_options(content: &str, options: &SourceLineOptions) -> Stri
 mod tests {
     use super::*;
     use crate::{TerminalVisitor, create_test_converter};
-    use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
 
     use acdc_converters_core::{Diagnostics, WarningSource};
-    use acdc_parser::{Location, Paragraph, Plain, Title};
+    use acdc_parser::{
+        Location,
+        edit::{
+            Block, DelimitedComment, Example, Listing, Literal, Open, Paragraph, Passthrough,
+            Plain, Quote, Sidebar, StemBlock, Title, Verse,
+        },
+    };
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::PlainText(Plain::new(
-            content,
-            Location::default(),
-        ))]
+        vec![InlineNode::Plain(Plain::new(content, Location::default()))]
     }
 
     /// Create simple plain text title for testing
     fn create_test_title(content: &str) -> Title<'_> {
-        Title::new(vec![InlineNode::PlainText(Plain::new(
+        Title::new(vec![InlineNode::Plain(Plain::new(
             content,
             Location::default(),
         ))])
@@ -814,11 +819,10 @@ mod tests {
 
     #[test]
     fn test_listing_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code content here")),
-            "----",
+        let block = Block::DelimitedListing(Listing::new(
+            create_test_inlines("code content here"),
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -847,12 +851,10 @@ mod tests {
 
     #[test]
     fn test_listing_block_with_title() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines("code here")),
-            "----",
-            Location::default(),
-        )
-        .with_title(create_test_title("My Code Listing"));
+        let block = Block::DelimitedListing(
+            Listing::new(create_test_inlines("code here"), Location::default())
+                .with_title(create_test_title("My Code Listing")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -882,11 +884,10 @@ mod tests {
 
     #[test]
     fn test_literal_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal text")),
-            "....",
+        let block = Block::DelimitedLiteral(Literal::new(
+            create_test_inlines("literal text"),
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -915,12 +916,10 @@ mod tests {
 
     #[test]
     fn test_literal_block_with_title() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedLiteral(create_test_inlines("literal content")),
-            "....",
-            Location::default(),
-        )
-        .with_title(create_test_title("Literal Block Title"));
+        let block = Block::DelimitedLiteral(
+            Literal::new(create_test_inlines("literal content"), Location::default())
+                .with_title(create_test_title("Literal Block Title")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -958,11 +957,7 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(content),
-            "====",
-            Location::default(),
-        );
+        let block = Block::DelimitedExample(Example::new(content, Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -998,12 +993,10 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(content),
-            "====",
-            Location::default(),
-        )
-        .with_title(create_test_title("Custom Example Title"));
+        let block = Block::DelimitedExample(
+            Example::new(content, Location::default())
+                .with_title(create_test_title("Custom Example Title")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1039,11 +1032,7 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(content),
-            "____",
-            Location::default(),
-        );
+        let block = Block::DelimitedQuote(Quote::new(content, Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1074,12 +1063,9 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(content),
-            "____",
-            Location::default(),
-        )
-        .with_title(create_test_title("Quote Title"));
+        let block = Block::DelimitedQuote(
+            Quote::new(content, Location::default()).with_title(create_test_title("Quote Title")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1116,11 +1102,7 @@ mod tests {
             )),
         ];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(content),
-            "____",
-            Location::default(),
-        );
+        let block = Block::DelimitedQuote(Quote::new(content, Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1154,11 +1136,7 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedSidebar(content),
-            "****",
-            Location::default(),
-        );
+        let block = Block::DelimitedSidebar(Sidebar::new(content, Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1193,12 +1171,10 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedSidebar(content),
-            "****",
-            Location::default(),
-        )
-        .with_title(create_test_title("Sidebar Title"));
+        let block = Block::DelimitedSidebar(
+            Sidebar::new(content, Location::default())
+                .with_title(create_test_title("Sidebar Title")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1236,11 +1212,7 @@ mod tests {
             )),
         ];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedSidebar(content),
-            "****",
-            Location::default(),
-        );
+        let block = Block::DelimitedSidebar(Sidebar::new(content, Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1274,11 +1246,7 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedOpen(content),
-            "--",
-            Location::default(),
-        );
+        let block = Block::DelimitedOpen(Open::new(content, Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1308,12 +1276,10 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedOpen(content),
-            "--",
-            Location::default(),
-        )
-        .with_title(create_test_title("Open Block Title"));
+        let block = Block::DelimitedOpen(
+            Open::new(content, Location::default())
+                .with_title(create_test_title("Open Block Title")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1342,13 +1308,10 @@ mod tests {
 
     #[test]
     fn test_verse_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedVerse(create_test_inlines(
-                "Roses are red\nViolets are blue",
-            )),
-            "____",
+        let block = Block::DelimitedVerse(Verse::new(
+            create_test_inlines("Roses are red\nViolets are blue"),
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1374,12 +1337,13 @@ mod tests {
 
     #[test]
     fn test_verse_block_with_title() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedVerse(create_test_inlines("Poetry line 1\nPoetry line 2")),
-            "____",
-            Location::default(),
-        )
-        .with_title(create_test_title("Poem Title"));
+        let block = Block::DelimitedVerse(
+            Verse::new(
+                create_test_inlines("Poetry line 1\nPoetry line 2"),
+                Location::default(),
+            )
+            .with_title(create_test_title("Poem Title")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1405,11 +1369,10 @@ mod tests {
 
     #[test]
     fn test_pass_block_basic() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedPass(create_test_inlines("<raw>passthrough</raw>")),
-            "++++",
+        let block = Block::DelimitedPassthrough(Passthrough::new(
+            create_test_inlines("<raw>passthrough</raw>"),
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1434,15 +1397,13 @@ mod tests {
 
     #[test]
     fn test_stem_block_placeholder() -> Result<(), Error> {
-        use acdc_parser::{StemContent, StemNotation};
+        use acdc_parser::StemNotation;
 
-        let stem_content = StemContent::new("x = y^2", StemNotation::Latexmath);
-
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedStem(stem_content),
-            "++++",
+        let block = Block::DelimitedStem(StemBlock::new(
+            "x = y^2",
+            StemNotation::Latexmath,
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1469,11 +1430,10 @@ mod tests {
 
     #[test]
     fn test_comment_block_not_rendered() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedComment(create_test_inlines("This is a comment")),
-            "////",
+        let block = Block::DelimitedComment(DelimitedComment::new(
+            create_test_inlines("This is a comment"),
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1498,11 +1458,7 @@ mod tests {
 
     #[test]
     fn test_empty_listing_block() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(Vec::new()),
-            "----",
-            Location::default(),
-        );
+        let block = Block::DelimitedListing(Listing::new(Vec::new(), Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1527,11 +1483,7 @@ mod tests {
 
     #[test]
     fn test_empty_quote_block() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(Vec::new()),
-            "____",
-            Location::default(),
-        );
+        let block = Block::DelimitedQuote(Quote::new(Vec::new(), Location::default()));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1557,13 +1509,10 @@ mod tests {
 
     #[test]
     fn test_listing_with_special_characters() -> Result<(), Error> {
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(create_test_inlines(
-                "<html>&amp; special chars \"quotes\" 'apostrophes'",
-            )),
-            "----",
+        let block = Block::DelimitedListing(Listing::new(
+            create_test_inlines("<html>&amp; special chars \"quotes\" 'apostrophes'"),
             Location::default(),
-        );
+        ));
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1593,12 +1542,10 @@ mod tests {
             Location::default(),
         ))];
 
-        let block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(content),
-            "====",
-            Location::default(),
-        )
-        .with_title(create_test_title("Nested Content"));
+        let block = Block::DelimitedExample(
+            Example::new(content, Location::default())
+                .with_title(create_test_title("Nested Content")),
+        );
 
         let buffer = Vec::new();
         let converter = create_test_converter();
@@ -1629,35 +1576,38 @@ mod tests {
     fn test_example_block_numbering_sequence() -> Result<(), Error> {
         let converter = create_test_converter();
 
-        let block1 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
-                create_test_inlines("first example"),
+        let block1 = Block::DelimitedExample(
+            Example::new(
+                vec![Block::Paragraph(Paragraph::new(
+                    create_test_inlines("first example"),
+                    Location::default(),
+                ))],
                 Location::default(),
-            ))]),
-            "====",
-            Location::default(),
-        )
-        .with_title(create_test_title("First Example"));
+            )
+            .with_title(create_test_title("First Example")),
+        );
 
-        let block2 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
-                create_test_inlines("second example"),
+        let block2 = Block::DelimitedExample(
+            Example::new(
+                vec![Block::Paragraph(Paragraph::new(
+                    create_test_inlines("second example"),
+                    Location::default(),
+                ))],
                 Location::default(),
-            ))]),
-            "====",
-            Location::default(),
-        )
-        .with_title(create_test_title("Second Example"));
+            )
+            .with_title(create_test_title("Second Example")),
+        );
 
-        let block3 = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(vec![Block::Paragraph(Paragraph::new(
-                create_test_inlines("third example"),
+        let block3 = Block::DelimitedExample(
+            Example::new(
+                vec![Block::Paragraph(Paragraph::new(
+                    create_test_inlines("third example"),
+                    Location::default(),
+                ))],
                 Location::default(),
-            ))]),
-            "====",
-            Location::default(),
-        )
-        .with_title(create_test_title("Third Example"));
+            )
+            .with_title(create_test_title("Third Example")),
+        );
 
         let mut buffer1 = Vec::new();
         let mut warnings = Vec::new();

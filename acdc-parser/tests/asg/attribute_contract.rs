@@ -55,7 +55,7 @@ fn attribute_meaning_agrees_across_reads_native_json_and_checked_export() -> Res
             title.inlines().next().map(InlineRef::kind),
             Some(InlineKind::Bold(_))
         ));
-        let BlockKind::Example(example) = blocks.next().ok_or("example")?.kind() else {
+        let BlockKind::DelimitedExample(example) = blocks.next().ok_or("example")?.kind() else {
             return Err("example".into());
         };
         assert!(matches!(
@@ -122,7 +122,7 @@ fn snapshot_and_selected_content_survive_projection_without_side_effects() -> Re
             .document()
             .blocks()
             .find_map(|block| {
-                if let BlockKind::Quote(block) = block.kind() {
+                if let BlockKind::DelimitedQuote(block) = block.kind() {
                     Some(block)
                 } else {
                     None

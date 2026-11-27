@@ -1,28 +1,28 @@
-use crate::{IndexTermKind, InlineMacro, InlineNode, Location, Substitution, grammar::ParserState};
+use crate::{IndexTermKind, InlineNode, Location, Substitution, grammar::ParserState};
 
 use super::{WordContext, has_candidate, source_start, structural_token_allowed};
 
 pub(super) fn needs_resolution(node: &InlineNode<'_>, ordinary: bool) -> bool {
-    if let InlineNode::PlainText(text) = node {
+    if let InlineNode::Plain(text) = node {
         return ordinary && !text.escaped && has_candidate(text.content);
     }
-    if let InlineNode::RawText(raw) = node {
+    if let InlineNode::Raw(raw) = node {
         return raw.subs.contains(&Substitution::Replacements) && needs_context(raw.content);
     }
-    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+    if let InlineNode::IndexTerm(term) = node {
         return matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(|node| needs_resolution(node, ordinary)));
     }
     false
 }
 
 pub(super) fn needs_word_context(node: &InlineNode<'_>) -> bool {
-    if let InlineNode::PlainText(text) = node {
+    if let InlineNode::Plain(text) = node {
         return !text.escaped && needs_context(text.content);
     }
-    if let InlineNode::RawText(raw) = node {
+    if let InlineNode::Raw(raw) = node {
         return raw.subs.contains(&Substitution::Replacements) && needs_context(raw.content);
     }
-    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+    if let InlineNode::IndexTerm(term) = node {
         return matches!(&term.kind, IndexTermKind::Flow(nodes) if nodes.iter().any(needs_word_context));
     }
     false
@@ -77,8 +77,8 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
         InlineNode::Extension(call) => {
             text_edge(call.literal.content, &call.literal.location, first, state)
         }
-        InlineNode::PlainText(text) => text_edge(text.content, &text.location, first, state),
-        InlineNode::RawText(raw) => text_edge(raw.content, &raw.location, first, state),
+        InlineNode::Plain(text) => text_edge(text.content, &text.location, first, state),
+        InlineNode::Raw(raw) => text_edge(raw.content, &raw.location, first, state),
         InlineNode::Symbol(symbol) => {
             let text = symbol.kind.text();
             let character = if first {
@@ -88,8 +88,8 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
             };
             character.map_or(Edge::Transparent, |character| Edge::Text(character, true))
         }
-        InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography() => Edge::Transparent,
-        InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+        InlineNode::Anchor(anchor) if !anchor.is_bibliography() => Edge::Transparent,
+        InlineNode::IndexTerm(term) => {
             let IndexTermKind::Flow(nodes) = &term.kind else {
                 return Edge::Transparent;
             };
@@ -106,20 +106,32 @@ fn edge(node: &InlineNode<'_>, first: bool, state: &ParserState<'_>) -> Edge {
             }
             Edge::Transparent
         }
-        InlineNode::VerbatimText(_)
-        | InlineNode::BoldText(_)
-        | InlineNode::ItalicText(_)
-        | InlineNode::MonospaceText(_)
-        | InlineNode::HighlightText(_)
-        | InlineNode::SubscriptText(_)
-        | InlineNode::SuperscriptText(_)
+        InlineNode::Verbatim(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Italic(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
         | InlineNode::DoubleQuotedSpan(_)
         | InlineNode::SingleQuotedSpan(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutMarker(_)
+        | InlineNode::Anchor(_)
+        | InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Callout(_)
         | InlineNode::CharacterReference(_) => Edge::Boundary,
     }
 }
@@ -153,7 +165,7 @@ pub(super) fn protected_edge(
     first: bool,
     state: &ParserState<'_>,
 ) -> Option<(char, bool)> {
-    if !matches!(node, InlineNode::RawText(_) | InlineNode::PlainText(_)) {
+    if !matches!(node, InlineNode::Raw(_) | InlineNode::Plain(_)) {
         return None;
     }
     if let Edge::Text(character, allowed) = edge(node, first, state) {

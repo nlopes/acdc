@@ -25,7 +25,7 @@ pub(crate) fn lint_section_title_symmetric_marker(
 fn for_each_heading<'doc>(node: StructuralRef<'doc>, visit: &mut impl FnMut(BlockRef<'doc>)) {
     if let StructuralRef::Block(block) = node {
         // Heading advice excludes table-cell content.
-        if matches!(block.kind(), BlockKind::Table(_)) {
+        if matches!(block.kind(), BlockKind::DelimitedTable(_)) {
             return;
         }
         if matches!(

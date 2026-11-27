@@ -386,19 +386,25 @@ fn collect_block(
         BlockKind::Paragraph(node) => {
             collect_tokens_from_inlines(node.content(), source, mode, tokens);
         }
-        BlockKind::Listing(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
-        BlockKind::Literal(node) => verbatim(block.kind(), node.content(), source, mode, tokens),
-        BlockKind::Passthrough(node) => {
+        BlockKind::DelimitedListing(node) => {
             verbatim(block.kind(), node.content(), source, mode, tokens);
         }
-        BlockKind::Stem(node) => {
+        BlockKind::DelimitedLiteral(node) => {
+            verbatim(block.kind(), node.content(), source, mode, tokens);
+        }
+        BlockKind::DelimitedPassthrough(node) => {
+            verbatim(block.kind(), node.content(), source, mode, tokens);
+        }
+        BlockKind::DelimitedStem(node) => {
             if let Some(range) = delimited_body(block.kind(), source)
                 .or_else(|| primary_range(node.location(), source))
             {
                 add_range_with_priority(range, 3, CODE, 0, source, tokens);
             }
         }
-        BlockKind::Verse(node) => collect_tokens_from_inlines(node.content(), source, mode, tokens),
+        BlockKind::DelimitedVerse(node) => {
+            collect_tokens_from_inlines(node.content(), source, mode, tokens);
+        }
         BlockKind::DelimitedComment(node) => {
             if let Some(range) = delimited_body(block.kind(), source)
                 .or_else(|| primary_range(node.location(), source))
@@ -416,7 +422,7 @@ fn collect_block(
                 prefix(position, &label, 6, source, tokens);
             }
         }
-        BlockKind::Table(table) => table_tokens(table, source, tokens),
+        BlockKind::DelimitedTable(table) => table_tokens(table, source, tokens),
         BlockKind::Image(_)
         | BlockKind::Audio(_)
         | BlockKind::Video(_)
@@ -437,10 +443,10 @@ fn collect_block(
                 );
             }
         }
-        BlockKind::Example(_)
-        | BlockKind::Open(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Quote(_)
+        BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedQuote(_)
         | BlockKind::UnorderedList(_)
         | BlockKind::OrderedList(_)
         | BlockKind::CalloutList(_)
@@ -545,17 +551,17 @@ fn delimiter_locations(kind: BlockKind<'_>) -> [Option<LocationRef<'_>>; 2] {
         };
     }
     match kind {
-        BlockKind::Example(node) => boundaries!(node),
-        BlockKind::Open(node) => boundaries!(node),
-        BlockKind::Sidebar(node) => boundaries!(node),
-        BlockKind::Quote(node) => boundaries!(node),
-        BlockKind::Listing(node) => boundaries!(node),
-        BlockKind::Literal(node) => boundaries!(node),
-        BlockKind::Passthrough(node) => boundaries!(node),
-        BlockKind::Verse(node) => boundaries!(node),
+        BlockKind::DelimitedExample(node) => boundaries!(node),
+        BlockKind::DelimitedOpen(node) => boundaries!(node),
+        BlockKind::DelimitedSidebar(node) => boundaries!(node),
+        BlockKind::DelimitedQuote(node) => boundaries!(node),
+        BlockKind::DelimitedListing(node) => boundaries!(node),
+        BlockKind::DelimitedLiteral(node) => boundaries!(node),
+        BlockKind::DelimitedPassthrough(node) => boundaries!(node),
+        BlockKind::DelimitedVerse(node) => boundaries!(node),
         BlockKind::DelimitedComment(node) => boundaries!(node),
-        BlockKind::Table(node) => boundaries!(node),
-        BlockKind::Stem(node) => boundaries!(node),
+        BlockKind::DelimitedTable(node) => boundaries!(node),
+        BlockKind::DelimitedStem(node) => boundaries!(node),
         BlockKind::Section(_)
         | BlockKind::Paragraph(_)
         | BlockKind::Admonition(_)

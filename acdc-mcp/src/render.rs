@@ -44,17 +44,17 @@ pub(super) fn kind(block: BlockRef<'_>) -> &'static str {
         BlockKind::Image(_) => "image",
         BlockKind::Audio(_) => "audio",
         BlockKind::Video(_) => "video",
-        BlockKind::Table(_) => "table",
-        BlockKind::Listing(_) => "listing",
-        BlockKind::Literal(_) => "literal",
-        BlockKind::Stem(_) => "stem",
+        BlockKind::DelimitedTable(_) => "table",
+        BlockKind::DelimitedListing(_) => "listing",
+        BlockKind::DelimitedLiteral(_) => "literal",
+        BlockKind::DelimitedStem(_) => "stem",
         BlockKind::Comment(_) | BlockKind::DelimitedComment(_) => "comment",
-        BlockKind::Example(_)
-        | BlockKind::Open(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Quote(_)
-        | BlockKind::Verse(_)
-        | BlockKind::Passthrough(_) => "container",
+        BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedQuote(_)
+        | BlockKind::DelimitedVerse(_)
+        | BlockKind::DelimitedPassthrough(_) => "container",
         BlockKind::DocumentAttribute(_) => "attribute",
         BlockKind::ThematicBreak(_)
         | BlockKind::PageBreak(_)
@@ -254,17 +254,17 @@ pub(super) fn render_block(
         | BlockKind::OrderedList(_)
         | BlockKind::DescriptionList(_)
         | BlockKind::CalloutList(_) => render_list(block, format),
-        BlockKind::Example(_)
-        | BlockKind::Open(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Quote(_)
-        | BlockKind::Listing(_)
-        | BlockKind::Literal(_)
-        | BlockKind::Verse(_)
-        | BlockKind::Passthrough(_)
+        BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedQuote(_)
+        | BlockKind::DelimitedListing(_)
+        | BlockKind::DelimitedLiteral(_)
+        | BlockKind::DelimitedVerse(_)
+        | BlockKind::DelimitedPassthrough(_)
         | BlockKind::DelimitedComment(_)
-        | BlockKind::Stem(_)
-        | BlockKind::Table(_) => render_delimited(block, format),
+        | BlockKind::DelimitedStem(_)
+        | BlockKind::DelimitedTable(_) => render_delimited(block, format),
         BlockKind::Image(i) => {
             let alt = i
                 .alt()
@@ -336,25 +336,27 @@ fn render_section(
 
 fn render_delimited(block: BlockRef<'_>, format: Format) -> String {
     let (body, default_delimiter, authored_delimiter) = match block.kind() {
-        BlockKind::Listing(n) => (
+        BlockKind::DelimitedListing(n) => (
             inline_text(n.content(), Format::Plain),
             "----",
             n.delimiter(),
         ),
-        BlockKind::Literal(n) => (
+        BlockKind::DelimitedLiteral(n) => (
             inline_text(n.content(), Format::Plain),
             "----",
             n.delimiter(),
         ),
-        BlockKind::Verse(n) => (inline_text(n.content(), format), "____", n.delimiter()),
-        BlockKind::Passthrough(n) => (inline_text(n.content(), format), "____", n.delimiter()),
+        BlockKind::DelimitedVerse(n) => (inline_text(n.content(), format), "____", n.delimiter()),
+        BlockKind::DelimitedPassthrough(n) => {
+            (inline_text(n.content(), format), "____", n.delimiter())
+        }
         BlockKind::DelimitedComment(_) => return String::new(),
-        BlockKind::Example(n) => (render_many(n.blocks(), format), "====", n.delimiter()),
-        BlockKind::Open(n) => (render_many(n.blocks(), format), "--", n.delimiter()),
-        BlockKind::Sidebar(n) => (render_many(n.blocks(), format), "****", n.delimiter()),
-        BlockKind::Quote(n) => (render_many(n.blocks(), format), "____", n.delimiter()),
-        BlockKind::Stem(n) => (n.text().to_owned(), "++++", n.delimiter()),
-        BlockKind::Table(n) => return render_table(n, format),
+        BlockKind::DelimitedExample(n) => (render_many(n.blocks(), format), "====", n.delimiter()),
+        BlockKind::DelimitedOpen(n) => (render_many(n.blocks(), format), "--", n.delimiter()),
+        BlockKind::DelimitedSidebar(n) => (render_many(n.blocks(), format), "****", n.delimiter()),
+        BlockKind::DelimitedQuote(n) => (render_many(n.blocks(), format), "____", n.delimiter()),
+        BlockKind::DelimitedStem(n) => (n.text().to_owned(), "++++", n.delimiter()),
+        BlockKind::DelimitedTable(n) => return render_table(n, format),
         _ => return "[unsupported delimited block]".into(),
     };
     if format == Format::Plain {

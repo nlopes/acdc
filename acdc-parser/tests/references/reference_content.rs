@@ -278,7 +278,7 @@ fn inline_entry_point_uses_the_same_parsed_label(
 #[test]
 fn reference_content_preserves_send_and_sync() {
     fn check<T: Send + Sync>() {}
-    check::<acdc_parser::Document<'_>>();
+    check::<acdc_parser::edit::Document<'_>>();
 }
 
 #[rstest::rstest]

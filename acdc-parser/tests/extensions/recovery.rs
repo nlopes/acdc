@@ -177,10 +177,10 @@ fn compound_child_grammar_failure_recovers_through_the_closing_delimiter(
     };
     let mut blocks = parent.blocks();
     match blocks.next().map(BlockRef::kind) {
-        Some(BlockKind::Quote(quote)) => {
+        Some(BlockKind::DelimitedQuote(quote)) => {
             assert_eq!(quote.blocks().count(), 0);
         }
-        Some(BlockKind::Example(example)) => {
+        Some(BlockKind::DelimitedExample(example)) => {
             assert_eq!(example.blocks().count(), 0);
         }
         _ => return Err("missing recovered compound".into()),

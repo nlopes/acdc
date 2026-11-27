@@ -2,7 +2,7 @@
 
 use acdc_converters_core::{Converter as _, Diagnostics, Options, pipeline::Pipeline};
 use acdc_converters_html::{Converter, HtmlVariant};
-use acdc_parser::{Document, Options as ParserOptions};
+use acdc_parser::{Options as ParserOptions, edit::Document};
 
 #[test]
 fn pipeline_repeated_html_conversions_start_fresh_index_counters()

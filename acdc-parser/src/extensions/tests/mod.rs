@@ -11,7 +11,8 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, CompatibilityMode, Error, InlineNode, Options, SafeMode, WarningKind,
+    CompatibilityMode, Error, Options, SafeMode, WarningKind,
+    edit::{Block, InlineNode},
     extensions::{
         BlockMacro, BlockMacroOutput, BlockMacroProcessor, MacroContext, MacroInvocation,
         MacroTarget, RegistrationError, Registry,
@@ -80,7 +81,7 @@ fn paragraph_text(block: &Block<'_>) -> String {
         .content
         .iter()
         .filter_map(|node| {
-            if let InlineNode::PlainText(text) = node {
+            if let InlineNode::Plain(text) = node {
                 Some(text.content)
             } else {
                 None
@@ -426,10 +427,10 @@ fn extensions_output_captions_use_source_position_attributes() -> TestResult {
         .filter_map(|block| block.metadata()?.caption.as_ref())
         .collect();
     assert!(
-        matches!(captions[0], acdc_parser::Caption::Numbered { label, number, .. } if label == "Before" && number.is_some_and(|number| number.get() == 1))
+        matches!(captions[0], acdc_parser::edit::Caption::Numbered { label, number, .. } if label == "Before" && number.is_some_and(|number| number.get() == 1))
     );
     assert!(
-        matches!(captions[1], acdc_parser::Caption::Numbered { label, number, .. } if label == "After" && number.is_some_and(|number| number.get() == 2))
+        matches!(captions[1], acdc_parser::edit::Caption::Numbered { label, number, .. } if label == "After" && number.is_some_and(|number| number.get() == 2))
     );
     Ok(())
 }
@@ -781,12 +782,10 @@ fn extensions_streamed_cell_arguments_use_table_escape_rules() -> TestResult {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         let result = support::registry().parse("[cols=a]\n|===\n|record::target[first=\"a\\|b\"]\n\nifdef::never[]\nignored\nendif::[]\n|===", &options)?;
         let document = result.parsed.document_storage();
-        let Block::DelimitedBlock(table) = &document.blocks[0] else {
+        let Block::DelimitedTable(crate::model::Table(table)) = &document.blocks[0] else {
             panic!("table")
         };
-        let crate::DelimitedBlockType::DelimitedTable(table) = &table.inner else {
-            panic!("table")
-        };
+        let table = &table.body;
         let output: serde_json::Value =
             serde_json::from_str(&paragraph_text(&table.rows[0].columns[0].content[0]))?;
         assert_eq!(output["attributes"]["first"], "a|b", "{mode:?}");

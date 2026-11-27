@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, Document, Location, Options,
+    CompatibilityMode, Location, Options,
     ast::{ContentRef, CrossReferenceRef, DocumentRef, InlineKind},
+    edit::{ContentAttribute, Document},
     parse, parse_file,
 };
 
@@ -79,7 +80,7 @@ fn body_context_is_ordered_and_survives_prepared_repair(
     assert_eq!(contexts(DocumentRef::from(&owned)), expected);
     assert_eq!(serde_json::to_value(DocumentRef::from(&owned))?, before);
     let nodes = xrefs(parsed.document());
-    let mut copy = acdc_parser::CrossReference::from(*nodes.get(2).ok_or("body")?);
+    let mut copy = acdc_parser::edit::CrossReference::from(*nodes.get(2).ok_or("body")?);
     copy.set_document_reftext(Some(ContentAttribute::default()));
     assert!(
         CrossReferenceRef::from(&copy)
@@ -280,7 +281,7 @@ fn named_asg_keeps_context_separate_from_authored_text(
             .pointer("/blocks/1/inlines/2/document_reftext")
             .is_none()
     );
-    let occurrence = ContentAttribute::new(vec![acdc_parser::InlineNode::from(
+    let occurrence = ContentAttribute::new(vec![acdc_parser::edit::InlineNode::from(
         parsed
             .document()
             .content_occurrences()

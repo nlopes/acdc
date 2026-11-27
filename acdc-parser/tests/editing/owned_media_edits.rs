@@ -7,9 +7,10 @@ macro_rules! media_contract {
         mod $module {
             use super::Error;
             use acdc_parser::{
-                Block, CompatibilityMode, Location, Options, ParseResult, Source, Title,
+                CompatibilityMode, Location, Options, ParseResult,
                 ast::{AttributeValueRef, ContentRef, $read},
-                parse, $owner,
+                edit::{Block, Source, Title, $owner},
+                parse,
             };
 
             fn owner(parsed: &ParseResult) -> Result<$owner<'_>, Error> {
@@ -176,8 +177,9 @@ fn image_alt_and_caption_title_keep_distinct_absent_empty_and_prepared_content(
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
-        Block, ContentAttribute, Location, Options, Plain,
+        Location, Options,
         ast::{ContentRef, ImageRef},
+        edit::{Block, ContentAttribute, Plain},
         parse,
     };
     let parsed = parse(
@@ -199,7 +201,7 @@ fn image_alt_and_caption_title_keep_distinct_absent_empty_and_prepared_content(
             .is_some_and(ContentRef::is_empty)
     );
     image.set_alt(Some(ContentAttribute::new(vec![
-        acdc_parser::InlineNode::PlainText(Plain::new("*literal* {name}", Location::default())),
+        acdc_parser::edit::InlineNode::Plain(Plain::new("*literal* {name}", Location::default())),
     ])));
     assert_eq!(
         serde_json::to_value(image.take_alt())?.pointer("/0/value"),

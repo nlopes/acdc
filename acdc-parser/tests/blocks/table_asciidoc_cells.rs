@@ -247,7 +247,7 @@ fn first_table(document: DocumentRef<'_>) -> Result<TableRef<'_>, Error> {
 }
 
 fn table(block: BlockRef<'_>) -> Result<TableRef<'_>, Error> {
-    let BlockKind::Table(table) = block.kind() else {
+    let BlockKind::DelimitedTable(table) = block.kind() else {
         return Err("expected a table".into());
     };
     Ok(table)

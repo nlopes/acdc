@@ -1,9 +1,10 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Bold, CompatibilityMode, ContentAttribute, Document, ElementId, FormattingForm, Highlight,
-    InlineMacro, InlineNode, Link, Location, Options, Source, asg, ast::ContentRef, parse,
-    parse_file, parse_inline,
+    CompatibilityMode, FormattingForm, Location, Options, asg,
+    ast::ContentRef,
+    edit::{Bold, ContentAttribute, Document, ElementId, Highlight, InlineNode, Link, Source},
+    parse, parse_file, parse_inline,
 };
 use serde_json::{Value, json};
 
@@ -55,7 +56,7 @@ fn empty_span_roles_preserve_generic_highlights_without_inventing_controls() -> 
     for role in [None, Some(""), Some(" \t"), Some("one one\u{a0}two")] {
         let mut span = Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
         span.replace_role(role);
-        let content = ContentAttribute::new(vec![InlineNode::HighlightText(span)]);
+        let content = ContentAttribute::new(vec![InlineNode::Highlight(span)]);
         let value = extended(&content)?;
         assert_eq!(
             value.pointer("/0/variant"),
@@ -87,7 +88,7 @@ fn empty_span_roles_preserve_generic_highlights_without_inventing_controls() -> 
         Location::default(),
     );
     span.set_id(Some(ElementId::new("", Location::default())));
-    let value = extended(&ContentAttribute::new(vec![InlineNode::BoldText(span)]))?;
+    let value = extended(&ContentAttribute::new(vec![InlineNode::Bold(span)]))?;
     assert_eq!(value.pointer("/0/id"), Some(&json!("")));
     assert_eq!(value.pointer("/0/form"), Some(&json!("unconstrained")));
     Ok(())
@@ -105,7 +106,7 @@ fn nested_unsupported_values_still_report_their_own_path() -> Result<(), Error> 
         Some(&json!("stem"))
     );
     let mut link = Link::new(Source::Name("target"), Location::default());
-    let invalid = acdc_parser::CharacterReference::new(
+    let invalid = acdc_parser::edit::CharacterReference::new(
         acdc_parser::CharacterReferenceKind::Numeric(0),
         Location::default(),
     )
@@ -114,13 +115,13 @@ fn nested_unsupported_values_still_report_their_own_path() -> Result<(), Error> 
         InlineNode::CharacterReference(invalid),
     ])));
     assert!(
-        matches!(extended(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))])), Err(asg::Error::Unsupported{path,..}) if path == "/0/tooltip/0")
+        matches!(extended(&ContentAttribute::new(vec![InlineNode::Link(Box::new(link))])), Err(asg::Error::Unsupported{path,..}) if path == "/0/tooltip/0")
     );
     let mut link = Link::new(Source::Name("target"), Location::default());
     link.set_attribute("literal".into(), "\"keep\"".to_owned().into())?;
-    let value = extended(&ContentAttribute::new(vec![InlineNode::Macro(
-        InlineMacro::Link(Box::new(link)),
-    )]))?;
+    let value = extended(&ContentAttribute::new(vec![InlineNode::Link(Box::new(
+        link,
+    ))]))?;
     assert_eq!(
         value
             .get(0)

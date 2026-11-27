@@ -86,7 +86,7 @@ impl<'doc> BlockVisitor<'doc> for ResourceVisitor<'_, '_, '_> {
                 lint_resource_inlines(self.emitter, traversal, field.content(), self.source_path);
             }
         }
-        if let BlockKind::Table(table) = block.kind() {
+        if let BlockKind::DelimitedTable(table) = block.kind() {
             self.visit_table(traversal, table)
         } else {
             for child in block.children() {

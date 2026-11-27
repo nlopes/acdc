@@ -139,7 +139,7 @@ fn passthrough_ids_map_to_the_authored_token_once(#[case] spelling: &str) -> Res
             .ok_or("end character")?
             .len_utf8();
         assert_eq!(source.get(start..end + end_width), Some(spelling));
-        let owned = acdc_parser::InlineNode::RawText(acdc_parser::Raw::from(*raw));
+        let owned = acdc_parser::edit::InlineNode::Raw(acdc_parser::edit::Raw::from(*raw));
         let node = acdc_parser::ast::InlineRef::from(&owned);
         assert_eq!(
             node.id().map(acdc_parser::ast::ElementIdRef::as_str),
@@ -166,9 +166,11 @@ fn asg_reports_passthrough_identity_instead_of_dropping_it() -> Result<(), Error
             let source = format!("Before {prefix}++literal++.");
             let parsed = parse(&source, &Options::default())?;
             let raw = raw_nodes(&parsed).into_iter().next().ok_or("raw")?;
-            let node = acdc_parser::InlineNode::RawText(acdc_parser::Raw::from(raw));
+            let node = acdc_parser::edit::InlineNode::Raw(acdc_parser::edit::Raw::from(raw));
             let error = acdc_parser::asg::export_inlines_with_profile(
-                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(vec![node])),
+                acdc_parser::ast::ContentRef::from(&acdc_parser::edit::ContentAttribute::new(
+                    vec![node],
+                )),
                 profile,
             )
             .err()

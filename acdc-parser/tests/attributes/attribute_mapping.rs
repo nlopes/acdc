@@ -40,7 +40,7 @@ fn literal_attributions_exclude_the_following_delimiter() -> Result<(), Error> {
                     &source,
                     &Options::builder().with_compatibility_mode(mode).build()?,
                 )?;
-                let [BlockKind::Quote(block)] = &*parsed
+                let [BlockKind::DelimitedQuote(block)] = &*parsed
                     .document()
                     .blocks()
                     .map(BlockRef::kind)
@@ -75,7 +75,7 @@ fn expanded_attributions_point_to_the_authored_reference() -> Result<(), Error> 
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let [BlockKind::Quote(block)] = &*parsed
+        let [BlockKind::DelimitedQuote(block)] = &*parsed
             .document()
             .blocks()
             .map(BlockRef::kind)
@@ -162,7 +162,8 @@ fn included_and_nested_values_keep_authored_byte_ranges() -> Result<(), Error> {
                 )
         );
 
-        let Some(BlockKind::Table(table)) = blocks.last().copied().map(BlockRef::kind) else {
+        let Some(BlockKind::DelimitedTable(table)) = blocks.last().copied().map(BlockRef::kind)
+        else {
             return Err("expected a table".into());
         };
         let quote = table
@@ -185,7 +186,7 @@ fn included_and_nested_values_keep_authored_byte_ranges() -> Result<(), Error> {
 }
 
 fn attribution_location(block: BlockRef<'_>) -> Result<LocationRef<'_>, Error> {
-    let BlockKind::Quote(block) = block.kind() else {
+    let BlockKind::DelimitedQuote(block) = block.kind() else {
         return Err("expected a quote block".into());
     };
     block

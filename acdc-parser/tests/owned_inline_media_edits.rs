@@ -3,11 +3,12 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, ContentAttribute, ElementAttributes, ElementId, Icon,
-    InlineImage, InlineMacro, InlineMetadata, InlineNode, Location, Options, Plain, Position,
-    Source,
+    AttributeValue, CompatibilityMode, ElementAttributes, Location, Options, Position,
     ast::{
         AttributeValueRef, BlockKind, ContentRef, IconRef, InlineImageRef, InlineKind, SourceKind,
+    },
+    edit::{
+        ContentAttribute, ElementId, Icon, InlineImage, InlineMetadata, InlineNode, Plain, Source,
     },
     parse,
 };
@@ -26,7 +27,7 @@ macro_rules! all_media {
 }
 
 fn plain(text: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
+    InlineNode::Plain(Plain::new(text, Location::default()).with_escaped(true))
 }
 
 #[test]
@@ -172,7 +173,7 @@ fn media_option_and_metadata_transfers_keep_buffers_and_source_lifetimes() {
 fn media_target_replacement_keeps_original_url_spelling_and_does_not_fetch() -> Result<(), Error> {
     let source = String::from("HTTPS://example.invalid/a?key=Value#part");
     // SourceUrl accepts the original spelling; prepared replacement does not classify it again.
-    let url = acdc_parser::SourceUrl::new(&source)?;
+    let url = acdc_parser::edit::SourceUrl::new(&source)?;
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident, $replace:ident, $source:ident) => {
             let old = {
@@ -200,7 +201,7 @@ fn media_location_edits_keep_id_and_content_locations() -> Result<(), Error> {
     macro_rules! check {
         ($owner:ident, $read:ident, $variant:ident, $replace:ident, $source:ident) => {
             let mut node = $owner::new(Source::Name("target"), original.clone());
-            node.set_alt(Some(ContentAttribute::new(vec![InlineNode::PlainText(
+            node.set_alt(Some(ContentAttribute::new(vec![InlineNode::Plain(
                 Plain::new("Alt", original.clone()),
             )])));
             let mut metadata = InlineMetadata::default();
@@ -251,9 +252,7 @@ fn selected_media_copies_keep_native_json_and_do_not_register_edits(
                 let original = $owner::from($value);
                 let mut copy = $owner::from($value);
                 assert_eq!(
-                    &serde_json::to_value(InlineNode::Macro(InlineMacro::$variant(
-                        copy.clone().into()
-                    )))?,
+                    &serde_json::to_value(InlineNode::$variant(copy.clone().into()))?,
                     before
                         .pointer(&format!("/blocks/0/inlines/{index}"))
                         .ok_or("native inline")?

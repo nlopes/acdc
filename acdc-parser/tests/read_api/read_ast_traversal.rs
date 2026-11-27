@@ -1,9 +1,9 @@
 use std::ops::ControlFlow;
 
 use acdc_parser::{
-    Block, CompatibilityMode, DelimitedBlock, DelimitedBlockType, Document, Location, Options,
-    Paragraph, SafeMode, Table, TableRow,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, StructuralRef},
+    edit::{Block, Document, Open, Paragraph, Table, TableRow},
     parse, parse_file,
 };
 
@@ -70,13 +70,13 @@ fn label(node: StructuralRef<'_>) -> String {
             text(paragraph.content())
         } else if matches!(block.kind(), BlockKind::Section(_)) {
             "section".into()
-        } else if matches!(block.kind(), BlockKind::Example(_)) {
+        } else if matches!(block.kind(), BlockKind::DelimitedExample(_)) {
             "example".into()
-        } else if matches!(block.kind(), BlockKind::Open(_)) {
+        } else if matches!(block.kind(), BlockKind::DelimitedOpen(_)) {
             "open".into()
-        } else if matches!(block.kind(), BlockKind::Sidebar(_)) {
+        } else if matches!(block.kind(), BlockKind::DelimitedSidebar(_)) {
             "sidebar".into()
-        } else if matches!(block.kind(), BlockKind::Quote(_)) {
+        } else if matches!(block.kind(), BlockKind::DelimitedQuote(_)) {
             "quote".into()
         } else if matches!(block.kind(), BlockKind::Admonition(_)) {
             "admonition".into()
@@ -88,9 +88,9 @@ fn label(node: StructuralRef<'_>) -> String {
             "dlist".into()
         } else if matches!(block.kind(), BlockKind::CalloutList(_)) {
             "colist".into()
-        } else if matches!(block.kind(), BlockKind::Listing(_)) {
+        } else if matches!(block.kind(), BlockKind::DelimitedListing(_)) {
             "listing".into()
-        } else if matches!(block.kind(), BlockKind::Table(_)) {
+        } else if matches!(block.kind(), BlockKind::DelimitedTable(_)) {
             "table".into()
         } else {
             "other block".into()
@@ -247,11 +247,7 @@ fn empty_structures_still_keep_rows_and_early_breaks_can_resume() -> Result<(), 
     let table = Table::new(vec![TableRow::new(Vec::new())], Location::default())
         .with_header(Some(TableRow::new(Vec::new())))
         .with_footer(Some(TableRow::new(Vec::new())));
-    let owner = DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(table),
-        "|===",
-        Location::default(),
-    );
+    let owner = Block::DelimitedTable(table);
     assert_eq!(
         BlockRef::from(&owner)
             .descendants()
@@ -334,12 +330,11 @@ fn deep_traversal_uses_a_heap_stack_and_can_cross_threads() -> Result<(), Error>
     }
     let mut tree = Block::Paragraph(Paragraph::new(Vec::new(), Location::default()));
     for _ in 0..2048 {
-        tree = Block::DelimitedBlock(DelimitedBlock::new(
-            DelimitedBlockType::DelimitedOpen(vec![
+        tree = Block::DelimitedOpen(Open::new(
+            vec![
                 tree,
                 Block::Paragraph(Paragraph::new(Vec::new(), Location::default())),
-            ]),
-            "--",
+            ],
             Location::default(),
         ));
     }
@@ -352,14 +347,8 @@ fn deep_traversal_uses_a_heap_stack_and_can_cross_threads() -> Result<(), Error>
             .map_err(|_| "traversal thread panicked".into())
     });
     // Drop the constructed tree iteratively too, so the test measures traversal stack use.
-    while let Block::DelimitedBlock(block) = tree {
-        let DelimitedBlockType::DelimitedOpen(mut blocks) = block.into_body() else {
-            return Err("open block".into());
-        };
-        if blocks.is_empty() {
-            return Err("nested block".into());
-        }
-        tree = blocks.remove(0);
+    while let Block::DelimitedOpen(mut block) = tree {
+        tree = block.take_blocks().next().ok_or("nested block")?;
     }
     let count: usize = result?;
     assert_eq!(count, 4096);

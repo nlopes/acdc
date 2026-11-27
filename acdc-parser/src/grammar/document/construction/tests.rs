@@ -1,7 +1,7 @@
 use std::{path::PathBuf, rc::Rc};
 
 use crate::{
-    Block, CompatibilityMode, DelimitedBlockType, Error, InlineNode, Options, WarningKind,
+    Block, CompatibilityMode, Error, InlineNode, Options, WarningKind,
     grammar::{ParserState, state::BlockContext},
     model::SourceRange,
 };
@@ -78,12 +78,11 @@ fn compound_driver_commits_parents_before_constructing_children() -> TestResult 
             ConstructionMode::Ordered,
             &mut |block, state| {
                 locations.push(block.location().absolute_start);
-                if let Block::DelimitedBlock(block) = block
-                    && let DelimitedBlockType::DelimitedExample(body)
-                    | DelimitedBlockType::DelimitedSidebar(body) = &block.inner
+                if let Block::DelimitedExample(crate::model::Example(delimited))
+                | Block::DelimitedSidebar(crate::model::Sidebar(delimited)) = block
                 {
-                    assert_eq!(body, &Vec::<Block<'_>>::new());
-                    let value = if matches!(block.inner, DelimitedBlockType::DelimitedExample(_)) {
+                    assert_eq!(delimited.body, Vec::<Block<'_>>::new());
+                    let value = if matches!(block, Block::DelimitedExample(_)) {
                         "example"
                     } else {
                         "sidebar"
@@ -92,7 +91,7 @@ fn compound_driver_commits_parents_before_constructing_children() -> TestResult 
                         .set_text("value".into(), value.into());
                 }
                 if let Block::Paragraph(paragraph) = block
-                    && let [InlineNode::PlainText(plain)] = paragraph.content.as_slice()
+                    && let [InlineNode::Plain(plain)] = paragraph.content.as_slice()
                 {
                     paragraphs.push(plain.content);
                 }
@@ -179,13 +178,10 @@ fn compound_driver_keeps_recovery_bounded_without_replaying_child_handlers() -> 
     let [Block::Section(parent)] = document.blocks.as_slice() else {
         return Err("expected the surviving parent section".into());
     };
-    let [Block::DelimitedBlock(quote)] = parent.content.as_slice() else {
+    let [Block::DelimitedQuote(crate::model::Quote(quote))] = parent.content.as_slice() else {
         return Err("expected the recovered quote".into());
     };
-    let DelimitedBlockType::DelimitedQuote(body) = &quote.inner else {
-        return Err("expected quote content".into());
-    };
-    assert_eq!(body, &Vec::<Block<'_>>::new());
+    assert_eq!(quote.body, Vec::<Block<'_>>::new());
     assert_eq!(document.toc_entries.len(), 1);
     let warnings = std::mem::take(&mut *state.warnings.borrow_mut()).into_vec();
     assert_eq!(warnings.len(), 1);
@@ -284,7 +280,7 @@ fn table_driver_commits_each_duplicate_with_isolated_attributes() -> TestResult 
                             .content
                             .iter()
                             .filter_map(|node| {
-                                if let InlineNode::PlainText(plain) = node {
+                                if let InlineNode::Plain(plain) = node {
                                     Some(plain.content)
                                 } else {
                                     None
@@ -442,7 +438,7 @@ fn ordinary_list_driver_runs_attached_macros_before_later_principals() -> TestRe
         let Some(second) = list.items.get(1) else {
             return Err("missing second item".into());
         };
-        let Some(InlineNode::PlainText(text)) = second.principal.first() else {
+        let Some(InlineNode::Plain(text)) = second.principal.first() else {
             return Err("missing principal".into());
         };
         assert_eq!(text.content, "one");
@@ -452,14 +448,14 @@ fn ordinary_list_driver_runs_attached_macros_before_later_principals() -> TestRe
         let Some(item) = nested.items.get(1) else {
             return Err("missing nested second item".into());
         };
-        let Some(InlineNode::PlainText(text)) = item.principal.first() else {
+        let Some(InlineNode::Plain(text)) = item.principal.first() else {
             return Err("missing nested principal".into());
         };
         assert_eq!(text.content, "two");
         let Some(item) = list.items.last() else {
             return Err("missing last item".into());
         };
-        let Some(InlineNode::PlainText(text)) = item.principal.first() else {
+        let Some(InlineNode::Plain(text)) = item.principal.first() else {
             return Err("missing last principal".into());
         };
         assert_eq!(text.content, "two");
@@ -469,7 +465,7 @@ fn ordinary_list_driver_runs_attached_macros_before_later_principals() -> TestRe
         let Some(item) = list.items.last() else {
             return Err("missing ordered second item".into());
         };
-        let Some(InlineNode::PlainText(text)) = item.principal.first() else {
+        let Some(InlineNode::Plain(text)) = item.principal.first() else {
             return Err("missing ordered principal".into());
         };
         assert_eq!(text.content, "three");
@@ -557,7 +553,7 @@ fn callout_list_driver_commits_attached_macros_before_later_items() -> TestResul
         let Some(item) = list.items.last() else {
             return Err("missing callout item".into());
         };
-        let Some(InlineNode::PlainText(text)) = item.principal.first() else {
+        let Some(InlineNode::Plain(text)) = item.principal.first() else {
             return Err("missing callout principal".into());
         };
         assert_eq!(text.content, "one");
@@ -668,7 +664,7 @@ fn description_list_driver_runs_attachments_before_later_principals() -> TestRes
         let Some(definition) = list.items.last().and_then(|item| item.definition.as_ref()) else {
             return Err("missing definition".into());
         };
-        let Some(InlineNode::PlainText(text)) = definition
+        let Some(InlineNode::Plain(text)) = definition
             .principal
             .as_ref()
             .and_then(|principal| principal.first())
@@ -808,7 +804,7 @@ fn abbreviated_quote_driver_commits_children_in_source_order(#[case] input: &str
                             .content
                             .iter()
                             .filter_map(|node| {
-                                if let InlineNode::PlainText(text) = node {
+                                if let InlineNode::Plain(text) = node {
                                     Some(text.content)
                                 } else {
                                     None
@@ -871,14 +867,14 @@ fn abbreviated_quote_driver_preserves_attribution_footnote_order(
     let document = document_with(input, &mut state, ConstructionMode::Ordered, &mut |_, _| {
         Ok(())
     })??;
-    let Some(Block::DelimitedBlock(block)) = document.blocks.first() else {
+    let Some(Block::DelimitedQuote(crate::model::Quote(block))) = document.blocks.first() else {
         return Err("missing quote".into());
     };
     let numbers = |nodes: &[InlineNode<'_>]| {
         nodes
             .iter()
             .filter_map(|node| {
-                if let InlineNode::Macro(crate::InlineMacro::Footnote(note)) = node {
+                if let InlineNode::Footnote(note) = node {
                     Some(note.number)
                 } else {
                     None
@@ -902,10 +898,7 @@ fn abbreviated_quote_driver_preserves_attribution_footnote_order(
             .map(|content| numbers(content.as_inlines())),
         Some(vec![2])
     );
-    let DelimitedBlockType::DelimitedQuote(children) = &block.inner else {
-        return Err("missing quote children".into());
-    };
-    let Some(Block::Paragraph(paragraph)) = children.first() else {
+    let Some(Block::Paragraph(paragraph)) = block.body.first() else {
         return Err("missing quote paragraph".into());
     };
     assert_eq!(numbers(&paragraph.content), [3]);

@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, ColumnFormat, CompatibilityMode, DelimitedBlock, DelimitedBlockType, Document, Location,
-    Options, Table, TableCell, TableRow, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{Block, ColumnFormat, Document, Table, TableCell, TableRow},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -13,11 +14,7 @@ fn document(rows: Vec<TableRow<'static>>, width: usize) -> Document<'static> {
     let table =
         Table::new(rows, Location::default()).with_columns(vec![ColumnFormat::new(); width]);
     let mut document = Document::default();
-    document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(table),
-        "|===",
-        Location::default(),
-    )));
+    document.push_block(Block::DelimitedTable(table));
     document
 }
 

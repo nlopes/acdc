@@ -43,7 +43,7 @@ fn unsupported_substitutions_preserve_source_and_report_recovery(
     let [
         BlockKind::Paragraph(first),
         BlockKind::Paragraph(second),
-        BlockKind::Stem(stem),
+        BlockKind::DelimitedStem(stem),
     ] = &*parsed
         .document()
         .blocks()

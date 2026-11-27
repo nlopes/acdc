@@ -4,7 +4,11 @@ use acdc_converters_core::{
     Diagnostics, Options as ConverterOptions, TraversalContext, WarningSource,
     visitor::DocumentVisitor,
 };
-use acdc_parser::{Document, Header, Location, Options, parse};
+use acdc_parser::{
+    Location, Options,
+    edit::{Document, Header},
+    parse,
+};
 
 use crate::{Converter, Error, HtmlVariant, HtmlVisitor, RenderOptions};
 
@@ -160,7 +164,7 @@ fn frame_propagates_writer_failure_before_css_signature_validation() -> Result<(
 #[test]
 fn headerless_frame_uses_converter_toc_placement_for_its_wrapper() -> Result<(), TestError> {
     let parsed = parse("== Section\n\nBody.\n", &Options::default())?;
-    let parsed_stored = acdc_parser::Document::from(parsed.document());
+    let parsed_stored = acdc_parser::edit::Document::from(parsed.document());
     assert!(
         acdc_parser::ast::DocumentRef::from(&parsed_stored)
             .header()
@@ -186,7 +190,7 @@ fn headerless_frame_uses_converter_toc_placement_for_its_wrapper() -> Result<(),
                 &parsed
                     .document()
                     .toc_entries()
-                    .map(acdc_parser::TocEntry::from)
+                    .map(acdc_parser::edit::TocEntry::from)
                     .collect(),
             );
             let source = WarningSource::new("html");

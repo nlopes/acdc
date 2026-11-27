@@ -2,8 +2,10 @@
 
 use acdc_converters_core::{InlineTextTransform, index::visit_index_inlines};
 use acdc_parser::{
-    CompatibilityMode, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, Options, Plain, ast::InlineRef, parse_inline,
+    CompatibilityMode, Location, Options,
+    ast::InlineRef,
+    edit::{IndexTerm, IndexTermKind, IndexTermRelationship, InlineNode, Plain},
+    parse_inline,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -19,35 +21,41 @@ fn visit_index_terms<E>(
         visit: &mut impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
     ) -> Result<(), E> {
         for node in nodes {
-            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+            if let InlineNode::IndexTerm(term) = node {
                 visit(term, offset.len())?;
             } else {
                 let children = match node.clone() {
-                    InlineNode::BoldText(mut span) => Some(span.take_content()),
-                    InlineNode::ItalicText(mut span) => Some(span.take_content()),
-                    InlineNode::MonospaceText(mut span) => Some(span.take_content()),
-                    InlineNode::HighlightText(mut span) => Some(span.take_content()),
-                    InlineNode::SubscriptText(mut span) => Some(span.take_content()),
-                    InlineNode::SuperscriptText(mut span) => Some(span.take_content()),
+                    InlineNode::Bold(mut span) => Some(span.take_content()),
+                    InlineNode::Italic(mut span) => Some(span.take_content()),
+                    InlineNode::Monospace(mut span) => Some(span.take_content()),
+                    InlineNode::Highlight(mut span) => Some(span.take_content()),
+                    InlineNode::Subscript(mut span) => Some(span.take_content()),
+                    InlineNode::Superscript(mut span) => Some(span.take_content()),
                     InlineNode::DoubleQuotedSpan(mut span) => Some(span.take_content()),
                     InlineNode::SingleQuotedSpan(mut span) => Some(span.take_content()),
-                    InlineNode::Macro(InlineMacro::UrlMacro(mut link)) => Some(link.take_text()),
-                    InlineNode::Macro(InlineMacro::Link(mut link)) => Some(link.take_text()),
-                    InlineNode::Macro(InlineMacro::Mailto(mut link)) => Some(link.take_text()),
-                    InlineNode::Macro(InlineMacro::CrossReference(mut link)) => {
-                        Some(link.take_text())
-                    }
-                    InlineNode::Macro(InlineMacro::Footnote(mut note)) => note.take_content(),
-                    InlineNode::PlainText(_)
+                    InlineNode::UrlMacro(mut link) => Some(link.take_text()),
+                    InlineNode::Link(mut link) => Some(link.take_text()),
+                    InlineNode::Mailto(mut link) => Some(link.take_text()),
+                    InlineNode::CrossReference(mut link) => Some(link.take_text()),
+                    InlineNode::Footnote(mut note) => note.take_content(),
+                    InlineNode::Plain(_)
                     | InlineNode::Symbol(_)
                     | InlineNode::CharacterReference(_)
-                    | InlineNode::RawText(_)
-                    | InlineNode::VerbatimText(_)
+                    | InlineNode::Raw(_)
+                    | InlineNode::Verbatim(_)
                     | InlineNode::StandaloneCurvedApostrophe(_)
                     | InlineNode::LineBreak(_)
-                    | InlineNode::InlineAnchor(_)
-                    | InlineNode::Macro(_)
-                    | InlineNode::CalloutMarker(_)
+                    | InlineNode::Anchor(_)
+                    | InlineNode::Autolink(_)
+                    | InlineNode::Button(_)
+                    | InlineNode::Icon(_)
+                    | InlineNode::Image(_)
+                    | InlineNode::IndexTerm(_)
+                    | InlineNode::KeyboardShortcut(_)
+                    | InlineNode::MenuPath(_)
+                    | InlineNode::Passthrough(_)
+                    | InlineNode::Stem(_)
+                    | InlineNode::Callout(_)
                     | _ => None,
                 };
                 if let Some(children) = children {
@@ -117,7 +125,7 @@ fn discovery_preserves_utf8_offsets_visibility_and_newlines() -> Result<(), Erro
         ] {
             let parsed = parse_inline(source, &options)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
             assert_eq!(
                 collect(parsed_inlines.as_slice()),
                 expected
@@ -151,7 +159,7 @@ fn discovery_descends_only_into_the_supported_display_content() -> Result<(), Er
         ] {
             let parsed = parse_inline(source, &options)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
             assert_eq!(
                 collect(parsed_inlines.as_slice()),
                 [(String::from("term"), 0)],
@@ -163,7 +171,7 @@ fn discovery_descends_only_into_the_supported_display_content() -> Result<(), Er
 }
 
 fn text(value: &'static str) -> InlineNode<'static> {
-    InlineNode::PlainText(Plain::new(value, Location::default()))
+    InlineNode::Plain(Plain::new(value, Location::default()))
 }
 
 fn term(visible: bool, label: Vec<InlineNode<'static>>) -> IndexTerm<'static> {
@@ -182,7 +190,7 @@ fn term(visible: bool, label: Vec<InlineNode<'static>>) -> IndexTerm<'static> {
 }
 
 fn node(term: IndexTerm<'static>) -> InlineNode<'static> {
-    InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)))
+    InlineNode::IndexTerm(Box::new(term))
 }
 
 #[test]
@@ -225,7 +233,7 @@ fn owner_callback_stops_at_the_first_error() -> Result<(), Error> {
         "indexterm:[first] *indexterm:[second]* indexterm:[last]",
         &Options::default(),
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let mut found = Vec::new();
     let result = visit_index_terms(parsed_inlines.as_slice(), &mut |term, offset| {
         found.push((
@@ -249,9 +257,9 @@ fn owner_callback_stops_at_the_first_error() -> Result<(), Error> {
 #[test]
 fn owner_callbacks_keep_the_original_term_references() -> Result<(), Error> {
     let parsed = parse_inline("indexterm:[first] indexterm:[second]", &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let mut expected = parsed_inlines.as_slice().iter().filter_map(|node| {
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+        if let InlineNode::IndexTerm(term) = node {
             Some(term.as_ref())
         } else {
             None
@@ -324,7 +332,8 @@ fn discovery_offsets_count_resolved_reference_characters() -> Result<(), Error> 
             r"&#169; indexterm2:[&#65;lpha] \&#169; indexterm:[hidden] *&#x1f600;* indexterm2:[last]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
         assert_eq!(
             collect(parsed_inlines.as_slice()),
             [

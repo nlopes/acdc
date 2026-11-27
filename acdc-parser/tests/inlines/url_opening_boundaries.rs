@@ -334,7 +334,7 @@ fn enabled_code_links_use_the_same_boundaries() -> Result<(), Error> {
             let source = format!("[source,text,subs=\"+macros\"]\n----\nα {body}\n----")
                 .replace('\n', newline);
             let parsed = parse(&source, &Options::default())?;
-            let [BlockKind::Listing(block)] = &*parsed
+            let [BlockKind::DelimitedListing(block)] = &*parsed
                 .document()
                 .blocks()
                 .map(BlockRef::kind)

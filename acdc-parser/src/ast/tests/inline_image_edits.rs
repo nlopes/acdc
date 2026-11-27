@@ -1,6 +1,5 @@
 use crate::{
-    Block, ContentAttribute, ElementId, InlineImage, InlineMacro, InlineMetadata, InlineNode,
-    Options, parse,
+    Block, ContentAttribute, ElementId, InlineImage, InlineMetadata, InlineNode, Options, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -9,16 +8,14 @@ fn first_image<'a, 'b>(document: &'b crate::Document<'a>) -> Result<&'b InlineIm
     let Some(Block::Paragraph(paragraph)) = document.blocks.first() else {
         return Err("expected a paragraph".into());
     };
-    let Some(InlineNode::Macro(InlineMacro::Image(image))) = paragraph.content.first() else {
+    let Some(InlineNode::Image(image)) = paragraph.content.first() else {
         return Err("expected an inline image".into());
     };
     Ok(image)
 }
 
 fn json(image: InlineImage<'_>) -> Result<serde_json::Value, Error> {
-    Ok(serde_json::to_value(InlineNode::Macro(
-        InlineMacro::Image(Box::new(image)),
-    ))?)
+    Ok(serde_json::to_value(InlineNode::Image(Box::new(image)))?)
 }
 
 #[rstest::rstest]

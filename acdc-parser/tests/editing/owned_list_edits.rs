@@ -7,9 +7,10 @@ macro_rules! list_contract {
         mod $module {
             use super::Error;
             use acdc_parser::{
-                Block, CompatibilityMode, Options, ParseResult, Title,
+                CompatibilityMode, Options, ParseResult,
                 ast::{ContentRef, $read},
-                parse, $owner,
+                edit::{Block, Title, $owner},
+                parse,
             };
 
             fn owner(parsed: &ParseResult) -> Result<$owner<'_>, Error> {
@@ -121,7 +122,7 @@ macro_rules! list_contract {
                 assert!($read::from(&list).title().is_none());
                 let list = list
                     .with_title(Title::new(Vec::new()))
-                    .with_metadata(acdc_parser::BlockMetadata::new())?;
+                    .with_metadata(acdc_parser::edit::BlockMetadata::new())?;
                 assert!($read::from(&list).title().is_some_and(ContentRef::is_empty));
                 Ok(())
             }
@@ -134,35 +135,36 @@ list_contract!(
     UnorderedList,
     UnorderedListRef,
     "[#list.note]\n.Title\n* [x] First *item* footnote:[Note].\n+\nAttached paragraph.\n\n* Second\n",
-    acdc_parser::UnorderedList::new(Vec::new(), "*", acdc_parser::Location::default())
+    acdc_parser::edit::UnorderedList::new(Vec::new(), "*", acdc_parser::Location::default())
 );
 list_contract!(
     ordered,
     OrderedList,
     OrderedListRef,
     "[#list.note]\n.Title\n. First *item* footnote:[Note].\n+\nAttached paragraph.\n\n. Second\n",
-    acdc_parser::OrderedList::new(Vec::new(), ".", acdc_parser::Location::default())
+    acdc_parser::edit::OrderedList::new(Vec::new(), ".", acdc_parser::Location::default())
 );
 list_contract!(
     description,
     DescriptionList,
     DescriptionListRef,
     "[#list.note]\n.Title\n*Term*:: First footnote:[Note].\n+\nAttached paragraph.\n\nOther:: Second\n",
-    acdc_parser::DescriptionList::new(Vec::new(), acdc_parser::Location::default())
+    acdc_parser::edit::DescriptionList::new(Vec::new(), acdc_parser::Location::default())
 );
 list_contract!(
     callout,
     CalloutList,
     CalloutListRef,
     "----\nCode <1>\nCode <2>\n----\n\n[#list.note]\n.Title\n<1> First *item* footnote:[Note].\n+\nAttached paragraph.\n\n<2> Second\n",
-    acdc_parser::CalloutList::new(Vec::new(), acdc_parser::Location::default())
+    acdc_parser::edit::CalloutList::new(Vec::new(), acdc_parser::Location::default())
 );
 
 #[test]
 fn marker_replacements_do_not_rewrite_item_spelling_or_nesting() -> Result<(), Error> {
     use acdc_parser::{
-        Block, Location, Options,
+        Location, Options,
         ast::{OrderedListRef, UnorderedListRef},
+        edit::Block,
         parse,
     };
     for source in ["* Parent\n** Child\n", ". First\n.. Nested\n"] {

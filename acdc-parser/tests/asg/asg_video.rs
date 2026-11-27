@@ -1,8 +1,10 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, Document, Location, Options, Source, SourceUrl, Video, asg,
-    ast::BlockKind, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    ast::BlockKind,
+    edit::{Block, Document, Source, SourceUrl, Video},
+    parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};

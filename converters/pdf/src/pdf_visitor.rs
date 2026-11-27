@@ -709,7 +709,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let fallback = CaptionKind::for_block(block);
         let attributes = block.attributes();
         let collapsible_example = is_collapsible_example(attributes, fallback);
-        let table = matches!(block.kind(), BlockKind::Table(_));
+        let table = matches!(block.kind(), BlockKind::DelimitedTable(_));
         if table && self.omit_zero_width_table(attributes) {
             return Ok(());
         }
@@ -720,11 +720,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         let (sized_table, aligned_table) =
             self.write_table_wrappers_start(attributes, table && !intrinsic_table);
-        let writes_own_title = matches!(block.kind(), BlockKind::Sidebar(_))
-            || matches!(block.kind(), BlockKind::Open(_))
+        let writes_own_title = matches!(block.kind(), BlockKind::DelimitedSidebar(_))
+            || matches!(block.kind(), BlockKind::DelimitedOpen(_))
                 && attribute_style(attributes) == Some("abstract")
             || collapsible_example;
-        if !matches!(block.kind(), BlockKind::Passthrough(_))
+        if !matches!(block.kind(), BlockKind::DelimitedPassthrough(_))
             && !writes_own_title
             && !intrinsic_table
         {
@@ -756,48 +756,51 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         let attributes = block.attributes();
         match block.kind() {
-            BlockKind::Example(example) if collapsible => {
+            BlockKind::DelimitedExample(example) if collapsible => {
                 self.write_disclosure(traversal, block.title(), |visitor, traversal| {
                     visitor.write_blocks(traversal, example.blocks())
                 })
             }
-            BlockKind::Open(open) if collapsible => {
+            BlockKind::DelimitedOpen(open) if collapsible => {
                 self.write_disclosure(traversal, block.title(), |visitor, traversal| {
                     visitor.write_blocks(traversal, open.blocks())
                 })
             }
-            BlockKind::Example(example) => self.write_example(traversal, example.blocks()),
-            BlockKind::Sidebar(sidebar) => {
+            BlockKind::DelimitedExample(example) => self.write_example(traversal, example.blocks()),
+            BlockKind::DelimitedSidebar(sidebar) => {
                 self.write_sidebar(traversal, block.title(), sidebar.blocks())
             }
-            BlockKind::Open(open) if open.style() == Some("abstract") => self.write_abstract(
-                traversal,
-                block.title(),
-                true,
-                attributes,
-                |visitor, traversal| visitor.write_blocks(traversal, open.blocks()),
-            ),
-            BlockKind::Open(open) => self.write_framed_blocks(traversal, None, None, open.blocks()),
-            BlockKind::Quote(quote) => {
+            BlockKind::DelimitedOpen(open) if open.style() == Some("abstract") => self
+                .write_abstract(
+                    traversal,
+                    block.title(),
+                    true,
+                    attributes,
+                    |visitor, traversal| visitor.write_blocks(traversal, open.blocks()),
+                ),
+            BlockKind::DelimitedOpen(open) => {
+                self.write_framed_blocks(traversal, None, None, open.blocks())
+            }
+            BlockKind::DelimitedQuote(quote) => {
                 self.write_quote_block(traversal, attributes, |visitor, traversal| {
                     visitor.write_blocks(traversal, quote.blocks())
                 })
             }
-            BlockKind::Verse(verse) => {
+            BlockKind::DelimitedVerse(verse) => {
                 self.write_verse_block(traversal, verse.content().inlines(), attributes)
             }
-            BlockKind::Listing(listing) => {
+            BlockKind::DelimitedListing(listing) => {
                 self.write_verbatim_block(traversal, listing.content().inlines(), attributes)
             }
-            BlockKind::Literal(literal) => {
+            BlockKind::DelimitedLiteral(literal) => {
                 self.write_verbatim_block(traversal, literal.content().inlines(), attributes)
             }
-            BlockKind::Passthrough(pass) => {
+            BlockKind::DelimitedPassthrough(pass) => {
                 self.write_passthrough_block(pass.content());
                 Ok(())
             }
-            BlockKind::Table(table) => self.write_table(traversal, table, attributes),
-            BlockKind::Stem(stem) => {
+            BlockKind::DelimitedTable(table) => self.write_table(traversal, table, attributes),
+            BlockKind::DelimitedStem(stem) => {
                 let location = Location::from(
                     stem.attributes()
                         .location()
@@ -5534,13 +5537,17 @@ mod tests {
         long_unbreakable_ranges, measurement_points, prose_whitespace, wrap_code_text,
         wrap_code_text_with_line_origins,
     };
-    use acdc_parser::{AttributeValue, Image, Location, Source, ast::ImageRef};
+    use acdc_parser::{
+        AttributeValue, Location,
+        ast::ImageRef,
+        edit::{Image, Source},
+    };
 
     fn image_with_width(
         width: &'static str,
-    ) -> Result<acdc_parser::Image<'static>, Box<dyn std::error::Error>> {
-        let mut image = acdc_parser::Image::new(
-            acdc_parser::Source::Name("bird"),
+    ) -> Result<acdc_parser::edit::Image<'static>, Box<dyn std::error::Error>> {
+        let mut image = acdc_parser::edit::Image::new(
+            acdc_parser::edit::Source::Name("bird"),
             acdc_parser::Location::default(),
         );
         let mut metadata = image.take_metadata();
@@ -5701,11 +5708,11 @@ mod tests {
     fn pdfwidth_supports_container_intrinsic_and_block_viewport_units()
     -> Result<(), Box<dyn std::error::Error>> {
         let image_with_pdfwidth = |width: &'static str| -> Result<
-            acdc_parser::Image<'static>,
+            acdc_parser::edit::Image<'static>,
             Box<dyn std::error::Error>,
         > {
-            let mut image = acdc_parser::Image::new(
-                acdc_parser::Source::Name("bird"),
+            let mut image = acdc_parser::edit::Image::new(
+                acdc_parser::edit::Source::Name("bird"),
                 acdc_parser::Location::default(),
             );
             let mut metadata = image.take_metadata();

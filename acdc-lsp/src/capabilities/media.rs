@@ -62,24 +62,24 @@ fn collect_node<'doc>(
                 ));
             }
             BlockKind::Paragraph(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Verse(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedVerse(_)
             | BlockKind::DelimitedComment(_) => {
                 collect_field(node, ContentRole::Body, context, sources);
             }
-            BlockKind::Table(table) => {
+            BlockKind::DelimitedTable(table) => {
                 collect_table(table, context, sources);
                 return;
             }
             BlockKind::DocumentAttribute(_)
             | BlockKind::Section(_)
             | BlockKind::Admonition(_)
-            | BlockKind::Example(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Quote(_)
+            | BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedQuote(_)
             | BlockKind::OrderedList(_)
             | BlockKind::UnorderedList(_)
             | BlockKind::DescriptionList(_)
@@ -89,7 +89,7 @@ fn collect_node<'doc>(
             | BlockKind::ThematicBreak(_)
             | BlockKind::PageBreak(_)
             | BlockKind::Comment(_)
-            | BlockKind::Stem(_)
+            | BlockKind::DelimitedStem(_)
             | _ => return,
         },
         StructuralRef::ListItem(_)

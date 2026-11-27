@@ -6,24 +6,35 @@
 use std::num::NonZeroU32;
 
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, Caption, CaptionKind, DelimitedBlockType,
-    DelimitedBlockType::DelimitedExample,
-    Document, InlineNode, Location, Options, Plain, Title,
-    ast::{ContentRef, DocumentAttributeRef, DocumentRef, InlineKind},
+    AttributeValue, CaptionKind, Location, Options,
+    ast::{BlockRef, ContentRef, DocumentAttributeRef, DocumentRef, InlineKind},
+    edit::{Block, BlockMetadata, Caption, Document, InlineNode, Plain, Title},
     parse,
 };
 
 type Error = Box<dyn std::error::Error>;
 
+/// Whether `block` is one of the delimited block kinds.
+fn is_delimited(block: &Block<'_>) -> bool {
+    matches!(
+        block,
+        Block::DelimitedComment(_)
+            | Block::DelimitedExample(_)
+            | Block::DelimitedListing(_)
+            | Block::DelimitedLiteral(_)
+            | Block::DelimitedOpen(_)
+            | Block::DelimitedPassthrough(_)
+            | Block::DelimitedQuote(_)
+            | Block::DelimitedSidebar(_)
+            | Block::DelimitedStem(_)
+            | Block::DelimitedTable(_)
+            | Block::DelimitedVerse(_)
+    )
+}
+
 fn caption<'a>(block: &Block<'a>) -> Option<Caption<'a>> {
-    if let Block::Paragraph(paragraph) = block {
-        return paragraph.clone_metadata().caption;
-    }
-    if let Block::DelimitedBlock(delimited) = block {
-        return delimited.clone_metadata().caption;
-    }
-    if let Block::Image(image) = block {
-        return image.clone_metadata().caption;
+    if matches!(block, Block::Paragraph(_) | Block::Image(_)) || is_delimited(block) {
+        return block.clone_metadata()?.caption;
     }
     None
 }
@@ -122,12 +133,10 @@ fn nested_examples_are_numbered_inner_first() -> Result<(), Error> {
         return Err(format!("expected two blocks, got {blocks:?}").into());
     };
 
-    let Block::DelimitedBlock(delimited) = outer else {
+    let Block::DelimitedExample(delimited) = outer else {
         return Err("expected a delimited example".into());
     };
-    let DelimitedExample(inner_blocks) = &delimited.clone_body() else {
-        return Err("expected example content".into());
-    };
+    let inner_blocks: Vec<_> = delimited.clone().take_blocks().collect();
     let inner = inner_blocks.first().ok_or("expected an inner block")?;
 
     assert_eq!(numbered(inner).and_then(|(_, _, n)| n), Some(1));
@@ -199,14 +208,10 @@ fn table_headers_do_not_consume_body_and_footer_caption_numbers() -> Result<(), 
         .blocks()
         .map(Block::from)
         .collect();
-    let Some(Block::DelimitedBlock(delimited)) = blocks.first() else {
+    let Some(Block::DelimitedTable(delimited)) = blocks.first() else {
         return Err(format!("expected a table, got {blocks:?}").into());
     };
-    let acdc_parser::ast::BlockKind::Table(table) =
-        acdc_parser::ast::BlockRef::from(delimited).kind()
-    else {
-        return Err("expected table content".into());
-    };
+    let table = acdc_parser::ast::TableRef::from(delimited);
 
     let mut seen = Vec::new();
     let header = table.header().ok_or("expected a header row")?;
@@ -507,19 +512,12 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
     let placed: Vec<_> = blocks
         .iter()
         .filter_map(|block| {
-            let Block::DelimitedBlock(delimited) = block else {
+            if !is_delimited(block) {
                 return None;
-            };
+            }
             numbered(block)
                 .and_then(|(_, _, number)| number)
-                .map(|number| {
-                    (
-                        acdc_parser::ast::BlockRef::from(delimited)
-                            .location()
-                            .absolute_start(),
-                        number,
-                    )
-                })
+                .map(|number| (BlockRef::from(block).location().absolute_start(), number))
         })
         .collect();
     let [(first_start, first_number), (second_start, second_number)] = placed.as_slice() else {
@@ -533,7 +531,7 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
     let Some(Block::Paragraph(paragraph)) = blocks.last_mut() else {
         return Err(format!("expected the untitled paragraph, got {blocks:?}").into());
     };
-    paragraph.set_title(Title::new(vec![InlineNode::PlainText(Plain::new(
+    paragraph.set_title(Title::new(vec![InlineNode::Plain(Plain::new(
         "Added later",
         Location::default(),
     ))]));
@@ -626,7 +624,7 @@ fn a_bare_caption_marker_is_ignored() -> Result<(), Error> {
                 label: "Listing".into(),
                 number: NonZeroU32::new(2),
             },
-            Caption::CustomContent(acdc_parser::ContentAttribute::default()),
+            Caption::CustomContent(acdc_parser::edit::ContentAttribute::default()),
         ]
     );
     Ok(())
@@ -669,7 +667,7 @@ fn an_empty_element_caption_takes_no_prefix_and_no_ordinal() -> Result<(), Error
     assert_eq!(
         caption(empty),
         Some(Caption::CustomContent(
-            acdc_parser::ContentAttribute::default()
+            acdc_parser::edit::ContentAttribute::default()
         ))
     );
     assert_eq!(numbered(after).and_then(|(_, _, n)| n), Some(1));
@@ -894,12 +892,8 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
     let mut document = Document::default();
     document.set_blocks(parsed.document().blocks().map(Block::from));
     let mut blocks: Vec<_> = document.take_blocks().collect();
-    let Some(Block::DelimitedBlock(delimited)) = blocks.first_mut() else {
+    let Some(Block::DelimitedTable(table)) = blocks.first_mut() else {
         return Err("expected a table".into());
-    };
-    let mut body = delimited.clone_body();
-    let DelimitedBlockType::DelimitedTable(table) = &mut body else {
-        return Err("expected table content".into());
     };
     let mut header = table.take_header().ok_or("expected header content")?;
     let mut cells: Vec<_> = header.take_cells().collect();
@@ -914,7 +908,7 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
     };
     // Parsing keeps headers inline, but callers can supply captioned header blocks.
     paragraph.set_title(
-        vec![InlineNode::PlainText(Plain::new(
+        vec![InlineNode::Plain(Plain::new(
             "Caller title",
             Location::default(),
         ))]
@@ -933,7 +927,6 @@ fn caller_built_header_blocks_are_read_back_and_renumbered() -> Result<(), Error
         .set_blocks(content);
     header.set_cells(cells);
     table.set_header(Some(header));
-    delimited.replace_body(body);
     document.set_blocks(blocks);
     assert_eq!(document.highest_caption_number(CaptionKind::Example), 77);
     document.renumber_captions();

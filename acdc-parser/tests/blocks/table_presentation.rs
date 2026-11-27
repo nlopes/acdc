@@ -10,7 +10,7 @@ fn tables(document: DocumentRef<'_>) -> Vec<TableRef<'_>> {
     document
         .blocks()
         .filter_map(|block| {
-            if let BlockKind::Table(table) = block.kind() {
+            if let BlockKind::DelimitedTable(table) = block.kind() {
                 Some(table)
             } else {
                 None

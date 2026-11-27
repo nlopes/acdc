@@ -1,7 +1,10 @@
 //! Strict export identifies unsupported owner properties without changing the AST.
 #![cfg(feature = "asg")]
 
-use acdc_parser::{Block, Document, Header, Location, Paragraph, Title, asg};
+use acdc_parser::{
+    Location, asg,
+    edit::{Block, Document, Header, Paragraph, Title},
+};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
@@ -57,8 +60,8 @@ fn unknown_inline_source_does_not_borrow_the_parents_coordinates() {
     location.end.line = 10;
     document.set_location(location.clone());
     let mut paragraph = Paragraph::new(
-        vec![acdc_parser::InlineNode::VerbatimText(
-            acdc_parser::Verbatim::new("code", Location::default()),
+        vec![acdc_parser::edit::InlineNode::Verbatim(
+            acdc_parser::edit::Verbatim::new("code", Location::default()),
         )],
         location,
     );

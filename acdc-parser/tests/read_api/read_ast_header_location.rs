@@ -1,8 +1,9 @@
 //! The document header span, with or without a document title.
 
 use acdc_parser::{
-    CompatibilityMode, Document, Header, Location, Options, Position, SafeMode, Title,
+    CompatibilityMode, Location, Options, Position, SafeMode,
     ast::{DocumentRef, LocationRef},
+    edit::{Document, Header, Title},
     parse, parse_file,
 };
 

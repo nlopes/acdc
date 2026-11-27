@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use acdc_parser::{
-    ReferenceTarget,
     ast::{ReferenceTargetRef, SectionRef, TocEntryRef},
+    edit::ReferenceTarget,
 };
 
 use crate::encode_label;
@@ -80,7 +80,10 @@ impl<'a> Anchors<'a> {
 mod tests {
     use std::collections::HashMap;
 
-    use acdc_parser::{ContentAttribute, Location, ReferenceTarget, Title, TocEntry};
+    use acdc_parser::{
+        Location,
+        edit::{ContentAttribute, ReferenceTarget, Title, TocEntry},
+    };
 
     use super::Anchors;
 

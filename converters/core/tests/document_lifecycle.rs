@@ -5,8 +5,9 @@ use acdc_converters_core::{
     visitor::{BlockVisitor, DocumentVisitor},
 };
 use acdc_parser::{
-    Block, CompatibilityMode, Document, Header, Options,
+    CompatibilityMode, Options,
     ast::{BlockKind, BlockRef, ContentRef, DocumentRef, HeaderRef},
+    edit::{Block, Document, Header},
     parse,
 };
 
@@ -143,7 +144,7 @@ impl<'doc> DocumentVisitor<'doc> for ConstructedTrace {
 #[test]
 fn constructed_lifecycle_orders_framing_around_attribute_replay() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document());
+    let parsed_document = acdc_parser::edit::Document::from(parsed.document());
     let mut context = TraversalContext::new(parsed.document().attributes());
     let mut visitor = ConstructedTrace::default();
     visitor.visit_document(&mut context, DocumentRef::from(&parsed_document))?;
@@ -191,7 +192,7 @@ const PREAMBLES: &[(&str, bool)] = &[
 fn constructed_preamble_requires_a_header_section_and_substantive_content() -> Result<(), Error> {
     for (source, wrapped) in PREAMBLES {
         let parsed = parse(source, &Options::default())?;
-        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let parsed_document = acdc_parser::edit::Document::from(parsed.document());
         let mut context = TraversalContext::new(parsed.document().attributes());
         let mut visitor = ConstructedTrace::default();
         visitor.visit_document(&mut context, DocumentRef::from(&parsed_document))?;
@@ -215,7 +216,7 @@ fn constructed_preamble_requires_a_header_section_and_substantive_content() -> R
 #[test]
 fn constructed_errors_stop_all_later_document_hooks() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document());
+    let parsed_document = acdc_parser::edit::Document::from(parsed.document());
     let mut complete = ConstructedTrace::default();
     complete.visit_document(
         &mut TraversalContext::new(parsed.document().attributes()),
@@ -290,7 +291,7 @@ fn typed_and_constructed_lifecycles_agree_in_both_modes() -> Result<(), Error> {
         let options = Options::builder().with_compatibility_mode(mode).build()?;
         for source in PREAMBLES.iter().map(|case| case.0).chain([SOURCE]) {
             let parsed = parse(source, &options)?;
-            let parsed_document = acdc_parser::Document::from(parsed.document());
+            let parsed_document = acdc_parser::edit::Document::from(parsed.document());
             let mut owner = ConstructedTrace::default();
             let mut typed = TypedTrace::default();
             let mut owner_context = TraversalContext::new(parsed.document().attributes());
@@ -307,7 +308,7 @@ fn typed_and_constructed_lifecycles_agree_in_both_modes() -> Result<(), Error> {
 #[test]
 fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), Error> {
     let parsed = parse(SOURCE, &Options::default())?;
-    let mut parsed_document = acdc_parser::Document::from(parsed.document());
+    let mut parsed_document = acdc_parser::edit::Document::from(parsed.document());
     let mut document = Document::default();
     let mut header = parsed_document.take_header().ok_or("header")?;
     let location = acdc_parser::Location::from(HeaderRef::from(&header).location());
@@ -342,7 +343,7 @@ fn attribute_only_preambles_remain_unwrapped_after_owner_edits() -> Result<(), E
 fn typed_and_constructed_errors_preserve_the_same_assignment_and_hook_prefix() -> Result<(), Error>
 {
     let parsed = parse(SOURCE, &Options::default())?;
-    let parsed_document = acdc_parser::Document::from(parsed.document());
+    let parsed_document = acdc_parser::edit::Document::from(parsed.document());
     let mut complete = ConstructedTrace::default();
     complete.visit_document(
         &mut TraversalContext::new(DocumentRef::from(&parsed_document).attributes()),

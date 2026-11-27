@@ -1,7 +1,11 @@
 //! Resolved symbols retain their meaning across converter replacement settings.
 
 use acdc_converters_core::{InlineTextTransform, substitutions::Replacements};
-use acdc_parser::{ContentAttribute, InlineNode, Location, Symbol, SymbolKind, ast::ContentRef};
+use acdc_parser::{
+    Location, SymbolKind,
+    ast::ContentRef,
+    edit::{ContentAttribute, InlineNode, Symbol},
+};
 
 #[test]
 fn resolved_text_reads_do_not_depend_on_converter_replacement_settings() {

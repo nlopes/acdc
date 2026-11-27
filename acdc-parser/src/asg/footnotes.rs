@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde_json::{Map, Value, json};
 
 use crate::{
-    Document, Footnote, FootnoteDefinition, InlineMacro, InlineNode,
+    Document, Footnote, FootnoteDefinition, InlineNode,
     ast::{DocumentRef, FootnoteDefinitionRef, InlineRef, StructuralRef},
 };
 
@@ -207,12 +207,12 @@ fn visit<'a>(
     visitor: &mut impl FnMut(&Footnote<'a>) -> Result<(), Error>,
 ) -> Result<(), Error> {
     for inline in values {
-        if let InlineNode::Macro(InlineMacro::Footnote(note)) = inline {
+        if let InlineNode::Footnote(note) = inline {
             visitor(note)?;
         }
         for field in InlineRef::from(inline).content_occurrences() {
             for child in field.content().as_inlines() {
-                if let InlineNode::Macro(InlineMacro::Footnote(note)) = child {
+                if let InlineNode::Footnote(note) = child {
                     visitor(note)?;
                 }
             }

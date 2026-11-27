@@ -8,7 +8,7 @@ use super::InlineNode;
 /// prepared nodes, or `ContentAttribute::from(content)` to copy selected content.
 ///
 /// ```
-/// use acdc_parser::{ContentAttribute, Options, Title, ast::ContentRef, parse_inline};
+/// use acdc_parser::{Options, ast::ContentRef, parse_inline, edit::{ContentAttribute, Title}};
 /// let parsed = parse_inline("*Bold* text", &Options::default())?;
 /// let copied = ContentAttribute::from(parsed.content());
 /// let title = Title::from(ContentRef::from(&copied));
@@ -17,19 +17,19 @@ use super::InlineNode;
 /// ```
 ///
 /// ```compile_fail,E0308
-/// use acdc_parser::{ContentAttribute, InlineNode};
+/// use acdc_parser::{edit::{ContentAttribute, InlineNode}};
 /// let content = ContentAttribute::default();
 /// let _: &[InlineNode<'_>] = &content;
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use acdc_parser::{ContentAttribute, InlineNode};
+/// use acdc_parser::{edit::{ContentAttribute, InlineNode}};
 /// let content = ContentAttribute::default();
 /// let _: &[InlineNode<'_>] = content.as_ref();
 /// ```
 ///
 /// ```compile_fail,E0277
-/// use acdc_parser::ContentAttribute;
+/// use acdc_parser::edit::ContentAttribute;
 /// let content = ContentAttribute::default();
 /// for _ in &content {}
 /// ```

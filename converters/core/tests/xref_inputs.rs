@@ -5,8 +5,10 @@ use acdc_converters_core::{
     xref::{XrefDisplay, XrefGuard, resolve_reference},
 };
 use acdc_parser::{
-    ContentAttribute, CrossReference, Location, Options, XrefCaptionLabel, XrefStyle,
-    ast::CrossReferenceRef, parse,
+    Location, Options, XrefCaptionLabel, XrefStyle,
+    ast::CrossReferenceRef,
+    edit::{ContentAttribute, CrossReference},
+    parse,
 };
 
 type TestError = Box<dyn std::error::Error>;

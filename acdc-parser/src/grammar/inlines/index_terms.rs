@@ -3,8 +3,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    CompatibilityMode, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
-    Substitution,
+    CompatibilityMode, IndexTerm, IndexTermKind, IndexTermRelationship, InlineNode, Substitution,
     grammar::{
         ParserState,
         attributes::{AttributeQuote, ScannedAttribute, scan_attribute_list},
@@ -243,7 +242,7 @@ fn index_term_node(mut term: IndexTerm<'_>, plan: SubstitutionPlan) -> InlineNod
         term.catalog = None;
     }
     term.catalog_substitutions = Some(plan);
-    InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)))
+    InlineNode::IndexTerm(Box::new(term))
 }
 
 pub(super) fn expand_escaped_index_terms<'a>(
@@ -255,7 +254,7 @@ pub(super) fn expand_escaped_index_terms<'a>(
     }
     let mut expanded = Vec::with_capacity(nodes.len());
     for node in nodes {
-        let InlineNode::PlainText(plain) = &node else {
+        let InlineNode::Plain(plain) = &node else {
             expanded.push(node);
             continue;
         };
@@ -278,8 +277,7 @@ pub(super) fn expand_escaped_index_terms<'a>(
             .into(),
             None,
         )?;
-        if matches!(parsed.as_slice(), [InlineNode::PlainText(text)] if text.content == plain.content)
-        {
+        if matches!(parsed.as_slice(), [InlineNode::Plain(text)] if text.content == plain.content) {
             expanded.push(node);
         } else {
             expanded.extend(parsed);
@@ -330,9 +328,9 @@ pub(super) fn parse_index_term<'a>(
         }
         let catalog_location = child.create_location(0, source.len().saturating_sub(1));
         let term = parse_index_parts(&mut child, parts.clone(), form, catalog_location)?;
-        let mut node = InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)));
+        let mut node = InlineNode::IndexTerm(Box::new(term));
         map_registered_inline(&mut node, state, content.start, &restored_ranges);
-        let InlineNode::Macro(InlineMacro::IndexTerm(mut term)) = node else {
+        let InlineNode::IndexTerm(mut term) = node else {
             return Err("missing index catalog labels");
         };
         term.location = location.clone();

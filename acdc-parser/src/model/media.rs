@@ -26,7 +26,7 @@ use super::{
 /// # Accessing the Source
 ///
 /// ```
-/// # use acdc_parser::Source;
+/// # use acdc_parser::edit::Source;
 /// # use std::path::PathBuf;
 /// fn get_path_string(source: &Source) -> String {
 ///     match source {
@@ -40,7 +40,7 @@ use super::{
 /// Or use the `Display` implementation for simple string conversion:
 ///
 /// ```
-/// # use acdc_parser::Source;
+/// # use acdc_parser::edit::Source;
 /// # let source = Source::Name("example");
 /// let source_str = source.to_string();
 /// ```
@@ -406,19 +406,19 @@ block_media_edits!(Audio => ["title"], Video => ["title"], Image => ["title", "a
 /// An inline image with distinct alternative text and hover text.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{InlineImage, Location, Source};
+/// use acdc_parser::{Location, edit::{InlineImage, Source}};
 /// let mut node = InlineImage::new(Source::Name("target"), Location::default());
 /// node.alt = None;
 /// ```
 ///
 /// ```compile_fail,E0624
-/// use acdc_parser::{InlineImage, Location, Source};
+/// use acdc_parser::{Location, edit::{InlineImage, Source}};
 /// let node = InlineImage::new(Source::Name("target"), Location::default());
 /// let _ = node.attributes();
 /// ```
 ///
 /// ```compile_fail,E0599
-/// use acdc_parser::{InlineImage, Location, Source};
+/// use acdc_parser::{Location, edit::{InlineImage, Source}};
 /// let mut node = InlineImage::new(Source::Name("target"), Location::default());
 /// node.options_mut().push("first");
 /// ```

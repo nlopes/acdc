@@ -1,8 +1,9 @@
 //! Section edits preserve assigned identity until its authored selector changes.
 
 use acdc_parser::{
-    Anchor, Block, CompatibilityMode, Document, Location, Options, Section, SectionKind, Title,
+    CompatibilityMode, Location, Options, SectionKind,
     ast::{BlockKind, ContentRef, DocumentRef, IdOrigin, SectionRef},
+    edit::{Anchor, Block, Document, Section, Title},
     parse,
 };
 

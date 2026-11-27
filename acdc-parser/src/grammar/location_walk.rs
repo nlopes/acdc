@@ -6,8 +6,8 @@
 use std::{collections::HashMap, convert::Infallible, marker::PhantomData, sync::Arc};
 
 use crate::model::{
-    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlock, DelimitedBlockType, Document,
-    Header, InlineMacro, InlineNode, Location, TableCell,
+    Anchor, Block, BlockMetadata, ContentAttribute, Document, Header, InlineNode, Location,
+    TableCell,
 };
 
 /// Visit every location in a whole document.
@@ -54,7 +54,7 @@ pub(super) fn has_footnotes(document: &mut Document<'_>) -> bool {
     let mut walker = AstWalker::new(
         |_| Ok(()),
         |node| {
-            if matches!(node, InlineNode::Macro(InlineMacro::Footnote(_))) {
+            if matches!(node, InlineNode::Footnote(_)) {
                 Err(())
             } else {
                 Ok(())
@@ -151,7 +151,7 @@ pub(super) fn try_walk_footnote_roots_mut<'a, E>(
     let mut walker = AstWalker::new(
         |_| Ok(()),
         |node| {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            if let InlineNode::Footnote(note) = node {
                 visit(note)?;
             }
             Ok(())
@@ -174,7 +174,7 @@ pub(super) fn try_walk_content_footnote_roots_mut<'a, E>(
     let mut walker = AstWalker::new(
         |_| Ok(()),
         |node| {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            if let InlineNode::Footnote(note) = node {
                 visit(note)?;
             }
             Ok(())
@@ -232,7 +232,7 @@ pub(super) fn try_walk_scoped_footnote_roots_mut<'a, E>(
     let mut walker = AstWalker::new(
         |_| Ok(()),
         |node| {
-            if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            if let InlineNode::Footnote(note) = node {
                 visit(note)?;
             }
             Ok(())
@@ -448,7 +448,13 @@ where
                 self.metadata(&mut h.metadata)?;
                 self.inlines(h.title.inlines_mut())?;
             }
-            Block::DelimitedBlock(d) => self.delimited_block(d)?,
+            crate::model::compound_block!(d) => self.compound(d)?,
+            crate::model::verbatim_block!(d) => self.inline_body(d, true)?,
+            Block::DelimitedComment(crate::DelimitedComment(d)) => {
+                self.inline_body(d, self.include_derived)?;
+            }
+            Block::DelimitedStem(crate::StemBlock(d)) => self.delimited_fields(d)?,
+            Block::DelimitedTable(crate::Table(d)) => self.delimited_table(d)?,
             Block::ThematicBreak(tb) => {
                 self.inlines(tb.title.inlines_mut())?;
                 for anchor in &mut tb.anchors {
@@ -518,19 +524,71 @@ where
         if self.visit_inline_enabled {
             (self.visit_inline)(node)?;
         }
+        node.try_for_each_content_attribute_mut(|nodes| self.inlines(nodes))?;
         // The formatted-text variants are distinct struct types, so each needs its own
         // arm (they can't share an or-pattern binding).
         match node {
-            InlineNode::BoldText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::ItalicText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::MonospaceText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::HighlightText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::SubscriptText(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::SuperscriptText(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::Bold(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::Italic(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::Monospace(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::Highlight(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::Subscript(t) => self.formatting(&mut t.id, &mut t.content)?,
+            InlineNode::Superscript(t) => self.formatting(&mut t.id, &mut t.content)?,
             InlineNode::DoubleQuotedSpan(t) => self.formatting(&mut t.id, &mut t.content)?,
             InlineNode::SingleQuotedSpan(t) => self.formatting(&mut t.id, &mut t.content)?,
-            InlineNode::Macro(m) => self.inline_macro(m)?,
-            InlineNode::InlineAnchor(anchor) => {
+            InlineNode::Footnote(f) => {
+                if self.footnote_bodies
+                    && let Some(content) = &mut f.content
+                {
+                    self.inlines(content)?;
+                }
+            }
+            InlineNode::Link(l) => {
+                if let Some(id) = &mut l.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut l.text)?;
+            }
+            InlineNode::UrlMacro(u) => {
+                if let Some(id) = &mut u.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut u.text)?;
+            }
+            InlineNode::Mailto(m) => {
+                if let Some(id) = &mut m.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+                self.inlines(&mut m.text)?;
+            }
+            InlineNode::CrossReference(x) => self.cross_reference(x)?,
+            InlineNode::IndexTerm(term) => self.index_term(term)?,
+            InlineNode::Icon(icon) => {
+                if let Some(id) = &mut icon.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+            }
+            InlineNode::Image(image) => {
+                if let Some(id) = &mut image.metadata.id {
+                    (self.visit_location)(&mut id.location)?;
+                }
+            }
+            InlineNode::KeyboardShortcut(_)
+            | InlineNode::Button(_)
+            | InlineNode::MenuPath(_)
+            | InlineNode::Autolink(_)
+            | InlineNode::Passthrough(_)
+            | InlineNode::Stem(_)
+            | InlineNode::Extension(_)
+            | InlineNode::Plain(_)
+            | InlineNode::Verbatim(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::Symbol(_)
+            | InlineNode::CharacterReference(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::Callout(_) => {}
+
+            InlineNode::Anchor(anchor) => {
                 self.reference_text(&mut anchor.xreflabel, &mut anchor.reftext_source)?;
                 if self.include_derived
                     && let Some(label) = &mut anchor.bibliography_label
@@ -538,7 +596,7 @@ where
                     self.inlines(&mut label.content)?;
                 }
             }
-            InlineNode::RawText(raw) => {
+            InlineNode::Raw(raw) => {
                 if let Some(id) = raw
                     .metadata
                     .as_mut()
@@ -547,14 +605,6 @@ where
                     (self.visit_location)(&mut id.location)?;
                 }
             }
-            InlineNode::Extension(_)
-            | InlineNode::PlainText(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::Symbol(_)
-            | InlineNode::CharacterReference(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::CalloutMarker(_) => {}
         }
         Ok(())
     }
@@ -570,77 +620,28 @@ where
         self.inlines(content)
     }
 
-    fn inline_macro(&mut self, m: &mut InlineMacro<'a>) -> Result<(), E> {
-        m.try_for_each_content_attribute_mut(|nodes| self.inlines(nodes))?;
-        // Own location already visited via `node.location_mut()`. Recurse into the
-        // inline-bearing macro variants.
-        match m {
-            InlineMacro::Footnote(f) => {
-                if self.footnote_bodies
-                    && let Some(content) = &mut f.content
-                {
-                    self.inlines(content)?;
-                }
+    fn cross_reference(&mut self, x: &mut crate::CrossReference<'a>) -> Result<(), E> {
+        if self.include_derived
+            && let Some(content) = &mut x.document_reftext
+        {
+            let key = Arc::as_ptr(content);
+            if let Some(visited) = self.document_labels.get(&key) {
+                *content = Arc::clone(visited);
+            } else {
+                // Keep one mapped copy per declaration across all occurrences.
+                let mut mapped = Arc::clone(content);
+                let enabled = std::mem::replace(&mut self.visit_inline_enabled, true);
+                let result = self.inlines(Arc::make_mut(&mut mapped).inlines_mut());
+                self.visit_inline_enabled = enabled;
+                result?;
+                self.document_labels.insert(key, Arc::clone(&mapped));
+                *content = mapped;
             }
-            InlineMacro::Link(l) => {
-                if let Some(id) = &mut l.metadata.id {
-                    (self.visit_location)(&mut id.location)?;
-                }
-                self.inlines(&mut l.text)?;
-            }
-            InlineMacro::UrlMacro(u) => {
-                if let Some(id) = &mut u.metadata.id {
-                    (self.visit_location)(&mut id.location)?;
-                }
-                self.inlines(&mut u.text)?;
-            }
-            InlineMacro::Mailto(m) => {
-                if let Some(id) = &mut m.metadata.id {
-                    (self.visit_location)(&mut id.location)?;
-                }
-                self.inlines(&mut m.text)?;
-            }
-            InlineMacro::CrossReference(x) => {
-                if self.include_derived
-                    && let Some(content) = &mut x.document_reftext
-                {
-                    let key = Arc::as_ptr(content);
-                    if let Some(visited) = self.document_labels.get(&key) {
-                        *content = Arc::clone(visited);
-                    } else {
-                        // Keep one mapped copy per declaration across all occurrences.
-                        let mut mapped = Arc::clone(content);
-                        let enabled = std::mem::replace(&mut self.visit_inline_enabled, true);
-                        let result = self.inlines(Arc::make_mut(&mut mapped).inlines_mut());
-                        self.visit_inline_enabled = enabled;
-                        result?;
-                        self.document_labels.insert(key, Arc::clone(&mapped));
-                        *content = mapped;
-                    }
-                }
-                if let Some(id) = &mut x.metadata.id {
-                    (self.visit_location)(&mut id.location)?;
-                }
-                self.inlines(&mut x.text)?;
-            }
-            InlineMacro::IndexTerm(term) => self.index_term(term)?,
-            InlineMacro::Icon(icon) => {
-                if let Some(id) = &mut icon.metadata.id {
-                    (self.visit_location)(&mut id.location)?;
-                }
-            }
-            InlineMacro::Image(image) => {
-                if let Some(id) = &mut image.metadata.id {
-                    (self.visit_location)(&mut id.location)?;
-                }
-            }
-            InlineMacro::KeyboardShortcut(_)
-            | InlineMacro::Button(_)
-            | InlineMacro::MenuPath(_)
-            | InlineMacro::Autolink(_)
-            | InlineMacro::Passthrough(_)
-            | InlineMacro::Stem(_) => {}
         }
+        if let Some(id) = &mut x.metadata.id {
+            (self.visit_location)(&mut id.location)?;
+        }
+        self.inlines(&mut x.text)?;
         Ok(())
     }
 
@@ -715,49 +716,62 @@ where
         Ok(())
     }
 
-    fn delimited_block(&mut self, d: &mut DelimitedBlock<'a>) -> Result<(), E> {
+    /// Visit the fields every delimited block shares.
+    fn compound(&mut self, d: &mut crate::model::Delimited<'a, Vec<Block<'a>>>) -> Result<(), E> {
+        self.delimited_fields(d)?;
+        self.blocks(&mut d.body)
+    }
+
+    /// Visit a delimited block with inline content; `visit_body` is false for
+    /// comment bodies that are only walked for derived data.
+    fn inline_body(
+        &mut self,
+        d: &mut crate::model::Delimited<'a, Vec<InlineNode<'a>>>,
+        visit_body: bool,
+    ) -> Result<(), E> {
+        self.delimited_fields(d)?;
+        if visit_body {
+            self.inlines(&mut d.body)?;
+        }
+        Ok(())
+    }
+
+    fn delimited_table(
+        &mut self,
+        d: &mut crate::model::Delimited<'a, crate::model::TableContent<'a>>,
+    ) -> Result<(), E> {
+        self.delimited_fields(d)?;
+        self.table(&mut d.body)
+    }
+
+    fn delimited_fields<B>(&mut self, d: &mut crate::model::Delimited<'a, B>) -> Result<(), E> {
         self.metadata(&mut d.metadata)?;
         self.inlines(d.title.inlines_mut())?;
         self.optional_location(&mut d.open_delimiter_location)?;
-        self.optional_location(&mut d.close_delimiter_location)?;
-        match &mut d.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks)
-            | DelimitedBlockType::DelimitedQuote(blocks) => self.blocks(blocks)?,
-            DelimitedBlockType::DelimitedComment(nodes) => {
-                if self.include_derived {
-                    self.inlines(nodes)?;
-                }
-            }
-            DelimitedBlockType::DelimitedListing(nodes)
-            | DelimitedBlockType::DelimitedLiteral(nodes)
-            | DelimitedBlockType::DelimitedPass(nodes)
-            | DelimitedBlockType::DelimitedVerse(nodes) => self.inlines(nodes)?,
-            DelimitedBlockType::DelimitedTable(table) => {
-                (self.visit_location)(&mut table.location)?;
-                let rows = table
-                    .header
-                    .iter_mut()
-                    .chain(table.rows.iter_mut())
-                    .chain(table.footer.iter_mut());
-                for row in rows {
-                    for col in &mut row.columns {
-                        if (self.visit_cell)(col)? {
-                            self.blocks(&mut col.content)?;
-                            if self.include_derived
-                                && let Some(footnotes) = &mut col.footnotes
-                            {
-                                for definition in footnotes {
-                                    (self.visit_location)(&mut definition.location)?;
-                                    self.inlines(&mut definition.content)?;
-                                }
-                            }
+        self.optional_location(&mut d.close_delimiter_location)
+    }
+
+    fn table(&mut self, table: &mut crate::model::TableContent<'a>) -> Result<(), E> {
+        (self.visit_location)(&mut table.location)?;
+        let rows = table
+            .header
+            .iter_mut()
+            .chain(table.rows.iter_mut())
+            .chain(table.footer.iter_mut());
+        for row in rows {
+            for col in &mut row.columns {
+                if (self.visit_cell)(col)? {
+                    self.blocks(&mut col.content)?;
+                    if self.include_derived
+                        && let Some(footnotes) = &mut col.footnotes
+                    {
+                        for definition in footnotes {
+                            (self.visit_location)(&mut definition.location)?;
+                            self.inlines(&mut definition.content)?;
                         }
                     }
                 }
             }
-            DelimitedBlockType::DelimitedStem(_) => {}
         }
         Ok(())
     }

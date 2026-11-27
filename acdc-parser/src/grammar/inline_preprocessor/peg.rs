@@ -3,7 +3,8 @@
 use std::{borrow::Cow, mem::take};
 
 use crate::{
-    DocumentAttributes, Passthrough, PassthroughKind, Position, Substitution, Warning, WarningKind,
+    DocumentAttributes, InlinePassthrough, PassthroughKind, Position, Substitution, Warning,
+    WarningKind,
     document_attribute::{continues_reference_name, starts_reference_name},
     grammar::{
         brackets::escaped_bracket_end, inline_boundaries::check_constrained_opening_boundary,
@@ -185,7 +186,7 @@ peg::parser! {
                 };
                 let index = state.pass_found_count.get();
                 let placeholder = format!("���{index}���");
-                state.passthroughs.borrow_mut().push(Passthrough {
+                state.passthroughs.borrow_mut().push(InlinePassthrough {
                     attribute_fragments: Box::default(),
                     text: Some(text),
                     substitutions: vec![Substitution::SpecialChars],
@@ -247,7 +248,7 @@ peg::parser! {
         {
             let content = &source[1..source.len() - 1];
             let location = state.calculate_location(start, content, 2);
-            state.passthroughs.borrow_mut().push(Passthrough {
+            state.passthroughs.borrow_mut().push(InlinePassthrough {
                 attribute_fragments: Box::default(),
                 text: Some(content),
                 substitutions: vec![Substitution::SpecialChars],
@@ -268,7 +269,7 @@ peg::parser! {
         rule double_plus_passthrough() -> String
             = start:position() "++" content:$((!"++" [_])+) "++" {
                 let location = state.calculate_location(start, content, 4);
-                state.passthroughs.borrow_mut().push(Passthrough {
+                state.passthroughs.borrow_mut().push(InlinePassthrough {
                 attribute_fragments: Box::default(),
                     text: Some(content),
                     // Converters apply special-character substitution to single and double passthroughs.
@@ -291,7 +292,7 @@ peg::parser! {
         rule triple_plus_passthrough() -> String
             = start:position() "+++" content:$((!"+++" [_])+) "+++" {
                 let location = state.calculate_location(start, content, 6);
-                state.passthroughs.borrow_mut().push(Passthrough {
+                state.passthroughs.borrow_mut().push(InlinePassthrough {
                 attribute_fragments: Box::default(),
                     text: Some(content),
                     substitutions: Vec::new(),

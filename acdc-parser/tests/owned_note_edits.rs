@@ -3,9 +3,9 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Anchor, CalloutMarker, CalloutMarkerKind, CompatibilityMode, ContentAttribute, Footnote,
-    InlineNode, Location, Options, Plain, Position,
+    CalloutMarkerKind, CompatibilityMode, Location, Options, Position,
     ast::{AnchorRef, BlockKind, ContentRef, FootnoteRef, InlineKind},
+    edit::{Anchor, CalloutMarker, ContentAttribute, Footnote, InlineNode, Plain},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -16,7 +16,7 @@ static ALLOCATOR: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 type Error = Box<dyn std::error::Error>;
 
 fn plain(text: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
+    InlineNode::Plain(Plain::new(text, Location::default()).with_escaped(true))
 }
 
 fn text(content: ContentRef<'_>) -> Result<String, Error> {
@@ -155,7 +155,7 @@ fn selected_anchor_copies_keep_bibliography_labels_and_native_json(
             .ok_or("anchor")?;
         let mut copy = Anchor::from(anchor);
         assert_eq!(
-            &serde_json::to_value(InlineNode::InlineAnchor(copy.clone()))?,
+            &serde_json::to_value(InlineNode::Anchor(copy.clone()))?,
             before
                 .pointer(&format!("/blocks/0/items/{index}/principal/0"))
                 .ok_or("native anchor")?
@@ -269,7 +269,7 @@ fn editing_copied_notes_does_not_reregister_or_renumber_document_snapshots(
 fn note_and_anchor_location_edits_keep_prepared_child_spans() -> Result<(), Error> {
     let original = Location::point(Position::new(2, 3));
     let replacement = Location::point(Position::new(7, 11));
-    let body = vec![InlineNode::PlainText(Plain::new("text", original.clone()))];
+    let body = vec![InlineNode::Plain(Plain::new("text", original.clone()))];
     let mut note = Footnote::new(body.clone(), 0, original.clone());
     note.set_location(replacement.clone());
     assert_eq!(

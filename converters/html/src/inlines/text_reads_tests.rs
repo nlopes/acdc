@@ -5,8 +5,9 @@ use acdc_converters_core::{
     visitor::InlineVisitor,
 };
 use acdc_parser::{
-    CalloutMarker, Document, FormattingForm, Highlight, InlineMacro, InlineNode, Location, Options,
-    Plain, Raw, Substitution, Verbatim, parse_inline,
+    FormattingForm, Location, Options, Substitution,
+    edit::{CalloutMarker, Document, Highlight, InlineNode, Plain, Raw, Verbatim},
+    parse_inline,
 };
 
 use crate::{Converter, Error, HtmlVariant, HtmlVisitor, RenderOptions};
@@ -46,19 +47,19 @@ fn leaf_inputs_can_be_dropped_before_the_visitor() -> Result<(), TestError> {
             );
             let fragment = parse_inline(&source, &Options::default())?;
             let fragment_inlines =
-                acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
             let mut macros = 0;
             for node in fragment_inlines.as_slice() {
-                if let InlineNode::Macro(InlineMacro::Passthrough(pass)) = node {
+                if let InlineNode::Passthrough(pass) = node {
                     visitor.render_pass(pass.into())?;
                     macros += 1;
-                } else if let InlineNode::Macro(InlineMacro::Stem(stem)) = node {
+                } else if let InlineNode::Stem(stem) = node {
                     visitor.render_stem(&mut traversal, stem.into())?;
                     macros += 1;
-                } else if let InlineNode::Macro(InlineMacro::Autolink(link)) = node {
+                } else if let InlineNode::Autolink(link) = node {
                     visitor.render_autolink(link.into(), &options)?;
                     macros += 1;
-                } else if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                } else if let InlineNode::Footnote(note) = node {
                     // Caller-created footnotes can use IDs outside the source grammar.
                     let mut note = note.clone();
                     note.replace_id(Some("temporary\"note"));
@@ -147,10 +148,9 @@ fn retained_pass_skips_absent_and_empty_text_but_propagates_write_errors() -> Re
         Diagnostics::new(&source, &mut warnings),
     );
     let fragment = parse_inline(r"pass:m[pass:[content\]]", &Options::default())?;
-    let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
-    let Some(InlineNode::Macro(InlineMacro::Passthrough(pass))) =
-        fragment_inlines.as_slice().first()
-    else {
+    let fragment_inlines =
+        acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
+    let Some(InlineNode::Passthrough(pass)) = fragment_inlines.as_slice().first() else {
         return Err("expected a retained passthrough".into());
     };
     for text in [None, Some("")] {
@@ -186,7 +186,7 @@ fn span_warning_order_and_inline_state_survive_a_write_error() -> Result<(), Tes
             TraversalContext::new(acdc_parser::ast::DocumentRef::from(&document).attributes());
         {
             let role = String::from("big \t small big");
-            let node = InlineNode::HighlightText({
+            let node = InlineNode::Highlight({
                 let mut span =
                     Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
                 span.replace_role(Some(&role));
@@ -339,7 +339,7 @@ fn typed_content_can_be_dropped_before_the_visitor_in_each_render_mode() -> Resu
 
 #[test]
 fn resolved_symbols_keep_html_encoding_without_reinterpreting_source() -> Result<(), TestError> {
-    use acdc_parser::{Symbol, SymbolKind};
+    use acdc_parser::{SymbolKind, edit::Symbol};
 
     let document = Document::default();
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
@@ -435,9 +435,10 @@ fn retained_pass_uses_its_own_escaping_setting() -> Result<(), TestError> {
         Diagnostics::new(&source, &mut warnings),
     );
     let fragment = parse_inline(r"pass:m[pass:c[<tag> & raw\]]", &Options::default())?;
-    let fragment_inlines = acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+    let fragment_inlines =
+        acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
     let node = fragment_inlines.as_slice().first().ok_or("passthrough")?;
-    let InlineNode::Macro(InlineMacro::Passthrough(pass)) = node else {
+    let InlineNode::Passthrough(pass) = node else {
         return Err("unprocessed pass macro".into());
     };
     visitor.render_pass(pass.into())?;

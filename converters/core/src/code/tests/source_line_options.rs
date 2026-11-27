@@ -2,8 +2,10 @@
 
 use crate::code::SourceLineOptions;
 use acdc_parser::{
-    AttributeValue, BlockMetadata, CompatibilityMode, Location, Options, Paragraph,
-    ast::ParagraphRef, parse,
+    AttributeValue, CompatibilityMode, Location, Options,
+    ast::ParagraphRef,
+    edit::{BlockMetadata, Paragraph},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -151,7 +153,7 @@ fn parsed_source_line_options_keep_modes_and_block_forms() -> Result<(), Box<dyn
                 let parsed_blocks: Vec<_> = parsed
                     .document()
                     .blocks()
-                    .map(acdc_parser::Block::from)
+                    .map(acdc_parser::edit::Block::from)
                     .collect();
                 let block = parsed.document().blocks().next().ok_or("source block")?;
                 let attributes = block.attributes().ok_or("attributes")?;

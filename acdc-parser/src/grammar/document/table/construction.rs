@@ -7,7 +7,7 @@ use super::{
     TableParseParams, parse_table_cell, parse_table_cell_with_parser, parse_table_with_cells,
 };
 use crate::{
-    Block, DelimitedBlockType, Error, TableCell, Warning,
+    Block, Error, TableCell, Warning,
     grammar::{ParserState, helpers::BlockParsingMetadata},
 };
 
@@ -98,12 +98,10 @@ impl<'a> TableContent<'a> {
         parser: &mut impl ContentParser<'a>,
     ) -> Result<(), Error> {
         let location = block.location().clone();
-        let Block::DelimitedBlock(block) = block else {
+        let Block::DelimitedTable(crate::Table(block)) = block else {
             return Ok(());
         };
-        let DelimitedBlockType::DelimitedTable(table) = &mut block.inner else {
-            return Ok(());
-        };
+        let table = &mut block.body;
         let mut group = None;
         let mut prepared = None;
         for row in self.rows {

@@ -1,6 +1,7 @@
 use acdc_parser::{
-    AttributeValue, ContentAttribute, ElementId, Image, Link, Location, Source,
+    AttributeValue, Location,
     ast::{AttributeValueRef, ContentRef, ImageRef, LinkRef},
+    edit::{ContentAttribute, ElementId, Image, Link, Source},
 };
 
 use super::{link_class_attr, link_control_attributes, link_id_attr, tooltip_attribute};

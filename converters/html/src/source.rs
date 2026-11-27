@@ -1,6 +1,7 @@
 use acdc_parser::{
-    InlineNode, Location, Plain, Raw, Verbatim,
+    Location,
     ast::{AttributesRef, ContentRef, InlineKind, InlineRef},
+    edit::{InlineNode, Plain, Raw, Verbatim},
 };
 
 use crate::{
@@ -13,18 +14,18 @@ pub(crate) fn replace_text<'inline>(
     content: &'inline str,
 ) -> Option<InlineNode<'inline>> {
     if let InlineKind::Plain(plain) = node.kind() {
-        Some(InlineNode::PlainText(
+        Some(InlineNode::Plain(
             Plain::new(content, Location::from(node.location())).with_escaped(plain.is_escaped()),
         ))
     } else if let InlineKind::Verbatim(_) = node.kind() {
-        Some(InlineNode::VerbatimText(Verbatim::new(
+        Some(InlineNode::Verbatim(Verbatim::new(
             content,
             Location::from(node.location()),
         )))
     } else if let InlineKind::Raw(raw) = node.kind() {
         let mut replacement = Raw::from(raw);
         replacement.replace_text(content);
-        Some(InlineNode::RawText(replacement))
+        Some(InlineNode::Raw(replacement))
     } else {
         None
     }
@@ -72,21 +73,22 @@ pub(crate) fn with_source_inlines<R>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{CalloutMarker, Paragraph, ast::ParagraphRef};
+    use acdc_parser::{
+        ast::ParagraphRef,
+        edit::{CalloutMarker, Paragraph},
+    };
 
     #[test]
     fn source_guards_remove_empty_text_only_after_an_edit() {
         for (before, after, edited) in [("<!--", "-->", true), ("text", "tail", false)] {
             let paragraph = Paragraph::new(
                 vec![
-                    InlineNode::PlainText(Plain::new("", Location::default()).with_escaped(true)),
-                    InlineNode::VerbatimText(Verbatim::new(before, Location::default())),
-                    InlineNode::CalloutMarker(CalloutMarker::explicit(1, Location::default())),
-                    InlineNode::PlainText(
-                        Plain::new(after, Location::default()).with_escaped(true),
-                    ),
-                    InlineNode::VerbatimText(Verbatim::new("", Location::default())),
-                    InlineNode::RawText(Raw::new("", vec![], Location::default())),
+                    InlineNode::Plain(Plain::new("", Location::default()).with_escaped(true)),
+                    InlineNode::Verbatim(Verbatim::new(before, Location::default())),
+                    InlineNode::Callout(CalloutMarker::explicit(1, Location::default())),
+                    InlineNode::Plain(Plain::new(after, Location::default()).with_escaped(true)),
+                    InlineNode::Verbatim(Verbatim::new("", Location::default())),
+                    InlineNode::Raw(Raw::new("", vec![], Location::default())),
                 ],
                 Location::default(),
             );

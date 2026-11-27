@@ -3,9 +3,9 @@
 use std::{alloc::System, hint::black_box, process::ExitCode};
 
 use acdc_parser::{
-    self as parser, ContentAttribute, FormattingForm, InlineMacro, InlineNode, Location, Options,
-    Plain,
+    self as parser, FormattingForm, Location, Options,
     ast::{ContentRef, InlineKind, InlineRef},
+    edit::{self, ContentAttribute, InlineNode, Plain},
 };
 use libtest_mimic::{Arguments, Trial};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -54,41 +54,39 @@ fn main() -> ExitCode {
 }
 
 fn plain(text: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
+    InlineNode::Plain(Plain::new(text, Location::default()).with_escaped(true))
 }
 
 fn atoms_and_spans(source: &str) -> Result<Vec<InlineNode<'_>>, Error> {
     let loc = Location::default();
     let mut values = vec![
         plain(source),
-        InlineNode::Symbol(parser::Symbol::new(
+        InlineNode::Symbol(edit::Symbol::new(
             parser::SymbolKind::Copyright,
             loc.clone(),
         )),
         InlineNode::CharacterReference(
-            parser::CharacterReference::new(
+            edit::CharacterReference::new(
                 parser::CharacterReferenceKind::Named("copy"),
                 loc.clone(),
             )
             .ok_or("character reference")?,
         ),
-        InlineNode::RawText(parser::Raw::new(
+        InlineNode::Raw(edit::Raw::new(
             source,
             vec![parser::Substitution::Attributes],
             loc.clone(),
         )),
-        InlineNode::VerbatimText(parser::Verbatim::new(source, loc.clone())),
-        InlineNode::StandaloneCurvedApostrophe(parser::StandaloneCurvedApostrophe::new(
-            loc.clone(),
-        )),
-        InlineNode::LineBreak(parser::LineBreak::new(loc.clone())),
-        InlineNode::InlineAnchor(parser::Anchor::new(source, loc.clone())),
-        InlineNode::CalloutMarker(parser::CalloutMarker::auto(3, loc.clone())),
+        InlineNode::Verbatim(edit::Verbatim::new(source, loc.clone())),
+        InlineNode::StandaloneCurvedApostrophe(edit::StandaloneCurvedApostrophe::new(loc.clone())),
+        InlineNode::LineBreak(edit::LineBreak::new(loc.clone())),
+        InlineNode::Anchor(edit::Anchor::new(source, loc.clone())),
+        InlineNode::Callout(edit::CalloutMarker::auto(3, loc.clone())),
     ];
     macro_rules! span {
         ($owner:ident, $variant:ident) => {
             for form in [FormattingForm::Constrained, FormattingForm::Unconstrained] {
-                values.push(InlineNode::$variant(parser::$owner::new(
+                values.push(InlineNode::$variant(edit::$owner::new(
                     vec![plain(source)],
                     form,
                     loc.clone(),
@@ -96,12 +94,12 @@ fn atoms_and_spans(source: &str) -> Result<Vec<InlineNode<'_>>, Error> {
             }
         };
     }
-    span!(Bold, BoldText);
-    span!(Italic, ItalicText);
-    span!(Monospace, MonospaceText);
-    span!(Highlight, HighlightText);
-    span!(Subscript, SubscriptText);
-    span!(Superscript, SuperscriptText);
+    span!(Bold, Bold);
+    span!(Italic, Italic);
+    span!(Monospace, Monospace);
+    span!(Highlight, Highlight);
+    span!(Subscript, Subscript);
+    span!(Superscript, Superscript);
     span!(DoubleQuotedSpan, DoubleQuotedSpan);
     span!(SingleQuotedSpan, SingleQuotedSpan);
     Ok(values)
@@ -111,69 +109,60 @@ fn macro_values(source: &str) -> Vec<InlineNode<'_>> {
     let loc = Location::default();
     let label = || ContentAttribute::new(vec![plain(source)]);
     vec![
-        InlineNode::Macro(InlineMacro::Footnote(parser::Footnote::new(
-            vec![plain(source)],
-            7,
+        InlineNode::Footnote(edit::Footnote::new(vec![plain(source)], 7, loc.clone())),
+        InlineNode::Icon(Box::new(edit::Icon::new(
+            edit::Source::Name(source),
             loc.clone(),
         ))),
-        InlineNode::Macro(InlineMacro::Icon(Box::new(parser::Icon::new(
-            parser::Source::Name(source),
+        InlineNode::Image(Box::new(edit::InlineImage::new(
+            edit::Source::Name(source),
             loc.clone(),
-        )))),
-        InlineNode::Macro(InlineMacro::Image(Box::new(parser::InlineImage::new(
-            parser::Source::Name(source),
+        ))),
+        InlineNode::KeyboardShortcut(edit::KeyboardShortcut::new(
+            vec![label(), ContentAttribute::default()],
             loc.clone(),
-        )))),
-        InlineNode::Macro(InlineMacro::KeyboardShortcut(
-            parser::KeyboardShortcut::new(vec![label(), ContentAttribute::default()], loc.clone()),
         )),
-        InlineNode::Macro(InlineMacro::Button(parser::Button::new(
-            label(),
-            loc.clone(),
-        ))),
-        InlineNode::Macro(InlineMacro::MenuPath(parser::MenuPath::new(
+        InlineNode::Button(edit::Button::new(label(), loc.clone())),
+        InlineNode::MenuPath(edit::MenuPath::new(
             label(),
             vec![label(), ContentAttribute::default()],
             loc.clone(),
-        ))),
-        InlineNode::Macro(InlineMacro::UrlMacro(Box::new(parser::UrlMacro::new(
-            parser::Source::Name(source),
-            loc.clone(),
-        )))),
-        InlineNode::Macro(InlineMacro::Link(Box::new(parser::Link::new(
-            parser::Source::Name(source),
-            loc.clone(),
-        )))),
-        InlineNode::Macro(InlineMacro::Mailto(Box::new(parser::Mailto::new(
-            parser::Source::Name(source),
-            loc.clone(),
-        )))),
-        InlineNode::Macro(InlineMacro::Autolink(parser::Autolink::new(
-            parser::Source::Name(source),
+        )),
+        InlineNode::UrlMacro(Box::new(edit::UrlMacro::new(
+            edit::Source::Name(source),
             loc.clone(),
         ))),
-        InlineNode::Macro(InlineMacro::CrossReference(Box::new(
-            parser::CrossReference::new(source, loc.clone()).with_text(vec![plain(source)]),
+        InlineNode::Link(Box::new(edit::Link::new(
+            edit::Source::Name(source),
+            loc.clone(),
         ))),
-        InlineNode::Macro(InlineMacro::Passthrough(parser::Passthrough::new(
+        InlineNode::Mailto(Box::new(edit::Mailto::new(
+            edit::Source::Name(source),
+            loc.clone(),
+        ))),
+        InlineNode::Autolink(edit::Autolink::new(edit::Source::Name(source), loc.clone())),
+        InlineNode::CrossReference(Box::new(
+            edit::CrossReference::new(source, loc.clone()).with_text(vec![plain(source)]),
+        )),
+        InlineNode::Passthrough(edit::InlinePassthrough::new(
             Some(source),
             vec![parser::Substitution::Quotes],
             parser::PassthroughKind::Macro,
             loc.clone(),
-        ))),
-        InlineNode::Macro(InlineMacro::Stem(parser::Stem::new(
+        )),
+        InlineNode::Stem(edit::Stem::new(
             source,
             parser::StemNotation::Latexmath,
             loc.clone(),
-        ))),
-        InlineNode::Macro(InlineMacro::IndexTerm(Box::new(parser::IndexTerm::new(
-            parser::IndexTermKind::Concealed {
+        )),
+        InlineNode::IndexTerm(Box::new(edit::IndexTerm::new(
+            edit::IndexTermKind::Concealed {
                 term: vec![plain(source)],
                 secondary: Some(Vec::new()),
                 tertiary: None,
             },
             loc,
-        )))),
+        ))),
     ]
 }
 

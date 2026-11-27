@@ -1,6 +1,7 @@
 use acdc_parser::{
-    AttributeValue, Audio, Location, Source, Video,
+    AttributeValue, Location,
     ast::{AudioRef, VideoRef},
+    edit::{Audio, Source, Video},
 };
 
 use crate::{

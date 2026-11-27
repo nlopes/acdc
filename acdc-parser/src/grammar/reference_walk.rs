@@ -1,7 +1,6 @@
 use crate::{
-    Anchor, Block, BlockMetadata, Caption, ColumnStyle, ContentAttribute, CrossReference,
-    DelimitedBlockType, Header, InlineMacro, InlineMetadata, InlineNode, Location, Plain, Section,
-    Title,
+    Anchor, Block, BlockMetadata, Caption, ColumnStyle, ContentAttribute, CrossReference, Header,
+    InlineMetadata, InlineNode, Location, Plain, Section, Title,
 };
 
 use super::marked_text::MarkedText;
@@ -55,10 +54,7 @@ pub(crate) fn metadata_xreflabel<'a, 'b>(
 pub(crate) fn header_title<'a>(header: &Header<'a>) -> Title<'a> {
     let mut inlines = header.title.clone().into_inlines();
     if let Some(subtitle) = &header.subtitle {
-        inlines.push(InlineNode::PlainText(Plain::new(
-            ": ",
-            header.location.clone(),
-        )));
+        inlines.push(InlineNode::Plain(Plain::new(": ", header.location.clone())));
         inlines.extend(subtitle.clone().into_inlines());
     }
     Title::new(inlines)
@@ -159,16 +155,17 @@ pub(crate) fn blocks<'a, V: ReferenceVisitor<'a>>(
                     }
                 }
             }
-            Block::DelimitedBlock(block) => delimited(visitor, &mut block.inner, record_toc)?,
-            Block::ThematicBreak(rule) => {
-                if let Some(label) = rule
-                    .primary_anchor()
-                    .and_then(|anchor| anchor.xreflabel.as_ref())
-                {
-                    inlines(visitor, label.as_inlines())?;
-                }
+            crate::model::compound_block!(block) => {
+                self::blocks(visitor, &mut block.body, record_toc)?;
             }
-            Block::DiscreteHeading(_)
+            crate::model::inline_body_block!(block) => {
+                inlines(visitor, &block.body)?;
+            }
+            Block::DelimitedTable(crate::Table(block)) => {
+                table(visitor, &mut block.body, record_toc)?;
+            }
+            Block::DelimitedStem(_)
+            | Block::DiscreteHeading(_)
             | Block::PageBreak(_)
             | Block::Image(_)
             | Block::Audio(_)
@@ -177,45 +174,39 @@ pub(crate) fn blocks<'a, V: ReferenceVisitor<'a>>(
             | Block::DocumentAttribute(_)
             | Block::Extension(_)
             | Block::Comment(_) => {}
+            Block::ThematicBreak(rule) => {
+                if let Some(label) = rule
+                    .primary_anchor()
+                    .and_then(|anchor| anchor.xreflabel.as_ref())
+                {
+                    inlines(visitor, label.as_inlines())?;
+                }
+            }
         }
     }
     Ok(())
 }
 
-fn delimited<'a, V: ReferenceVisitor<'a>>(
+fn table<'a, V: ReferenceVisitor<'a>>(
     visitor: &mut V,
-    inner: &mut DelimitedBlockType<'a>,
+    table: &mut crate::model::TableContent<'a>,
     record_toc: bool,
 ) -> Result<(), V::Error> {
-    match inner {
-        DelimitedBlockType::DelimitedExample(content)
-        | DelimitedBlockType::DelimitedOpen(content)
-        | DelimitedBlockType::DelimitedSidebar(content)
-        | DelimitedBlockType::DelimitedQuote(content) => blocks(visitor, content, record_toc),
-        DelimitedBlockType::DelimitedListing(content)
-        | DelimitedBlockType::DelimitedLiteral(content)
-        | DelimitedBlockType::DelimitedPass(content)
-        | DelimitedBlockType::DelimitedVerse(content)
-        | DelimitedBlockType::DelimitedComment(content) => inlines(visitor, content),
-        DelimitedBlockType::DelimitedTable(table) => {
-            for row in table
-                .header
-                .iter_mut()
-                .chain(table.rows.iter_mut())
-                .chain(table.footer.iter_mut())
-            {
-                for column in &mut row.columns {
-                    blocks(
-                        visitor,
-                        &mut column.content,
-                        record_toc && column.style != Some(ColumnStyle::AsciiDoc),
-                    )?;
-                }
-            }
-            Ok(())
+    for row in table
+        .header
+        .iter_mut()
+        .chain(table.rows.iter_mut())
+        .chain(table.footer.iter_mut())
+    {
+        for column in &mut row.columns {
+            blocks(
+                visitor,
+                &mut column.content,
+                record_toc && column.style != Some(ColumnStyle::AsciiDoc),
+            )?;
         }
-        DelimitedBlockType::DelimitedStem(_) => Ok(()),
     }
+    Ok(())
 }
 
 fn formatted<'a, V, T>(visitor: &mut V, text: &T) -> Result<(), V::Error>
@@ -247,42 +238,42 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
 ) -> Result<(), V::Error> {
     for inline in content {
         match inline {
-            InlineNode::InlineAnchor(anchor) => {
+            InlineNode::Anchor(anchor) => {
                 visitor.anchor(anchor, anchor.xreflabel.as_ref(), None, None, None)?;
                 if let Some(label) = anchor.bibliography_label() {
                     inlines(visitor, label)?;
                 }
             }
-            InlineNode::Macro(InlineMacro::CrossReference(reference)) => {
+            InlineNode::CrossReference(reference) => {
                 visitor.cross_reference(reference)?;
                 inlines(visitor, &reference.text)?;
             }
-            InlineNode::Macro(InlineMacro::Footnote(note)) => {
+            InlineNode::Footnote(note) => {
                 if let Some(content) = &note.content {
                     inlines(visitor, content)?;
                 }
             }
-            InlineNode::Macro(InlineMacro::IndexTerm(term)) if term.is_visible() => {
+            InlineNode::IndexTerm(term) if term.is_visible() => {
                 inlines(visitor, term.term())?;
             }
-            InlineNode::Macro(InlineMacro::Link(node)) => {
+            InlineNode::Link(node) => {
                 link(visitor, &node.metadata, &node.location, &node.text)?;
             }
-            InlineNode::Macro(InlineMacro::UrlMacro(node)) => {
+            InlineNode::UrlMacro(node) => {
                 link(visitor, &node.metadata, &node.location, &node.text)?;
             }
-            InlineNode::Macro(InlineMacro::Mailto(node)) => {
+            InlineNode::Mailto(node) => {
                 link(visitor, &node.metadata, &node.location, &node.text)?;
             }
-            InlineNode::BoldText(node) => formatted(visitor, node)?,
-            InlineNode::ItalicText(node) => formatted(visitor, node)?,
-            InlineNode::MonospaceText(node) => formatted(visitor, node)?,
-            InlineNode::HighlightText(node) => formatted(visitor, node)?,
-            InlineNode::SubscriptText(node) => formatted(visitor, node)?,
-            InlineNode::SuperscriptText(node) => formatted(visitor, node)?,
+            InlineNode::Bold(node) => formatted(visitor, node)?,
+            InlineNode::Italic(node) => formatted(visitor, node)?,
+            InlineNode::Monospace(node) => formatted(visitor, node)?,
+            InlineNode::Highlight(node) => formatted(visitor, node)?,
+            InlineNode::Subscript(node) => formatted(visitor, node)?,
+            InlineNode::Superscript(node) => formatted(visitor, node)?,
             InlineNode::DoubleQuotedSpan(node) => formatted(visitor, node)?,
             InlineNode::SingleQuotedSpan(node) => formatted(visitor, node)?,
-            InlineNode::RawText(node) => {
+            InlineNode::Raw(node) => {
                 if let Some(id) = node
                     .metadata
                     .as_ref()
@@ -292,14 +283,22 @@ pub(crate) fn inlines<'a, V: ReferenceVisitor<'a>>(
                 }
             }
             InlineNode::Extension(_)
-            | InlineNode::PlainText(_)
-            | InlineNode::VerbatimText(_)
+            | InlineNode::Plain(_)
+            | InlineNode::Verbatim(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::Symbol(_)
             | InlineNode::CharacterReference(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutMarker(_) => {}
+            | InlineNode::Autolink(_)
+            | InlineNode::Button(_)
+            | InlineNode::Icon(_)
+            | InlineNode::Image(_)
+            | InlineNode::IndexTerm(_)
+            | InlineNode::KeyboardShortcut(_)
+            | InlineNode::MenuPath(_)
+            | InlineNode::Passthrough(_)
+            | InlineNode::Stem(_)
+            | InlineNode::Callout(_) => {}
         }
     }
     Ok(())

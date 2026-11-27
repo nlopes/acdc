@@ -9,8 +9,8 @@ use bumpalo::Bump;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{
-    Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
-    InlineNode, Location, MAX_SECTION_LEVELS, ReferenceTarget, Table, TocEntry,
+    Block, BlockMetadata, ColumnStyle, DocumentAttributes, InlineNode, Location,
+    MAX_SECTION_LEVELS, ReferenceTarget, TocEntry,
     model::{DocumentAttributeStatus, SectionOccurrence, SectionReference},
 };
 
@@ -731,6 +731,19 @@ fn renumber_blocks<'a, F>(
 ) where
     F: FnMut(&mut Section<'a>, SectionNumbers, &'static str, bool),
 {
+    // Every nested body is renumbered with the same walk state.
+    macro_rules! recurse {
+        ($blocks:expr) => {
+            renumber_blocks(
+                $blocks,
+                state,
+                is_book,
+                suppressed,
+                record_toc,
+                record_number,
+            )
+        };
+    }
     for block in blocks {
         match block {
             Block::Section(section) => {
@@ -743,82 +756,45 @@ fn renumber_blocks<'a, F>(
                     record_number,
                 );
             }
-            Block::Admonition(admonition) => renumber_blocks(
-                &mut admonition.blocks,
-                state,
-                is_book,
-                suppressed,
-                record_toc,
-                record_number,
-            ),
+            Block::Admonition(admonition) => recurse!(&mut admonition.blocks),
             Block::UnorderedList(list) => {
                 for item in &mut list.items {
-                    renumber_blocks(
-                        &mut item.blocks,
-                        state,
-                        is_book,
-                        suppressed,
-                        record_toc,
-                        record_number,
-                    );
+                    recurse!(&mut item.blocks);
                 }
             }
             Block::OrderedList(list) => {
                 for item in &mut list.items {
-                    renumber_blocks(
-                        &mut item.blocks,
-                        state,
-                        is_book,
-                        suppressed,
-                        record_toc,
-                        record_number,
-                    );
+                    recurse!(&mut item.blocks);
                 }
             }
             Block::CalloutList(list) => {
                 for item in &mut list.items {
-                    renumber_blocks(
-                        &mut item.blocks,
-                        state,
-                        is_book,
-                        suppressed,
-                        record_toc,
-                        record_number,
-                    );
+                    recurse!(&mut item.blocks);
                 }
             }
             Block::DescriptionList(list) => {
                 for item in &mut list.items {
                     if let Some(definition) = &mut item.definition {
-                        renumber_blocks(
-                            &mut definition.blocks,
-                            state,
-                            is_book,
-                            suppressed,
-                            record_toc,
-                            record_number,
-                        );
+                        recurse!(&mut definition.blocks);
                     }
                 }
             }
-            Block::DelimitedBlock(delimited) => renumber_delimited(
-                &mut delimited.inner,
+            crate::model::compound_block!(delimited) => recurse!(&mut delimited.body),
+            Block::DelimitedTable(crate::Table(delimited)) => renumber_table(
+                &mut delimited.body,
                 state,
                 is_book,
                 suppressed,
                 record_toc,
                 record_number,
             ),
-            Block::DocumentAttribute(attribute) => {
-                if attribute.is_accepted() && attribute.name == "doctype" {
-                    is_book = attribute
-                        .assignment()
-                        .value()
-                        .and_then(|value| value.as_str())
-                        == Some("book");
-                }
-            }
-            Block::Paragraph(_)
+            Block::DelimitedComment(_)
+            | Block::DelimitedListing(_)
+            | Block::DelimitedLiteral(_)
+            | Block::DelimitedPassthrough(_)
+            | Block::DelimitedStem(_)
+            | Block::DelimitedVerse(_)
+            | Block::Paragraph(_)
             | Block::DiscreteHeading(_)
             | Block::PageBreak(_)
             | Block::ThematicBreak(_)
@@ -828,41 +804,16 @@ fn renumber_blocks<'a, F>(
             | Block::Video(_)
             | Block::Extension(_)
             | Block::Comment(_) => {}
+            Block::DocumentAttribute(attribute) => {
+                if attribute.is_accepted() && attribute.name == "doctype" {
+                    is_book = attribute
+                        .assignment()
+                        .value()
+                        .and_then(|value| value.as_str())
+                        == Some("book");
+                }
+            }
         }
-    }
-}
-
-fn renumber_delimited<'a, F>(
-    inner: &mut DelimitedBlockType<'a>,
-    state: &mut NumberingState,
-    is_book: bool,
-    suppressed: bool,
-    record_toc: bool,
-    record_number: &mut F,
-) where
-    F: FnMut(&mut Section<'a>, SectionNumbers, &'static str, bool),
-{
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => renumber_blocks(
-            blocks,
-            state,
-            is_book,
-            suppressed,
-            record_toc,
-            record_number,
-        ),
-        DelimitedBlockType::DelimitedTable(table) => {
-            renumber_table(table, state, is_book, suppressed, record_toc, record_number);
-        }
-        DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedStem(_) => {}
     }
 }
 
@@ -944,7 +895,7 @@ fn section_participates(section: &Section<'_>, is_book: bool) -> bool {
 }
 
 fn renumber_table<'a, F>(
-    table: &mut Table<'a>,
+    table: &mut crate::model::TableContent<'a>,
     state: &mut NumberingState,
     is_book: bool,
     suppressed: bool,
@@ -1072,31 +1023,15 @@ impl<'a> Section<'a> {
         for node in inlines {
             match node {
                 InlineNode::Extension(call) => append(call.literal.content),
-                InlineNode::PlainText(text) => {
-                    append(text.content);
-                }
-                InlineNode::RawText(text) => {
-                    append(text.content);
-                }
-                InlineNode::VerbatimText(text) => {
-                    append(text.content);
-                }
-                InlineNode::BoldText(text) => {
-                    Self::append_id_from_inlines(&text.content, append);
-                }
-                InlineNode::ItalicText(text) => {
-                    Self::append_id_from_inlines(&text.content, append);
-                }
-                InlineNode::MonospaceText(text) => {
-                    Self::append_id_from_inlines(&text.content, append);
-                }
-                InlineNode::HighlightText(text) => {
-                    Self::append_id_from_inlines(&text.content, append);
-                }
-                InlineNode::SubscriptText(text) => {
-                    Self::append_id_from_inlines(&text.content, append);
-                }
-                InlineNode::SuperscriptText(text) => {
+                InlineNode::Plain(text) => append(text.content),
+                InlineNode::Raw(text) => append(text.content),
+                InlineNode::Verbatim(text) => append(text.content),
+                InlineNode::Bold(text) => Self::append_id_from_inlines(&text.content, append),
+                InlineNode::Italic(text) => Self::append_id_from_inlines(&text.content, append),
+                InlineNode::Monospace(text) => Self::append_id_from_inlines(&text.content, append),
+                InlineNode::Highlight(text) => Self::append_id_from_inlines(&text.content, append),
+                InlineNode::Subscript(text) => Self::append_id_from_inlines(&text.content, append),
+                InlineNode::Superscript(text) => {
                     Self::append_id_from_inlines(&text.content, append);
                 }
                 InlineNode::DoubleQuotedSpan(text) => {
@@ -1105,89 +1040,73 @@ impl<'a> Section<'a> {
                 InlineNode::SingleQuotedSpan(text) => {
                     Self::append_id_from_inlines(&text.content, append);
                 }
-                InlineNode::Symbol(symbol) => {
-                    append(symbol.kind.text());
+                InlineNode::Symbol(symbol) => append(symbol.kind.text()),
+                InlineNode::StandaloneCurvedApostrophe(_) => append("'"),
+                InlineNode::LineBreak(_) => append(" "),
+                InlineNode::Link(link) => {
+                    if link.text.is_empty() {
+                        append(&link.target.to_string());
+                    } else {
+                        Self::append_id_from_inlines(&link.text, append);
+                    }
                 }
-                InlineNode::StandaloneCurvedApostrophe(_) => {
-                    append("'");
+                InlineNode::UrlMacro(url) => {
+                    if url.text.is_empty() {
+                        append(&url.target.to_string());
+                    } else {
+                        Self::append_id_from_inlines(&url.text, append);
+                    }
                 }
-                InlineNode::LineBreak(_) => {
-                    append(" ");
+                InlineNode::Mailto(mailto) => {
+                    if mailto.text.is_empty() {
+                        append(&mailto.target.to_string());
+                    } else {
+                        Self::append_id_from_inlines(&mailto.text, append);
+                    }
                 }
-                InlineNode::CharacterReference(_) | InlineNode::InlineAnchor(_) => {}
-                InlineNode::Macro(macro_node) => {
-                    Self::append_id_from_macro(macro_node, append);
+                InlineNode::Autolink(autolink) => append(&autolink.url.to_string()),
+                InlineNode::CrossReference(xref) => {
+                    if xref.text.is_empty() {
+                        append(xref.target);
+                    } else {
+                        Self::append_id_from_inlines(&xref.text, append);
+                    }
                 }
-                InlineNode::CalloutMarker(callout) => {
+                InlineNode::IndexTerm(index_term) if index_term.is_visible() => {
+                    Self::append_id_from_inlines(index_term.term(), append);
+                }
+                InlineNode::Passthrough(pass) => append(pass.text.unwrap_or_default()),
+                InlineNode::KeyboardShortcut(keyboard) => {
+                    for (index, key) in keyboard.keys.iter().enumerate() {
+                        if index > 0 {
+                            append("+");
+                        }
+                        Self::append_id_from_inlines(key.as_inlines(), append);
+                    }
+                }
+                InlineNode::Button(button) => {
+                    Self::append_id_from_inlines(button.label.as_inlines(), append);
+                }
+                InlineNode::MenuPath(menu) => {
+                    for (index, item) in menu.items.iter().enumerate() {
+                        if index > 0 {
+                            append(" > ");
+                        }
+                        Self::append_id_from_inlines(item.as_inlines(), append);
+                    }
+                }
+                // Visible index terms are handled by the guarded arm above.
+                InlineNode::CharacterReference(_)
+                | InlineNode::Anchor(_)
+                | InlineNode::Image(_)
+                | InlineNode::Footnote(_)
+                | InlineNode::Stem(_)
+                | InlineNode::Icon(_)
+                | InlineNode::IndexTerm(_) => {}
+                InlineNode::Callout(callout) => {
                     append(&format!("<{}>", callout.number));
                 }
             }
-        }
-    }
-
-    fn append_id_from_macro(macro_node: &InlineMacro<'a>, append: &mut impl FnMut(&str)) {
-        match macro_node {
-            InlineMacro::Link(link) => {
-                if link.text.is_empty() {
-                    append(&link.target.to_string());
-                } else {
-                    Self::append_id_from_inlines(&link.text, append);
-                }
-            }
-            InlineMacro::UrlMacro(url) => {
-                if url.text.is_empty() {
-                    append(&url.target.to_string());
-                } else {
-                    Self::append_id_from_inlines(&url.text, append);
-                }
-            }
-            InlineMacro::Mailto(mailto) => {
-                if mailto.text.is_empty() {
-                    append(&mailto.target.to_string());
-                } else {
-                    Self::append_id_from_inlines(&mailto.text, append);
-                }
-            }
-            InlineMacro::Autolink(autolink) => {
-                append(&autolink.url.to_string());
-            }
-            InlineMacro::CrossReference(xref) => {
-                if xref.text.is_empty() {
-                    append(xref.target);
-                } else {
-                    Self::append_id_from_inlines(&xref.text, append);
-                }
-            }
-            InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
-                Self::append_id_from_inlines(index_term.term(), append);
-            }
-            InlineMacro::Passthrough(pass) => {
-                append(pass.text.unwrap_or_default());
-            }
-            InlineMacro::KeyboardShortcut(keyboard) => {
-                for (index, key) in keyboard.keys.iter().enumerate() {
-                    if index > 0 {
-                        append("+");
-                    }
-                    Self::append_id_from_inlines(key.as_inlines(), append);
-                }
-            }
-            InlineMacro::Button(button) => {
-                Self::append_id_from_inlines(button.label.as_inlines(), append);
-            }
-            InlineMacro::MenuPath(menu) => {
-                for (index, item) in menu.items.iter().enumerate() {
-                    if index > 0 {
-                        append(" > ");
-                    }
-                    Self::append_id_from_inlines(item.as_inlines(), append);
-                }
-            }
-            InlineMacro::Image(_)
-            | InlineMacro::Footnote(_)
-            | InlineMacro::Stem(_)
-            | InlineMacro::Icon(_)
-            | InlineMacro::IndexTerm(_) => {}
         }
     }
 
@@ -1288,10 +1207,8 @@ mod tests {
             .content
             .iter_mut()
             .find_map(|block| {
-                if let Block::DelimitedBlock(delimited) = block
-                    && let DelimitedBlockType::DelimitedTable(table) = &mut delimited.inner
-                {
-                    Some(table)
+                if let Block::DelimitedTable(crate::model::Table(delimited)) = block {
+                    Some(&mut delimited.body)
                 } else {
                     None
                 }
@@ -1369,7 +1286,7 @@ mod tests {
 
     #[test]
     fn test_id_from_title() {
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "This is a title.",
             location: Location::default(),
             escaped: false,
@@ -1378,7 +1295,7 @@ mod tests {
             Section::id_from_title(inlines),
             "this_is_a_title".to_string()
         );
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "This is a----title.",
             location: Location::default(),
             escaped: false,
@@ -1390,10 +1307,32 @@ mod tests {
     }
 
     #[test]
+    fn generated_ids_include_visible_index_terms_only() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(
+            "== Visible ((Flow))\n\n== Hidden (((Concealed)))\n",
+            &Options::default(),
+        )?;
+        let ids: Vec<_> = parsed
+            .document_storage()
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                if let Block::Section(section) = block {
+                    Some(section.id())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(ids, ["_visible_flow", "_hidden"]);
+        Ok(())
+    }
+
+    #[test]
     fn test_id_from_title_strips_leading_separators() {
         // Leading non-alphanumerics must be squeezed away so the `_` prefix
         // added by `SafeId::Generated` does not produce a doubled `__`.
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "--  Specialized Environments",
             location: Location::default(),
             escaped: false,
@@ -1413,7 +1352,7 @@ mod tests {
         // A title with no id-able characters yields an empty id (not a bare
         // `_`), matching asciidoctor.
         let arena = Bump::new();
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "---",
             location: Location::default(),
             escaped: false,
@@ -1432,19 +1371,19 @@ mod tests {
 
     #[test]
     fn test_id_from_title_preserves_underscores() {
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "CHART_BOT",
             location: Location::default(),
             escaped: false,
         })];
         assert_eq!(Section::id_from_title(inlines), "chart_bot".to_string());
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "haiku_robot",
             location: Location::default(),
             escaped: false,
         })];
         assert_eq!(Section::id_from_title(inlines), "haiku_robot".to_string());
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "meme_transcriber",
             location: Location::default(),
             escaped: false,
@@ -1458,7 +1397,7 @@ mod tests {
     #[test]
     fn test_section_generate_id() {
         let arena = Bump::new();
-        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+        let inlines: &[InlineNode] = &[InlineNode::Plain(Plain {
             content: "This is a b__i__g title.",
             location: Location::default(),
             escaped: false,

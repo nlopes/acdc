@@ -1,8 +1,9 @@
 //! Read nested elements and their attributes, then prepare an independent edit.
 
 use acdc_parser::{
-    Document, Options,
+    Options,
     ast::{BlockKind, DocumentRef, InlineKind, StructuralRef},
+    edit::Document,
     parse,
 };
 

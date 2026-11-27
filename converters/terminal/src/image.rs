@@ -122,7 +122,10 @@ fn dimension(image: ImageRef<'_>, name: &str) -> Option<u32> {
 mod tests {
     use std::borrow::Cow;
 
-    use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes, Image, Location, Source};
+    use acdc_parser::{
+        AttributeValue, ElementAttributes, Location,
+        edit::{BlockMetadata, Image, Source},
+    };
 
     use super::*;
 

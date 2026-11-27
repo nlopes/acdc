@@ -1,5 +1,7 @@
 use acdc_parser::{
-    Block, ColumnStyle, CompatibilityMode, DelimitedBlockType, Document, Options, TableRow, parse,
+    ColumnStyle, CompatibilityMode, Options,
+    edit::{Block, Document, TableRow},
+    parse,
 };
 
 use super::HeadResources;
@@ -124,14 +126,15 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
         document.set_attributes(acdc_parser::DocumentAttributes::from(
             parsed.document().attributes(),
         ));
-        document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+        document.set_blocks(
+            parsed
+                .document()
+                .blocks()
+                .map(acdc_parser::edit::Block::from),
+        );
         let mut blocks: Vec<_> = document.take_blocks().collect();
         for block in &mut blocks {
-            if let Block::DelimitedBlock(block) = block {
-                let mut body = block.clone_body();
-                let DelimitedBlockType::DelimitedTable(table) = &mut body else {
-                    continue;
-                };
+            if let Block::DelimitedTable(table) = block {
                 let formats = table
                     .take_columns()
                     .map(|format| format.with_style(declared));
@@ -142,7 +145,6 @@ fn head_resources_keep_cell_overrides_and_column_defaults_after_owner_edits() ->
                 table.set_rows(rows);
                 table.set_header(header);
                 table.set_footer(footer);
-                block.replace_body(body);
             }
         }
         document.set_blocks(blocks);
@@ -162,14 +164,15 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
         &Options::default(),
     )?;
     let mut document = Document::default();
-    document.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
+    document.set_blocks(
+        parsed
+            .document()
+            .blocks()
+            .map(acdc_parser::edit::Block::from),
+    );
     let mut blocks: Vec<_> = document.take_blocks().collect();
-    let Some(Block::DelimitedBlock(block)) = blocks.first_mut() else {
+    let Some(Block::DelimitedTable(table)) = blocks.first_mut() else {
         return Err("expected a table".into());
-    };
-    let mut body = block.clone_body();
-    let DelimitedBlockType::DelimitedTable(table) = &mut body else {
-        return Err("expected table content".into());
     };
     let mut rows: Vec<_> = table.take_rows().collect();
     let row = rows.first_mut().ok_or("expected a table row")?;
@@ -194,7 +197,6 @@ fn head_resources_use_stored_cell_order_for_spanning_column_defaults() -> Result
         .into_iter()
         .map(|style| format.clone().with_style(style)),
     );
-    block.replace_body(body);
     document.set_blocks(blocks);
     let resources = HeadResources::collect((&document).into());
     assert_eq!(

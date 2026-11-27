@@ -1,13 +1,13 @@
 //! Verbatim block and paragraph content.
 
 use crate::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlockType, Error, InlineNode, Paragraph, Plain,
+    AttributeValue, Block, BlockMetadata, Error, InlineNode, Listing, Literal, Paragraph, Plain,
     Verbatim,
     grammar::{
         ParserState,
         document::{
             callouts::resolve_verbatim_callouts,
-            delimited::{DelimitedKind, DelimitedParams},
+            delimited::{DelimitedKind, DelimitedParams, DelimitedShell},
             paragraph::common_indent,
         },
         helpers::BlockParsingMetadata,
@@ -22,12 +22,28 @@ use crate::{
 
 /// Verbatim block (`----` listing or `....` literal, including the Markdown fence):
 /// preserves whitespace while resolving enabled inline substitutions and callouts.
-pub(super) fn verbatim_inner<'input>(
+pub(super) fn build_delimited_verbatim<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    mut shell: DelimitedShell<'input>,
+    p: &DelimitedParams<'input>,
+) -> Result<Block<'input>, Error> {
+    let inlines = verbatim_inlines(state, block_metadata, &mut shell.metadata, p)?;
+    let block = shell.with_body(inlines);
+    Ok(if p.kind == DelimitedKind::Literal {
+        Block::DelimitedLiteral(Literal(block))
+    } else {
+        Block::DelimitedListing(Listing(block))
+    })
+}
+
+/// Parse a listing or literal body into inline content.
+pub(super) fn verbatim_inlines<'input>(
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
-) -> Result<DelimitedBlockType<'input>, Error> {
+) -> Result<Vec<crate::InlineNode<'input>>, Error> {
     metadata.move_positional_attributes_to_attributes();
     let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
     let (inlines, callouts) = resolve_verbatim_callouts(
@@ -40,12 +56,7 @@ pub(super) fn verbatim_inner<'input>(
         !metadata.attributes.contains_key("line-comment"),
     );
     state.pending_callouts.extend(callouts);
-    let inlines = resolve_verbatim_inlines(state, block_metadata, inlines)?;
-    Ok(if p.kind == DelimitedKind::Literal {
-        DelimitedBlockType::DelimitedLiteral(inlines)
-    } else {
-        DelimitedBlockType::DelimitedListing(inlines)
-    })
+    resolve_verbatim_inlines(state, block_metadata, inlines)
 }
 
 pub(super) fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPlan {
@@ -84,7 +95,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
     let mut inlines = inlines.into_iter().peekable();
     let mut xml_tail = false;
     while let Some(node) = inlines.next() {
-        if let InlineNode::VerbatimText(text) = node {
+        if let InlineNode::Verbatim(text) = node {
             let prefix = if xml_tail && text.content.starts_with("-->") {
                 3
             } else {
@@ -92,7 +103,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             };
             xml_tail = false;
             if prefix != 0 {
-                resolved.push(InlineNode::VerbatimText(Verbatim {
+                resolved.push(InlineNode::Verbatim(Verbatim {
                     content: &text.content[..prefix],
                     location: state.create_block_location(
                         text.location.absolute_start,
@@ -103,7 +114,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             }
             let guard = (substitutions
                 .precedes(&Substitution::Callouts, &Substitution::Replacements)
-                && matches!(inlines.peek(), Some(InlineNode::CalloutMarker(_))))
+                && matches!(inlines.peek(), Some(InlineNode::Callout(_))))
             .then(|| callout_guard(text.content, comment_prefix))
             .flatten();
             let end = guard.unwrap_or(text.content.len());
@@ -116,7 +127,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             if guard.is_some() {
                 // A callout guard is already consumed when later replacements run.
                 let start = match resolved.last() {
-                    Some(InlineNode::VerbatimText(last))
+                    Some(InlineNode::Verbatim(last))
                         if last.location.absolute_end + 1 == text.location.absolute_start + end
                             && text.content[..end].ends_with(last.content) =>
                     {
@@ -126,7 +137,7 @@ pub(super) fn resolve_verbatim_inlines<'a>(
                     }
                     _ => end,
                 };
-                resolved.push(InlineNode::VerbatimText(Verbatim {
+                resolved.push(InlineNode::Verbatim(Verbatim {
                     content: &text.content[start..],
                     location: state.create_block_location(
                         text.location.absolute_start + start,
@@ -137,8 +148,8 @@ pub(super) fn resolve_verbatim_inlines<'a>(
             }
         } else {
             xml_tail = substitutions.precedes(&Substitution::Callouts, &Substitution::Replacements)
-                && matches!(node, InlineNode::CalloutMarker(_))
-                && matches!(resolved.last(), Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--"));
+                && matches!(node, InlineNode::Callout(_))
+                && matches!(resolved.last(), Some(InlineNode::Verbatim(text)) if text.content.ends_with("<!--"));
             resolved.push(node);
         }
     }
@@ -195,8 +206,8 @@ pub(super) fn get_literal_paragraph<'input>(
     if callouts.is_empty() && !needs_verbatim_inlines(substitutions) {
         // Keep the existing plain-text AST for paragraphs without structured inlines.
         for node in &mut inlines {
-            if let InlineNode::VerbatimText(text) = node {
-                *node = InlineNode::PlainText(Plain {
+            if let InlineNode::Verbatim(text) = node {
+                *node = InlineNode::Plain(Plain {
                     content: text.content,
                     location: location.clone(),
                     escaped: false,
@@ -214,9 +225,9 @@ pub(super) fn get_literal_paragraph<'input>(
             // Parse before dedenting so callouts and nested formatting keep source locations.
             walk_inline_nodes_mut(node, &mut |node| {
                 let starts_line = node.location().start.column == 1;
-                let content = if let InlineNode::VerbatimText(text) = node {
+                let content = if let InlineNode::Verbatim(text) = node {
                     &mut text.content
-                } else if let InlineNode::PlainText(text) = node {
+                } else if let InlineNode::Plain(text) = node {
                     &mut text.content
                 } else {
                     return;

@@ -1,5 +1,5 @@
 use crate::{
-    Block, CompatibilityMode, Icon, InlineMacro, InlineNode, Options,
+    Block, CompatibilityMode, Icon, InlineNode, Options,
     ast::{AttributeValueRef, BlockKind, ContentRef, IconRef, InlineKind, SourceKind},
     parse,
 };
@@ -29,7 +29,7 @@ fn first_owner<'a, 'b>(document: &'b crate::Document<'a>) -> Result<&'b Icon<'a>
         .content
         .iter()
         .find_map(|inline| {
-            if let InlineNode::Macro(InlineMacro::Icon(icon)) = inline {
+            if let InlineNode::Icon(icon) = inline {
                 Some(icon.as_ref())
             } else {
                 None
@@ -132,9 +132,7 @@ fn icon_reads_preserve_identity_content_and_controls(
     let json = serde_json::to_value(owner)?;
     assert_eq!(
         json,
-        serde_json::to_value(InlineNode::Macro(InlineMacro::Icon(Box::new(
-            owner.clone()
-        ))))?
+        serde_json::to_value(InlineNode::Icon(Box::new(owner.clone())))?
     );
     assert!(json.get("attributes").is_none());
     assert_eq!(

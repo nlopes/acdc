@@ -103,7 +103,7 @@ pub struct DescriptionListDefinition<'a> {
 /// Use [`Self::take_items`] and [`Self::set_items`] for owned item edits.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, UnorderedList};
+/// use acdc_parser::{Location, edit::UnorderedList};
 /// let mut list = UnorderedList::new(Vec::new(), "*", Location::default());
 /// list.items.clear();
 /// ```

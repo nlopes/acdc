@@ -1,9 +1,9 @@
 //! Paragraph edits preserve source snapshots and reject conflicting metadata.
 
 use acdc_parser::{
-    Block, BlockMetadata, CompatibilityMode, Location, Options, Paragraph, ParseResult, Plain,
-    Title,
+    CompatibilityMode, Location, Options, ParseResult,
     ast::{ContentRef, ParagraphRef},
+    edit::{Block, BlockMetadata, Paragraph, Plain, Title},
     parse,
 };
 
@@ -119,7 +119,7 @@ fn body_edits_keep_source_provenance_and_do_not_rewrite_the_parse(
     let source = edited.source_text();
     let location = Location::from(ParagraphRef::from(&edited).location());
     edited.set_content([]);
-    edited.push_inline(acdc_parser::InlineNode::PlainText(Plain::new(
+    edited.push_inline(acdc_parser::edit::InlineNode::Plain(Plain::new(
         "Changed",
         Location::default(),
     )));

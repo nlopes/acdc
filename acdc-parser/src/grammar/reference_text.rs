@@ -18,7 +18,7 @@ use crate::{
 #[derive(Debug)]
 pub(super) struct ReferenceTextContext<'a> {
     pub(super) source: SourceView<'a>,
-    pub(super) passthroughs: Rc<[crate::Passthrough<'a>]>,
+    pub(super) passthroughs: Rc<[crate::InlinePassthrough<'a>]>,
 }
 
 #[derive(Clone, Debug)]
@@ -219,7 +219,7 @@ pub(super) fn resolve_shared<'a>(
             InlineRules::default(),
         )?
     } else {
-        vec![InlineNode::RawText(Raw {
+        vec![InlineNode::Raw(Raw {
             metadata: None,
             content: value.text,
             location: state.create_location(

@@ -4,9 +4,9 @@ use super::{ExtensionBlock, InlineSpec};
 use bumpalo::Bump;
 
 use crate::{
-    Anchor, Block, BlockMetadata, Caption, CaptionKind, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, DocumentAttributes, Error, Image, InlineNode, ListItem, Location,
-    Paragraph, Plain, Source, Title, UnorderedList, Verbatim, grammar::ParserState,
+    Anchor, Block, BlockMetadata, Caption, CaptionKind, CompatibilityMode, DocumentAttributes,
+    Error, Image, InlineNode, ListItem, Location, Paragraph, Plain, Source, Title, UnorderedList,
+    Verbatim, grammar::ParserState, model::Delimited,
 };
 
 #[derive(Clone, Debug)]
@@ -253,7 +253,7 @@ impl BlockBuilder {
             metadata.id = Some(Anchor::new(arena.alloc_str(&id), location.clone()));
         }
         let plain = |text: &str| {
-            vec![InlineNode::PlainText(Plain {
+            vec![InlineNode::Plain(Plain {
                 content: arena.alloc_str(text),
                 location: location.clone(),
                 escaped: true,
@@ -339,18 +339,14 @@ fn build_verbatim<'a>(
     title: Title<'a>,
 ) -> Block<'a> {
     let text = arena.alloc_str(text);
-    let nodes = vec![InlineNode::VerbatimText(Verbatim::new(
-        text,
-        location.clone(),
-    ))];
-    let inner = if listing {
-        DelimitedBlockType::DelimitedListing(nodes)
-    } else {
-        DelimitedBlockType::DelimitedLiteral(nodes)
-    };
-    let mut block = DelimitedBlock::new(inner, if listing { "----" } else { "...." }, location);
+    let nodes = vec![InlineNode::Verbatim(Verbatim::new(text, location.clone()))];
+    let mut block = Delimited::new(nodes, if listing { "----" } else { "...." }, location);
     block.metadata = metadata;
     block.title = title;
     block.source_text = Some(text);
-    Block::DelimitedBlock(block)
+    if listing {
+        Block::DelimitedListing(crate::Listing(block))
+    } else {
+        Block::DelimitedLiteral(crate::Literal(block))
+    }
 }

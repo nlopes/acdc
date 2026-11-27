@@ -398,7 +398,7 @@ mod tests {
         let input = "[.command, id=build]\n----\necho hello\n----\n";
         let parsed = acdc_parser::parse(input, &Options::default())
             .map_err(|error| miette::miette!(error.to_string()))?;
-        let Some(acdc_parser::ast::BlockKind::Listing(block)) = parsed
+        let Some(acdc_parser::ast::BlockKind::DelimitedListing(block)) = parsed
             .document()
             .blocks()
             .next()

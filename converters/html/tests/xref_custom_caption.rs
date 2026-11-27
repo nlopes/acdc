@@ -1,6 +1,6 @@
 use acdc_converters_core::Options;
 use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
-use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, edit::Document, parse};
 
 type Error = Box<dyn std::error::Error>;
 

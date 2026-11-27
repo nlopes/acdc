@@ -1,8 +1,11 @@
 //! Explicit author repair updates derived fields while retaining assignment intent.
 
 use acdc_parser::{
-    AttributeValue, Author, CompatibilityMode, Document, DocumentAttributeAssignment,
-    DocumentAttributeValue, Header, Location, Options, Title, ast::DocumentRef, parse,
+    AttributeValue, CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue,
+    Location, Options,
+    ast::DocumentRef,
+    edit::{Author, Document, Header, Title},
+    parse,
 };
 
 type Error = Box<dyn std::error::Error>;

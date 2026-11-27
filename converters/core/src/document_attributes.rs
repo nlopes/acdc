@@ -67,7 +67,7 @@ impl<'doc> TraversalContext<'doc> {
     /// Restores the previous registrations on return, including an error return.
     /// Custom document visitors must use this around their traversal. Prepared
     /// documents must have unique registered numbers; use
-    /// [`acdc_parser::Document::rebuild_footnotes`] after structural edits.
+    /// [`acdc_parser::edit::Document::rebuild_footnotes`] after structural edits.
     pub fn with_document<R>(
         &mut self,
         document: DocumentRef<'doc>,
@@ -256,8 +256,9 @@ mod tests {
     use std::{convert::Infallible, fmt, ptr::eq};
 
     use acdc_parser::{
-        Block, DocumentAttributes, Options,
+        DocumentAttributes, Options,
         ast::{BlockRef, DocumentRef},
+        edit::Block,
         parse,
     };
 
@@ -421,7 +422,7 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: first\n:name: second\n:name!:\n:name: false\n",
             &Options::default(),
         )?;
-        let document = &acdc_parser::Document::from(parsed.document());
+        let document = &acdc_parser::edit::Document::from(parsed.document());
         let mut context = TraversalContext::new(DocumentRef::from(document).attributes());
         let mut observer = Observer::default();
         context.visit_blocks(&mut observer, DocumentRef::from(document).blocks())?;
@@ -474,12 +475,12 @@ mod tests {
             "= Header\n:name: header\n\nBody.\n\n:name: parent\n",
             &Options::default(),
         )?;
-        let parent_document = acdc_parser::Document::from(parent.document());
+        let parent_document = acdc_parser::edit::Document::from(parent.document());
         let child = parse("Body.\n\n:name: child\n", &Options::default())?;
         let child_blocks: Vec<_> = child
             .document()
             .blocks()
-            .map(acdc_parser::Block::from)
+            .map(acdc_parser::edit::Block::from)
             .collect();
         let mut context = TraversalContext::new(DocumentRef::from(&parent_document).attributes());
         let mut observer = Observer::default();
@@ -508,15 +509,13 @@ mod tests {
             "= T\n:doctype: book\n:toc: left\n\n[cols=a]\n|===\n|\nCell.\n|===\n",
             &Options::default(),
         )?;
-        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let parsed_document = acdc_parser::edit::Document::from(parsed.document());
         let blocks: Vec<_> = DocumentRef::from(&parsed_document)
             .blocks()
             .map(Block::from)
             .collect();
-        let Block::DelimitedBlock(block) = blocks.first().ok_or("missing table block")? else {
-            return Err("missing table block".into());
-        };
-        let BlockKind::Table(table) = BlockRef::from(block).kind() else {
+        let block = blocks.first().ok_or("missing table block")?;
+        let BlockKind::DelimitedTable(table) = BlockRef::from(block).kind() else {
             return Err("missing table".into());
         };
         let mut context = TraversalContext::new(DocumentRef::from(&parsed_document).attributes());

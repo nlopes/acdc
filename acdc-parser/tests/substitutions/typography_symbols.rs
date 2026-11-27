@@ -1,6 +1,7 @@
 use acdc_parser::{
-    ContentAttribute, InlineNode, Location, Options, Symbol, SymbolKind,
+    Location, Options, SymbolKind,
     ast::{ContentRef, InlineKind},
+    edit::{ContentAttribute, InlineNode, Symbol},
     parse,
 };
 

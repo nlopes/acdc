@@ -88,7 +88,7 @@ pub(super) fn resolve_verbatim_callouts<'a>(
                             CalloutMarker::explicit(number, location)
                         }
                     };
-                    inlines.push(InlineNode::CalloutMarker(callout_ref.clone()));
+                    inlines.push(InlineNode::Callout(callout_ref.clone()));
                     callouts.push(callout_ref);
                     if marker.xml {
                         segment.push("-->", line_start + marker.end - 3, line_start + marker.end);
@@ -135,7 +135,7 @@ fn verbatim_without_callouts<'a>(
     let mut content = BumpString::new_in(state.arena);
     content.push_str(text);
     (
-        vec![InlineNode::VerbatimText(Verbatim {
+        vec![InlineNode::Verbatim(Verbatim {
             content: content.into_bump_str(),
             location,
         })],
@@ -173,7 +173,7 @@ impl<'a> VerbatimSegment<'a> {
         let source_start = self.source_start.take()?;
         let source_end = std::mem::take(&mut self.source_end);
         let content = std::mem::replace(&mut self.content, BumpString::new_in(state.arena));
-        Some(InlineNode::VerbatimText(Verbatim {
+        Some(InlineNode::Verbatim(Verbatim {
             content: content.into_bump_str(),
             location: state.create_block_location(source_start, source_end, base_offset),
         }))

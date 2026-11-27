@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{ColumnStyle, HorizontalAlignment, Table, VerticalAlignment};
+use crate::{ColumnStyle, HorizontalAlignment, VerticalAlignment, model::TableContent};
 
 pub(crate) const MAX_TABLE_COLUMNS: usize = 100;
 const MAX_TABLE_ROWS: usize = 1_000;
@@ -937,7 +937,7 @@ fn group_cells_into_rows(
     Ok(rows)
 }
 
-impl Table<'_> {
+impl TableContent<'_> {
     pub(crate) fn parse_rows_with_positions(
         text: &str,
         separator: &str,
@@ -1110,7 +1110,9 @@ mod tests {
         has_header: &mut bool,
         ncols: Option<usize>,
     ) -> Vec<Vec<ParsedCell>> {
-        match Table::parse_rows_with_positions(input, separator, has_header, 0, ncols, &mut None) {
+        match TableContent::parse_rows_with_positions(
+            input, separator, has_header, 0, ncols, &mut None,
+        ) {
             Ok(rows) => rows,
             Err(error) => panic!("table should parse: {error:?}"),
         }

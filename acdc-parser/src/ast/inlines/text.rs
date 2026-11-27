@@ -1,6 +1,6 @@
 use crate::{
-    LineBreak, Passthrough, PassthroughKind, Plain, Raw, StandaloneCurvedApostrophe, Substitution,
-    Verbatim, ast::TextPartRef,
+    InlinePassthrough, LineBreak, PassthroughKind, Plain, Raw, StandaloneCurvedApostrophe,
+    Substitution, Verbatim, ast::TextPartRef,
 };
 
 use super::{
@@ -118,8 +118,8 @@ impl<'doc> From<&'doc Verbatim<'doc>> for VerbatimRef<'doc> {
     }
 }
 
-impl<'doc> From<&'doc Passthrough<'doc>> for InlinePassthroughRef<'doc> {
-    fn from(owner: &'doc Passthrough<'doc>) -> Self {
+impl<'doc> From<&'doc InlinePassthrough<'doc>> for InlinePassthroughRef<'doc> {
+    fn from(owner: &'doc InlinePassthrough<'doc>) -> Self {
         Self::new(owner)
     }
 }
@@ -213,7 +213,7 @@ impl<'doc> From<StandaloneCurvedApostropheRef<'doc>> for StandaloneCurvedApostro
 }
 
 /// Copy the selected passthrough, retaining its requested interpretation and source span.
-impl<'doc> From<InlinePassthroughRef<'doc>> for Passthrough<'doc> {
+impl<'doc> From<InlinePassthroughRef<'doc>> for InlinePassthrough<'doc> {
     fn from(value: InlinePassthroughRef<'doc>) -> Self {
         value.node.clone()
     }

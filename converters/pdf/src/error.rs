@@ -96,7 +96,7 @@ pub enum Error {
 
     /// Constructed metadata contains a value owned by a dedicated field.
     #[error(transparent)]
-    ReservedAttribute(#[from] acdc_parser::ReservedAttribute),
+    ReservedAttribute(#[from] acdc_parser::edit::ReservedAttribute),
 
     /// Theme file could not be read.
     #[error("could not read PDF theme {path}: {source}")]

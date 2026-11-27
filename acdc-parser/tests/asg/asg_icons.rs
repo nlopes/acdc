@@ -1,9 +1,12 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    AttributeValue, Block, CharacterReference, CharacterReferenceKind, CompatibilityMode,
-    ContentAttribute, Document, Footnote, FootnoteDefinition, Icon, InlineMacro, InlineNode,
-    Location, Options, Paragraph, Plain, Source, asg, parse, parse_file,
+    AttributeValue, CharacterReferenceKind, CompatibilityMode, Location, Options, asg,
+    edit::{
+        Block, CharacterReference, ContentAttribute, Document, Footnote, FootnoteDefinition, Icon,
+        InlineNode, Paragraph, Plain, Source,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -13,7 +16,7 @@ type Error = Box<dyn std::error::Error + Send + Sync>;
 fn document(icon: Icon<'static>) -> Document<'static> {
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::Macro(InlineMacro::Icon(Box::new(icon)))],
+        vec![InlineNode::Icon(Box::new(icon))],
         Location::default(),
     )));
     document
@@ -108,7 +111,7 @@ fn prepared_icons_keep_absent_empty_and_literal_values() -> Result<(), Error> {
     );
     assert!(value.pointer("/blocks/0/inlines/0/location").is_none());
     let mut icon = Icon::new(Source::Name("étoile"), Location::default());
-    icon.set_alt(Some(ContentAttribute::new(vec![InlineNode::PlainText(
+    icon.set_alt(Some(ContentAttribute::new(vec![InlineNode::Plain(
         Plain::new("*literal*", Location::default()),
     )])));
     let value = export(&document(icon))?;
@@ -153,13 +156,15 @@ fn canonical_note_icon_errors_and_strict_rejection_remain_explicit() -> Result<(
     icon.set_attribute("custom".into(), AttributeValue::Bool(false))?;
     let mut document = Document::default();
     document.set_footnotes([FootnoteDefinition::new(
-        vec![InlineNode::Macro(InlineMacro::Icon(Box::new(icon)))],
+        vec![InlineNode::Icon(Box::new(icon))],
         1,
         Location::default(),
     )]);
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::Macro(InlineMacro::Footnote(
-            Footnote::reference(None, 1, Location::default()),
+        vec![InlineNode::Footnote(Footnote::reference(
+            None,
+            1,
+            Location::default(),
         ))],
         Location::default(),
     )));

@@ -1,6 +1,6 @@
 use crate::{
-    Block, CompatibilityMode, ContentAttribute, ElementId, Image, InlineImage, InlineMacro,
-    InlineNode, Location, Options, Source,
+    Block, CompatibilityMode, ContentAttribute, ElementId, Image, InlineImage, InlineNode,
+    Location, Options, Source,
     ast::{
         BlockKind, BlockRef, BoldRef, ContentRef, ImageRef, InlineImageRef, InlineKind, InlineRef,
         TableRef,
@@ -24,7 +24,7 @@ fn bold_word(bold: BoldRef<'_>) -> Result<&str, Error> {
 }
 
 fn table(block: BlockRef<'_>) -> Result<TableRef<'_>, Error> {
-    let BlockKind::Table(table) = block.kind() else {
+    let BlockKind::DelimitedTable(table) = block.kind() else {
         return Err("expected table".into());
     };
     Ok(table)
@@ -94,7 +94,7 @@ fn images_preserve_independent_content_and_identity(
     let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.get(1) else {
         return Err("missing owner paragraph".into());
     };
-    let Some(InlineNode::Macro(InlineMacro::Image(owner))) = paragraph.content.first() else {
+    let Some(InlineNode::Image(owner)) = paragraph.content.first() else {
         return Err("missing owner image".into());
     };
     assert_eq!(

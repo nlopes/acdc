@@ -5,9 +5,9 @@ use super::{
     paragraph::paragraph_text_end,
 };
 use crate::{
-    Anchor, AttributeValue, Block, CommentKind, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, Document, Error, Image, InlineMacro, InlineNode, Location, Options, Plain,
-    Position, Section, Subtitle, Title, WarningKind, XrefCaptionLabel, XrefStyle,
+    Anchor, AttributeValue, Block, CommentKind, CompatibilityMode, Document, Error, Image,
+    InlineNode, Location, Options, Plain, Position, Section, Subtitle, Title, WarningKind,
+    XrefCaptionLabel, XrefStyle,
     grammar::ParserState,
     model::{Caption, CaptionKind, SectionKind},
     parse,
@@ -40,7 +40,7 @@ fn block_cursor_does_not_apply_later_attributes_before_advancing()
         return Err("expected the final paragraph".into());
     };
     assert!(
-        matches!(paragraph.content.as_slice(), [InlineNode::PlainText(plain)] if plain.content == "value")
+        matches!(paragraph.content.as_slice(), [InlineNode::Plain(plain)] if plain.content == "value")
     );
     assert!(matches!(
         cursor.advance(input, &mut state)??.kind,
@@ -66,7 +66,7 @@ fn block_cursor_applies_a_committed_change_to_the_next_block()
         return Err("expected a paragraph after the committed change".into());
     };
     assert!(
-        matches!(paragraph.content.as_slice(), [InlineNode::PlainText(plain)] if plain.content == "after")
+        matches!(paragraph.content.as_slice(), [InlineNode::Plain(plain)] if plain.content == "after")
     );
     Ok(())
 }
@@ -110,7 +110,7 @@ fn block_cursor_commits_section_headers_before_their_children()
         };
         assert!(matches!(
             paragraph.content.as_slice(),
-            [InlineNode::PlainText(plain)] if plain.content == "visible"
+            [InlineNode::Plain(plain)] if plain.content == "visible"
         ));
         assert_eq!(state.document_attributes.text("later"), None);
         assert!(matches!(
@@ -180,7 +180,7 @@ fn section_driver_executes_accepted_handlers_once_in_source_order()
         for (paragraph, expected) in [(outer, "outer"), (inner, "inner"), (last, "outer")] {
             assert!(matches!(
                 paragraph.content.as_slice(),
-                [InlineNode::PlainText(plain)] if plain.content == expected
+                [InlineNode::Plain(plain)] if plain.content == expected
             ));
         }
     }
@@ -257,7 +257,7 @@ v2.9, 01-09-2024: Fall incarnation
     assert_eq!(header.title.len(), 1);
     assert_eq!(
         header.title.as_inlines()[0],
-        InlineNode::PlainText(Plain {
+        InlineNode::Plain(Plain {
             content: "Document Title",
             location: Location {
                 absolute_start: 34,
@@ -511,7 +511,7 @@ fn test_document_title() -> Result<(), Error> {
     assert_eq!(result.0.len(), 1);
     assert_eq!(
         result.0.as_inlines()[0],
-        InlineNode::PlainText(Plain {
+        InlineNode::Plain(Plain {
             content: "Document Title",
             location: Location {
                 absolute_start: 2,
@@ -534,7 +534,7 @@ fn test_document_title_and_subtitle() -> Result<(), Error> {
     assert_eq!(
         result,
         (
-            Title::new(vec![InlineNode::PlainText(Plain {
+            Title::new(vec![InlineNode::Plain(Plain {
                 content: "Document Title",
                 location: Location {
                     absolute_start: 2,
@@ -544,7 +544,7 @@ fn test_document_title_and_subtitle() -> Result<(), Error> {
                 },
                 escaped: false,
             })]),
-            Some(Subtitle::new(vec![InlineNode::PlainText(Plain {
+            Some(Subtitle::new(vec![InlineNode::Plain(Plain {
                 content: "And a subtitle",
                 location: Location {
                     absolute_start: 18,
@@ -571,7 +571,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     assert_eq!(result.title.len(), 1);
     assert_eq!(
         result.title.as_inlines()[0],
-        InlineNode::PlainText(Plain {
+        InlineNode::Plain(Plain {
             content: "Document Title",
             location: Location {
                 absolute_start: 2,
@@ -612,7 +612,7 @@ fn test_title_only_document_is_doctitle() -> Result<(), Error> {
     assert_eq!(header.title.len(), 1);
     assert_eq!(
         header.title.as_inlines()[0],
-        InlineNode::PlainText(Plain {
+        InlineNode::Plain(Plain {
             content: "Doc Title",
             location: Location {
                 absolute_start: 2,
@@ -938,7 +938,7 @@ Some content.
     let header = result.header.expect("document has a header");
     assert_eq!(header.title.len(), 1);
     assert!(
-        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Document Title")
     );
     Ok(())
 }
@@ -966,7 +966,7 @@ Content.
     let section = section.expect("should have a section");
     assert_eq!(section.level, 1);
     assert!(
-        matches!(&section.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
+        matches!(&section.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Section One")
     );
     Ok(())
 }
@@ -999,7 +999,7 @@ Content here.
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Document Title")
     );
 
     let section = result
@@ -1016,7 +1016,7 @@ Content here.
 
     assert_eq!(section.level, 1);
     assert!(
-        matches!(&section.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section One")
+        matches!(&section.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Section One")
     );
 
     Ok(())
@@ -1049,7 +1049,7 @@ Content C.
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Document Title")
+        matches!(&header.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Document Title")
     );
 
     // All three sections should be at the top level (siblings, not nested)
@@ -1076,13 +1076,13 @@ Content C.
     }
 
     assert!(
-        matches!(&sections[0].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section A")
+        matches!(&sections[0].title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Section A")
     );
     assert!(
-        matches!(&sections[1].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section B")
+        matches!(&sections[1].title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Section B")
     );
     assert!(
-        matches!(&sections[2].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "Section C")
+        matches!(&sections[2].title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "Section C")
     );
 
     Ok(())
@@ -1178,7 +1178,7 @@ fn test_setext_manpage_style_document() -> Result<(), Error> {
 
     let header = result.header.expect("document has a header");
     assert!(
-        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        matches!(&header.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if content.contains("gitdatamodel"))
     );
 
     // Verify NAME and SYNOPSIS are level-1 sections
@@ -1202,10 +1202,10 @@ fn test_setext_manpage_style_document() -> Result<(), Error> {
     assert_eq!(sections[0].level, 1);
     assert_eq!(sections[1].level, 1);
     assert!(
-        matches!(&sections[0].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "NAME")
+        matches!(&sections[0].title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "NAME")
     );
     assert!(
-        matches!(&sections[1].title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if *content == "SYNOPSIS")
+        matches!(&sections[1].title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if *content == "SYNOPSIS")
     );
 
     Ok(())
@@ -1246,7 +1246,7 @@ References.
 
     let header = result.header.as_ref().expect("document has a header");
     assert!(
-        matches!(&header.title.as_inlines()[0], InlineNode::PlainText(Plain { content, .. }) if content.contains("gitdatamodel"))
+        matches!(&header.title.as_inlines()[0], InlineNode::Plain(Plain { content, .. }) if content.contains("gitdatamodel"))
     );
 
     let sections: Vec<&Section> = result
@@ -1276,8 +1276,6 @@ References.
 #[test]
 #[tracing_test::traced_test]
 fn test_index_term_flow() -> Result<(), Error> {
-    use crate::InlineMacro;
-
     let input = "= Test\n\nThis is about ((Arthur)) the king.\n";
     let mut state = ParserState::new_for_test(input);
     let result = parse_document(input, &mut state)??;
@@ -1297,9 +1295,9 @@ fn test_index_term_flow() -> Result<(), Error> {
     let has_index_term = paragraph.content.iter().any(|inline| {
         matches!(
             inline,
-            InlineNode::Macro(InlineMacro::IndexTerm(it))
+            InlineNode::IndexTerm(it)
                 if it.is_visible()
-                    && matches!(it.term(), [InlineNode::PlainText(text)] if text.content == "Arthur")
+                    && matches!(it.term(), [InlineNode::Plain(text)] if text.content == "Arthur")
         )
     });
 
@@ -1314,8 +1312,6 @@ fn test_index_term_flow() -> Result<(), Error> {
 #[test]
 #[tracing_test::traced_test]
 fn test_index_term_concealed() -> Result<(), Error> {
-    use crate::InlineMacro;
-
     let input = "= Test\n\n(((Sword, Broadsword)))This is a concealed index term.\n";
     let mut state = ParserState::new_for_test(input);
     let result = parse_document(input, &mut state)??;
@@ -1335,9 +1331,9 @@ fn test_index_term_concealed() -> Result<(), Error> {
     let has_concealed_term = paragraph.content.iter().any(|inline| {
         matches!(
             inline,
-            InlineNode::Macro(InlineMacro::IndexTerm(it))
+            InlineNode::IndexTerm(it)
                 if !it.is_visible()
-                    && matches!(it.term(), [InlineNode::PlainText(text)] if text.content == "Sword")
+                    && matches!(it.term(), [InlineNode::Plain(text)] if text.content == "Sword")
         )
     });
 
@@ -1381,7 +1377,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
         img.alt
             .as_ref()
             .and_then(|content| content.as_inlines().first())
-            .and_then(|node| if let InlineNode::PlainText(text) = node {
+            .and_then(|node| if let InlineNode::Plain(text) = node {
                 Some(text.content)
             } else {
                 None
@@ -1399,7 +1395,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
         img.alt
             .as_ref()
             .and_then(|content| content.as_inlines().first())
-            .and_then(|node| if let InlineNode::PlainText(text) = node {
+            .and_then(|node| if let InlineNode::Plain(text) = node {
                 Some(text.content)
             } else {
                 None
@@ -1421,7 +1417,7 @@ fn test_macro_attributes_allow_literal_special_chars() -> Result<(), Error> {
         img.alt
             .as_ref()
             .and_then(|content| content.as_inlines().first())
-            .and_then(|node| if let InlineNode::PlainText(text) = node {
+            .and_then(|node| if let InlineNode::Plain(text) = node {
                 Some(text.content)
             } else {
                 None
@@ -1739,10 +1735,9 @@ fn test_comment_style_block_dropped() -> Result<(), Error> {
     assert!(
         matches!(
             &doc.blocks[0],
-            Block::DelimitedBlock(delimited)
-            if matches!(&delimited.inner, DelimitedBlockType::DelimitedComment(nodes)
-                if matches!(&nodes[0], InlineNode::PlainText(text)
-                    if text.content.contains("Hidden heading")))
+            Block::DelimitedComment(crate::model::DelimitedComment(delimited))
+            if matches!(&delimited.body[0], InlineNode::Plain(text)
+                    if text.content.contains("Hidden heading"))
                     && delimited.delimiter == "--"
                     && delimited.metadata.style.is_none()
         ),
@@ -1758,7 +1753,7 @@ fn test_comment_style_block_dropped() -> Result<(), Error> {
     // The trailing blank-separated paragraph is normal content.
     assert!(
         matches!(&doc.blocks[2], Block::Paragraph(para)
-            if matches!(&para.content[..], [InlineNode::PlainText(text)]
+            if matches!(&para.content[..], [InlineNode::Plain(text)]
                 if text.content == "Visible.")),
         "the trailing paragraph should survive"
     );
@@ -1775,11 +1770,7 @@ fn test_comment_style_on_listing_renders() -> Result<(), Error> {
     let doc = parse_document(input, &mut state)??;
     assert_eq!(doc.blocks.len(), 1);
     assert!(
-        matches!(
-            &doc.blocks[0],
-            Block::DelimitedBlock(delimited)
-                if matches!(delimited.inner, DelimitedBlockType::DelimitedListing(_))
-        ),
+        matches!(&doc.blocks[0], Block::DelimitedListing(_)),
         "a [comment]-styled listing must still render as a listing"
     );
     Ok(())
@@ -1997,7 +1988,7 @@ fn list_principals_keep_plus_prefixed_text(
     let text: String = principal
         .iter()
         .map(|node| {
-            let InlineNode::PlainText(plain) = node else {
+            let InlineNode::Plain(plain) = node else {
                 unreachable!("expected plain text, got {node:?}");
             };
             plain.content
@@ -2077,7 +2068,7 @@ fn nested_list_principals_keep_plus_prefixed_text(
     assert_eq!(nested.len(), 2);
     assert_eq!(nested[0].blocks, []);
     assert!(nested[0].principal.iter().any(|node| {
-        matches!(node, InlineNode::PlainText(plain) if plain.content.contains("+ (+)."))
+        matches!(node, InlineNode::Plain(plain) if plain.content.contains("+ (+)."))
     }));
     Ok(())
 }
@@ -2098,7 +2089,7 @@ fn test_titled_block_collected_in_references() -> Result<(), Error> {
         .as_ref()
         .expect("titled block has reference text");
     assert!(
-        matches!(title.as_inlines(), [InlineNode::PlainText(text)] if text.content == "Important Data")
+        matches!(title.as_inlines(), [InlineNode::Plain(text)] if text.content == "Important Data")
     );
     // The location points at the anchor on line 1 (for LSP navigation).
     assert_eq!(entry.location.start.line, 1);
@@ -2118,7 +2109,7 @@ fn natural_title_cross_references_resolve_to_section_ids() -> Result<(), Error> 
                 return None;
             };
             paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 Some(xref.target)
@@ -2162,7 +2153,7 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
     assert!(
         matches!(
             reference.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines),
-            Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
+            Some([InlineNode::Plain(text)]) if text.content == "Custom Label"
         ),
         "{:?}",
         reference.xreflabel
@@ -2170,7 +2161,7 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
     assert!(matches!(
         doc.toc_entries.iter().find(|entry| entry.id == "id")
             .and_then(|entry| entry.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines)),
-        Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
+        Some([InlineNode::Plain(text)]) if text.content == "Custom Label"
     ));
     let formatted = doc
         .references
@@ -2180,14 +2171,14 @@ fn named_section_reftext_populates_catalog_toc_and_warnings()
         matches!(
             formatted.xreflabel.as_ref().map(crate::ContentAttribute::as_inlines),
             Some([
-                InlineNode::PlainText(prefix),
-                InlineNode::BoldText(bold),
-                InlineNode::PlainText(suffix),
+                InlineNode::Plain(prefix),
+                InlineNode::Bold(bold),
+                InlineNode::Plain(suffix),
             ]) if prefix.content == "Custom "
                 && suffix.content == " Label"
                 && matches!(
                     &bold.content[..],
-                    [InlineNode::PlainText(text)] if text.content == "Formatted"
+                    [InlineNode::Plain(text)] if text.content == "Formatted"
                 )
         ),
         "{:?}",
@@ -2257,7 +2248,7 @@ fn compat_mode_skips_natural_title_cross_reference_resolution() -> Result<(), Er
                 return None;
             };
             paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 Some(xref.target)
@@ -2297,7 +2288,7 @@ fn compat_mode_natural_reference_resolution_follows_source_position() -> Result<
                 return None;
             };
             paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 Some(xref.target)
@@ -2339,7 +2330,7 @@ fn interdocument_xref_macro_targets_are_not_naturally_resolved() -> Result<(), E
                 return None;
             };
             paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 Some(xref.target)
@@ -2371,7 +2362,7 @@ fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Err
                 return None;
             };
             paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 Some(xref.target)
@@ -2396,7 +2387,7 @@ fn captioned_references_keep_source_order_xrefstyle_and_target_caption() -> Resu
                 return None;
             };
             paragraph.content.iter().find_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 Some((xref.target, xref.xrefstyle, xref.caption_label))
@@ -2470,11 +2461,11 @@ fn test_titled_single_line_admonition_keeps_reference_title() -> Result<(), Erro
     assert!(
         matches!(
             title.as_inlines(),
-            [InlineNode::PlainText(prefix), InlineNode::BoldText(bold)]
+            [InlineNode::Plain(prefix), InlineNode::Bold(bold)]
                 if prefix.content == "Admonition "
                     && matches!(
                         &bold.content[..],
-                        [InlineNode::PlainText(text)] if text.content == "Title"
+                        [InlineNode::Plain(text)] if text.content == "Title"
                     )
         ),
         "{title:?}"
@@ -2528,7 +2519,7 @@ fn test_duplicate_id_keeps_first_reference_text() -> Result<(), Error> {
     assert!(
         matches!(
             title.as_inlines(),
-            [InlineNode::PlainText(text)] if text.content == "Titled Block"
+            [InlineNode::Plain(text)] if text.content == "Titled Block"
         ),
         "{title:?}"
     );
@@ -2552,11 +2543,11 @@ fn test_reference_label_is_parsed_as_inlines() -> Result<(), Error> {
     assert!(
         matches!(
             label.as_inlines(),
-            [InlineNode::BoldText(bold), InlineNode::PlainText(rest)]
+            [InlineNode::Bold(bold), InlineNode::Plain(rest)]
                 if rest.content == " label"
                     && matches!(
                         &bold.content[..],
-                        [InlineNode::PlainText(text)] if text.content == "Bold"
+                        [InlineNode::Plain(text)] if text.content == "Bold"
                     )
         ),
         "{label:?}"
@@ -2579,7 +2570,7 @@ fn test_reference_label_restores_passthrough_syntax() -> Result<(), Error> {
     assert!(
         matches!(
             label.as_inlines(),
-            [InlineNode::PlainText(text)]
+            [InlineNode::Plain(text)]
                 if text.content == "+++<mark>Label</mark>+++"
         ),
         "{label:?}"
@@ -2598,10 +2589,10 @@ fn test_nested_passthrough_retains_substitution_policy() -> Result<(), Error> {
             [Block::Paragraph(paragraph)]
                 if matches!(
                     &paragraph.content[..],
-                    [InlineNode::BoldText(bold)]
+                    [InlineNode::Bold(bold)]
                         if matches!(
                             &bold.content[..],
-                            [InlineNode::PlainText(before), InlineNode::RawText(raw), InlineNode::PlainText(after)]
+                            [InlineNode::Plain(before), InlineNode::Raw(raw), InlineNode::Plain(after)]
                                 if before.content == "before "
                                     && raw.content == "<mark>nested</mark>"
                                     && raw.subs.is_empty()
@@ -2777,15 +2768,10 @@ fn test_unterminated_pipe_table_emits_warning() -> Result<(), Error> {
         .expect("warning should carry a location");
     assert_eq!(loc.location.start.line, 1);
 
-    let has_table = doc.blocks.iter().any(|b| {
-        matches!(
-            b,
-            Block::DelimitedBlock(DelimitedBlock {
-                inner: DelimitedBlockType::DelimitedTable(_),
-                ..
-            })
-        )
-    });
+    let has_table = doc
+        .blocks
+        .iter()
+        .any(|b| matches!(b, Block::DelimitedTable(_)));
     assert!(has_table, "expected a table block in the document");
     Ok(())
 }
@@ -2904,6 +2890,36 @@ fn test_unterminated_pipe_table_empty_through_parse_entry() {
     );
 }
 
+/// The closing delimiter span of a delimited block, or `None` for other blocks.
+fn close_delimiter_location<'b>(block: &'b Block<'_>) -> Option<&'b Option<Location>> {
+    match block {
+        crate::model::compound_block!(d) => Some(&d.close_delimiter_location),
+        crate::model::verbatim_block!(d) => Some(&d.close_delimiter_location),
+        Block::DelimitedComment(crate::model::DelimitedComment(d)) => {
+            Some(&d.close_delimiter_location)
+        }
+        Block::DelimitedStem(crate::model::StemBlock(d)) => Some(&d.close_delimiter_location),
+        Block::DelimitedTable(crate::model::Table(d)) => Some(&d.close_delimiter_location),
+        Block::Admonition(_)
+        | Block::Audio(_)
+        | Block::CalloutList(_)
+        | Block::Comment(_)
+        | Block::DescriptionList(_)
+        | Block::DiscreteHeading(_)
+        | Block::DocumentAttribute(_)
+        | Block::Extension(_)
+        | Block::Image(_)
+        | Block::OrderedList(_)
+        | Block::PageBreak(_)
+        | Block::Paragraph(_)
+        | Block::Section(_)
+        | Block::TableOfContents(_)
+        | Block::ThematicBreak(_)
+        | Block::UnorderedList(_)
+        | Block::Video(_) => None,
+    }
+}
+
 /// Every delimited block whose opening delimiter runs to end of input
 /// without a close is still produced (closed at EOF) and emits an
 /// `UnterminatedDelimitedBlock` warning carrying the block kind and the
@@ -2940,10 +2956,9 @@ fn test_unterminated_delimited_blocks_emit_warning() -> Result<(), Error> {
         // The block is still produced and recorded as unterminated (no
         // closing delimiter location).
         assert!(
-            doc.blocks.iter().any(|b| matches!(
-                b,
-                Block::DelimitedBlock(d) if d.close_delimiter_location.is_none(),
-            )),
+            doc.blocks
+                .iter()
+                .any(|b| close_delimiter_location(b).is_some_and(Option::is_none)),
             "expected an unterminated delimited block for input {input:?}, got: {:?}",
             doc.blocks,
         );

@@ -2,8 +2,9 @@
 
 use acdc_converters_core::{TraversalContext, icon::image_source, link::mailto_target};
 use acdc_parser::{
-    Location, Mailto, Options, Source,
+    Location, Options,
     ast::{MailtoRef, SourceRef},
+    edit::{Mailto, Source},
 };
 
 #[test]

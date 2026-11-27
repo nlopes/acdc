@@ -126,7 +126,7 @@ pub(super) fn for_each_symbol_child<'doc>(
 ) {
     if matches!(
         block.kind(),
-        BlockKind::Table(_) | BlockKind::CalloutList(_)
+        BlockKind::DelimitedTable(_) | BlockKind::CalloutList(_)
     ) {
         return;
     }
@@ -226,16 +226,16 @@ fn block_to_symbol(block: BlockRef<'_>, range: Range) -> Option<DocumentSymbol> 
             range,
             Some("Page break".to_string()),
         )),
-        BlockKind::Example(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Open(_)
-        | BlockKind::Quote(_)
-        | BlockKind::Listing(_)
-        | BlockKind::Literal(_)
-        | BlockKind::Table(_)
-        | BlockKind::Passthrough(_)
-        | BlockKind::Verse(_)
-        | BlockKind::Stem(_)
+        BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedQuote(_)
+        | BlockKind::DelimitedListing(_)
+        | BlockKind::DelimitedLiteral(_)
+        | BlockKind::DelimitedTable(_)
+        | BlockKind::DelimitedPassthrough(_)
+        | BlockKind::DelimitedVerse(_)
+        | BlockKind::DelimitedStem(_)
         | BlockKind::DelimitedComment(_) => Some(delimited_block_to_symbol(block, range)),
         BlockKind::Comment(_) | _ => None,
     }
@@ -294,16 +294,16 @@ fn list_to_symbol(
 
 fn delimited_block_to_symbol(block: BlockRef<'_>, range: Range) -> DocumentSymbol {
     let (default_name, kind) = match block.kind() {
-        BlockKind::Example(_) => ("Example", SymbolKind::STRUCT),
-        BlockKind::Sidebar(_) => ("Sidebar", SymbolKind::STRUCT),
-        BlockKind::Open(_) => ("Open block", SymbolKind::STRUCT),
-        BlockKind::Quote(_) => ("Quote", SymbolKind::STRUCT),
-        BlockKind::Listing(_) => ("Listing", SymbolKind::STRING),
-        BlockKind::Literal(_) => ("Literal", SymbolKind::STRING),
-        BlockKind::Table(_) => ("Table", SymbolKind::STRUCT),
-        BlockKind::Passthrough(_) => ("Passthrough", SymbolKind::STRING),
-        BlockKind::Verse(_) => ("Verse", SymbolKind::STRING),
-        BlockKind::Stem(_) => ("Stem", SymbolKind::STRING),
+        BlockKind::DelimitedExample(_) => ("Example", SymbolKind::STRUCT),
+        BlockKind::DelimitedSidebar(_) => ("Sidebar", SymbolKind::STRUCT),
+        BlockKind::DelimitedOpen(_) => ("Open block", SymbolKind::STRUCT),
+        BlockKind::DelimitedQuote(_) => ("Quote", SymbolKind::STRUCT),
+        BlockKind::DelimitedListing(_) => ("Listing", SymbolKind::STRING),
+        BlockKind::DelimitedLiteral(_) => ("Literal", SymbolKind::STRING),
+        BlockKind::DelimitedTable(_) => ("Table", SymbolKind::STRUCT),
+        BlockKind::DelimitedPassthrough(_) => ("Passthrough", SymbolKind::STRING),
+        BlockKind::DelimitedVerse(_) => ("Verse", SymbolKind::STRING),
+        BlockKind::DelimitedStem(_) => ("Stem", SymbolKind::STRING),
         BlockKind::DelimitedComment(_)
         | BlockKind::TableOfContents(_)
         | BlockKind::Admonition(_)

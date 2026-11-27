@@ -1,12 +1,12 @@
 //! Detached edits keep source declarations and catalogs until an explicit update.
 
 use acdc_parser::{
-    Author, Block, CompatibilityMode, ContentAttribute, Document, Options, ReferenceTarget, Title,
-    TocEntry,
+    CompatibilityMode, Options,
     ast::{
         BlockKind, BlockRef, CaptionRef, ContentRef, DocumentRef, InlineKind, ReferenceTargetRef,
         SectionRef, TocEntryRef,
     },
+    edit::{Author, Block, ContentAttribute, Document, ReferenceTarget, Title, TocEntry},
     parse,
 };
 

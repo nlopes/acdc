@@ -1,4 +1,4 @@
-use crate::{Table, TableRow};
+use crate::{TableRow, model::TableContent};
 
 use super::{Error, pointer, unsupported};
 
@@ -8,7 +8,7 @@ struct Occupied {
     until: usize,
 }
 
-pub(super) fn validate(table: &Table<'_>, path: &str) -> Result<(), Error> {
+pub(super) fn validate(table: &TableContent<'_>, path: &str) -> Result<(), Error> {
     let count = table.rows.len()
         + usize::from(table.header.is_some())
         + usize::from(table.footer.is_some());

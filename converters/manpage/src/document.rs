@@ -6,8 +6,8 @@ use std::{borrow::Cow, collections::HashMap, io::Write, rc::Rc};
 
 use acdc_converters_core::{InlineTextTransform, TraversalContext, document_attribute_text};
 use acdc_parser::{
-    ReferenceTarget,
     ast::{AuthorRef, ContentRef, DocumentRef, HeaderRef},
+    edit::ReferenceTarget,
 };
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};

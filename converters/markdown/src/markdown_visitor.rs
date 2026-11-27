@@ -1333,9 +1333,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn block_has_output(&self, block: BlockRef<'a>) -> bool {
         match block.kind() {
-            BlockKind::Open(node) => node.blocks().any(|block| self.block_has_output(block)),
-            BlockKind::Quote(node) => node.blocks().any(|block| self.block_has_output(block)),
-            BlockKind::Table(table) => {
+            BlockKind::DelimitedOpen(node) => {
+                node.blocks().any(|block| self.block_has_output(block))
+            }
+            BlockKind::DelimitedQuote(node) => {
+                node.blocks().any(|block| self.block_has_output(block))
+            }
+            BlockKind::DelimitedTable(table) => {
                 self.variant() == MarkdownVariant::CommonMark
                     || table.header().is_some()
                     || table.rows().next().is_some()
@@ -1360,13 +1364,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             | BlockKind::Image(_)
             | BlockKind::Audio(_)
             | BlockKind::Video(_)
-            | BlockKind::Example(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Stem(_)
+            | BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedStem(_)
             | _ => true,
         }
     }
@@ -1749,42 +1753,41 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         self.write_metadata_anchor(block.primary_anchor())?;
         let kind = block.kind();
-        let fallback = if matches!(kind, BlockKind::Example(_)) {
+        let fallback = if matches!(kind, BlockKind::DelimitedExample(_)) {
             Some(CaptionKind::Example)
-        } else if let BlockKind::Listing(node) = kind {
+        } else if let BlockKind::DelimitedListing(node) = kind {
             (node.style() != Some("literal")).then_some(CaptionKind::Listing)
-        } else if let BlockKind::Literal(node) = kind {
+        } else if let BlockKind::DelimitedLiteral(node) = kind {
             matches!(node.style(), Some("listing" | "source")).then_some(CaptionKind::Listing)
-        } else if let BlockKind::Open(node) = kind {
+        } else if let BlockKind::DelimitedOpen(node) = kind {
             CaptionKind::for_style(node.style())
-        } else if matches!(kind, BlockKind::Table(_)) {
+        } else if matches!(kind, BlockKind::DelimitedTable(_)) {
             Some(CaptionKind::Table)
         } else {
             None
         };
-        let collapsible =
-            matches!(kind, BlockKind::Example(node) if node.options().contains("collapsible"));
+        let collapsible = matches!(kind, BlockKind::DelimitedExample(node) if node.options().contains("collapsible"));
         if !collapsible
             && !matches!(
                 kind,
-                BlockKind::Passthrough(_) | BlockKind::DelimitedComment(_)
+                BlockKind::DelimitedPassthrough(_) | BlockKind::DelimitedComment(_)
             )
             && let Some(attributes) = block.attributes()
         {
             self.write_block_title(traversal, block.title(), attributes, fallback)?;
         }
         match kind {
-            BlockKind::Listing(node) => {
+            BlockKind::DelimitedListing(node) => {
                 self.write_fenced_code_block(traversal, node.attributes(), node.content())?;
             }
-            BlockKind::Literal(node) => {
+            BlockKind::DelimitedLiteral(node) => {
                 self.write_fenced_code_block(traversal, node.attributes(), node.content())?;
             }
-            BlockKind::Quote(node) => {
+            BlockKind::DelimitedQuote(node) => {
                 self.visit_blockquote_blocks(traversal, node.blocks())?;
                 self.write_attribution(traversal, node.attributes(), "> ")?;
             }
-            BlockKind::Example(node) => {
+            BlockKind::DelimitedExample(node) => {
                 if collapsible {
                     self.write_collapsible(
                         traversal,
@@ -1801,20 +1804,24 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                     self.visit_blockquote_blocks(traversal, node.blocks())?;
                 }
             }
-            BlockKind::Sidebar(node) => {
+            BlockKind::DelimitedSidebar(node) => {
                 self.write_warning("sidebar-blocks", "sidebar blocks", "using blockquote")?;
                 self.visit_blockquote_blocks(traversal, node.blocks())?;
             }
-            BlockKind::Open(node) => {
+            BlockKind::DelimitedOpen(node) => {
                 self.visit_separated_blocks(traversal, node.blocks(), false)?;
             }
-            BlockKind::Passthrough(node) => self.write_raw_block_content(node.content())?,
-            BlockKind::Table(node) => self.visit_table_inner(traversal, node, node.attributes())?,
-            BlockKind::Verse(node) => {
+            BlockKind::DelimitedPassthrough(node) => {
+                self.write_raw_block_content(node.content())?;
+            }
+            BlockKind::DelimitedTable(node) => {
+                self.visit_table_inner(traversal, node, node.attributes())?;
+            }
+            BlockKind::DelimitedVerse(node) => {
                 self.write_blockquote_inlines(traversal, node.content())?;
                 self.write_attribution(traversal, node.attributes(), "> ")?;
             }
-            BlockKind::Stem(node) => {
+            BlockKind::DelimitedStem(node) => {
                 self.warn_once("stem-blocks", "block STEM is not supported by the Markdown backend; preserving the expression as fenced code", "Use a Markdown renderer with a math extension, or use a backend that supports STEM rendering.");
                 self.write_raw_fenced_code_block(Some(&node.notation().to_string()), node.text())?;
             }
@@ -3191,16 +3198,16 @@ impl<'a, W: Write> BlockVisitor<'a> for MarkdownVisitor<'a, '_, W> {
             BlockKind::TableOfContents(node) => self.visit_table_of_contents(traversal, node),
             BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
             BlockKind::DelimitedComment(_)
-            | BlockKind::Example(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Table(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Quote(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Stem(_) => self.visit_compound_block(traversal, block),
+            | BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedTable(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedQuote(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedStem(_) => self.visit_compound_block(traversal, block),
             BlockKind::Extension(_) | _ => {
                 self.visit_unhandled_block(traversal, block);
                 Ok(())

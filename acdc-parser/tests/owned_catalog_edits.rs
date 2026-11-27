@@ -3,9 +3,9 @@
 use std::{alloc::System, fmt::Write, hint::black_box};
 
 use acdc_parser::{
-    Block, Caption, Comment, CommentKind, CompatibilityMode, ContentAttribute, Location, Options,
-    ReferenceTarget, SectionKind, Title, TocEntry,
+    CommentKind, CompatibilityMode, Location, Options, SectionKind,
     ast::{BlockKind, BlockRef, ReferenceTargetRef, TocEntryRef},
+    edit::{Block, Caption, Comment, ContentAttribute, ReferenceTarget, Title, TocEntry},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};

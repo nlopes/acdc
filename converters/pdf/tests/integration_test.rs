@@ -1,4 +1,9 @@
-use acdc_parser::{CompatibilityMode, Document, Options, ParseResult, parse, parse_file};
+use acdc_parser::{
+    CompatibilityMode, Location, Options, ParseResult,
+    ast::{BlockKind, BlockRef, DocumentRef, TableRowRef},
+    edit::{Block, Document, Table, TableRow},
+    parse, parse_file,
+};
 use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
     collections::HashMap,
@@ -296,41 +301,49 @@ fn resolved_pdf_text_and_code_links_work_in_every_build() -> Result<(), Error> {
 
 #[test]
 fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Error> {
-    fn clear_table_presentations(blocks: &mut [acdc_parser::Block<'_>]) {
-        fn clear_row(mut row: acdc_parser::TableRow<'_>) -> acdc_parser::TableRow<'_> {
-            let cells = row.take_cells().map(|mut cell| {
-                let mut content: Vec<_> = cell.take_blocks().collect();
-                clear_table_presentations(&mut content);
-                cell.set_blocks(content);
-                cell
-            });
-            row.set_cells(cells);
-            row
-        }
+    // Copy a block, rebuilding tables (and tables in their cells) without their
+    // resolved presentation while keeping the rest of the table block.
+    fn unresolved_block(block: BlockRef<'_>) -> Result<Block<'_>, Error> {
+        let BlockKind::DelimitedTable(source) = block.kind() else {
+            return Ok(Block::from(block));
+        };
+        let mut original = Table::from(source);
+        let rows = source
+            .rows()
+            .map(unresolved_row)
+            .collect::<Result<_, _>>()?;
+        let mut table = Table::new(rows, Location::from(source.delimited_location()))
+            .with_header(source.header().map(unresolved_row).transpose()?)
+            .with_footer(source.footer().map(unresolved_row).transpose()?)
+            .with_columns(original.take_columns().collect())
+            .with_title(original.take_title())
+            .with_metadata(original.take_metadata())?;
+        table.set_delimiter(source.delimiter());
+        table.set_location(Location::from(source.location()));
+        table.set_delimiter_locations(
+            source.open_delimiter_location().map(Location::from),
+            source.close_delimiter_location().map(Location::from),
+        );
+        Ok(Block::DelimitedTable(table))
+    }
 
-        for block in blocks {
-            let acdc_parser::Block::DelimitedBlock(block) = block else {
-                continue;
-            };
-            let acdc_parser::ast::BlockKind::Table(source) =
-                acdc_parser::ast::BlockRef::from(&*block).kind()
-            else {
-                continue;
-            };
-            let location = acdc_parser::Location::from(source.delimited_location());
-            let mut body = block.clone_body();
-            let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &mut body else {
-                continue;
-            };
-            let header = table.take_header().map(clear_row);
-            let footer = table.take_footer().map(clear_row);
-            let rows = table.take_rows().map(clear_row).collect();
-            *table = acdc_parser::Table::new(rows, location)
-                .with_header(header)
-                .with_footer(footer)
-                .with_columns(table.take_columns().collect());
-            block.replace_body(body);
-        }
+    fn unresolved_row(source: TableRowRef<'_>) -> Result<TableRow<'_>, Error> {
+        let mut row = TableRow::from(source);
+        let cells = row
+            .take_cells()
+            .zip(source.cells())
+            .map(|(mut cell, source)| {
+                cell.set_blocks(
+                    source
+                        .blocks()
+                        .map(unresolved_block)
+                        .collect::<Result<Vec<_>, _>>()?,
+                );
+                Ok(cell)
+            })
+            .collect::<Result<Vec<_>, Error>>()?;
+        row.set_cells(cells);
+        Ok(row)
     }
 
     let parsed = parse(
@@ -341,11 +354,19 @@ fn unresolved_tables_preserve_body_and_nested_cell_decoration() -> Result<(), Er
     stored.set_attributes(acdc_parser::DocumentAttributes::from(
         parsed.document().attributes(),
     ));
-    stored.set_blocks(parsed.document().blocks().map(acdc_parser::Block::from));
-    let mut unresolved = Document::from(acdc_parser::ast::DocumentRef::from(&stored));
-    let mut blocks: Vec<_> = unresolved.take_blocks().collect();
-    clear_table_presentations(&mut blocks);
-    unresolved.set_blocks(blocks);
+    stored.set_blocks(
+        parsed
+            .document()
+            .blocks()
+            .map(acdc_parser::edit::Block::from),
+    );
+    let mut unresolved = Document::from(DocumentRef::from(&stored));
+    unresolved.set_blocks(
+        DocumentRef::from(&stored)
+            .blocks()
+            .map(unresolved_block)
+            .collect::<Result<Vec<_>, _>>()?,
+    );
     let directory = tempfile::tempdir()?;
     let mut rendered = Vec::new();
     for (name, document) in [("stored", &stored), ("unresolved", &unresolved)] {
@@ -1943,11 +1964,12 @@ fn named_pdf_destinations_keep_caller_built_document_titles() -> Result<(), Erro
         include_str!("fixtures/source/named_destinations.adoc"),
         &Options::default(),
     )?;
-    let mut header =
-        acdc_parser::Header::from(parsed.document().header().ok_or("missing fixture header")?);
+    let mut header = acdc_parser::edit::Header::from(
+        parsed.document().header().ok_or("missing fixture header")?,
+    );
     let mut document = Document::default();
     document.set_header(Some(
-        acdc_parser::Header::new(
+        acdc_parser::edit::Header::new(
             header.take_title(),
             acdc_parser::Location::from(acdc_parser::ast::HeaderRef::from(&header).location()),
         )
@@ -4151,7 +4173,10 @@ fn rebuilt_selected_include_catalogs_keep_first_public_and_separate_toc_destinat
 
 #[test]
 fn rebuilt_toc_does_not_link_to_a_same_id_paragraph_with_equal_source_spans() -> Result<(), Error> {
-    use acdc_parser::{Block, InlineNode, Location, Plain, Title};
+    use acdc_parser::{
+        Location,
+        edit::{Block, InlineNode, Plain, Title},
+    };
     for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
         let parsed = parse(
             "= Ownership\n:toc:\n\n[#shared]\n.Same\nParagraph.\n\nSee <<shared,Target>>.\n\n<<<\n\n[#shared]\n== Same\n\nHeading body.\n",
@@ -4161,7 +4186,7 @@ fn rebuilt_toc_does_not_link_to_a_same_id_paragraph_with_equal_source_spans() ->
         let mut blocks: Vec<_> = document.take_blocks().collect();
         for block in &mut blocks {
             let prepared_title = || {
-                Title::new(vec![InlineNode::PlainText(Plain::new(
+                Title::new(vec![InlineNode::Plain(Plain::new(
                     "Same",
                     Location::default(),
                 ))])

@@ -3,8 +3,9 @@
 use std::{alloc::System, hint::black_box, ptr};
 
 use acdc_parser::{
-    Author, CompatibilityMode, Document, Header, Options, Title,
+    CompatibilityMode, Options,
     ast::{AuthorRef, HeaderRef},
+    edit::{Author, Document, Header, Title},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};

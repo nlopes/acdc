@@ -3,11 +3,14 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    AttributeValue, Autolink, ContentAttribute, ElementAttributes, ElementId, InlineMacro,
-    InlineMetadata, InlineNode, Link, Location, Mailto, Options, Plain, Position, Source, UrlMacro,
+    AttributeValue, ElementAttributes, Location, Options, Position,
     ast::{
         AttributeValueRef, AutolinkRef, BlockKind, ContentRef, InlineKind, LinkRef, MailtoRef,
         SourceKind, UrlMacroRef,
+    },
+    edit::{
+        Autolink, ContentAttribute, ElementId, InlineMetadata, InlineNode, Link, Mailto, Plain,
+        Source, UrlMacro,
     },
     parse,
 };
@@ -27,7 +30,7 @@ macro_rules! all_links {
 }
 
 fn plain(text: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(text, Location::default()).with_escaped(true))
+    InlineNode::Plain(Plain::new(text, Location::default()).with_escaped(true))
 }
 
 #[test]
@@ -204,7 +207,7 @@ fn hyperlink_metadata_options_and_scalar_transfers_outlive_the_previous_owner() 
 #[test]
 fn hyperlink_target_and_location_edits_preserve_other_prepared_values() -> Result<(), Error> {
     let source = String::from("HTTPS://example.invalid/path?key=Value#part");
-    let target = Source::Url(acdc_parser::SourceUrl::new(&source)?);
+    let target = Source::Url(acdc_parser::edit::SourceUrl::new(&source)?);
     let original = Location::point(Position::new(2, 3));
     let replacement = Location::point(Position::new(8, 9));
     let id_location = Location::point(Position::new(1, 4));
@@ -212,7 +215,7 @@ fn hyperlink_target_and_location_edits_preserve_other_prepared_values() -> Resul
         ($owner:ident, $read:ident, $variant:ident) => {
             let taken = {
                 let mut link = $owner::new(Source::Name("original"), original.clone());
-                link.replace_text(vec![InlineNode::PlainText(Plain::new(
+                link.replace_text(vec![InlineNode::Plain(Plain::new(
                     "Label",
                     original.clone(),
                 ))]);
@@ -320,9 +323,7 @@ fn selected_hyperlink_copies_preserve_native_json_and_declaration_snapshots(
                         let original = $owner::from($value);
                         let mut copy = $owner::from($value);
                         assert_eq!(
-                            &serde_json::to_value(InlineNode::Macro(InlineMacro::$variant(
-                                copy.clone().into()
-                            )))?,
+                            &serde_json::to_value(InlineNode::$variant(copy.clone().into()))?,
                             before
                                 .pointer(&format!("/blocks/{block_index}/inlines/{index}"))
                                 .ok_or("native link")?

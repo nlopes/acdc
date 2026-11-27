@@ -3,8 +3,9 @@
 use std::{fs, path::Path};
 
 use acdc_parser::{
-    Block, CompatibilityMode, Document, InlineNode, Location, Options, Paragraph, Plain,
-    Substitution, SubstitutionOp, SubstitutionSpec, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, Substitution, SubstitutionOp, SubstitutionSpec, asg,
+    edit::{Block, Document, InlineNode, Paragraph, Plain},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 
@@ -138,7 +139,7 @@ fn typed_and_source_settings_share_the_same_output_semantics() -> Result<(), Err
         SubstitutionSpec::Source(vec!["none".into()]),
     ] {
         let mut paragraph = Paragraph::new(
-            vec![InlineNode::PlainText(Plain::new(
+            vec![InlineNode::Plain(Plain::new(
                 "*prepared* <em>raw</em>",
                 Location::default(),
             ))],

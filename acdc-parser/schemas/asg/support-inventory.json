@@ -1643,7 +1643,7 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/macros.rs::Passthrough": {
+    "src/model/inlines/macros.rs::InlinePassthrough": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -1887,21 +1887,42 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/inlines/mod.rs::InlineMacro": {
+    "src/model/inlines/mod.rs::InlineNode": {
       "shape": {
         "kind": "enum",
         "fields": [],
         "variants": {
+          "Anchor": [
+            "0"
+          ],
           "Autolink": [
+            "0"
+          ],
+          "Bold": [
             "0"
           ],
           "Button": [
             "0"
           ],
+          "Callout": [
+            "0"
+          ],
+          "CharacterReference": [
+            "0"
+          ],
           "CrossReference": [
             "0"
           ],
+          "DoubleQuotedSpan": [
+            "0"
+          ],
+          "Extension": [
+            "0"
+          ],
           "Footnote": [
+            "0"
+          ],
+          "Highlight": [
             "0"
           ],
           "Icon": [
@@ -1913,7 +1934,13 @@
           "IndexTerm": [
             "0"
           ],
+          "Italic": [
+            "0"
+          ],
           "KeyboardShortcut": [
+            "0"
+          ],
+          "LineBreak": [
             "0"
           ],
           "Link": [
@@ -1925,13 +1952,40 @@
           "MenuPath": [
             "0"
           ],
+          "Monospace": [
+            "0"
+          ],
           "Passthrough": [
+            "0"
+          ],
+          "Plain": [
+            "0"
+          ],
+          "Raw": [
+            "0"
+          ],
+          "SingleQuotedSpan": [
+            "0"
+          ],
+          "StandaloneCurvedApostrophe": [
             "0"
           ],
           "Stem": [
             "0"
           ],
+          "Subscript": [
+            "0"
+          ],
+          "Superscript": [
+            "0"
+          ],
+          "Symbol": [
+            "0"
+          ],
           "UrlMacro": [
+            "0"
+          ],
+          "Verbatim": [
             "0"
           ]
         }
@@ -1941,11 +1995,27 @@
         "upstream": "#/$defs/inline"
       },
       "properties": {
+        "variant:Anchor": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Anchor.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
         "variant:Autolink": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
         "Autolink.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Bold": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Bold.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -1957,6 +2027,22 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
+        "variant:Callout": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Callout.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:CharacterReference": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inlineLiteral"
+        },
+        "CharacterReference.0": {
+          "policy": "preserve-the-resolved-scalar-value-as-text",
+          "upstream": "#/$defs/inlineLiteral/properties/value"
+        },
         "variant:CrossReference": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
@@ -1965,11 +2051,33 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
+        "variant:DoubleQuotedSpan": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "DoubleQuotedSpan.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Extension": {
+          "policy": "unsupported"
+        },
+        "Extension.0": {
+          "policy": "unsupported"
+        },
         "variant:Footnote": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
         "Footnote.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Highlight": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Highlight.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -1997,11 +2105,27 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
+        "variant:Italic": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Italic.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
         "variant:KeyboardShortcut": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
         "KeyboardShortcut.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:LineBreak": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "LineBreak.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -2029,6 +2153,14 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
+        "variant:Monospace": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Monospace.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
         "variant:Passthrough": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
@@ -2037,107 +2169,19 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:Stem": {
+        "variant:Plain": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "Stem.0": {
+        "Plain.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:UrlMacro": {
+        "variant:Raw": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "UrlMacro.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        }
-      },
-      "strict_export_group": "dispatch"
-    },
-    "src/model/inlines/mod.rs::InlineNode": {
-      "shape": {
-        "kind": "enum",
-        "fields": [],
-        "variants": {
-          "BoldText": [
-            "0"
-          ],
-          "CalloutMarker": [
-            "0"
-          ],
-          "CharacterReference": [
-            "0"
-          ],
-          "SingleQuotedSpan": [
-            "0"
-          ],
-          "DoubleQuotedSpan": [
-            "0"
-          ],
-          "HighlightText": [
-            "0"
-          ],
-          "InlineAnchor": [
-            "0"
-          ],
-          "ItalicText": [
-            "0"
-          ],
-          "LineBreak": [
-            "0"
-          ],
-          "Macro": [
-            "0"
-          ],
-          "MonospaceText": [
-            "0"
-          ],
-          "Extension": [
-            "0"
-          ],
-          "PlainText": [
-            "0"
-          ],
-          "RawText": [
-            "0"
-          ],
-          "StandaloneCurvedApostrophe": [
-            "0"
-          ],
-          "SubscriptText": [
-            "0"
-          ],
-          "SuperscriptText": [
-            "0"
-          ],
-          "Symbol": [
-            "0"
-          ],
-          "VerbatimText": [
-            "0"
-          ]
-        }
-      },
-      "representation": {
-        "policy": "candidate",
-        "upstream": "#/$defs/inline"
-      },
-      "properties": {
-        "variant:BoldText": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "BoldText.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:CalloutMarker": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "CalloutMarker.0": {
+        "Raw.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -2149,84 +2193,6 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:DoubleQuotedSpan": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "DoubleQuotedSpan.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:HighlightText": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "HighlightText.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:InlineAnchor": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "InlineAnchor.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:ItalicText": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "ItalicText.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:LineBreak": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "LineBreak.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:Macro": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "Macro.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:MonospaceText": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "MonospaceText.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:Extension": {
-          "policy": "unsupported"
-        },
-        "Extension.0": {
-          "policy": "unsupported"
-        },
-        "variant:PlainText": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "PlainText.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
-        "variant:RawText": {
-          "policy": "candidate",
-          "upstream": "#/$defs/inline"
-        },
-        "RawText.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/inline"
-        },
         "variant:StandaloneCurvedApostrophe": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
@@ -2235,19 +2201,27 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:SubscriptText": {
+        "variant:Stem": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "SubscriptText.0": {
+        "Stem.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:SuperscriptText": {
+        "variant:Subscript": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "SuperscriptText.0": {
+        "Subscript.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
+        },
+        "variant:Superscript": {
+          "policy": "candidate",
+          "upstream": "#/$defs/inline"
+        },
+        "Superscript.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
@@ -2259,21 +2233,21 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:VerbatimText": {
+        "variant:UrlMacro": {
           "policy": "candidate",
           "upstream": "#/$defs/inline"
         },
-        "VerbatimText.0": {
+        "UrlMacro.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/inline"
         },
-        "variant:CharacterReference": {
+        "variant:Verbatim": {
           "policy": "candidate",
-          "upstream": "#/$defs/inlineLiteral"
+          "upstream": "#/$defs/inline"
         },
-        "CharacterReference.0": {
-          "policy": "preserve-the-resolved-scalar-value-as-text",
-          "upstream": "#/$defs/inlineLiteral/properties/value"
+        "Verbatim.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/inline"
         }
       },
       "strict_export_group": "dispatch"
@@ -3981,7 +3955,37 @@
           "Comment": [
             "0"
           ],
-          "DelimitedBlock": [
+          "DelimitedComment": [
+            "0"
+          ],
+          "DelimitedExample": [
+            "0"
+          ],
+          "DelimitedListing": [
+            "0"
+          ],
+          "DelimitedLiteral": [
+            "0"
+          ],
+          "DelimitedOpen": [
+            "0"
+          ],
+          "DelimitedPassthrough": [
+            "0"
+          ],
+          "DelimitedQuote": [
+            "0"
+          ],
+          "DelimitedSidebar": [
+            "0"
+          ],
+          "DelimitedStem": [
+            "0"
+          ],
+          "DelimitedTable": [
+            "0"
+          ],
+          "DelimitedVerse": [
             "0"
           ],
           "DescriptionList": [
@@ -4062,11 +4066,91 @@
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         },
-        "variant:DelimitedBlock": {
+        "variant:DelimitedComment": {
           "policy": "candidate",
           "upstream": "#/$defs/block"
         },
-        "DelimitedBlock.0": {
+        "DelimitedComment.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedExample": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedExample.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedListing": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedListing.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedLiteral": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedLiteral.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedOpen": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedOpen.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedPassthrough": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedPassthrough.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedQuote": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedQuote.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedSidebar": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedSidebar.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedStem": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedStem.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedTable": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedTable.0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        },
+        "variant:DelimitedVerse": {
+          "policy": "candidate",
+          "upstream": "#/$defs/block"
+        },
+        "DelimitedVerse.0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         },
@@ -4227,12 +4311,12 @@
       },
       "strict_export_group": "source-state"
     },
-    "src/model/mod.rs::DelimitedBlock": {
+    "src/model/delimited.rs::Delimited": {
       "shape": {
         "kind": "struct",
         "fields": [
           "metadata",
-          "inner",
+          "body",
           "delimiter",
           "title",
           "location",
@@ -4251,7 +4335,7 @@
           "policy": "use-block-metadata-only-where-the-owning",
           "upstream": "#/$defs/blockMetadata"
         },
-        "inner": {
+        "body": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         },
@@ -4282,141 +4366,225 @@
       },
       "strict_export_group": "blocks"
     },
-    "src/model/mod.rs::DelimitedBlockType": {
+    "src/model/delimited.rs::DelimitedComment": {
       "shape": {
-        "kind": "enum",
-        "fields": [],
-        "variants": {
-          "DelimitedComment": [
-            "0"
-          ],
-          "DelimitedExample": [
-            "0"
-          ],
-          "DelimitedListing": [
-            "0"
-          ],
-          "DelimitedLiteral": [
-            "0"
-          ],
-          "DelimitedOpen": [
-            "0"
-          ],
-          "DelimitedPass": [
-            "0"
-          ],
-          "DelimitedQuote": [
-            "0"
-          ],
-          "DelimitedSidebar": [
-            "0"
-          ],
-          "DelimitedStem": [
-            "0"
-          ],
-          "DelimitedTable": [
-            "0"
-          ],
-          "DelimitedVerse": [
-            "0"
-          ]
-        }
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
       },
       "representation": {
         "policy": "candidate",
         "upstream": "#/$defs/block"
       },
       "properties": {
-        "variant:DelimitedComment": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedComment.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedExample": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedExample.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedListing": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedListing.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedLiteral": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedLiteral.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedOpen": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedOpen.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedPass": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedPass.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedQuote": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedQuote.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedSidebar": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedSidebar.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedStem": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedStem.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedTable": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedTable.0": {
-          "policy": "no-direct-field-mapping-is-established-for",
-          "upstream": "#/$defs/block"
-        },
-        "variant:DelimitedVerse": {
-          "policy": "candidate",
-          "upstream": "#/$defs/block"
-        },
-        "DelimitedVerse.0": {
+        "0": {
           "policy": "no-direct-field-mapping-is-established-for",
           "upstream": "#/$defs/block"
         }
       },
-      "strict_export_group": "dispatch"
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Example": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Listing": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Literal": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Open": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Passthrough": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Quote": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Sidebar": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::StemBlock": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Table": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
+    },
+    "src/model/delimited.rs::Verse": {
+      "shape": {
+        "kind": "struct",
+        "fields": [
+          "0"
+        ],
+        "variants": {}
+      },
+      "representation": {
+        "policy": "candidate",
+        "upstream": "#/$defs/block"
+      },
+      "properties": {
+        "0": {
+          "policy": "no-direct-field-mapping-is-established-for",
+          "upstream": "#/$defs/block"
+        }
+      },
+      "strict_export_group": "blocks"
     },
     "src/model/mod.rs::DiscreteHeading": {
       "shape": {
@@ -5443,7 +5611,7 @@
       },
       "strict_export_group": "unsupported-owners"
     },
-    "src/model/tables.rs::Table": {
+    "src/model/tables.rs::TableContent": {
       "shape": {
         "kind": "struct",
         "fields": [
@@ -6602,9 +6770,9 @@
               "metadata",
               "title"
             ],
-            "DelimitedBlock": [
+            "Delimited": [
               "delimiter",
-              "inner",
+              "body",
               "metadata",
               "title"
             ]
@@ -6670,21 +6838,6 @@
         },
         "tables": {
           "owners": {
-            "DelimitedBlock": [
-              "delimiter",
-              "inner",
-              "metadata",
-              "title",
-              "location"
-            ],
-            "Table": [
-              "header",
-              "footer",
-              "rows",
-              "columns",
-              "presentation",
-              "location"
-            ],
             "TableRow": [
               "columns"
             ],
@@ -6708,6 +6861,21 @@
               "frame",
               "grid",
               "stripes"
+            ],
+            "Delimited": [
+              "delimiter",
+              "body",
+              "metadata",
+              "title",
+              "location"
+            ],
+            "TableContent": [
+              "header",
+              "footer",
+              "rows",
+              "columns",
+              "presentation",
+              "location"
             ]
           },
           "schema_pointers": [

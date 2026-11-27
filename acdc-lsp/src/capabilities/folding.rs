@@ -28,19 +28,19 @@ fn collect_ranges(node: StructuralRef<'_>, source: &LineIndex<'_>, ranges: &mut 
             let (kind, descend) = match block.kind() {
                 BlockKind::Section(_)
                 | BlockKind::Admonition(_)
-                | BlockKind::Example(_)
-                | BlockKind::Open(_)
-                | BlockKind::Sidebar(_)
-                | BlockKind::Quote(_)
+                | BlockKind::DelimitedExample(_)
+                | BlockKind::DelimitedOpen(_)
+                | BlockKind::DelimitedSidebar(_)
+                | BlockKind::DelimitedQuote(_)
                 | BlockKind::UnorderedList(_)
                 | BlockKind::OrderedList(_)
                 | BlockKind::DescriptionList(_) => (FoldingRangeKind::Region, true),
-                BlockKind::Listing(_)
-                | BlockKind::Literal(_)
-                | BlockKind::Passthrough(_)
-                | BlockKind::Verse(_)
-                | BlockKind::Table(_)
-                | BlockKind::Stem(_) => (FoldingRangeKind::Region, false),
+                BlockKind::DelimitedListing(_)
+                | BlockKind::DelimitedLiteral(_)
+                | BlockKind::DelimitedPassthrough(_)
+                | BlockKind::DelimitedVerse(_)
+                | BlockKind::DelimitedTable(_)
+                | BlockKind::DelimitedStem(_) => (FoldingRangeKind::Region, false),
                 BlockKind::Comment(_) | BlockKind::DelimitedComment(_) => {
                     (FoldingRangeKind::Comment, false)
                 }

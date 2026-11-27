@@ -1,7 +1,7 @@
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, ContentAttribute, ElementId, Icon, Location, Options,
-    SafeMode, Source,
+    AttributeValue, CompatibilityMode, Location, Options, SafeMode,
     ast::{AttributeValueRef, BlockKind, ContentRef, IconRef, InlineKind},
+    edit::{ContentAttribute, ElementId, Icon, Source},
     parse_file,
 };
 
@@ -76,7 +76,7 @@ fn constructed_icons_keep_independent_content_and_controls() -> Result<(), Error
         Some(AttributeValueRef::None)
     );
     icon.set_tooltip(None);
-    icon.set_metadata(acdc_parser::InlineMetadata::default());
+    icon.set_metadata(acdc_parser::edit::InlineMetadata::default());
     icon.push_option("extension");
     assert_eq!(
         icon.remove_attribute("custom")?,
@@ -137,7 +137,7 @@ fn icon_ids_follow_expansion_includes_and_table_cells(
         icon.attributes().get("custom"),
         Some(AttributeValueRef::Text("a,b"))
     );
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table

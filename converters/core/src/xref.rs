@@ -3,8 +3,9 @@
 use std::{borrow::Cow, cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    ContentAttribute, InlineNode, XrefCaptionLabel, XrefSignifier, XrefStyle,
+    XrefCaptionLabel, XrefSignifier, XrefStyle,
     ast::{CaptionRef, ContentRef, CrossReferenceRef, InlineKind, ReferenceTargetRef},
+    edit::{ContentAttribute, InlineNode},
 };
 
 /// Display content for an automatic cross-reference.
@@ -354,9 +355,9 @@ pub fn with_caption_prefix<R>(
         nodes.truncate(start);
     } else {
         nodes.truncate(start + 1);
-        if let Some(InlineNode::PlainText(node)) = nodes.last_mut() {
+        if let Some(InlineNode::Plain(node)) = nodes.last_mut() {
             node.replace_text(prefix);
-        } else if let Some(InlineNode::RawText(node)) = nodes.last_mut() {
+        } else if let Some(InlineNode::Raw(node)) = nodes.last_mut() {
             node.replace_text(prefix);
         }
     }
@@ -449,9 +450,10 @@ fn source_document_stem(path: &str, has_fragment: bool) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use acdc_parser::{
-        Block, CrossReference, Document, Error, InlineMacro, InlineNode, Location, Options,
-        ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle,
+        Error, Location, Options, ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier,
+        XrefStyle,
         ast::{BlockKind, BlockRef, CrossReferenceRef, InlineKind, InlineRef},
+        edit::{Block, CrossReference, Document, InlineNode},
         parse,
     };
 
@@ -461,7 +463,7 @@ mod tests {
     };
 
     fn resolve_xref<'doc, 'guard>(
-        reference: Option<&'doc acdc_parser::ReferenceTarget<'doc>>,
+        reference: Option<&'doc acdc_parser::edit::ReferenceTarget<'doc>>,
         xref: impl Into<acdc_parser::ast::CrossReferenceRef<'doc>>,
         guard: &'guard XrefGuard,
     ) -> XrefDisplay<'guard, acdc_parser::ast::ContentRef<'doc>> {
@@ -529,7 +531,7 @@ mod tests {
                 references.extend(paragraph_xrefs(&children));
             } else if let Block::Paragraph(paragraph) = block {
                 references.extend(paragraph.clone().take_content().filter_map(|inline| {
-                    if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                    if let InlineNode::CrossReference(xref) = inline {
                         Some(*xref)
                     } else {
                         None
@@ -548,7 +550,7 @@ mod tests {
         let mut xrefs = paragraph_xrefs(&blocks);
         for mut footnote in footnotes {
             xrefs.extend(footnote.take_content().into_iter().filter_map(|inline| {
-                if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                if let InlineNode::CrossReference(xref) = inline {
                     Some(*xref)
                 } else {
                     None
@@ -582,12 +584,12 @@ mod tests {
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
         )?;
-        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let parsed_document = acdc_parser::edit::Document::from(parsed.document());
         let expected = parse(
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_appendix.adoc"),
             &Options::default(),
         )?;
-        let expected_document = acdc_parser::Document::from(expected.document());
+        let expected_document = acdc_parser::edit::Document::from(expected.document());
         assert_eq!(
             short_prefixes(&expected_document),
             [
@@ -645,7 +647,7 @@ mod tests {
             include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
             &Options::default(),
         )?;
-        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let parsed_document = acdc_parser::edit::Document::from(parsed.document());
         for (signifier, expected) in [
             (XrefSignifier::Standard, "Appendix A"),
             (XrefSignifier::AtReference("Chapter"), "Chapter A"),
@@ -658,7 +660,7 @@ mod tests {
             for footnote in &mut footnotes {
                 let mut content = footnote.take_content();
                 for inline in &mut content {
-                    if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                    if let InlineNode::CrossReference(xref) = inline {
                         xref.set_signifier(signifier);
                     }
                 }
@@ -894,7 +896,7 @@ mod tests {
             ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:example-caption: BeforeExample\n:listing-caption: BeforeListing\n:xrefstyle: short\n\nForward: <<figure>>; <<table>>; <<example>>; <<listing>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n:example-caption: TargetExample\n:listing-caption: TargetListing\n\n[[figure]]\n.Figure title\nimage::figure.svg[]\n\n[[table]]\n.Table title\n|===\n|Cell\n|===\n\n[[example]]\n.Example title\n====\nBody.\n====\n\n[[listing]]\n.Listing title\n----\nbody\n----\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:example-caption: AfterExample\n:listing-caption: AfterListing\n\nBackward: <<figure>>; <<table>>; <<example>>; <<listing>>.\n",
             &Options::default(),
         )?;
-        let parsed_document = acdc_parser::Document::from(parsed.document());
+        let parsed_document = acdc_parser::edit::Document::from(parsed.document());
         let mut parsed_document = parsed_document;
         let references: std::collections::HashMap<_, _> =
             parsed_document.take_references().collect();
@@ -910,7 +912,7 @@ mod tests {
             })
             .flat_map(|paragraph| paragraph.clone().take_content())
             .filter_map(|inline| {
-                let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                let InlineNode::CrossReference(xref) = inline else {
                     return None;
                 };
                 let XrefDisplay::ShortCaption(prefix) = resolve_xref(

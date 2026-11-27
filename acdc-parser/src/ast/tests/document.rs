@@ -32,7 +32,7 @@ fn cell_initial_assignments_are_ordered_and_stay_in_the_cell_scope(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let document = parsed.document();
-    let BlockKind::Table(table) = document.blocks().next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = document.blocks().next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table
@@ -81,13 +81,11 @@ fn cell_initial_assignments_are_ordered_and_stay_in_the_cell_scope(
         .blocks
         .first()
         .ok_or("owner table")?;
-    let crate::Block::DelimitedBlock(block) = owner_table else {
+    let crate::Block::DelimitedTable(crate::model::Table(block)) = owner_table else {
         return Err("delimited table".into());
     };
-    let crate::DelimitedBlockType::DelimitedTable(owner) = &block.inner else {
-        return Err("table owner".into());
-    };
-    let expected = owner
+    let expected = block
+        .body
         .rows
         .first()
         .ok_or("owner row")?

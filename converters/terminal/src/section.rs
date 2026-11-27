@@ -132,8 +132,8 @@ fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Opt
 
 #[cfg(test)]
 fn extract_title_text(
-    title: &[acdc_parser::InlineNode<'_>],
-    references: &HashMap<&str, acdc_parser::ReferenceTarget<'_>>,
+    title: &[acdc_parser::edit::InlineNode<'_>],
+    references: &HashMap<&str, acdc_parser::edit::ReferenceTarget<'_>>,
 ) -> String {
     acdc_converters_core::InlineTextTransform::default()
         .decode_char_refs(true)
@@ -145,20 +145,20 @@ fn extract_title_text(
 mod tests {
     use super::*;
     use acdc_parser::{
-        Bold, CalloutMarker, FormattingForm, InlineMacro, InlineNode, Link, Location, Plain,
-        Source, Verbatim,
+        FormattingForm, Location,
+        edit::{Bold, CalloutMarker, InlineNode, Link, Plain, Source, Verbatim},
     };
 
     fn plain(s: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain::new(s, Location::default()))
+        InlineNode::Plain(Plain::new(s, Location::default()))
     }
 
     fn verbatim(s: &str) -> InlineNode<'_> {
-        InlineNode::VerbatimText(Verbatim::new(s, Location::default()))
+        InlineNode::Verbatim(Verbatim::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold::new(
+        InlineNode::Bold(Bold::new(
             nodes,
             FormattingForm::Constrained,
             Location::default(),
@@ -167,7 +167,7 @@ mod tests {
 
     /// A catalog is only consulted for a cross-reference with no text of its
     /// own; these cases hold none.
-    fn no_references() -> HashMap<&'static str, acdc_parser::ReferenceTarget<'static>> {
+    fn no_references() -> HashMap<&'static str, acdc_parser::edit::ReferenceTarget<'static>> {
         HashMap::new()
     }
 
@@ -188,20 +188,20 @@ mod tests {
 
     #[test]
     fn extract_link_macro_with_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(Box::new(
+        let link = InlineNode::Link(Box::new(
             Link::new(Source::Name("https://example.com"), Location::default())
                 .with_text(vec![plain("Example")]),
-        )));
+        ));
         let title = [plain("See "), link];
         assert_eq!(extract_title_text(&title, &no_references()), "See Example");
     }
 
     #[test]
     fn extract_link_macro_without_text() {
-        let link = InlineNode::Macro(InlineMacro::Link(Box::new(Link::new(
+        let link = InlineNode::Link(Box::new(Link::new(
             Source::Name("https://example.com"),
             Location::default(),
-        ))));
+        )));
         let title = [link];
         assert_eq!(
             extract_title_text(&title, &no_references()),
@@ -222,7 +222,7 @@ mod tests {
     fn extract_callout_ref() {
         let title = [
             plain("Code "),
-            InlineNode::CalloutMarker(CalloutMarker::explicit(1, Location::default())),
+            InlineNode::Callout(CalloutMarker::explicit(1, Location::default())),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "Code <1>");
     }
@@ -231,9 +231,9 @@ mod tests {
     fn extract_standalone_curved_apostrophe() {
         let title = [
             plain("it"),
-            InlineNode::StandaloneCurvedApostrophe(acdc_parser::StandaloneCurvedApostrophe::new(
-                Location::default(),
-            )),
+            InlineNode::StandaloneCurvedApostrophe(
+                acdc_parser::edit::StandaloneCurvedApostrophe::new(Location::default()),
+            ),
             plain("s"),
         ];
         assert_eq!(extract_title_text(&title, &no_references()), "it\u{2019}s");

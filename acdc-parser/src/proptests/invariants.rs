@@ -10,8 +10,9 @@ use proptest::prelude::*;
 use std::rc::Rc;
 
 use crate::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location, Options, parse,
-    parse_inline,
+    Block, Document, InlineNode, Location, Options,
+    model::{Delimited, TableContent},
+    parse, parse_inline,
 };
 
 use super::generators::*;
@@ -260,26 +261,7 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
                 }
             }
         }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                visitor(&item.location, "description list item");
-                for term in &item.terms {
-                    visitor(&term.location, "description term");
-                    for inline in &term.content {
-                        walk_inline_locations(inline, visitor);
-                    }
-                }
-                if let Some(definition) = &item.definition {
-                    visitor(&definition.location, "description definition");
-                    for inline in definition.principal.iter().flatten() {
-                        walk_inline_locations(inline, visitor);
-                    }
-                    for child in &definition.blocks {
-                        walk_block_locations(child, visitor);
-                    }
-                }
-            }
-        }
+        Block::DescriptionList(list) => walk_description_list_locations(list, visitor),
         Block::CalloutList(list) => {
             for item in &list.items {
                 visitor(&item.location, "callout item");
@@ -298,8 +280,31 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
                 walk_inline_locations(inline, visitor);
             }
         }
-        Block::DelimitedBlock(delimited) => {
-            walk_delimited_block_locations(delimited, visitor);
+        Block::DelimitedExample(crate::model::Example(delimited))
+        | Block::DelimitedOpen(crate::model::Open(delimited))
+        | Block::DelimitedSidebar(crate::model::Sidebar(delimited))
+        | Block::DelimitedQuote(crate::model::Quote(delimited)) => {
+            walk_delimited_frame_locations(delimited, visitor);
+            for block in &delimited.body {
+                walk_block_locations(block, visitor);
+            }
+        }
+        Block::DelimitedComment(crate::model::DelimitedComment(delimited))
+        | Block::DelimitedListing(crate::model::Listing(delimited))
+        | Block::DelimitedLiteral(crate::model::Literal(delimited))
+        | Block::DelimitedPassthrough(crate::model::Passthrough(delimited))
+        | Block::DelimitedVerse(crate::model::Verse(delimited)) => {
+            walk_delimited_frame_locations(delimited, visitor);
+            for inline in &delimited.body {
+                walk_inline_locations(inline, visitor);
+            }
+        }
+        Block::DelimitedTable(crate::model::Table(delimited)) => {
+            walk_delimited_frame_locations(delimited, visitor);
+            walk_table_locations(&delimited.body, visitor);
+        }
+        Block::DelimitedStem(crate::model::StemBlock(delimited)) => {
+            walk_delimited_frame_locations(delimited, visitor);
         }
         // Leaf blocks: no children to recurse into
         Block::TableOfContents(_)
@@ -314,9 +319,34 @@ fn walk_block_locations(block: &Block, visitor: &mut impl FnMut(&Location, &str)
     }
 }
 
-/// Walk all locations in a delimited block, calling `visitor` for each one.
-fn walk_delimited_block_locations(
-    delimited: &DelimitedBlock,
+/// Walk all locations in a description list, calling `visitor` for each one.
+fn walk_description_list_locations(
+    list: &crate::DescriptionList,
+    visitor: &mut impl FnMut(&Location, &str),
+) {
+    for item in &list.items {
+        visitor(&item.location, "description list item");
+        for term in &item.terms {
+            visitor(&term.location, "description term");
+            for inline in &term.content {
+                walk_inline_locations(inline, visitor);
+            }
+        }
+        if let Some(definition) = &item.definition {
+            visitor(&definition.location, "description definition");
+            for inline in definition.principal.iter().flatten() {
+                walk_inline_locations(inline, visitor);
+            }
+            for child in &definition.blocks {
+                walk_block_locations(child, visitor);
+            }
+        }
+    }
+}
+
+/// Walk the delimiter and title locations shared by every delimited block.
+fn walk_delimited_frame_locations<B>(
+    delimited: &Delimited<'_, B>,
     visitor: &mut impl FnMut(&Location, &str),
 ) {
     if let Some(loc) = &delimited.open_delimiter_location {
@@ -328,40 +358,22 @@ fn walk_delimited_block_locations(
     for inline in delimited.title.as_inlines() {
         walk_inline_locations(inline, visitor);
     }
-    match &delimited.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
+}
+
+/// Walk all locations in a table body, calling `visitor` for each one.
+fn walk_table_locations(table: &TableContent, visitor: &mut impl FnMut(&Location, &str)) {
+    visitor(&table.location, "table");
+    let all_rows = table
+        .header
+        .iter()
+        .chain(&table.rows)
+        .chain(table.footer.iter());
+    for row in all_rows {
+        for col in &row.columns {
+            for block in &col.content {
                 walk_block_locations(block, visitor);
             }
         }
-        DelimitedBlockType::DelimitedComment(inlines)
-        | DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines) => {
-            for inline in inlines {
-                walk_inline_locations(inline, visitor);
-            }
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            visitor(&table.location, "table");
-            let all_rows = table
-                .header
-                .iter()
-                .chain(&table.rows)
-                .chain(table.footer.iter());
-            for row in all_rows {
-                for col in &row.columns {
-                    for block in &col.content {
-                        walk_block_locations(block, visitor);
-                    }
-                }
-            }
-        }
-        DelimitedBlockType::DelimitedStem(_) => {}
     }
 }
 
@@ -370,32 +382,32 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
     visitor(inline.location(), "inline");
 
     match inline {
-        InlineNode::BoldText(t) => {
+        InlineNode::Bold(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::ItalicText(t) => {
+        InlineNode::Italic(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::MonospaceText(t) => {
+        InlineNode::Monospace(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::HighlightText(t) => {
+        InlineNode::Highlight(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::SubscriptText(t) => {
+        InlineNode::Subscript(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
         }
-        InlineNode::SuperscriptText(t) => {
+        InlineNode::Superscript(t) => {
             for child in &t.content {
                 walk_inline_locations(child, visitor);
             }
@@ -411,17 +423,30 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
             }
         }
         // Leaf inlines: no children to recurse into
-        InlineNode::Extension(_)
-        | InlineNode::PlainText(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
+        InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::Verbatim(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutMarker(_) => {}
+        | InlineNode::Anchor(_)
+        | InlineNode::Callout(_) => {}
     }
 }
 
@@ -436,12 +461,7 @@ fn verify_monotonic_positions(prefix: &str, blocks: &[Block]) {
         let contained_metadata_event = previous.is_some_and(|previous| {
             let prefix_event = matches!(
                 previous,
-                Block::DocumentAttribute(_)
-                    | Block::Comment(_)
-                    | Block::DelimitedBlock(DelimitedBlock {
-                        inner: DelimitedBlockType::DelimitedComment(_),
-                        ..
-                    })
+                Block::DocumentAttribute(_) | Block::Comment(_) | Block::DelimitedComment(_)
             );
             let previous_location = previous.location();
             prefix_event
@@ -483,34 +503,34 @@ fn verify_block_monotonic(block: &Block) {
         Block::Admonition(admonition) => {
             verify_monotonic_positions("Admonition child", &admonition.blocks);
         }
-        Block::DelimitedBlock(delimited) => match &delimited.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks)
-            | DelimitedBlockType::DelimitedQuote(blocks) => {
-                verify_monotonic_positions("DelimitedBlock child", blocks);
-            }
-            DelimitedBlockType::DelimitedComment(inlines)
-            | DelimitedBlockType::DelimitedListing(inlines)
-            | DelimitedBlockType::DelimitedLiteral(inlines)
-            | DelimitedBlockType::DelimitedPass(inlines)
-            | DelimitedBlockType::DelimitedVerse(inlines) => {
-                verify_inline_monotonic("DelimitedBlock", inlines);
-            }
-            DelimitedBlockType::DelimitedStem(_) => {}
-            DelimitedBlockType::DelimitedTable(table) => {
-                let all_rows = table
-                    .header
-                    .iter()
-                    .chain(&table.rows)
-                    .chain(table.footer.iter());
-                for row in all_rows {
-                    for col in &row.columns {
-                        verify_monotonic_positions("Table cell", &col.content);
-                    }
+        Block::DelimitedExample(crate::model::Example(delimited))
+        | Block::DelimitedOpen(crate::model::Open(delimited))
+        | Block::DelimitedSidebar(crate::model::Sidebar(delimited))
+        | Block::DelimitedQuote(crate::model::Quote(delimited)) => {
+            let blocks = &delimited.body;
+            verify_monotonic_positions("DelimitedBlock child", blocks);
+        }
+        Block::DelimitedComment(crate::model::DelimitedComment(delimited))
+        | Block::DelimitedListing(crate::model::Listing(delimited))
+        | Block::DelimitedLiteral(crate::model::Literal(delimited))
+        | Block::DelimitedPassthrough(crate::model::Passthrough(delimited))
+        | Block::DelimitedVerse(crate::model::Verse(delimited)) => {
+            let inlines = &delimited.body;
+            verify_inline_monotonic("DelimitedBlock", inlines);
+        }
+        Block::DelimitedTable(crate::model::Table(delimited)) => {
+            let table = &delimited.body;
+            let all_rows = table
+                .header
+                .iter()
+                .chain(&table.rows)
+                .chain(table.footer.iter());
+            for row in all_rows {
+                for col in &row.columns {
+                    verify_monotonic_positions("Table cell", &col.content);
                 }
             }
-        },
+        }
         Block::UnorderedList(list) => {
             for item in &list.items {
                 verify_inline_monotonic("UnorderedList item principal", &item.principal);
@@ -545,7 +565,8 @@ fn verify_block_monotonic(block: &Block) {
         Block::DiscreteHeading(header) => {
             verify_inline_monotonic("DiscreteHeader title", header.title.as_inlines());
         }
-        Block::TableOfContents(_)
+        Block::DelimitedStem(_)
+        | Block::TableOfContents(_)
         | Block::DocumentAttribute(_)
         | Block::ThematicBreak(_)
         | Block::PageBreak(_)

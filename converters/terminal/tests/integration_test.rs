@@ -844,8 +844,8 @@ fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), E
 #[test]
 fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
     use acdc_parser::{
-        Block, Bold, CharacterReference, CharacterReferenceKind, Document, FormattingForm,
-        InlineNode, Location, Paragraph,
+        CharacterReferenceKind, FormattingForm, Location,
+        edit::{Block, Bold, CharacterReference, Document, InlineNode, Paragraph},
     };
     let mut content = Vec::new();
     for kind in [
@@ -857,7 +857,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         ));
     }
-    let bold = InlineNode::BoldText(Bold::new(
+    let bold = InlineNode::Bold(Bold::new(
         content.clone(),
         FormattingForm::Constrained,
         Location::default(),

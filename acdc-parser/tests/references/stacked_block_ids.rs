@@ -1,7 +1,7 @@
 use acdc_parser::{
-    Anchor, Block, BlockMetadata, CompatibilityMode, Document, Location, Options, Paragraph,
-    WarningKind,
+    CompatibilityMode, Location, Options, WarningKind,
     ast::{AnchorRef, BlockRef, ContentRef, DocumentRef, InlineKind, ReferenceTargetRef},
+    edit::{Anchor, Block, BlockMetadata, Document, Paragraph},
     parse,
 };
 

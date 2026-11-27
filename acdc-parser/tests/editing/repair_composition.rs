@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, Document, Options,
+    CompatibilityMode, Options,
     ast::{CaptionRef, DocumentRef},
+    edit::Document,
     parse,
 };
 

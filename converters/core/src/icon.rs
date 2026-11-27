@@ -25,8 +25,9 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    ContentAttribute, DocumentAttributes, Source,
+    DocumentAttributes,
     ast::{ContentRef, SourceKind, SourceRef},
+    edit::{ContentAttribute, Source},
 };
 
 use crate::TraversalContext;
@@ -277,8 +278,8 @@ mod tests {
     fn alt_prefers_explicit_text_then_normalizes_the_target() {
         let target = Source::Name("arrow-left");
         assert_eq!(alt(&target, None), "arrow left");
-        let content = ContentAttribute::new(vec![acdc_parser::InlineNode::PlainText(
-            acdc_parser::Plain::new("Back", acdc_parser::Location::default()),
+        let content = ContentAttribute::new(vec![acdc_parser::edit::InlineNode::Plain(
+            acdc_parser::edit::Plain::new("Back", acdc_parser::Location::default()),
         )]);
         assert_eq!(alt(&target, Some(&content)), "Back");
     }

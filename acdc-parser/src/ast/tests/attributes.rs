@@ -162,7 +162,9 @@ fn block_image_fields_keep_absent_empty_and_contextual_names_distinct() {
 #[test]
 fn block_audio_title_content_suppresses_stale_scalar_metadata() -> Result<(), Error> {
     let mut audio = crate::Audio::new(
-        Source::Url(crate::SourceUrl::new("https://EXAMPLE.org:443/music")?),
+        Source::Url(crate::edit::SourceUrl::new(
+            "https://EXAMPLE.org:443/music",
+        )?),
         Location::default(),
     );
     audio.title = Title::new(Vec::new());
@@ -178,14 +180,13 @@ fn block_audio_title_content_suppresses_stale_scalar_metadata() -> Result<(), Er
 
 #[test]
 fn delimited_quote_content_suppresses_stale_scalar_attribution() -> Result<(), Error> {
-    use crate::{AttributeValue, DelimitedBlock, DelimitedBlockType};
+    use crate::{
+        AttributeValue,
+        model::{Delimited, Quote},
+    };
 
     for (author, citation) in [(false, false), (true, false), (false, true), (true, true)] {
-        let mut block = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedQuote(Vec::new()),
-            "____",
-            Location::default(),
-        );
+        let mut block = Delimited::new(Vec::new(), "____", Location::default());
         block.metadata.attribution = author.then(ContentAttribute::default);
         block.metadata.citetitle = citation.then(ContentAttribute::default);
         block
@@ -197,7 +198,8 @@ fn delimited_quote_content_suppresses_stale_scalar_attribution() -> Result<(), E
             .attributes
             .set("citetitle".into(), AttributeValue::from("SHADOW BOOK"));
         block.metadata.roles = vec!["", "one", "one"].into();
-        let BlockKind::Quote(quote) = BlockRef::from(&block).kind() else {
+        let block = Block::DelimitedQuote(Quote(block));
+        let BlockKind::DelimitedQuote(quote) = BlockRef::from(&block).kind() else {
             return Err("quote".into());
         };
         assert_eq!(quote.attribution().is_some(), author);

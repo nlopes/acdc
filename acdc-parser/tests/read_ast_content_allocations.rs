@@ -1,8 +1,9 @@
 use std::{alloc::System, error::Error, hint::black_box};
 
 use acdc_parser::{
-    Block, Bold, Document, FormattingForm, InlineNode, Location, Options, Paragraph,
+    FormattingForm, Location, Options,
     ast::{BlockKind, BlockRef, DocumentRef, StructuralRef},
+    edit::{Block, Bold, Document, InlineNode, Paragraph},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
@@ -88,7 +89,7 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
         .spawn(|| {
             let mut content = Vec::new();
             for _ in 0..4096 {
-                content = vec![InlineNode::BoldText(Bold::new(
+                content = vec![InlineNode::Bold(Bold::new(
                     content,
                     FormattingForm::Constrained,
                     Location::default(),
@@ -111,7 +112,7 @@ fn deep_inline_walk_and_skipping_do_not_recurse() -> Result<(), Box<dyn Error>> 
             if let Block::Paragraph(mut paragraph) = block {
                 let mut pending: Vec<_> = paragraph.take_content().collect();
                 while let Some(inline) = pending.pop() {
-                    if let InlineNode::BoldText(mut span) = inline {
+                    if let InlineNode::Bold(mut span) = inline {
                         pending.extend(span.take_content());
                     }
                 }

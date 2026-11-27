@@ -10,7 +10,8 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, CompatibilityMode, InlineNode, Options, SafeMode, WarningKind,
+    CompatibilityMode, Options, SafeMode, WarningKind,
+    edit::{Block, InlineNode},
     extensions::{BlockBuilder, BlockContext, DocumentEditor, Registry, TargetError},
 };
 
@@ -329,10 +330,10 @@ fn extensions_assigned_ids_register_titles_captions_and_reference_text() -> Test
         label
             .as_inlines()
             .iter()
-            .any(|inline| matches!(inline, InlineNode::BoldText(_)))
+            .any(|inline| matches!(inline, InlineNode::Bold(_)))
     }));
     assert!(
-        matches!(reference.xreflabel.as_ref().and_then(|label| label.as_inlines().first()), Some(InlineNode::PlainText(text)) if text.content == "Early ")
+        matches!(reference.xreflabel.as_ref().and_then(|label| label.as_inlines().first()), Some(InlineNode::Plain(text)) if text.content == "Early ")
     );
     assert_eq!(parsed.parsed.warnings(), []);
     Ok(())

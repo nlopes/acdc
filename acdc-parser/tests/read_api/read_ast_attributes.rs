@@ -1,12 +1,12 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, ContentAttribute, ElementId, InlineImage, Location, Options,
-    Paragraph, Source,
+    AttributeValue, CompatibilityMode, Location, Options,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef, InlineImageRef,
         InlineKind, InlineRef, ParagraphRef, TokensRef,
     },
+    edit::{ContentAttribute, ElementId, InlineImage, Paragraph, Source},
     parse,
 };
 
@@ -57,7 +57,7 @@ fn nested_callers_read_typed_and_generic_content_consistently(
     };
     assert_inventory(section.attributes());
     assert_content(section.attributes(), "title", section.title());
-    let Some(BlockKind::Table(table)) = section.blocks().next().map(BlockRef::kind) else {
+    let Some(BlockKind::DelimitedTable(table)) = section.blocks().next().map(BlockRef::kind) else {
         return Err("expected table".into());
     };
     assert_inventory(table.attributes());

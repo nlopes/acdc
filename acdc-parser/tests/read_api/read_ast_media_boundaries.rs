@@ -1,11 +1,13 @@
 use std::path::Path;
 
 use acdc_parser::{
-    Anchor, Audio, Caption, CommentKind, CompatibilityMode, ContentAttribute, Location, Options,
-    SafeMode, Source, SourceUrl, ThematicBreak, Title, Video,
+    CommentKind, CompatibilityMode, Location, Options, SafeMode,
     ast::{
         AnchorRef, AttributeValueRef, AudioRef, BlockKind, ContentRef, InlineKind, SourceKind,
         ThematicBreakRef, VideoRef,
+    },
+    edit::{
+        Anchor, Audio, Caption, ContentAttribute, Source, SourceUrl, ThematicBreak, Title, Video,
     },
     parse, parse_file,
 };
@@ -269,7 +271,7 @@ fn included_media_and_cell_blocks_keep_source_scope(
         (location.location.start.line, location.location.start.column),
         (2, 1)
     );
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table

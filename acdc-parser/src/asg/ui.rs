@@ -1,6 +1,6 @@
 use serde_json::{Map, Value};
 
-use crate::{ContentAttribute, InlineMacro};
+use crate::{ContentAttribute, InlineNode};
 
 use super::{
     Error, pointer,
@@ -9,12 +9,12 @@ use super::{
 };
 
 pub(super) fn project(
-    value: &InlineMacro<'_>,
+    value: &InlineNode<'_>,
     path: &str,
     settings: InlineContext,
 ) -> Result<Map<String, Value>, Error> {
     let (name, field, content) = match value {
-        InlineMacro::Button(value) => (
+        InlineNode::Button(value) => (
             "button",
             "inlines",
             project_inlines(
@@ -23,12 +23,12 @@ pub(super) fn project(
                 settings,
             )?,
         ),
-        InlineMacro::KeyboardShortcut(value) => (
+        InlineNode::KeyboardShortcut(value) => (
             "keyboard",
             "keys",
             labels(&value.keys, &pointer(path, "keys"), settings)?,
         ),
-        InlineMacro::MenuPath(value) => {
+        InlineNode::MenuPath(value) => {
             return Ok(Map::from_iter([
                 ("name".into(), "menu".into()),
                 ("type".into(), "inline".into()),
@@ -46,17 +46,35 @@ pub(super) fn project(
                 ),
             ]));
         }
-        InlineMacro::Link(_)
-        | InlineMacro::UrlMacro(_)
-        | InlineMacro::Mailto(_)
-        | InlineMacro::Autolink(_)
-        | InlineMacro::CrossReference(_)
-        | InlineMacro::Footnote(_)
-        | InlineMacro::Icon(_)
-        | InlineMacro::Image(_)
-        | InlineMacro::Passthrough(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => {
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Link(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::Autolink(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::IndexTerm(_) => {
             return Err(unsupported(path, "expected a supported interface macro"));
         }
     };

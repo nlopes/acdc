@@ -18,18 +18,18 @@ use acdc_converters_core::{
 };
 
 use acdc_parser::{
-    AttributeValue, CaptionKind, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
-    Substitution, TocEntry,
+    AttributeValue, CaptionKind, DocumentAttributes, Options as ParserOptions, Substitution,
     ast::{
         AttributeValueRef, AttributesRef, ContentRef, DocumentAttributesRef, DocumentRef,
         ElementIdRef,
     },
+    edit::{ReferenceTarget, TocEntry},
 };
 
 #[cfg(feature = "highlighting")]
 use acdc_parser::{
-    InlineNode,
     ast::{InlineKind, InlineRef},
+    edit::InlineNode,
 };
 
 /// Static backend selection offered to applications before parsing.
@@ -1064,7 +1064,7 @@ fn code_nodes_with_text<'inline>(
         .zip(text)
         .map(|(node, text)| {
             text.as_ref().map(|text| {
-                InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+                InlineNode::Verbatim(acdc_parser::edit::Verbatim::new(
                     text,
                     acdc_parser::Location::from(node.location()),
                 ))

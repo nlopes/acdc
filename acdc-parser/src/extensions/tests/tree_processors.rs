@@ -8,7 +8,8 @@ use std::{
 };
 
 use acdc_parser::{
-    Block, Error, InlineMacro, InlineNode, Options, SafeMode, WarningKind,
+    Error, Options, SafeMode, WarningKind,
+    edit::{Block, InlineNode},
     extensions::{
         BlockBuilder, BlockContext, BlockMacro, DocumentEditor, MacroTarget, Registry, TargetId,
         TreeProcessor, TreeProcessorRegistration,
@@ -424,16 +425,16 @@ fn extensions_generated_captions_keep_source_labels_and_advance_past_removed_ord
     )?;
     let references = &result.parsed.document_storage().references;
     assert!(matches!(&references["automatic"].caption,
-        Some(acdc_parser::Caption::Numbered { label, number: Some(number), .. })
+        Some(acdc_parser::edit::Caption::Numbered { label, number: Some(number), .. })
         if label == "Early" && number.get() == 3));
     assert!(
         matches!(&references["custom"].caption,
-        Some(acdc_parser::Caption::CustomContent(label)) if matches!(label.as_inlines(), [InlineNode::RawText(text)] if text.content == "Custom ")),
+        Some(acdc_parser::edit::Caption::CustomContent(label)) if matches!(label.as_inlines(), [InlineNode::Raw(text)] if text.content == "Custom ")),
         "{:?}",
         references["custom"].caption
     );
     assert!(matches!(&references["survivor"].caption,
-        Some(acdc_parser::Caption::Numbered { number: Some(number), .. }) if number.get() == 2));
+        Some(acdc_parser::edit::Caption::Numbered { number: Some(number), .. }) if number.get() == 2));
     Ok(())
 }
 
@@ -507,7 +508,7 @@ fn extensions_tree_order_and_snapshot_selection() -> TestResult {
         .iter()
         .flat_map(|item| item.principal.iter())
         .filter_map(|inline| {
-            if let InlineNode::PlainText(text) = inline {
+            if let InlineNode::Plain(text) = inline {
                 Some(text.content)
             } else {
                 None
@@ -636,7 +637,7 @@ fn extensions_removal_repairs_catalogs_without_renumbering_survivors() -> TestRe
             .cloned()
     );
     assert!(matches!(document.references["figure-stay"].caption,
-        Some(acdc_parser::Caption::Numbered { number: Some(number), .. }) if number.get() == 2));
+        Some(acdc_parser::edit::Caption::Numbered { number: Some(number), .. }) if number.get() == 2));
     assert_eq!(document.footnotes.len(), 1);
     assert_eq!(document.footnotes[0].number, 1);
     assert!(result.parsed.warnings().iter().any(|warning| matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "gone")));
@@ -645,7 +646,7 @@ fn extensions_removal_repairs_catalogs_without_renumbering_survivors() -> TestRe
     for block in &section.content {
         if let Block::Paragraph(paragraph) = block {
             for inline in &paragraph.content {
-                if let InlineNode::Macro(InlineMacro::Footnote(note)) = inline {
+                if let InlineNode::Footnote(note) = inline {
                     footnotes.push(note.number);
                 }
             }

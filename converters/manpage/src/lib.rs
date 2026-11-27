@@ -46,8 +46,9 @@ use acdc_converters_core::{
 };
 
 use acdc_parser::{
-    AttributeValue, DocumentAttributes, Options as ParserOptions, ReferenceTarget,
+    AttributeValue, DocumentAttributes, Options as ParserOptions,
     ast::{DocumentRef, TocEntryRef},
+    edit::ReferenceTarget,
 };
 
 /// Static backend selection offered to applications before parsing.

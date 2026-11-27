@@ -534,7 +534,7 @@ fn test_greedy_matching_single_plus_passthrough() -> Result<(), Error> {
 /// <https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/>
 ///
 /// Note: `{lt}`, `{gt}`, `{amp}` are treated as passthroughs and produce placeholders
-/// in the preprocessed text. They are resolved to `RawText` nodes during passthrough
+/// in the preprocessed text. They are resolved to `Raw` nodes during passthrough
 /// processing, which bypasses HTML escaping.
 #[test]
 fn test_all_character_replacement_attributes() -> Result<(), Error> {

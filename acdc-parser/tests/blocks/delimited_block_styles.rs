@@ -30,30 +30,31 @@ fn delimited_style_selects_content_without_changing_source_form(
     let [block] = &*parsed.document().blocks().collect::<Vec<_>>() else {
         return Err("expected one delimited block".into());
     };
-    let (actual, retained_delimiter, open, close) = if let BlockKind::Literal(node) = block.kind() {
-        (
-            "literal",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::Listing(node) = block.kind() {
-        (
-            "listing",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else if let BlockKind::Sidebar(node) = block.kind() {
-        (
-            "sidebar",
-            node.delimiter(),
-            node.open_delimiter_location(),
-            node.close_delimiter_location(),
-        )
-    } else {
-        return Err("expected a supported delimited block".into());
-    };
+    let (actual, retained_delimiter, open, close) =
+        if let BlockKind::DelimitedLiteral(node) = block.kind() {
+            (
+                "literal",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedListing(node) = block.kind() {
+            (
+                "listing",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else if let BlockKind::DelimitedSidebar(node) = block.kind() {
+            (
+                "sidebar",
+                node.delimiter(),
+                node.open_delimiter_location(),
+                node.close_delimiter_location(),
+            )
+        } else {
+            return Err("expected a supported delimited block".into());
+        };
     assert_eq!(actual, expected, "{block:?}");
     assert_eq!(retained_delimiter, delimiter);
     assert_eq!(block.location().absolute_start(), 0);

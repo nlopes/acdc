@@ -1,7 +1,7 @@
 use acdc_parser::{
-    Anchor, Block, CompatibilityMode, ContentAttribute, Document, Location, Options, Plain,
-    ThematicBreak, WarningKind,
+    CompatibilityMode, Location, Options, WarningKind,
     ast::{AnchorRef, BlockRef, ContentRef, DocumentRef, InlineKind, ReferenceTargetRef},
+    edit::{Anchor, Block, ContentAttribute, Document, Plain, ThematicBreak},
     parse,
 };
 
@@ -175,7 +175,7 @@ fn prepared_selection_does_not_invent_registration_or_source_locations() -> Resu
     rule.set_anchors([
         Anchor::new("first", Location::default()),
         Anchor::new("second", Location::default()).with_reftext(Some(ContentAttribute::new(vec![
-            acdc_parser::InlineNode::PlainText(Plain::new("Selected", Location::default())),
+            acdc_parser::edit::InlineNode::Plain(Plain::new("Selected", Location::default())),
         ]))),
     ]);
     let mut document = Document::default();

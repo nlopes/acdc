@@ -1,7 +1,9 @@
 #![cfg(feature = "asg")]
 use acdc_parser::{
-    BlockMetadata, CompatibilityMode, ContentAttribute, Document, Header, InlineNode, Location,
-    Options, Plain, Subtitle, Title, asg, ast::BlockKind, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    ast::BlockKind,
+    edit::{BlockMetadata, ContentAttribute, Document, Header, InlineNode, Plain, Subtitle, Title},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -43,7 +45,7 @@ fn subtitle_presence_and_prepared_content_are_not_combined_or_reparsed() -> Resu
     for subtitle in [
         None,
         Some(Subtitle::new(Vec::new())),
-        Some(Subtitle::new(vec![InlineNode::PlainText(Plain::new(
+        Some(Subtitle::new(vec![InlineNode::Plain(Plain::new(
             "*literal subtitle*",
             Location::default(),
         ))])),

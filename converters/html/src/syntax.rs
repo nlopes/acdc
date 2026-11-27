@@ -636,8 +636,8 @@ pub(crate) fn extract_text_and_callouts<'inline>(
 mod tests {
     use super::*;
     use acdc_parser::{
-        CalloutMarker, CompatibilityMode, InlineNode, LineBreak, Location, Options, Plain, Raw,
-        Substitution, Verbatim,
+        CompatibilityMode, Location, Options, Substitution,
+        edit::{CalloutMarker, InlineNode, LineBreak, Plain, Raw, Verbatim},
     };
 
     #[rstest::rstest]
@@ -696,7 +696,7 @@ mod tests {
         #[values(HighlightMode::Inline, HighlightMode::Class)] mode: HighlightMode,
     ) -> Result<(), Error> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim::new("<&> ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("<&> ", Location::default())),
             create_callout_ref(1),
         ];
         let source = acdc_converters_core::WarningSource::new("html");
@@ -732,14 +732,14 @@ mod tests {
     }
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::VerbatimText(Verbatim::new(
+        vec![InlineNode::Verbatim(Verbatim::new(
             content,
             Location::default(),
         ))]
     }
 
     fn create_callout_ref(number: usize) -> InlineNode<'static> {
-        InlineNode::CalloutMarker(CalloutMarker::explicit(number, Location::default()))
+        InlineNode::Callout(CalloutMarker::explicit(number, Location::default()))
     }
 
     #[test]
@@ -758,11 +758,11 @@ mod tests {
     #[test]
     fn test_extract_text_and_callouts_with_callouts() {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
-            InlineNode::VerbatimText(Verbatim::new("\n", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("\n", Location::default())),
         ];
 
         let (text, callouts) = extract_text_and_callouts(
@@ -778,13 +778,13 @@ mod tests {
     #[test]
     fn extraction_preserves_prepared_text_and_unicode_callout_offsets() {
         let inlines = [
-            InlineNode::PlainText(Plain::new("été -- ", Location::default())),
-            InlineNode::RawText(Raw::new(
+            InlineNode::Plain(Plain::new("été -- ", Location::default())),
+            InlineNode::Raw(Raw::new(
                 "(C)",
                 vec![Substitution::Replacements],
                 Location::default(),
             )),
-            InlineNode::VerbatimText(Verbatim::new("日本語", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("日本語", Location::default())),
             InlineNode::LineBreak(LineBreak::new(Location::default())),
             create_callout_ref(7),
             create_callout_ref(2),
@@ -805,9 +805,9 @@ mod tests {
         for mode in [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft] {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = acdc_parser::parse("prefixindexterm2:[--]tail", &options)?;
-            let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+            let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
             let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
-            let Some(acdc_parser::Block::Paragraph(paragraph)) = parsed_blocks.first() else {
+            let Some(acdc_parser::edit::Block::Paragraph(paragraph)) = parsed_blocks.first() else {
                 return Err("expected paragraph".into());
             };
             let content: Vec<_> = paragraph.clone().take_content().collect();
@@ -815,7 +815,7 @@ mod tests {
                 return Err("expected three inline fragments".into());
             };
             let prepared = [
-                InlineNode::VerbatimText(Verbatim::new(" ", Location::default())),
+                InlineNode::Verbatim(Verbatim::new(" ", Location::default())),
                 term.clone(),
                 tail.clone(),
             ];
@@ -835,9 +835,9 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_highlight_code_with_callouts() -> Result<(), Error> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
         ];
 
@@ -976,9 +976,9 @@ mod tests {
     #[allow(clippy::expect_used)]
     fn test_highlight_class_mode_with_callouts() -> Result<(), Error> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim::new("let x = 1; ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("let x = 1; ", Location::default())),
             create_callout_ref(1),
-            InlineNode::VerbatimText(Verbatim::new("\nlet y = 2; ", Location::default())),
+            InlineNode::Verbatim(Verbatim::new("\nlet y = 2; ", Location::default())),
             create_callout_ref(2),
         ];
 
@@ -1176,7 +1176,9 @@ fn decoded_entity(entity: &str) -> Option<char> {
 mod character_reference_tests {
     use super::{TextBoundaries, extract_text_and_callouts};
     use acdc_parser::{
-        CharacterReference, CharacterReferenceKind, InlineNode, Location, ast::InlineRef,
+        CharacterReferenceKind, Location,
+        ast::InlineRef,
+        edit::{CharacterReference, InlineNode},
     };
 
     #[test]

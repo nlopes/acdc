@@ -5,8 +5,9 @@ use acdc_converters_core::{
     xref::{XrefDisplay, XrefGuard, resolve_reference, with_caption_prefix},
 };
 use acdc_parser::{
-    Caption, CompatibilityMode, ContentAttribute, CrossReference, Location, Options, XrefStyle,
+    CompatibilityMode, Location, Options, XrefStyle,
     ast::{CaptionRef, ContentRef, InlineKind},
+    edit::{Caption, ContentAttribute, CrossReference},
     parse,
 };
 

@@ -1,6 +1,6 @@
 use acdc_converters_core::Options;
 use acdc_converters_html::{Converter, HtmlVariant, MATHJAX_LOADER_URL, RenderOptions};
-use acdc_parser::{CompatibilityMode, Document, Options as ParserOptions, parse};
+use acdc_parser::{CompatibilityMode, Options as ParserOptions, edit::Document, parse};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha2::{Digest, Sha256};
 

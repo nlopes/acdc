@@ -26,7 +26,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         block: BlockRef<'a>,
     ) -> Result<(), Error> {
-        if !matches!(block.kind(), BlockKind::Passthrough(_))
+        if !matches!(block.kind(), BlockKind::DelimitedPassthrough(_))
             && block.title().is_some()
             && let Some(attributes) = block.attributes()
         {
@@ -35,20 +35,24 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         }
 
         match block.kind() {
-            BlockKind::Listing(node) => {
+            BlockKind::DelimitedListing(node) => {
                 self.collect_index_terms_from_inlines(traversal, node.content())?;
                 self.render_listing_block(traversal, node.content(), node.attributes())
             }
-            BlockKind::Literal(node) => {
+            BlockKind::DelimitedLiteral(node) => {
                 self.collect_index_terms_from_inlines(traversal, node.content())?;
                 let content =
                     self.verbatim_content(traversal, node.content(), node.attributes())?;
                 self.render_literal_block(&content)
             }
-            BlockKind::Example(node) => self.render_indented_blocks(traversal, node.blocks(), 4),
-            BlockKind::Sidebar(node) => self.render_indented_blocks(traversal, node.blocks(), 4),
-            BlockKind::Open(node) => traversal.visit_blocks(self, node.blocks()),
-            BlockKind::Quote(node) => {
+            BlockKind::DelimitedExample(node) => {
+                self.render_indented_blocks(traversal, node.blocks(), 4)
+            }
+            BlockKind::DelimitedSidebar(node) => {
+                self.render_indented_blocks(traversal, node.blocks(), 4)
+            }
+            BlockKind::DelimitedOpen(node) => traversal.visit_blocks(self, node.blocks()),
+            BlockKind::DelimitedQuote(node) => {
                 self.render_indented_blocks(traversal, node.blocks(), 4)?;
                 self.render_attribution(
                     traversal,
@@ -57,7 +61,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     &[".RE", ".ll"],
                 )
             }
-            BlockKind::Verse(node) => {
+            BlockKind::DelimitedVerse(node) => {
                 self.render_verse_content(traversal, node.content())?;
                 self.render_attribution(
                     traversal,
@@ -66,7 +70,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     &[".in", ".ll"],
                 )
             }
-            BlockKind::Passthrough(node) => {
+            BlockKind::DelimitedPassthrough(node) => {
                 // Passthrough blocks contain backend-native roff by definition.
                 writeln!(
                     self.writer_mut(),
@@ -75,8 +79,8 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 )?;
                 Ok(())
             }
-            BlockKind::Table(table) => crate::table::visit_table(traversal, table, self),
-            BlockKind::Stem(node) => {
+            BlockKind::DelimitedTable(table) => crate::table::visit_table(traversal, table, self),
+            BlockKind::DelimitedStem(node) => {
                 let w = self.writer_mut();
                 writeln!(w, ".sp")?;
                 writeln!(w, "{}", manify(node.text(), EscapeMode::Preserve))?;

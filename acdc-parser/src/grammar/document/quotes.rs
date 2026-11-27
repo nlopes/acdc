@@ -1,8 +1,9 @@
 //! Shared builders for shorthand and Markdown blockquotes.
 
 use crate::{
-    Attribution, Block, CiteTitle, DelimitedBlock, DelimitedBlockType, Error,
+    Attribution, Block, CiteTitle, Error,
     grammar::{ParserState, helpers::BlockParsingMetadata, inline_processing::process_inlines},
+    model::{Delimited, Quote},
 };
 
 use super::delimited::{ContentKind, ContentParser, ContentRequest, GrammarContent, parse_content};
@@ -117,14 +118,14 @@ pub(super) fn build_quote_with_parser<'a>(
         };
         parse_content(state, request, parser)?
     };
-    Ok(Block::DelimitedBlock(DelimitedBlock {
+    Ok(Block::DelimitedQuote(Quote(Delimited {
         source_text: None,
         metadata,
         delimiter,
-        inner: DelimitedBlockType::DelimitedQuote(blocks),
+        body: blocks,
         title: block_metadata.title.clone(),
         location: state.create_block_location(params.start, params.end, params.offset),
         open_delimiter_location: None,
         close_delimiter_location: None,
-    }))
+    })))
 }

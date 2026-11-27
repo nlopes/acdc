@@ -370,16 +370,19 @@ mod tests {
 
     #[test]
     fn asciicast_inline_inputs_preserve_decoding_and_idle_override() -> Result<(), Error> {
-        use acdc_parser::{InlineNode, LineBreak, Location, Plain, Raw};
+        use acdc_parser::{
+            Location,
+            edit::{InlineNode, LineBreak, Plain, Raw},
+        };
 
         for header in [
             r#"{"version":2,"width":20,"height":4,"idle_time_limit":1}"#,
             r#"{"version":3,"term":{"cols":20,"rows":4},"idle_time_limit":1}"#,
         ] {
             let inlines = [
-                InlineNode::PlainText(Plain::new(header, Location::default())),
+                InlineNode::Plain(Plain::new(header, Location::default())),
                 InlineNode::LineBreak(LineBreak::new(Location::default())),
-                InlineNode::RawText(Raw::new(
+                InlineNode::Raw(Raw::new(
                     "[0,\"o\",\"&#60;λ&#62;\"]\n[60,\"o\",\"done\"]\n",
                     Vec::new(),
                     Location::default(),

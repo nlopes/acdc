@@ -5,7 +5,7 @@ use std::borrow::Cow;
 use acdc_converters_core::substitutions::{
     Replacements, TextBoundaries, apply_passthrough_replacements_iter,
 };
-use acdc_parser::{Location, Raw, Substitution, ast::RawRef};
+use acdc_parser::{Location, Substitution, ast::RawRef, edit::Raw};
 
 #[test]
 fn passthrough_without_replacements_consumes_a_lazy_profile_and_keeps_the_text() {

@@ -94,7 +94,7 @@ pub(super) fn repair_document(
         .unwrap_or_else(|never| match never {});
     let ids: std::collections::HashSet<_> = document.references.keys().copied().collect();
     crate::grammar::walk_document_inline_nodes_mut(document, &mut |inline| {
-        if let crate::InlineNode::Macro(crate::InlineMacro::CrossReference(reference)) = inline
+        if let crate::InlineNode::CrossReference(reference) = inline
             && (reference.target_is_local
                 || reference.source_syntax.target_is_local(reference.target))
             && !ids.contains(reference.target)

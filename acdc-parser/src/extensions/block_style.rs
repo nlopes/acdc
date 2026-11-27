@@ -135,7 +135,7 @@ impl BlockStyle {
     /// }))?;
     /// let parsed = registry.build().parse("[panel]\n----\nA paragraph.\n----", &Options::default())?.finish()?;
     /// let block = parsed.document().blocks().next().unwrap();
-    /// assert!(matches!(block.kind(), BlockKind::Open(panel) if panel.blocks().count() == 1));
+    /// assert!(matches!(block.kind(), BlockKind::DelimitedOpen(panel) if panel.blocks().count() == 1));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn compound<P: RawBlockProcessor<BlockStyleOutput> + 'static>(

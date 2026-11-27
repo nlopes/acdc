@@ -916,7 +916,7 @@ mod tests {
             .document()
             .blocks()
             .find_map(|block| {
-                if let acdc_parser::ast::BlockKind::Table(table) = block.kind() {
+                if let acdc_parser::ast::BlockKind::DelimitedTable(table) = block.kind() {
                     Some(table)
                 } else {
                     None

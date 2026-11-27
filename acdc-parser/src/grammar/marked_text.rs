@@ -110,22 +110,35 @@ pub(super) fn map_marked_text_locations<'a>(
     ctx: &LocationMappingContext<'_, 'a>,
 ) -> Result<(), Error> {
     match inline {
-        InlineNode::BoldText(node) => node.map_locations(ctx),
-        InlineNode::ItalicText(node) => node.map_locations(ctx),
-        InlineNode::MonospaceText(node) => node.map_locations(ctx),
-        InlineNode::HighlightText(node) => node.map_locations(ctx),
-        InlineNode::SubscriptText(node) => node.map_locations(ctx),
-        InlineNode::SuperscriptText(node) => node.map_locations(ctx),
+        InlineNode::Bold(node) => node.map_locations(ctx),
+        InlineNode::Italic(node) => node.map_locations(ctx),
+        InlineNode::Monospace(node) => node.map_locations(ctx),
+        InlineNode::Highlight(node) => node.map_locations(ctx),
+        InlineNode::Subscript(node) => node.map_locations(ctx),
+        InlineNode::Superscript(node) => node.map_locations(ctx),
         InlineNode::DoubleQuotedSpan(node) => node.map_locations(ctx),
         InlineNode::SingleQuotedSpan(node) => node.map_locations(ctx),
-        InlineNode::RawText(_)
+        InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Raw(_)
         | InlineNode::Extension(_)
-        | InlineNode::PlainText(_)
-        | InlineNode::VerbatimText(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Verbatim(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutMarker(_)
-        | InlineNode::Macro(_)
+        | InlineNode::Anchor(_)
+        | InlineNode::Callout(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_) => Ok(()),

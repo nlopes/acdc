@@ -1541,8 +1541,8 @@ fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Resu
 #[test]
 fn constructed_character_references_render_in_plain_and_formatted_content() -> Result<(), Error> {
     use acdc_parser::{
-        Block, Bold, CharacterReference, CharacterReferenceKind, Document, FormattingForm,
-        InlineNode, Location, Paragraph,
+        CharacterReferenceKind, FormattingForm, Location,
+        edit::{Block, Bold, CharacterReference, Document, InlineNode, Paragraph},
     };
     let mut content = Vec::new();
     for kind in [
@@ -1554,7 +1554,7 @@ fn constructed_character_references_render_in_plain_and_formatted_content() -> R
             CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
         ));
     }
-    let bold = InlineNode::BoldText(Bold::new(
+    let bold = InlineNode::Bold(Bold::new(
         content.clone(),
         FormattingForm::Constrained,
         Location::default(),

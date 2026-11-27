@@ -3,12 +3,15 @@
 use std::{alloc::System, hint::black_box, sync::Arc};
 
 use acdc_parser::{
-    CharacterReference, CharacterReferenceKind, CompatibilityMode, LineBreak, Location, Options,
-    Plain, Position, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Symbol,
-    SymbolKind, Verbatim,
+    CharacterReferenceKind, CompatibilityMode, Location, Options, Position, StemNotation,
+    SymbolKind,
     ast::{
         BlockKind, CharacterReferenceRef, LineBreakRef, PlainRef, StandaloneCurvedApostropheRef,
         StemRef, SymbolRef, VerbatimRef,
+    },
+    edit::{
+        Block, CharacterReference, LineBreak, Plain, StandaloneCurvedApostrophe, Stem, StemBlock,
+        Symbol, Verbatim,
     },
     parse,
 };
@@ -115,7 +118,7 @@ fn empty_plain_and_formula_values_stay_present_atoms() {
     let stem = Stem::new("", StemNotation::Asciimath, location());
     assert_eq!(StemRef::from(&stem).text(), "");
     assert_eq!(StemRef::from(&stem).notation(), StemNotation::Asciimath);
-    let content = StemContent::new("", StemNotation::Latexmath);
+    let content = StemBlock::new("", StemNotation::Latexmath, location());
     assert_eq!(content.text(), "");
     assert_eq!(content.notation(), StemNotation::Latexmath);
 }
@@ -125,7 +128,7 @@ fn formula_edits_do_not_translate_or_reparse_the_formula() {
     let source = String::from("λ *x*");
     let (inline_text, block_text) = {
         let mut inline = Stem::new(&source, StemNotation::Latexmath, location());
-        let mut block = StemContent::new(&source, StemNotation::Latexmath);
+        let mut block = StemBlock::new(&source, StemNotation::Latexmath, location());
         assert_eq!(
             inline.replace_notation(StemNotation::Asciimath),
             StemNotation::Latexmath
@@ -278,13 +281,20 @@ fn selected_block_formulas_keep_prepared_text_and_notation(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let block = parsed.document().blocks().next().ok_or("formula")?;
-    let BlockKind::Stem(stem) = block.kind() else {
+    let BlockKind::DelimitedStem(stem) = block.kind() else {
         return Err("formula".into());
     };
     assert_ne!(stem.text(), "");
-    let copy = StemContent::from(stem);
+    let Block::DelimitedStem(copy) = Block::from(block) else {
+        return Err("formula copy".into());
+    };
     assert_eq!(copy.text(), stem.text());
+    assert_eq!(copy.text().as_ptr(), stem.text().as_ptr());
     assert_eq!(copy.notation(), stem.notation());
-    assert_eq!(cost(|| StemContent::from(stem)), (0, 0));
+    // Copying only the selected formula, without the block's metadata, borrows its text.
+    let selected = || StemBlock::new(stem.text(), stem.notation(), Location::default());
+    assert_eq!(selected().text().as_ptr(), stem.text().as_ptr());
+    assert_eq!(selected().notation(), stem.notation());
+    assert_eq!(cost(selected), (0, 0));
     Ok(())
 }

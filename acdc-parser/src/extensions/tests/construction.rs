@@ -347,7 +347,7 @@ fn extensions_reference_repair_failure_restores_each_splice() -> TestResult {
         .clone();
     // Simulate a prepared section whose reference membership cannot be rebuilt.
     result.parsed.with_document_mut(|_, document| {
-        if let Some(acdc_parser::Block::Section(section)) = document.blocks.first_mut() {
+        if let Some(acdc_parser::edit::Block::Section(section)) = document.blocks.first_mut() {
             section.id = None;
         }
     });

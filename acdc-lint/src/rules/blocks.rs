@@ -101,17 +101,17 @@ impl<'doc> DelimitedBlockSource<'doc> {
             };
         }
         Some(match block.kind() {
-            BlockKind::Listing(node) => source!(node),
-            BlockKind::Literal(node) => source!(node),
-            BlockKind::Example(node) => source!(node),
-            BlockKind::Open(node) => source!(node),
-            BlockKind::Sidebar(node) => source!(node),
-            BlockKind::Quote(node) => source!(node),
-            BlockKind::Verse(node) => source!(node),
-            BlockKind::Passthrough(node) => source!(node),
+            BlockKind::DelimitedListing(node) => source!(node),
+            BlockKind::DelimitedLiteral(node) => source!(node),
+            BlockKind::DelimitedExample(node) => source!(node),
+            BlockKind::DelimitedOpen(node) => source!(node),
+            BlockKind::DelimitedSidebar(node) => source!(node),
+            BlockKind::DelimitedQuote(node) => source!(node),
+            BlockKind::DelimitedVerse(node) => source!(node),
+            BlockKind::DelimitedPassthrough(node) => source!(node),
             BlockKind::DelimitedComment(node) => source!(node),
-            BlockKind::Stem(node) => source!(node),
-            BlockKind::Table(node) => source!(node),
+            BlockKind::DelimitedStem(node) => source!(node),
+            BlockKind::DelimitedTable(node) => source!(node),
             _ => return None,
         })
     }

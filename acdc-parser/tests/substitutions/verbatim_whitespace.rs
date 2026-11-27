@@ -24,7 +24,8 @@ fn inline_text(nodes: ContentRef<'_>) -> String {
 #[test]
 fn callout_processing_preserves_terminal_newlines() -> Result<(), Error> {
     let parsed = parse("----\none <1>\n\n----\n", &Options::default())?;
-    let Some(BlockKind::Listing(block)) = parsed.document().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::DelimitedListing(block)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected a listing block".into());
     };
@@ -311,9 +312,9 @@ fn delimiter_scanning_preserves_unicode_and_nonclosing_runs() -> Result<(), Erro
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(parsed.warnings(), []);
         let block = parsed.document().blocks().next().ok_or("missing block")?;
-        let (nodes, closing) = if let BlockKind::Listing(block) = block.kind() {
+        let (nodes, closing) = if let BlockKind::DelimitedListing(block) = block.kind() {
             (block.content(), block.close_delimiter_location())
-        } else if let BlockKind::Literal(block) = block.kind() {
+        } else if let BlockKind::DelimitedLiteral(block) = block.kind() {
             (block.content(), block.close_delimiter_location())
         } else {
             return Err("expected a verbatim block".into());

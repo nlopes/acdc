@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    Block, CaptionKind, DelimitedBlockType, Document, InlineMacro, InlineNode, ParseResult,
-    SourceLocation, WarningKind, model::SectionReference,
+    Block, CaptionKind, Document, InlineNode, ParseResult, SourceLocation, WarningKind,
+    model::SectionReference,
 };
 
 use super::{
@@ -52,27 +52,23 @@ impl BlockContext {
         match block {
             Block::Section(_) => Self::Section,
             Block::Paragraph(block) => Self::styled(block.metadata.style, Self::Paragraph),
-            Block::DelimitedBlock(block) => match &block.inner {
-                DelimitedBlockType::DelimitedExample(_) => Self::Example,
-                DelimitedBlockType::DelimitedOpen(_) => {
-                    Self::styled(block.metadata.style, Self::Open)
-                }
-                DelimitedBlockType::DelimitedSidebar(_) => Self::Sidebar,
-                DelimitedBlockType::DelimitedQuote(_) => Self::Quote,
-                DelimitedBlockType::DelimitedVerse(_) => Self::Verse,
-                DelimitedBlockType::DelimitedListing(_) => match block.metadata.style {
-                    Some("literal") => Self::Literal,
-                    _ => Self::Listing,
-                },
-                DelimitedBlockType::DelimitedLiteral(_) => match block.metadata.style {
-                    Some("listing" | "source") => Self::Listing,
-                    _ => Self::Literal,
-                },
-                DelimitedBlockType::DelimitedPass(_) => Self::Passthrough,
-                DelimitedBlockType::DelimitedStem(_) => Self::Stem,
-                DelimitedBlockType::DelimitedTable(_) => Self::Table,
-                DelimitedBlockType::DelimitedComment(_) => Self::Comment,
+            Block::DelimitedExample(_) => Self::Example,
+            Block::DelimitedOpen(block) => Self::styled(block.0.metadata.style, Self::Open),
+            Block::DelimitedSidebar(_) => Self::Sidebar,
+            Block::DelimitedQuote(_) => Self::Quote,
+            Block::DelimitedVerse(_) => Self::Verse,
+            Block::DelimitedListing(block) => match block.0.metadata.style {
+                Some("literal") => Self::Literal,
+                _ => Self::Listing,
             },
+            Block::DelimitedLiteral(block) => match block.0.metadata.style {
+                Some("listing" | "source") => Self::Listing,
+                _ => Self::Literal,
+            },
+            Block::DelimitedPassthrough(_) => Self::Passthrough,
+            Block::DelimitedStem(_) => Self::Stem,
+            Block::DelimitedTable(_) => Self::Table,
+            Block::DelimitedComment(_) | Block::Comment(_) => Self::Comment,
             Block::Image(_) => Self::Image,
             Block::Audio(_) => Self::Audio,
             Block::Video(_) => Self::Video,
@@ -85,7 +81,6 @@ impl BlockContext {
             Block::ThematicBreak(_) => Self::ThematicBreak,
             Block::PageBreak(_) => Self::PageBreak,
             Block::TableOfContents(_) => Self::TableOfContents,
-            Block::Comment(_) => Self::Comment,
             Block::DocumentAttribute(_) => Self::DocumentAttribute,
             Block::Extension(_) => Self::Extension,
         }
@@ -182,7 +177,7 @@ impl TargetIndex {
             .filter_map(|(id, reference)| Some((*id, reference.section.as_ref()?.name)))
             .collect();
         crate::grammar::walk_document_inline_nodes_mut(document, &mut |inline| {
-            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+            if let InlineNode::CrossReference(xref) = inline {
                 xref.refresh_signifier(names.get(xref.target).copied());
             }
         });

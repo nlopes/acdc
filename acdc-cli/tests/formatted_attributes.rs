@@ -3,7 +3,7 @@
 use acdc_converters_core::{
     Converter as _, Diagnostics, Options as ConverterOptions, WarningSource,
 };
-use acdc_parser::{Document, DocumentAttributes, Options, ast::DocumentRef, parse};
+use acdc_parser::{DocumentAttributes, Options, ast::DocumentRef, edit::Document, parse};
 
 type Error = Box<dyn std::error::Error>;
 

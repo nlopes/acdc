@@ -13,7 +13,8 @@ fn verse_inline_locations_and_catalogs_follow_the_source(
     let source = "= Verse\n:value: expanded\n\n[verse]\n____\nÉva *Bold* {value}\n  link:https://example.org[Link]\n\nanchor:target[]footnote:note[Verse note.] ((Term))\n____\n\nReuse footnote:note[].\n"
         .replace('\n', newline);
     let parsed = parse(&source, &Options::default())?;
-    let Some(BlockKind::Verse(block)) = parsed.document().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::DelimitedVerse(block)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("expected verse block".into());
     };

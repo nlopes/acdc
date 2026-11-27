@@ -4,8 +4,9 @@ use std::cell::Cell;
 
 use crate::substitutions::{Replacements, TextBoundaries};
 use acdc_parser::{
-    InlineNode, Location, Options, Plain, Raw, Substitution,
+    Location, Options, Substitution,
     ast::{InlineKind, InlineRef},
+    edit::{InlineNode, Plain, Raw},
     parse_inline,
 };
 
@@ -22,16 +23,17 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
     ] {
         let literal = format!("pass:c,q,m[{}]", source.replace(']', r"\]"));
         let parsed = parse_inline(&literal, &Options::default())?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
         // Exercise the boundary helper before replacements consume the source.
         // The explicit profile retains markup structure without replacing dashes.
         let nodes = parsed_inlines
             .as_slice()
             .iter()
             .map(|node| {
-                if let InlineNode::RawText(text) = node {
+                if let InlineNode::Raw(text) = node {
                     let text = acdc_parser::ast::RawRef::from(text);
-                    InlineNode::PlainText(Plain::new(text.text(), Location::from(text.location())))
+                    InlineNode::Plain(Plain::new(text.text(), Location::from(text.location())))
                 } else {
                     node.clone()
                 }
@@ -41,7 +43,7 @@ fn sibling_context_preserves_invisible_nodes_and_formatting_barriers() -> Result
             .iter()
             .enumerate()
             .find_map(|(index, node)| {
-                if let InlineNode::PlainText(text) = node
+                if let InlineNode::Plain(text) = node
                     && acdc_parser::ast::PlainRef::from(text).text().contains("--")
                 {
                     Some((index, acdc_parser::ast::PlainRef::from(text).text()))
@@ -77,13 +79,13 @@ fn raw_context_keeps_adjacent_spaces_and_outlives_its_inputs() {
             let text = String::from("--");
             let after = String::from(after);
             let nodes = [
-                InlineNode::PlainText(Plain::new(&before, Location::default())),
-                InlineNode::RawText(Raw::new(
+                InlineNode::Plain(Plain::new(&before, Location::default())),
+                InlineNode::Raw(Raw::new(
                     &text,
                     vec![Substitution::Replacements],
                     Location::default(),
                 )),
-                InlineNode::PlainText(Plain::new(&after, Location::default())),
+                InlineNode::Plain(Plain::new(&after, Location::default())),
             ];
             let siblings = nodes.iter().map(InlineRef::from);
             let context = TextBoundaries::BOTH.for_inline_refs(

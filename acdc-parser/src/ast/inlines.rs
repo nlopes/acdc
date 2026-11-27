@@ -1,4 +1,4 @@
-use crate::{InlineMacro, InlineNode};
+use crate::InlineNode;
 
 use super::{ContentRef, InlineImageRef, LocationRef};
 
@@ -116,7 +116,7 @@ node_ref!(
 );
 node_ref!(
     InlinePassthroughRef<'doc>,
-    crate::Passthrough<'doc>,
+    crate::InlinePassthrough<'doc>,
     "An inline passthrough macro."
 );
 node_ref!(
@@ -132,7 +132,7 @@ node_ref!(IndexTermRef<'doc>, crate::IndexTerm<'doc>, "An index term.");
 /// locations and registration snapshots, and can still borrow source text:
 ///
 /// ```compile_fail,E0597
-/// use acdc_parser::{InlineNode, Options, parse_inline};
+/// use acdc_parser::{Options, parse_inline, edit::InlineNode};
 /// let copied = {
 ///     let parsed = parse_inline("Text", &Options::default()).unwrap();
 ///     InlineNode::from(parsed.content().inlines().next().unwrap())
@@ -141,13 +141,7 @@ node_ref!(IndexTermRef<'doc>, crate::IndexTerm<'doc>, "An index term.");
 /// ```
 #[derive(Clone, Copy, Debug)]
 pub struct InlineRef<'doc> {
-    source: InlineSource<'doc>,
-}
-
-#[derive(Clone, Copy, Debug)]
-enum InlineSource<'doc> {
-    Node(&'doc InlineNode<'doc>),
-    Macro(&'doc InlineMacro<'doc>),
+    node: &'doc InlineNode<'doc>,
 }
 
 /// The semantic kind of an inline, including macros.
@@ -191,27 +185,19 @@ impl<'doc> InlineRef<'doc> {
     /// Match the semantic kind while retaining a concrete typed handle.
     #[must_use]
     pub fn kind(self) -> InlineKind<'doc> {
-        match self.source {
-            InlineSource::Node(node) => InlineKind::from(node),
-            InlineSource::Macro(node) => InlineKind::from(node),
-        }
+        InlineKind::from(self.node)
     }
 
     /// The source span of this inline node.
     #[must_use]
     pub fn location(self) -> LocationRef<'doc> {
-        match self.source {
-            InlineSource::Node(node) => LocationRef::from(node.location()),
-            InlineSource::Macro(node) => LocationRef::from(node.location()),
-        }
+        LocationRef::from(self.node.location())
     }
 }
 
 impl<'doc> From<&'doc InlineNode<'doc>> for InlineRef<'doc> {
     fn from(inline: &'doc InlineNode<'doc>) -> Self {
-        Self {
-            source: InlineSource::Node(inline),
-        }
+        Self { node: inline }
     }
 }
 
@@ -223,15 +209,15 @@ impl<'doc> From<&'doc InlineNode<'doc>> for InlineKind<'doc> {
                 InlineKind::CharacterReference(CharacterReferenceRef::new(node))
             }
             InlineNode::Extension(call) => InlineKind::Plain(PlainRef::new(&call.literal)),
-            InlineNode::PlainText(node) => InlineKind::Plain(PlainRef::new(node)),
-            InlineNode::RawText(node) => InlineKind::Raw(RawRef::new(node)),
-            InlineNode::VerbatimText(node) => InlineKind::Verbatim(VerbatimRef::new(node)),
-            InlineNode::BoldText(node) => InlineKind::Bold(BoldRef::new(node)),
-            InlineNode::ItalicText(node) => InlineKind::Italic(ItalicRef::new(node)),
-            InlineNode::MonospaceText(node) => InlineKind::Monospace(MonospaceRef::new(node)),
-            InlineNode::HighlightText(node) => InlineKind::Highlight(HighlightRef::new(node)),
-            InlineNode::SubscriptText(node) => InlineKind::Subscript(SubscriptRef::new(node)),
-            InlineNode::SuperscriptText(node) => InlineKind::Superscript(SuperscriptRef::new(node)),
+            InlineNode::Plain(node) => InlineKind::Plain(PlainRef::new(node)),
+            InlineNode::Raw(node) => InlineKind::Raw(RawRef::new(node)),
+            InlineNode::Verbatim(node) => InlineKind::Verbatim(VerbatimRef::new(node)),
+            InlineNode::Bold(node) => InlineKind::Bold(BoldRef::new(node)),
+            InlineNode::Italic(node) => InlineKind::Italic(ItalicRef::new(node)),
+            InlineNode::Monospace(node) => InlineKind::Monospace(MonospaceRef::new(node)),
+            InlineNode::Highlight(node) => InlineKind::Highlight(HighlightRef::new(node)),
+            InlineNode::Subscript(node) => InlineKind::Subscript(SubscriptRef::new(node)),
+            InlineNode::Superscript(node) => InlineKind::Superscript(SuperscriptRef::new(node)),
             InlineNode::DoubleQuotedSpan(node) => {
                 InlineKind::DoubleQuotedSpan(DoubleQuotedSpanRef::new(node))
             }
@@ -242,44 +228,28 @@ impl<'doc> From<&'doc InlineNode<'doc>> for InlineKind<'doc> {
                 InlineKind::StandaloneCurvedApostrophe(StandaloneCurvedApostropheRef::new(node))
             }
             InlineNode::LineBreak(node) => InlineKind::LineBreak(LineBreakRef::new(node)),
-            InlineNode::InlineAnchor(node) => InlineKind::Anchor(AnchorRef::new(node)),
-            InlineNode::CalloutMarker(node) => InlineKind::Callout(CalloutMarkerRef::new(node)),
-            InlineNode::Macro(node) => Self::from(node),
-        }
-    }
-}
-
-impl<'doc> From<&'doc InlineMacro<'doc>> for InlineRef<'doc> {
-    fn from(inline: &'doc InlineMacro<'doc>) -> Self {
-        Self {
-            source: InlineSource::Macro(inline),
-        }
-    }
-}
-
-impl<'doc> From<&'doc InlineMacro<'doc>> for InlineKind<'doc> {
-    fn from(inline: &'doc InlineMacro<'doc>) -> Self {
-        match inline {
-            InlineMacro::Footnote(node) => InlineKind::Footnote(FootnoteRef::new(node)),
-            InlineMacro::Icon(node) => InlineKind::Icon(IconRef::new(node)),
-            InlineMacro::Image(node) => InlineKind::Image(InlineImageRef::new(node)),
-            InlineMacro::KeyboardShortcut(node) => {
+            InlineNode::Anchor(node) => InlineKind::Anchor(AnchorRef::new(node)),
+            InlineNode::Callout(node) => InlineKind::Callout(CalloutMarkerRef::new(node)),
+            InlineNode::Footnote(node) => InlineKind::Footnote(FootnoteRef::new(node)),
+            InlineNode::Icon(node) => InlineKind::Icon(IconRef::new(node)),
+            InlineNode::Image(node) => InlineKind::Image(InlineImageRef::new(node)),
+            InlineNode::KeyboardShortcut(node) => {
                 InlineKind::KeyboardShortcut(KeyboardShortcutRef::new(node))
             }
-            InlineMacro::Button(node) => InlineKind::Button(ButtonRef::new(node)),
-            InlineMacro::MenuPath(node) => InlineKind::MenuPath(MenuPathRef::new(node)),
-            InlineMacro::UrlMacro(node) => InlineKind::UrlMacro(UrlMacroRef::new(node)),
-            InlineMacro::Link(node) => InlineKind::Link(LinkRef::new(node)),
-            InlineMacro::Mailto(node) => InlineKind::Mailto(MailtoRef::new(node)),
-            InlineMacro::Autolink(node) => InlineKind::Autolink(AutolinkRef::new(node)),
-            InlineMacro::CrossReference(node) => {
+            InlineNode::Button(node) => InlineKind::Button(ButtonRef::new(node)),
+            InlineNode::MenuPath(node) => InlineKind::MenuPath(MenuPathRef::new(node)),
+            InlineNode::UrlMacro(node) => InlineKind::UrlMacro(UrlMacroRef::new(node)),
+            InlineNode::Link(node) => InlineKind::Link(LinkRef::new(node)),
+            InlineNode::Mailto(node) => InlineKind::Mailto(MailtoRef::new(node)),
+            InlineNode::Autolink(node) => InlineKind::Autolink(AutolinkRef::new(node)),
+            InlineNode::CrossReference(node) => {
                 InlineKind::CrossReference(CrossReferenceRef::new(node))
             }
-            InlineMacro::Passthrough(node) => {
+            InlineNode::Passthrough(node) => {
                 InlineKind::Passthrough(InlinePassthroughRef::new(node))
             }
-            InlineMacro::Stem(node) => InlineKind::Stem(StemRef::new(node)),
-            InlineMacro::IndexTerm(node) => InlineKind::IndexTerm(IndexTermRef::new(node)),
+            InlineNode::Stem(node) => InlineKind::Stem(StemRef::new(node)),
+            InlineNode::IndexTerm(node) => InlineKind::IndexTerm(IndexTermRef::new(node)),
         }
     }
 }
@@ -351,9 +321,6 @@ impl From<CalloutMarkerRef<'_>> for crate::CalloutMarker {
 
 impl<'doc> From<InlineRef<'doc>> for InlineNode<'doc> {
     fn from(read: InlineRef<'doc>) -> Self {
-        match read.source {
-            InlineSource::Node(node) => node.clone(),
-            InlineSource::Macro(node) => Self::Macro(node.clone()),
-        }
+        read.node.clone()
     }
 }

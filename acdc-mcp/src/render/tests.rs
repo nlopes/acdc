@@ -25,14 +25,16 @@ fn media_and_ui_content_use_the_current_parser_model() -> Result<(), acdc_parser
 
 #[test]
 fn resolved_symbols_retain_text_in_both_formats() {
-    let content = [acdc_parser::InlineNode::Symbol(acdc_parser::Symbol::new(
-        acdc_parser::SymbolKind::Copyright,
-        acdc_parser::Location::default(),
-    ))];
+    let content = [acdc_parser::edit::InlineNode::Symbol(
+        acdc_parser::edit::Symbol::new(
+            acdc_parser::SymbolKind::Copyright,
+            acdc_parser::Location::default(),
+        ),
+    )];
     for format in [Format::Plain, Format::Asciidoc] {
         assert_eq!(
             super::inline_text(
-                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(
+                acdc_parser::ast::ContentRef::from(&acdc_parser::edit::ContentAttribute::new(
                     content.to_vec()
                 )),
                 format
@@ -44,7 +46,10 @@ fn resolved_symbols_retain_text_in_both_formats() {
 
 #[test]
 fn character_references_preserve_asciidoc_and_decode_plain_text() -> Result<(), &'static str> {
-    use acdc_parser::{CharacterReference, CharacterReferenceKind, InlineNode, Location};
+    use acdc_parser::{
+        CharacterReferenceKind, Location,
+        edit::{CharacterReference, InlineNode},
+    };
     for (kind, spelling, text) in [
         (CharacterReferenceKind::Numeric(169), "&#169;", "©"),
         (CharacterReferenceKind::Named("amp"), "&amp;", "&"),
@@ -69,7 +74,7 @@ fn character_references_preserve_asciidoc_and_decode_plain_text() -> Result<(), 
         )];
         assert_eq!(
             super::inline_text(
-                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(
+                acdc_parser::ast::ContentRef::from(&acdc_parser::edit::ContentAttribute::new(
                     content.to_vec()
                 )),
                 Format::Asciidoc
@@ -78,7 +83,7 @@ fn character_references_preserve_asciidoc_and_decode_plain_text() -> Result<(), 
         );
         assert_eq!(
             super::inline_text(
-                acdc_parser::ast::ContentRef::from(&acdc_parser::ContentAttribute::new(
+                acdc_parser::ast::ContentRef::from(&acdc_parser::edit::ContentAttribute::new(
                     content.to_vec()
                 )),
                 Format::Plain

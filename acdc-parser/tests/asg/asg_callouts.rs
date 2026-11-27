@@ -1,8 +1,11 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CalloutList, CalloutListItem, CalloutMarker, CompatibilityMode, ContentAttribute,
-    Document, InlineNode, Location, Options, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{
+        Block, CalloutList, CalloutListItem, CalloutMarker, ContentAttribute, Document, InlineNode,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -113,8 +116,8 @@ fn scoped_numbers_keep_repeated_and_unmatched_associations() -> Result<(), Error
 #[test]
 fn prepared_markers_do_not_renumber_or_invent_locations() -> Result<(), Error> {
     let content = ContentAttribute::new(vec![
-        InlineNode::CalloutMarker(CalloutMarker::auto(42, Location::default())),
-        InlineNode::CalloutMarker(CalloutMarker::explicit(0, Location::default())),
+        InlineNode::Callout(CalloutMarker::auto(42, Location::default())),
+        InlineNode::Callout(CalloutMarker::explicit(0, Location::default())),
     ]);
     assert_eq!(
         asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc)?,

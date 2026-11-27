@@ -3,9 +3,12 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ContentAttribute, IndexTerm, IndexTermKind, InlineImage, InlineNode, Location, Paragraph,
-    Plain, Source, SubstitutionSpec,
+    Location, SubstitutionSpec,
     ast::{AttributeValueRef, ContentRef, IndexTermRef, InlineImageRef, ParagraphRef},
+    edit::{
+        ContentAttribute, IndexTerm, IndexTermKind, InlineImage, InlineNode, Paragraph, Plain,
+        Source,
+    },
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -32,7 +35,7 @@ fn exact_text_keeps_empty_quotes_spelling_and_unicode(
 #[test]
 fn all_value_kinds_keep_their_semantics_without_allocating() -> Result<(), Error> {
     let empty = ContentAttribute::default();
-    let content = ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+    let content = ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
         "not a scalar",
         Location::default(),
     ))]);

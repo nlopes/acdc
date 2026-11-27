@@ -33,7 +33,7 @@ fn block_stem(parsed: &ParseResult) -> Result<StemBlockRef<'_>, Box<dyn std::err
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Stem(stem) = block.kind() {
+            if let BlockKind::DelimitedStem(stem) = block.kind() {
                 Some(stem)
             } else {
                 None
@@ -259,7 +259,8 @@ fn stem_substitutions_expand_attributes_only_when_requested() -> TestResult {
             format!(":value: expanded\n\n[stem,subs=\"{substitutions}\"]\n++++\n{{value}}\n++++");
         let parsed = parse(&source, &Options::default())?;
         assert_eq!(block_stem(&parsed)?.text(), expected);
-        let Some(BlockKind::Stem(block)) = parsed.document().blocks().next().map(BlockRef::kind)
+        let Some(BlockKind::DelimitedStem(block)) =
+            parsed.document().blocks().next().map(BlockRef::kind)
         else {
             return Err("expected the STEM block".into());
         };
@@ -346,7 +347,9 @@ fn stem_nested_selected_includes_keep_the_original_source_location() -> TestResu
         (2, 3)
     );
     assert_eq!(block_stem(&parsed)?.text(), "β < γ");
-    let Some(BlockKind::Stem(block)) = parsed.document().blocks().last().map(BlockRef::kind) else {
+    let Some(BlockKind::DelimitedStem(block)) =
+        parsed.document().blocks().last().map(BlockRef::kind)
+    else {
         return Err("expected the included STEM block".into());
     };
     let open = parsed.resolve_location(

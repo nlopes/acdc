@@ -1,9 +1,9 @@
 //! Simple admonition bodies expose their original paragraph without changing the tree.
 
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Block, BlockMetadata, CompatibilityMode, Location, Options,
-    Paragraph, Title,
+    AdmonitionVariant, CompatibilityMode, Location, Options,
     ast::{AdmonitionRef, BlockKind, ContentRef},
+    edit::{Admonition, Block, BlockMetadata, Paragraph, Title},
     parse,
 };
 

@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, Options, SafeMode, WarningKind,
+    CompatibilityMode, Options, SafeMode, WarningKind,
     ast::{BlockKind, BlockRef, InlineKind, InlineRef},
+    edit::InlineNode,
     parse, parse_file, parse_inline,
 };
 
@@ -17,18 +18,16 @@ fn standalone_ui_macros_follow_mode_and_caller_activation() -> Result<(), Error>
             let parsed =
                 parse_inline("kbd:[Ctrl+C] btn:[Save] menu:File[Open]", &builder.build()?)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
             let count = parsed_inlines
                 .as_slice()
                 .iter()
                 .filter(|node| {
                     matches!(
                         node,
-                        InlineNode::Macro(
-                            InlineMacro::KeyboardShortcut(_)
-                                | InlineMacro::Button(_)
-                                | InlineMacro::MenuPath(_)
-                        )
+                        InlineNode::KeyboardShortcut(_)
+                            | InlineNode::Button(_)
+                            | InlineNode::MenuPath(_)
                     )
                 })
                 .count();
@@ -102,7 +101,8 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
             assert!(warning.source_location().is_none());
         }
         let inline = parse_inline("link:https://example.org[Label,title=Tip]", &options)?;
-        let inline_inlines = acdc_parser::ContentAttribute::from(inline.content()).into_inlines();
+        let inline_inlines =
+            acdc_parser::edit::ContentAttribute::from(inline.content()).into_inlines();
         assert_eq!(
             inline
                 .warnings()
@@ -111,8 +111,7 @@ fn caller_legacy_control_warns_once_and_document_locks_still_apply() -> Result<(
                 .count(),
             usize::from(enabled)
         );
-        let Some(InlineNode::Macro(InlineMacro::Link(link))) = inline_inlines.as_slice().first()
-        else {
+        let Some(InlineNode::Link(link)) = inline_inlines.as_slice().first() else {
             return Err("expected hyperlink".into());
         };
         assert!(link.clone().take_tooltip().is_some());

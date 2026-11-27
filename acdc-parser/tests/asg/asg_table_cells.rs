@@ -153,7 +153,8 @@ fn initial_assignments_keep_native_order_and_distinct_normalized_snapshots() -> 
         "= T\n\n[cols=\"a,a\"]\n|===\n|\n:toc: macro\n\nFirst.\n|\n:toc: preamble\n\nSecond.\n|===",
         &Options::default(),
     )?;
-    let Some(BlockKind::Table(table)) = parsed.document().blocks().next().map(BlockRef::kind)
+    let Some(BlockKind::DelimitedTable(table)) =
+        parsed.document().blocks().next().map(BlockRef::kind)
     else {
         return Err("table".into());
     };

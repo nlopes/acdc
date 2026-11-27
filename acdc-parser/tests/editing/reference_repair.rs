@@ -1,7 +1,10 @@
 use acdc_parser::{
-    Anchor, Block, BlockMetadata, CompatibilityMode, ContentAttribute, Document, InlineNode,
-    Location, Options, Plain, ReferenceTarget, SafeMode, Section, Title,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, TocEntryRef},
+    edit::{
+        Anchor, Block, BlockMetadata, ContentAttribute, Document, InlineNode, Plain,
+        ReferenceTarget, Section, Title,
+    },
     parse, parse_file,
 };
 
@@ -9,7 +12,7 @@ type Error = Box<dyn std::error::Error>;
 const MODES: [CompatibilityMode; 2] = [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft];
 
 fn title(text: &'static str) -> Title<'static> {
-    Title::new(vec![InlineNode::PlainText(Plain::new(
+    Title::new(vec![InlineNode::Plain(Plain::new(
         text,
         Location::default(),
     ))])
@@ -146,7 +149,7 @@ fn missing_assigned_identity_fails_before_changing_tree_or_catalogs() -> Result<
     assert_eq!(
         DocumentRef::from(&document)
             .toc_entries()
-            .map(acdc_parser::TocEntry::from)
+            .map(acdc_parser::edit::TocEntry::from)
             .collect::<Vec<_>>(),
         toc
     );
@@ -450,7 +453,7 @@ fn repeated_rebuilds_preserve_owned_equality_and_give_only_copies_new_identity()
     assert_eq!(
         DocumentRef::from(&document)
             .toc_entries()
-            .map(acdc_parser::TocEntry::from)
+            .map(acdc_parser::edit::TocEntry::from)
             .collect::<Vec<_>>(),
         toc
     );

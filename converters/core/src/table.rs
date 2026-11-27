@@ -200,7 +200,7 @@ fn rows_have_spans<'a>(mut rows: impl Iterator<Item = TableRowRef<'a>>) -> bool 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::ColumnFormat;
+    use acdc_parser::edit::ColumnFormat;
 
     fn make_column(width: ColumnWidth) -> ColumnFormat {
         ColumnFormat::new().with_width(width)
@@ -372,7 +372,7 @@ mod tests {
                 .document()
                 .blocks()
                 .find_map(|block| {
-                    if let BlockKind::Table(table) = block.kind() {
+                    if let BlockKind::DelimitedTable(table) = block.kind() {
                         Some(table)
                     } else {
                         None

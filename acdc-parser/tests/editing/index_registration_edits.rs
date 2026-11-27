@@ -1,9 +1,9 @@
 //! Prepared index labels survive edits and collection visits authored occurrences once.
 
 use acdc_parser::{
-    CompatibilityMode, Document, IndexTerm, IndexTermKind, IndexTermRelationship, InlineNode,
-    Location, Options, Plain, SafeMode,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{ContentRef, DocumentRef, IndexTermRef, IndexTermRelationshipRef, InlineKind},
+    edit::{Document, IndexTerm, IndexTermKind, IndexTermRelationship, InlineNode, Plain},
     parse, parse_file,
 };
 
@@ -11,7 +11,7 @@ type Error = Box<dyn std::error::Error>;
 const MODES: [CompatibilityMode; 2] = [CompatibilityMode::Asciidoctor, CompatibilityMode::Draft];
 
 fn nodes(text: &'static str) -> Vec<InlineNode<'static>> {
-    vec![InlineNode::PlainText(Plain::new(text, Location::default()))]
+    vec![InlineNode::Plain(Plain::new(text, Location::default()))]
 }
 
 fn text(content: ContentRef<'_>) -> Result<String, Error> {
@@ -235,19 +235,17 @@ fn selected_repeated_includes_and_asciidoc_cells_keep_separate_occurrences() -> 
 fn an_index_term_kept_only_in_a_catalog_is_not_an_authored_occurrence() -> Result<(), Error> {
     let inner = IndexTerm::new(IndexTermKind::Flow(nodes("Inner")), Location::default());
     let mut outer = IndexTerm::new(
-        IndexTermKind::Flow(vec![InlineNode::Macro(
-            acdc_parser::InlineMacro::IndexTerm(Box::new(inner)),
-        )]),
+        IndexTermKind::Flow(vec![InlineNode::IndexTerm(Box::new(inner))]),
         Location::default(),
     );
     outer.replace_kind(IndexTermKind::Flow(nodes("Displayed")));
     let mut document = Document::default();
-    document.set_blocks([acdc_parser::Block::Paragraph(acdc_parser::Paragraph::new(
-        vec![InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(
-            Box::new(outer),
-        ))],
-        Location::default(),
-    ))]);
+    document.set_blocks([acdc_parser::edit::Block::Paragraph(
+        acdc_parser::edit::Paragraph::new(
+            vec![InlineNode::IndexTerm(Box::new(outer))],
+            Location::default(),
+        ),
+    )]);
     let occurrences = terms(DocumentRef::from(&document));
     assert_eq!(occurrences.len(), 1);
     let outer = occurrences.first().ok_or("outer")?;

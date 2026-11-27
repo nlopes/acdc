@@ -33,13 +33,13 @@ use acdc_converters_core::{
     xref::XrefGuard,
 };
 use acdc_parser::{
-    CaptionKind, DocumentAttributes, Location, Options as ParserOptions, ReferenceTarget, SafeMode,
-    SourceLocation,
+    CaptionKind, DocumentAttributes, Location, Options as ParserOptions, SafeMode, SourceLocation,
     ast::{
         AdmonitionRef, AttributeValueRef, AttributesRef, BlockKind, BlockRef, ContentRef,
         ContentRole, DocumentAttributesRef, DocumentRef, IndexTermRef, IndexTermRelationshipRef,
         InlineKind, LocationRef, ParagraphRef,
     },
+    edit::ReferenceTarget,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -1422,23 +1422,23 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
                     preparation.insert_image(resolve_target(poster, traversal), video.location());
                 }
             }
-            BlockKind::Example(_)
-            | BlockKind::Open(_)
-            | BlockKind::Quote(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Table(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
+            BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedQuote(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedTable(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
             | BlockKind::DelimitedComment(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Stem(_) => {
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedStem(_) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
                 if let Some(attributes) = block.attributes() {
                     preparation.has_autofit_blocks |=
-                        if let BlockKind::Listing(listing) = block.kind() {
+                        if let BlockKind::DelimitedListing(listing) = block.kind() {
                             has_autofit_option(listing.options().iter(), traversal)
-                        } else if let BlockKind::Literal(literal) = block.kind() {
+                        } else if let BlockKind::DelimitedLiteral(literal) = block.kind() {
                             has_autofit_option(literal.options().iter(), traversal)
                         } else {
                             false
@@ -1446,9 +1446,9 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
                     collect_optional_preparation(block.title(), traversal, preparation);
                     collect_metadata_preparation(attributes, traversal, preparation);
                 }
-                let content = if let BlockKind::Listing(listing) = block.kind() {
+                let content = if let BlockKind::DelimitedListing(listing) = block.kind() {
                     Some(listing.content())
-                } else if let BlockKind::Literal(literal) = block.kind() {
+                } else if let BlockKind::DelimitedLiteral(literal) = block.kind() {
                     Some(literal.content())
                 } else {
                     None
@@ -1499,12 +1499,12 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
                 collect_optional_preparation(paragraph.title(), traversal, &mut self.preparation);
                 collect_inline_preparation(paragraph.content(), traversal, &mut self.preparation);
             }
-            BlockKind::Example(block) => traversal.visit_blocks(self, block.blocks())?,
-            BlockKind::Open(block) => traversal.visit_blocks(self, block.blocks())?,
-            BlockKind::Quote(block) => traversal.visit_blocks(self, block.blocks())?,
-            BlockKind::Sidebar(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::DelimitedExample(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::DelimitedOpen(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::DelimitedQuote(block) => traversal.visit_blocks(self, block.blocks())?,
+            BlockKind::DelimitedSidebar(block) => traversal.visit_blocks(self, block.blocks())?,
             BlockKind::Admonition(block) => traversal.visit_blocks(self, block.blocks())?,
-            BlockKind::Table(table) => {
+            BlockKind::DelimitedTable(table) => {
                 for row in table
                     .header()
                     .into_iter()
@@ -1563,11 +1563,11 @@ impl<'doc> BlockVisitor<'doc> for PreparationVisitor {
             | BlockKind::Video(_)
             | BlockKind::Comment(_)
             | BlockKind::DelimitedComment(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Stem(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedStem(_)
             | _ => {}
         }
         Ok(())
@@ -1610,20 +1610,20 @@ fn is_unbreakable_delimited_block(block: BlockRef<'_>) -> bool {
     matches!(block.attributes().and_then(|attributes| attributes.get("opts")), Some(AttributeValueRef::Tokens(options)) if options.contains("unbreakable"))
         && matches!(
             block.kind(),
-            BlockKind::Example(_)
-                | BlockKind::Listing(_)
-                | BlockKind::Literal(_)
-                | BlockKind::Open(_)
-                | BlockKind::Quote(_)
-                | BlockKind::Sidebar(_)
-                | BlockKind::Stem(_)
-                | BlockKind::Table(_)
-                | BlockKind::Verse(_)
+            BlockKind::DelimitedExample(_)
+                | BlockKind::DelimitedListing(_)
+                | BlockKind::DelimitedLiteral(_)
+                | BlockKind::DelimitedOpen(_)
+                | BlockKind::DelimitedQuote(_)
+                | BlockKind::DelimitedSidebar(_)
+                | BlockKind::DelimitedStem(_)
+                | BlockKind::DelimitedTable(_)
+                | BlockKind::DelimitedVerse(_)
         )
 }
 
 fn is_page_breakable_table(block: BlockRef<'_>) -> bool {
-    matches!(block.kind(), BlockKind::Table(table) if !table.options().contains("unbreakable"))
+    matches!(block.kind(), BlockKind::DelimitedTable(table) if !table.options().contains("unbreakable"))
 }
 
 fn has_autofit_option<'a>(
@@ -1800,17 +1800,21 @@ fn encode_footnote_label(value: &str) -> String {
 mod tests {
     use acdc_converters_core::{Warning, WarningSource};
     use acdc_parser::{
-        Block, DelimitedBlock, DelimitedBlockType, Image, InlineNode, Location, Paragraph, Plain,
-        Source, Title, parse,
+        Location,
+        edit::{
+            Block, BlockMetadata, Example, Image, InlineNode, Listing, Paragraph, Plain, Source,
+            Title,
+        },
+        parse,
     };
     use std::{error::Error as StdError, io::Error as IoError};
     use tempfile::{NamedTempFile, tempdir};
 
     use super::*;
-    use acdc_parser::Document;
+    use acdc_parser::edit::Document;
 
     fn title(content: &'static str) -> Title<'static> {
-        Title::new(vec![InlineNode::PlainText(Plain::new(
+        Title::new(vec![InlineNode::Plain(Plain::new(
             content,
             Location::default(),
         ))])
@@ -3296,20 +3300,17 @@ mod tests {
 
     #[test]
     fn caller_supplied_example_titles_keep_the_default_caption() -> Result<(), Box<dyn StdError>> {
-        let caller_built = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedExample(Vec::new()),
-            "====",
-            Location::default(),
-        )
-        .with_title(title("Caller-built"));
+        let caller_built = Block::DelimitedExample(
+            Example::new(Vec::new(), Location::default()).with_title(title("Caller-built")),
+        );
 
         let parsed = parse(
             "[example]\n====\nContent.\n====\n",
             &ParserOptions::default(),
         )?;
-        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
         let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
-        let Some(Block::DelimitedBlock(mut title_added)) = parsed_blocks.first().cloned() else {
+        let Some(Block::DelimitedExample(mut title_added)) = parsed_blocks.first().cloned() else {
             return Err(IoError::other("expected a delimited example").into());
         };
         title_added.set_title(title("Added later"));
@@ -3318,10 +3319,7 @@ mod tests {
         document.set_attributes(acdc_parser::DocumentAttributes::from(
             parsed.document().attributes(),
         ));
-        document.set_blocks(vec![
-            Block::DelimitedBlock(caller_built),
-            Block::DelimitedBlock(title_added),
-        ]);
+        document.set_blocks(vec![caller_built, Block::DelimitedExample(title_added)]);
         let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
@@ -3351,12 +3349,9 @@ mod tests {
     -> Result<(), Box<dyn StdError>> {
         // A block built through the API carries no resolved caption, so the converter
         // classifies it with the parser's own rules rather than dropping its caption.
-        let listing = DelimitedBlock::new(
-            DelimitedBlockType::DelimitedListing(Vec::new()),
-            "----",
-            Location::default(),
-        )
-        .with_title(title("Built listing"));
+        let listing = Block::DelimitedListing(
+            Listing::new(Vec::new(), Location::default()).with_title(title("Built listing")),
+        );
         let mut styled_paragraph = Paragraph::new(Vec::new(), Location::default());
         styled_paragraph.set_title(title("Built source paragraph"));
         let mut metadata = styled_paragraph.take_metadata();
@@ -3368,10 +3363,7 @@ mod tests {
             ParserOptions::with_attributes([("listing-caption", "Listing")])?
                 .into_document_attributes(),
         );
-        document.set_blocks(vec![
-            Block::DelimitedBlock(listing),
-            Block::Paragraph(styled_paragraph),
-        ]);
+        document.set_blocks(vec![listing, Block::Paragraph(styled_paragraph)]);
         let converter = Converter::new(
             Options::default(),
             ParserOptions::builder().with_attributes(
@@ -3402,22 +3394,25 @@ mod tests {
             ".Parsed table\n|===\n|Cell\n|===\n",
             &ParserOptions::default(),
         )?;
-        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
         let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
-        let Some(Block::DelimitedBlock(parsed_table)) = parsed_blocks.first() else {
+        let Some(Block::DelimitedTable(parsed_table)) = parsed_blocks.first() else {
             return Err(IoError::other("expected a delimited table").into());
         };
-        let caller_built =
-            DelimitedBlock::new(parsed_table.clone_body(), "|===", Location::default())
-                .with_title(title("Caller-built table"));
+        // Keep the parsed table body but drop the parsed block's metadata, title and spans.
+        let mut caller_built = parsed_table.clone();
+        caller_built.set_metadata(BlockMetadata::default())?;
+        caller_built.set_title(title("Caller-built table"));
+        caller_built.set_location(Location::default());
+        caller_built.set_delimiter_locations(None, None);
 
         let mut document = Document::default();
         document.set_attributes(acdc_parser::DocumentAttributes::from(
             parsed.document().attributes(),
         ));
         document.set_blocks(vec![
-            Block::DelimitedBlock(parsed_table.clone()),
-            Block::DelimitedBlock(caller_built),
+            Block::DelimitedTable(parsed_table.clone()),
+            Block::DelimitedTable(caller_built),
         ]);
         let converter = Converter::new(
             Options::default(),
@@ -3449,7 +3444,7 @@ mod tests {
             ".Parsed figure\nimage::missing-one.svg[First]\n",
             &ParserOptions::default(),
         )?;
-        let mut parsed_stored = acdc_parser::Document::from(parsed.document());
+        let mut parsed_stored = acdc_parser::edit::Document::from(parsed.document());
         let parsed_blocks: Vec<_> = parsed_stored.take_blocks().collect();
         let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
             .with_title(title("Caller-built figure"));
@@ -4660,8 +4655,8 @@ mod tests {
     #[test]
     fn constructed_character_references_render_as_typst_text() -> Result<(), Box<dyn StdError>> {
         use acdc_parser::{
-            Block, Bold, CharacterReference, CharacterReferenceKind, Document, FormattingForm,
-            InlineNode, Location, Paragraph,
+            CharacterReferenceKind, FormattingForm, Location,
+            edit::{Block, Bold, CharacterReference, Document, InlineNode, Paragraph},
         };
         let mut content = Vec::new();
         for kind in [
@@ -4673,7 +4668,7 @@ mod tests {
                 CharacterReference::new(kind, Location::default()).ok_or("invalid reference")?,
             ));
         }
-        let bold = InlineNode::BoldText(Bold::new(
+        let bold = InlineNode::Bold(Bold::new(
             content.clone(),
             FormattingForm::Constrained,
             Location::default(),
@@ -4706,8 +4701,10 @@ mod tests {
 mod footnote_repair_tests {
     use acdc_converters_core::{Converter as _, WarningSource};
     use acdc_parser::{
-        Block, CompatibilityMode, Document, Footnote, InlineMacro, InlineNode, Location, Paragraph,
-        ast::DocumentRef, parse,
+        CompatibilityMode, Location,
+        ast::DocumentRef,
+        edit::{Block, Document, Footnote, InlineNode, Paragraph},
+        parse,
     };
 
     use super::{
@@ -4728,11 +4725,7 @@ mod footnote_repair_tests {
             document.set_blocks([Block::Paragraph(Paragraph::new(
                 (0..2)
                     .map(|_| {
-                        InlineNode::Macro(InlineMacro::Footnote(Footnote::reference(
-                            None,
-                            1,
-                            Location::default(),
-                        )))
+                        InlineNode::Footnote(Footnote::reference(None, 1, Location::default()))
                     })
                     .collect(),
                 Location::default(),

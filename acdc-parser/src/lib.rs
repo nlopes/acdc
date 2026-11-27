@@ -163,10 +163,10 @@ mod blocks;
 mod caption_repair;
 mod constants;
 mod document_attribute;
+pub mod edit;
 mod error;
 pub mod extensions;
 mod grammar;
-pub use grammar::footnotes::FootnoteRebuildError;
 mod model;
 mod options;
 mod parsed;
@@ -180,29 +180,33 @@ use warning::WarningCollection;
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
 
-pub use error::{CaptionRepairError, Error, ReferenceRepairError, SourceLocation};
+pub(crate) use error::{CaptionRepairError, ReferenceRepairError};
+pub use error::{Error, SourceLocation};
 pub use grammar::parse_inline_formatting;
 pub use model::{
-    Admonition, AdmonitionForm, AdmonitionVariant, Anchor, AttributeName, AttributeValue,
-    Attribution, Audio, Author, Autolink, Block, BlockMetadata, Bold, Button, CalloutList,
-    CalloutListItem, CalloutMarker, CalloutMarkerKind, Caption, CaptionKind, CharacterReference,
-    CharacterReferenceKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth, Comment,
-    CommentKind, ContentAttribute, CrossReference, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DescriptionListDefinition, DescriptionListItem, DescriptionListTerm,
-    DiscreteHeading, Document, DocumentAttribute, DocumentAttributeAssignment,
-    DocumentAttributeValue, DocumentAttributes, DoubleQuotedSpan, ElementAttributes, ElementId,
-    Footnote, FootnoteDefinition, FormattingForm, HEADER, Header, Highlight, HorizontalAlignment,
-    ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineImage,
-    InlineMacro, InlineMetadata, InlineNode, Italic, KeyboardShortcut, LineBreak, Link, ListItem,
-    ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, MenuPath,
-    Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Passthrough, PassthroughKind, Plain,
-    Position, Raw, ReferenceTarget, ReservedAttribute, Role, Section, SectionKind,
-    SingleQuotedSpan, Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent,
-    StemNotation, Subscript, Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript,
-    Symbol, SymbolKind, Table, TableCell, TableFrame, TableGrid, TableOfContents,
-    TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry, TokenAssignment,
-    UNNUMBERED_SECTION_STYLES, UnorderedList, UrlMacro, VERBATIM, Verbatim, VerticalAlignment,
-    Video, XrefCaptionLabel, XrefSignifier, XrefStyle, apply_attribute_substitutions,
+    AdmonitionForm, AdmonitionVariant, AttributeName, AttributeValue, CalloutMarkerKind,
+    CaptionKind, CharacterReferenceKind, ColumnStyle, ColumnWidth, CommentKind,
+    DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes, ElementAttributes,
+    FormattingForm, HEADER, HorizontalAlignment, ICON_SIZES, ListItemCheckedStatus, Location,
+    MAX_SECTION_LEVELS, MAX_TOC_LEVELS, NORMAL, PassthroughKind, Position, SectionKind,
+    StemNotation, Substitution, SubstitutionOp, SubstitutionSpec, SymbolKind, TableFrame,
+    TableGrid, TablePresentation, TableStripes, UNNUMBERED_SECTION_STYLES, VERBATIM,
+    VerticalAlignment, XrefCaptionLabel, XrefSignifier, XrefStyle, apply_attribute_substitutions,
+};
+// Owned tree types are public through `edit`; internal code uses them from the root.
+pub(crate) use model::{
+    Admonition, Anchor, Attribution, Audio, Author, Autolink, Block, BlockMetadata, Bold, Button,
+    CalloutList, CalloutListItem, CalloutMarker, Caption, CharacterReference, CiteTitle,
+    ColumnFormat, Comment, ContentAttribute, CrossReference, DelimitedComment, DescriptionList,
+    DescriptionListDefinition, DescriptionListItem, DescriptionListTerm, DiscreteHeading, Document,
+    DocumentAttribute, DoubleQuotedSpan, ElementId, Example, Footnote, FootnoteDefinition, Header,
+    Highlight, Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineImage,
+    InlineMetadata, InlineNode, InlinePassthrough, Italic, KeyboardShortcut, LineBreak, Link,
+    ListItem, Listing, Literal, Mailto, MenuPath, Monospace, Open, OrderedList, PageBreak,
+    Paragraph, Passthrough, Plain, Quote, Raw, ReferenceTarget, ReservedAttribute, Role, Section,
+    Sidebar, SingleQuotedSpan, Source, StandaloneCurvedApostrophe, Stem, StemBlock, Subscript,
+    Subtitle, Superscript, Symbol, Table, TableCell, TableOfContents, TableRow, ThematicBreak,
+    Title, TocEntry, TokenAssignment, UnorderedList, UrlMacro, Verbatim, Verse, Video,
 };
 pub use options::{CompatibilityMode, Options, OptionsBuilder, SafeMode};
 pub use parsed::{ConditionalEvaluation, OwnedSource, ParseInlineResult, ParseResult};
@@ -778,7 +782,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
             state.scope = grammar::ParserScope::Document;
             for inline in &mut inlines {
                 grammar::walk_inline_nodes_mut(inline, &mut |node| {
-                    if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+                    if let InlineNode::Footnote(note) = node {
                         state.finalize_footnote(note);
                     }
                 });
@@ -962,7 +966,7 @@ mod tests {
             );
             assert!(parsed.document_storage().blocks.iter().any(|block| matches!(
                 block, Block::Paragraph(paragraph) if paragraph.content.iter().any(|inline| matches!(inline,
-                    InlineNode::PlainText(text) if text.content == "Body."))
+                    InlineNode::Plain(text) if text.content == "Body."))
             )));
         }
         Ok(())
@@ -1024,9 +1028,9 @@ mod tests {
             assert!(matches!(
                 paragraph.content.as_slice(),
                 [
-                    InlineNode::PlainText(_),
+                    InlineNode::Plain(_),
                     InlineNode::LineBreak(_),
-                    InlineNode::PlainText(_)
+                    InlineNode::Plain(_)
                 ]
             ));
 
@@ -1035,9 +1039,9 @@ mod tests {
             assert!(matches!(
                 parsed_inline.inlines(),
                 [
-                    InlineNode::PlainText(_),
+                    InlineNode::Plain(_),
                     InlineNode::LineBreak(_),
-                    InlineNode::PlainText(_)
+                    InlineNode::Plain(_)
                 ]
             ));
         }
@@ -1049,9 +1053,9 @@ mod tests {
         let parsed = parse_inline("pass:[raw] pass:[]", &Options::default())
             .expect("parse pass macros without substitution names");
         let [
-            InlineNode::RawText(with_content),
-            InlineNode::PlainText(separator),
-            InlineNode::RawText(empty),
+            InlineNode::Raw(with_content),
+            InlineNode::Plain(separator),
+            InlineNode::Raw(empty),
         ] = parsed.inlines()
         else {
             panic!("expected two raw passthroughs, got {:?}", parsed.inlines());
@@ -1081,10 +1085,8 @@ mod tests {
             .blocks
             .iter()
             .find_map(|b| {
-                if let Block::DelimitedBlock(d) = b
-                    && let DelimitedBlockType::DelimitedListing(inlines) = &d.inner
-                {
-                    Some(inlines)
+                if let Block::DelimitedListing(model::Listing(d)) = b {
+                    Some(&d.body)
                 } else {
                     None
                 }
@@ -1138,7 +1140,7 @@ mod tests {
             .blocks
             .iter()
             .find_map(|b| {
-                if let Block::DelimitedBlock(d) = b
+                if let Block::DelimitedQuote(model::Quote(d)) = b
                     && d.metadata.attribution.is_some()
                 {
                     Some(&d.metadata)
@@ -1477,9 +1479,7 @@ mod tests {
             let Some(Block::Paragraph(paragraph)) = parsed.document_storage().blocks.first() else {
                 panic!("expected a paragraph");
             };
-            let Some(InlineNode::Macro(InlineMacro::CrossReference(xref))) =
-                paragraph.content.first()
-            else {
+            let Some(InlineNode::CrossReference(xref)) = paragraph.content.first() else {
                 panic!("expected an xref");
             };
             let location = xref.text.first().ok_or("expected xref text")?.location();
@@ -1596,13 +1596,13 @@ mod tests {
             panic!("expected main, outer, and inner paragraphs");
         };
         assert!(
-            matches!(&main.content[..], [InlineNode::PlainText(text)] if text.content == "Main paragraph.")
+            matches!(&main.content[..], [InlineNode::Plain(text)] if text.content == "Main paragraph.")
         );
         assert!(
-            matches!(&outer.content[..], [InlineNode::PlainText(text)] if text.content == "Outer paragraph.")
+            matches!(&outer.content[..], [InlineNode::Plain(text)] if text.content == "Outer paragraph.")
         );
         assert!(
-            matches!(&inner.content[..], [InlineNode::PlainText(text)] if text.content == "Inner paragraph.")
+            matches!(&inner.content[..], [InlineNode::Plain(text)] if text.content == "Inner paragraph.")
         );
         // Primary content has no include chain.
         assert!(main.location.start.file.is_none());

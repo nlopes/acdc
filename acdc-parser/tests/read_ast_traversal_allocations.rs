@@ -1,8 +1,9 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, Location, Paragraph,
+    Location,
     ast::{BlockRef, DocumentRef},
+    edit::{Block, Document, Open, Paragraph},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
 
@@ -14,17 +15,12 @@ fn paragraph() -> Block<'static> {
 }
 
 fn tree(width: usize, depth: usize) -> Block<'static> {
-    let mut block = Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedOpen((0..width).map(|_| paragraph()).collect()),
-        "--",
+    let mut block = Block::DelimitedOpen(Open::new(
+        (0..width).map(|_| paragraph()).collect(),
         Location::default(),
     ));
     for _ in 0..depth {
-        block = Block::DelimitedBlock(DelimitedBlock::new(
-            DelimitedBlockType::DelimitedOpen(vec![block, paragraph()]),
-            "--",
-            Location::default(),
-        ));
+        block = Block::DelimitedOpen(Open::new(vec![block, paragraph()], Location::default()));
     }
     block
 }

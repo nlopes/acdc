@@ -1,9 +1,12 @@
 use acdc_parser::{
-    Bold, DoubleQuotedSpan, FormattingForm, Highlight, Italic, Location, Monospace,
-    SingleQuotedSpan, Subscript, Superscript,
+    FormattingForm, Location,
     ast::{
         BoldRef, DoubleQuotedSpanRef, HighlightRef, ItalicRef, MonospaceRef, SingleQuotedSpanRef,
         SubscriptRef, SuperscriptRef,
+    },
+    edit::{
+        Bold, DoubleQuotedSpan, Highlight, Italic, Monospace, SingleQuotedSpan, Subscript,
+        Superscript,
     },
 };
 

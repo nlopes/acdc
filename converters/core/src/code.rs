@@ -1,6 +1,6 @@
 use acdc_parser::ast::{AttributeValueRef, AttributesRef};
 #[cfg(test)]
-use acdc_parser::{AttributeValue, BlockMetadata};
+use acdc_parser::{AttributeValue, edit::BlockMetadata};
 
 /// Shared syntax highlighting resources and source limits.
 #[cfg(feature = "highlighting")]
@@ -247,13 +247,13 @@ mod tests {
 
     use std::borrow::Cow;
 
-    use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes};
+    use acdc_parser::{AttributeValue, ElementAttributes, edit::BlockMetadata};
 
     use super::SourceLineOptions;
 
     fn metadata(
         attributes: &[(&'static str, &'static str)],
-    ) -> Result<BlockMetadata<'static>, acdc_parser::ReservedAttribute> {
+    ) -> Result<BlockMetadata<'static>, acdc_parser::edit::ReservedAttribute> {
         let mut values = ElementAttributes::default();
         for (name, value) in attributes {
             values.set(

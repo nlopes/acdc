@@ -25,34 +25,132 @@ use crate::{Anchor, InlineImage, Location};
 ///
 /// An inline node is a structural element in a document that can contain other inline
 /// nodes and are only valid within a paragraph (a leaf).
+///
+/// Variants match [`crate::ast::InlineKind`] one to one, apart from
+/// [`InlineNode::Extension`], which the read API presents as plain text.
+/// Large macro nodes are boxed to keep the enum small; build them with
+/// `InlineNode::from(node)` to avoid naming the box.
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum InlineNode<'a> {
-    /// Ordinary text that inherits substitutions from its enclosing block.
-    PlainText(Plain<'a>),
+    /// Inline anchor: `[[id]]` or `anchor:id[]`.
+    Anchor(Anchor<'a>),
+    /// Auto-detected URL: `<\https://example.com>`.
+    Autolink(Autolink<'a>),
+    Bold(Bold<'a>),
+    /// UI button: `btn:[Label]`.
+    Button(Button<'a>),
+    /// Callout reference marker in verbatim content: `<1>`, `<.>`, etc.
+    Callout(CalloutMarker),
+    CharacterReference(CharacterReference<'a>),
+    /// Cross-reference: `<<id,text>>` or `xref:id[text]`.
+    CrossReference(Box<CrossReference<'a>>),
+    DoubleQuotedSpan(DoubleQuotedSpan<'a>),
     /// Authored macro spelling retained for conversion.
     Extension(Box<crate::extensions::RetainedInline<'a>>),
-    /// Resolved typography that requires no further language interpretation.
-    Symbol(Symbol),
-    CharacterReference(CharacterReference<'a>),
+    /// Footnote reference: `footnote:[content]` or `footnote:id[content]`.
+    Footnote(Footnote<'a>),
+    Highlight(Highlight<'a>),
+    /// Icon macro: `icon:name[attributes]`.
+    Icon(Box<Icon<'a>>),
+    /// Inline image: `image:path[alt,width,height]`.
+    Image(Box<InlineImage<'a>>),
+    /// Index term: `((term))` (visible) or `(((term)))` (hidden).
+    IndexTerm(Box<IndexTerm<'a>>),
+    Italic(Italic<'a>),
+    /// Keyboard shortcut: `kbd:[Ctrl+C]`.
+    KeyboardShortcut(KeyboardShortcut<'a>),
+    LineBreak(LineBreak),
+    /// Explicit link macro: `link:target[text]`.
+    Link(Box<Link<'a>>),
+    /// Email link: `mailto:address[text]`.
+    Mailto(Box<Mailto<'a>>),
+    /// Menu path: `menu:TopLevel[Item > Subitem]`.
+    MenuPath(MenuPath<'a>),
+    Monospace(Monospace<'a>),
+    /// Inline passthrough: `pass:[content]`.
+    Passthrough(InlinePassthrough<'a>),
+    /// Ordinary text that inherits substitutions from its enclosing block.
+    Plain(Plain<'a>),
     /// Passthrough text that carries its own substitutions instead of inheriting them.
-    RawText(Raw<'a>),
-    /// Literal or listing text rendered with verbatim whitespace and escaping rules.
-    VerbatimText(Verbatim<'a>),
-    BoldText(Bold<'a>),
-    ItalicText(Italic<'a>),
-    MonospaceText(Monospace<'a>),
-    HighlightText(Highlight<'a>),
-    SubscriptText(Subscript<'a>),
-    SuperscriptText(Superscript<'a>),
-    DoubleQuotedSpan(DoubleQuotedSpan<'a>),
+    Raw(Raw<'a>),
     SingleQuotedSpan(SingleQuotedSpan<'a>),
     StandaloneCurvedApostrophe(StandaloneCurvedApostrophe),
-    LineBreak(LineBreak),
-    InlineAnchor(Anchor<'a>),
-    Macro(InlineMacro<'a>),
-    /// Callout reference marker in verbatim content: `<1>`, `<.>`, etc.
-    CalloutMarker(CalloutMarker),
+    /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`.
+    Stem(Stem<'a>),
+    Subscript(Subscript<'a>),
+    Superscript(Superscript<'a>),
+    /// Resolved typography that requires no further language interpretation.
+    Symbol(Symbol),
+    /// URL with optional text: parsed from `link:` macro or bare URLs.
+    UrlMacro(Box<UrlMacro<'a>>),
+    /// Literal or listing text rendered with verbatim whitespace and escaping rules.
+    Verbatim(Verbatim<'a>),
+}
+
+/// Wrap a node in its variant, boxing the large ones.
+macro_rules! inline_node_from {
+    ($($variant:ident($node:ident)),+ $(,)?) => { $(
+        impl<'a> From<$node<'a>> for InlineNode<'a> {
+            fn from(node: $node<'a>) -> Self {
+                Self::$variant(node.into())
+            }
+        }
+    )+ };
+}
+
+inline_node_from! {
+    Anchor(Anchor),
+    Autolink(Autolink),
+    Bold(Bold),
+    Button(Button),
+    CharacterReference(CharacterReference),
+    CrossReference(CrossReference),
+    DoubleQuotedSpan(DoubleQuotedSpan),
+    Footnote(Footnote),
+    Highlight(Highlight),
+    Icon(Icon),
+    Image(InlineImage),
+    IndexTerm(IndexTerm),
+    Italic(Italic),
+    KeyboardShortcut(KeyboardShortcut),
+    Link(Link),
+    Mailto(Mailto),
+    MenuPath(MenuPath),
+    Monospace(Monospace),
+    Passthrough(InlinePassthrough),
+    Plain(Plain),
+    Raw(Raw),
+    SingleQuotedSpan(SingleQuotedSpan),
+    Stem(Stem),
+    Subscript(Subscript),
+    Superscript(Superscript),
+    UrlMacro(UrlMacro),
+    Verbatim(Verbatim),
+}
+
+impl From<CalloutMarker> for InlineNode<'_> {
+    fn from(node: CalloutMarker) -> Self {
+        Self::Callout(node)
+    }
+}
+
+impl From<LineBreak> for InlineNode<'_> {
+    fn from(node: LineBreak) -> Self {
+        Self::LineBreak(node)
+    }
+}
+
+impl From<StandaloneCurvedApostrophe> for InlineNode<'_> {
+    fn from(node: StandaloneCurvedApostrophe) -> Self {
+        Self::StandaloneCurvedApostrophe(node)
+    }
+}
+
+impl From<Symbol> for InlineNode<'_> {
+    fn from(node: Symbol) -> Self {
+        Self::Symbol(node)
+    }
 }
 
 impl InlineNode<'_> {
@@ -60,177 +158,77 @@ impl InlineNode<'_> {
     #[must_use]
     pub fn location(&self) -> &Location {
         match self {
-            InlineNode::PlainText(t) => &t.location,
-            Self::Extension(call) => &call.literal.location,
-            InlineNode::Symbol(t) => &t.location,
-            InlineNode::CharacterReference(t) => &t.location,
-            InlineNode::RawText(t) => &t.location,
-            InlineNode::VerbatimText(t) => &t.location,
-            InlineNode::BoldText(t) => &t.location,
-            InlineNode::ItalicText(t) => &t.location,
-            InlineNode::MonospaceText(t) => &t.location,
-            InlineNode::HighlightText(t) => &t.location,
-            InlineNode::SubscriptText(t) => &t.location,
-            InlineNode::SuperscriptText(t) => &t.location,
-            InlineNode::DoubleQuotedSpan(t) => &t.location,
-            InlineNode::SingleQuotedSpan(t) => &t.location,
-            InlineNode::StandaloneCurvedApostrophe(t) => &t.location,
-            InlineNode::LineBreak(l) => &l.location,
-            InlineNode::InlineAnchor(a) => &a.location,
-            InlineNode::Macro(m) => m.location(),
-            InlineNode::CalloutMarker(c) => &c.location,
+            Self::Anchor(node) => &node.location,
+            Self::Autolink(node) => &node.location,
+            Self::Bold(node) => &node.location,
+            Self::Button(node) => &node.location,
+            Self::Callout(node) => &node.location,
+            Self::CharacterReference(node) => &node.location,
+            Self::CrossReference(node) => &node.location,
+            Self::DoubleQuotedSpan(node) => &node.location,
+            Self::Extension(node) => &node.literal.location,
+            Self::Footnote(node) => &node.location,
+            Self::Highlight(node) => &node.location,
+            Self::Icon(node) => &node.location,
+            Self::Image(node) => &node.location,
+            Self::IndexTerm(node) => &node.location,
+            Self::Italic(node) => &node.location,
+            Self::KeyboardShortcut(node) => &node.location,
+            Self::LineBreak(node) => &node.location,
+            Self::Link(node) => &node.location,
+            Self::Mailto(node) => &node.location,
+            Self::MenuPath(node) => &node.location,
+            Self::Monospace(node) => &node.location,
+            Self::Passthrough(node) => &node.location,
+            Self::Plain(node) => &node.location,
+            Self::Raw(node) => &node.location,
+            Self::SingleQuotedSpan(node) => &node.location,
+            Self::StandaloneCurvedApostrophe(node) => &node.location,
+            Self::Stem(node) => &node.location,
+            Self::Subscript(node) => &node.location,
+            Self::Superscript(node) => &node.location,
+            Self::Symbol(node) => &node.location,
+            Self::UrlMacro(node) => &node.location,
+            Self::Verbatim(node) => &node.location,
         }
     }
-}
 
-impl InlineNode<'_> {
     /// Mutable access to this inline node's own location (used by the post-parse
     /// source remap pass). Counterpart to [`InlineNode::location`].
     pub(crate) fn location_mut(&mut self) -> &mut Location {
         match self {
-            InlineNode::PlainText(t) => &mut t.location,
-            Self::Extension(call) => &mut call.literal.location,
-            InlineNode::Symbol(t) => &mut t.location,
-            InlineNode::CharacterReference(t) => &mut t.location,
-            InlineNode::RawText(t) => &mut t.location,
-            InlineNode::VerbatimText(t) => &mut t.location,
-            InlineNode::BoldText(t) => &mut t.location,
-            InlineNode::ItalicText(t) => &mut t.location,
-            InlineNode::MonospaceText(t) => &mut t.location,
-            InlineNode::HighlightText(t) => &mut t.location,
-            InlineNode::SubscriptText(t) => &mut t.location,
-            InlineNode::SuperscriptText(t) => &mut t.location,
-            InlineNode::DoubleQuotedSpan(t) => &mut t.location,
-            InlineNode::SingleQuotedSpan(t) => &mut t.location,
-            InlineNode::StandaloneCurvedApostrophe(t) => &mut t.location,
-            InlineNode::LineBreak(l) => &mut l.location,
-            InlineNode::InlineAnchor(a) => &mut a.location,
-            InlineNode::Macro(m) => m.location_mut(),
-            InlineNode::CalloutMarker(c) => &mut c.location,
-        }
-    }
-}
-
-impl InlineMacro<'_> {
-    /// Mutable access to this macro's own location. Counterpart to [`Self::location`].
-    pub(crate) fn location_mut(&mut self) -> &mut Location {
-        match self {
-            Self::Footnote(f) => &mut f.location,
-            Self::Icon(i) => &mut i.location,
-            Self::Image(img) => &mut img.location,
-            Self::KeyboardShortcut(k) => &mut k.location,
-            Self::Button(b) => &mut b.location,
-            Self::MenuPath(m) => &mut m.location,
-            Self::UrlMacro(u) => &mut u.location,
-            Self::Mailto(m) => &mut m.location,
-            Self::Link(l) => &mut l.location,
-            Self::Autolink(a) => &mut a.location,
-            Self::CrossReference(x) => &mut x.location,
-            Self::Passthrough(p) => &mut p.location,
-            Self::Stem(s) => &mut s.location,
-            Self::IndexTerm(i) => &mut i.location,
-        }
-    }
-}
-
-/// An inline macro - a functional element that produces inline content.
-///
-/// Unlike a struct with `name`/`target`/`attributes` fields, `InlineMacro` is an **enum**
-/// where each variant represents a specific macro type with its own specialized fields.
-///
-/// # Variants Overview
-///
-/// | Variant | `AsciiDoc` Syntax | Description |
-/// |---------|-----------------|-------------|
-/// | `Link` | `link:url[text]` | Explicit link with optional text |
-/// | `UrlMacro` | `\https://...` or `link:` | URL reference |
-/// | `Mailto` | `mailto:addr[text]` | Email link |
-/// | `Autolink` | `<\https://...>` | Auto-detected URL |
-/// | `CrossReference` | `<<id>>` or `xref:id[]` | Local or external reference |
-/// | `Image` | `image:file.png[alt]` | Inline image |
-/// | `Icon` | `icon:name[]` | Icon reference (font or image) |
-/// | `Footnote` | `footnote:[text]` | Footnote reference |
-/// | `KeyboardShortcut` | `kbd:[Ctrl+C]` | Keyboard shortcut |
-/// | `Button` | `btn:[OK]` | UI button label |
-/// | `MenuPath` | `menu:File[Save]` | Menu navigation path |
-/// | `Passthrough` | `pass:[content]` | Passthrough (no processing) |
-/// | `Stem` | `stem:[formula]` | Math notation |
-/// | `IndexTerm` | `((term))` or `(((term)))` | Index term (visible or hidden) |
-///
-/// # Example
-///
-/// ```
-/// # use acdc_parser::ast::{InlineKind, InlineRef};
-/// fn extract_link_target(node: InlineRef<'_>) -> Option<String> {
-///     match node.kind() {
-///         InlineKind::Link(link) => Some(link.target().to_string()),
-///         InlineKind::UrlMacro(url) => Some(url.target().to_string()),
-///         InlineKind::CrossReference(xref) => Some(xref.target().to_string()),
-///         _ => None,
-///     }
-/// }
-/// ```
-///
-/// Read content through typed handles and their `content_fields()` or
-/// `content_occurrences()` methods:
-///
-/// ```compile_fail,E0599
-/// use acdc_parser::{Button, ContentAttribute, InlineMacro, Location};
-/// let button = InlineMacro::Button(Button::new(ContentAttribute::default(), Location::default()));
-/// button.for_each_content_attribute(|_| {});
-/// ```
-#[non_exhaustive]
-#[derive(Clone, Debug, PartialEq)]
-pub enum InlineMacro<'a> {
-    /// Footnote reference: `footnote:[content]` or `footnote:id[content]`
-    Footnote(Footnote<'a>),
-    /// Icon macro: `icon:name[attributes]`
-    Icon(Box<Icon<'a>>),
-    /// Inline image: `image:path[alt,width,height]`
-    Image(Box<InlineImage<'a>>),
-    /// Keyboard shortcut: `kbd:[Ctrl+C]`
-    KeyboardShortcut(KeyboardShortcut<'a>),
-    /// UI button: `btn:[Label]`
-    Button(Button<'a>),
-    /// Menu path: `menu:TopLevel[Item > Subitem]`
-    MenuPath(MenuPath<'a>),
-    /// URL with optional text: parsed from `link:` macro or bare URLs
-    UrlMacro(Box<UrlMacro<'a>>),
-    /// Explicit link macro: `link:target[text]`
-    Link(Box<Link<'a>>),
-    /// Email link: `mailto:address[text]`
-    Mailto(Box<Mailto<'a>>),
-    /// Auto-detected URL: `<\https://example.com>`
-    Autolink(Autolink<'a>),
-    /// Cross-reference: `<<id,text>>` or `xref:id[text]`
-    CrossReference(Box<CrossReference<'a>>),
-    /// Inline passthrough: `pass:[content]`
-    Passthrough(Passthrough<'a>),
-    /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
-    Stem(Stem<'a>),
-    /// Index term: `((term))` (visible) or `(((term)))` (hidden)
-    IndexTerm(Box<IndexTerm<'a>>),
-}
-
-impl InlineMacro<'_> {
-    /// Returns the source location of this inline macro.
-    #[must_use]
-    pub fn location(&self) -> &Location {
-        match self {
-            Self::Footnote(f) => &f.location,
-            Self::Icon(i) => &i.location,
-            Self::Image(img) => &img.location,
-            Self::KeyboardShortcut(k) => &k.location,
-            Self::Button(b) => &b.location,
-            Self::MenuPath(m) => &m.location,
-            Self::UrlMacro(u) => &u.location,
-            Self::Mailto(m) => &m.location,
-            Self::Link(l) => &l.location,
-            Self::Autolink(a) => &a.location,
-            Self::CrossReference(x) => &x.location,
-            Self::Passthrough(p) => &p.location,
-            Self::Stem(s) => &s.location,
-            Self::IndexTerm(i) => &i.location,
+            Self::Anchor(node) => &mut node.location,
+            Self::Autolink(node) => &mut node.location,
+            Self::Bold(node) => &mut node.location,
+            Self::Button(node) => &mut node.location,
+            Self::Callout(node) => &mut node.location,
+            Self::CharacterReference(node) => &mut node.location,
+            Self::CrossReference(node) => &mut node.location,
+            Self::DoubleQuotedSpan(node) => &mut node.location,
+            Self::Extension(node) => &mut node.literal.location,
+            Self::Footnote(node) => &mut node.location,
+            Self::Highlight(node) => &mut node.location,
+            Self::Icon(node) => &mut node.location,
+            Self::Image(node) => &mut node.location,
+            Self::IndexTerm(node) => &mut node.location,
+            Self::Italic(node) => &mut node.location,
+            Self::KeyboardShortcut(node) => &mut node.location,
+            Self::LineBreak(node) => &mut node.location,
+            Self::Link(node) => &mut node.location,
+            Self::Mailto(node) => &mut node.location,
+            Self::MenuPath(node) => &mut node.location,
+            Self::Monospace(node) => &mut node.location,
+            Self::Passthrough(node) => &mut node.location,
+            Self::Plain(node) => &mut node.location,
+            Self::Raw(node) => &mut node.location,
+            Self::SingleQuotedSpan(node) => &mut node.location,
+            Self::StandaloneCurvedApostrophe(node) => &mut node.location,
+            Self::Stem(node) => &mut node.location,
+            Self::Subscript(node) => &mut node.location,
+            Self::Superscript(node) => &mut node.location,
+            Self::Symbol(node) => &mut node.location,
+            Self::UrlMacro(node) => &mut node.location,
+            Self::Verbatim(node) => &mut node.location,
         }
     }
 }
@@ -269,35 +267,35 @@ impl Serialize for InlineNode<'_> {
                 map.serialize_entry("value", &call.literal.content)?;
                 map.serialize_entry("location", &call.literal.location)?;
             }
-            InlineNode::PlainText(plain) => {
+            InlineNode::Plain(plain) => {
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &plain.content)?;
                 map.serialize_entry("location", &plain.location)?;
             }
-            InlineNode::RawText(raw) => serialize_raw::<S>(raw, &mut map)?,
-            InlineNode::VerbatimText(verbatim) => {
+            InlineNode::Raw(raw) => serialize_raw::<S>(raw, &mut map)?,
+            InlineNode::Verbatim(verbatim) => {
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &verbatim.content)?;
                 map.serialize_entry("location", &verbatim.location)?;
             }
-            InlineNode::HighlightText(highlight) => {
+            InlineNode::Highlight(highlight) => {
                 serialize_inline_format!(map, highlight, "mark");
             }
-            InlineNode::ItalicText(italic) => {
+            InlineNode::Italic(italic) => {
                 serialize_inline_format!(map, italic, "emphasis");
             }
-            InlineNode::BoldText(bold) => {
+            InlineNode::Bold(bold) => {
                 serialize_inline_format!(map, bold, "strong");
             }
-            InlineNode::MonospaceText(monospace) => {
+            InlineNode::Monospace(monospace) => {
                 serialize_inline_format!(map, monospace, "code");
             }
-            InlineNode::SubscriptText(subscript) => {
+            InlineNode::Subscript(subscript) => {
                 serialize_inline_format!(map, subscript, "subscript");
             }
-            InlineNode::SuperscriptText(superscript) => {
+            InlineNode::Superscript(superscript) => {
                 serialize_inline_format!(map, superscript, "superscript");
             }
             InlineNode::DoubleQuotedSpan(curved_quotation) => {
@@ -328,15 +326,26 @@ impl Serialize for InlineNode<'_> {
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("location", &line_break.location)?;
             }
-            InlineNode::InlineAnchor(anchor) => {
+            InlineNode::Anchor(anchor) => {
                 map.serialize_entry("name", "anchor")?;
                 map.serialize_entry("type", "inline")?;
                 anchor.serialize_fields(&mut map)?;
             }
-            InlineNode::Macro(macro_node) => {
-                serialize_inline_macro::<S>(macro_node, &mut map)?;
-            }
-            InlineNode::CalloutMarker(callout_ref) => {
+            InlineNode::Footnote(f) => serialize_footnote::<S>(f, &mut map)?,
+            InlineNode::Icon(i) => serialize_icon::<S>(i, &mut map)?,
+            InlineNode::Image(i) => serialize_image::<S>(i, &mut map)?,
+            InlineNode::KeyboardShortcut(k) => serialize_keyboard::<S>(k, &mut map)?,
+            InlineNode::Button(b) => serialize_button::<S>(b, &mut map)?,
+            InlineNode::MenuPath(m) => serialize_menu::<S>(m, &mut map)?,
+            InlineNode::UrlMacro(u) => serialize_url::<S>(u, &mut map)?,
+            InlineNode::Mailto(m) => serialize_mailto::<S>(m, &mut map)?,
+            InlineNode::Link(l) => serialize_link::<S>(l, &mut map)?,
+            InlineNode::Autolink(a) => serialize_autolink::<S>(a, &mut map)?,
+            InlineNode::CrossReference(x) => serialize_xref::<S>(x, &mut map)?,
+            InlineNode::Stem(s) => serialize_stem::<S>(s, &mut map)?,
+            InlineNode::IndexTerm(i) => serialize_indexterm::<S>(i, &mut map)?,
+            InlineNode::Passthrough(pass) => serialize_pass::<S>(pass, &mut map)?,
+            InlineNode::Callout(callout_ref) => {
                 map.serialize_entry("name", "callout_reference")?;
                 map.serialize_entry("type", "inline")?;
                 map.serialize_entry("variant", &callout_ref.kind)?;
@@ -361,7 +370,6 @@ macro_rules! serialize_inline_owner {
 }
 
 serialize_inline_owner! {
-    InlineMacro => serialize_inline_macro,
     Raw => serialize_raw,
     Footnote => serialize_footnote,
     Icon => serialize_icon,
@@ -376,32 +384,7 @@ serialize_inline_owner! {
     CrossReference => serialize_xref,
     Stem => serialize_stem,
     IndexTerm => serialize_indexterm,
-    Passthrough => serialize_pass,
-}
-
-fn serialize_inline_macro<S>(
-    macro_node: &InlineMacro<'_>,
-    map: &mut S::SerializeMap,
-) -> Result<(), S::Error>
-where
-    S: Serializer,
-{
-    match macro_node {
-        InlineMacro::Footnote(f) => serialize_footnote::<S>(f, map),
-        InlineMacro::Icon(i) => serialize_icon::<S>(i, map),
-        InlineMacro::Image(i) => serialize_image::<S>(i, map),
-        InlineMacro::KeyboardShortcut(k) => serialize_keyboard::<S>(k, map),
-        InlineMacro::Button(b) => serialize_button::<S>(b, map),
-        InlineMacro::MenuPath(m) => serialize_menu::<S>(m, map),
-        InlineMacro::UrlMacro(u) => serialize_url::<S>(u, map),
-        InlineMacro::Mailto(m) => serialize_mailto::<S>(m, map),
-        InlineMacro::Link(l) => serialize_link::<S>(l, map),
-        InlineMacro::Autolink(a) => serialize_autolink::<S>(a, map),
-        InlineMacro::CrossReference(x) => serialize_xref::<S>(x, map),
-        InlineMacro::Stem(s) => serialize_stem::<S>(s, map),
-        InlineMacro::IndexTerm(i) => serialize_indexterm::<S>(i, map),
-        InlineMacro::Passthrough(pass) => serialize_pass::<S>(pass, map),
-    }
+    InlinePassthrough => serialize_pass,
 }
 
 fn serialize_footnote<S>(f: &Footnote<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
@@ -574,7 +557,7 @@ fn serialize_raw<S: Serializer>(raw: &Raw<'_>, map: &mut S::SerializeMap) -> Res
 }
 
 fn serialize_pass<S: Serializer>(
-    pass: &Passthrough<'_>,
+    pass: &InlinePassthrough<'_>,
     map: &mut S::SerializeMap,
 ) -> Result<(), S::Error> {
     map.serialize_entry("name", "pass")?;
@@ -640,7 +623,7 @@ where
     map.serialize_entry("location", &i.location)
 }
 
-impl<'a> InlineMacro<'a> {
+impl<'a> InlineNode<'a> {
     pub(crate) fn for_each_content_attribute_mut(
         &mut self,
         mut visit: impl FnMut(&mut Vec<InlineNode<'a>>),
@@ -696,12 +679,30 @@ impl<'a> InlineMacro<'a> {
                     content(key)?;
                 }
             }
-            Self::Footnote(_)
+            Self::Anchor(_)
             | Self::Autolink(_)
+            | Self::Bold(_)
+            | Self::Callout(_)
+            | Self::CharacterReference(_)
             | Self::CrossReference(_)
+            | Self::DoubleQuotedSpan(_)
+            | Self::Extension(_)
+            | Self::Footnote(_)
+            | Self::Highlight(_)
+            | Self::IndexTerm(_)
+            | Self::Italic(_)
+            | Self::LineBreak(_)
+            | Self::Monospace(_)
             | Self::Passthrough(_)
+            | Self::Plain(_)
+            | Self::Raw(_)
+            | Self::SingleQuotedSpan(_)
+            | Self::StandaloneCurvedApostrophe(_)
             | Self::Stem(_)
-            | Self::IndexTerm(_) => {}
+            | Self::Subscript(_)
+            | Self::Superscript(_)
+            | Self::Symbol(_)
+            | Self::Verbatim(_) => {}
         }
         Ok(())
     }

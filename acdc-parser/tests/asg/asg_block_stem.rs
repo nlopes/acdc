@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, DelimitedBlock, DelimitedBlockType, Document, Location, Options,
-    StemContent, StemNotation, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, StemNotation, asg,
+    edit::{Block, Document, StemBlock},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -71,9 +72,9 @@ fn prepared_formula_text_and_empty_presence_are_not_reparsed() -> Result<(), Err
     for notation in [StemNotation::Latexmath, StemNotation::Asciimath] {
         for formula in ["", "*bold* _italic_ {word} &amp; <x> α"] {
             let mut document = Document::default();
-            document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
-                DelimitedBlockType::DelimitedStem(StemContent::new(formula, notation.clone())),
-                "++++",
+            document.push_block(Block::DelimitedStem(StemBlock::new(
+                formula,
+                notation.clone(),
                 Location::default(),
             )));
             let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
@@ -114,11 +115,9 @@ fn undelimited_styles_stay_paragraphs_and_strict_notation_rejects() -> Result<()
         matches!(asg::export_document(parsed.document()), Err(asg::Error::Unsupported{path,construct:Some("STEM block"),..}) if path == "/blocks/0/notation")
     );
     let mut document = Document::default();
-    document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedStem(StemContent::new("x", StemNotation::Asciimath)),
-        "",
-        Location::default(),
-    )));
+    let mut stem = StemBlock::new("x", StemNotation::Asciimath, Location::default());
+    stem.set_delimiter("");
+    document.push_block(Block::DelimitedStem(stem));
     assert!(
         matches!(asg::export_document_with_profile((&document).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported{path,..}) if path == "/blocks/0/delimiter")
     );

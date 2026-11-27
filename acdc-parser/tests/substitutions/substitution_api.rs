@@ -1,7 +1,8 @@
 use acdc_parser::{
-    BlockMetadata, CompatibilityMode, Location, NORMAL, Options, Paragraph, Substitution,
-    SubstitutionOp, SubstitutionSpec, VERBATIM,
+    CompatibilityMode, Location, NORMAL, Options, Substitution, SubstitutionOp, SubstitutionSpec,
+    VERBATIM,
     ast::{AttributeValueRef, BlockKind, BlockRef, InlineKind, InlineRef, SubstitutionSpecRef},
+    edit::{BlockMetadata, Paragraph},
     parse,
 };
 use serde_json::json;

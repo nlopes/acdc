@@ -3,8 +3,9 @@
 use acdc_converters_core::{Converter as _, Options};
 use acdc_converters_html::{Converter, HtmlVariant, RenderOptions};
 use acdc_parser::{
-    Block, Document, ListItem, Options as ParserOptions,
+    Options as ParserOptions,
     ast::{BlockKind, DocumentRef, ListItemRef},
+    edit::{Block, Document, ListItem},
     parse,
 };
 

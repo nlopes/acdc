@@ -1,9 +1,11 @@
 //! Checked builders preserve one owner for each semantic attribute.
 
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Anchor, Audio, BlockMetadata, ContentAttribute, DelimitedBlock,
-    DelimitedBlockType, ElementAttributes, Header, Image, InlineNode, Location, Paragraph, Plain,
-    Section, Source, Title, Video,
+    AdmonitionVariant, ElementAttributes, Location,
+    edit::{
+        Admonition, Anchor, Audio, BlockMetadata, ContentAttribute, Example, Header, Image,
+        InlineNode, Paragraph, Plain, Section, Source, Title, Video,
+    },
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -78,11 +80,7 @@ fn owner_builders_check_raw_metadata_even_when_dedicated_fields_are_absent(
         Vec::new(),
         Location::default()
     ));
-    rejected!(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedExample(Vec::new()),
-        "====",
-        Location::default()
-    ));
+    rejected!(Example::new(Vec::new(), Location::default()));
     rejected!(Admonition::new(
         AdmonitionVariant::Note,
         Vec::new(),
@@ -97,7 +95,7 @@ fn owner_builders_check_raw_metadata_even_when_dedicated_fields_are_absent(
 
 #[rstest::rstest]
 fn image_alt_is_reserved_with_absent_empty_and_present_content(
-    #[values(None, Some(ContentAttribute::default()), Some(ContentAttribute::new(vec![InlineNode::PlainText(Plain::new("real", Location::default()))])))]
+    #[values(None, Some(ContentAttribute::default()), Some(ContentAttribute::new(vec![InlineNode::Plain(Plain::new("real", Location::default()))])))]
     alt: Option<ContentAttribute<'static>>,
 ) -> Result<(), Error> {
     let mut metadata = BlockMetadata::new();

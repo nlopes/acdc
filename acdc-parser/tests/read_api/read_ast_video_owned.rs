@@ -1,8 +1,9 @@
 //! Video copies retain the parsed values without sharing editable collections.
 
 use acdc_parser::{
-    Anchor, AttributeValue, BlockMetadata, Caption, ContentAttribute, ElementAttributes, Location,
-    Source, Title, Video, ast::VideoRef,
+    AttributeValue, ElementAttributes, Location,
+    ast::VideoRef,
+    edit::{Anchor, BlockMetadata, Caption, ContentAttribute, Source, Title, Video},
 };
 
 type Error = Box<dyn std::error::Error>;

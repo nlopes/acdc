@@ -1,10 +1,10 @@
 use acdc_parser::{
-    CompatibilityMode, InlineMacro, InlineNode, Link, Location, Mailto, Options, SafeMode, Source,
-    UrlMacro,
+    CompatibilityMode, Location, Options, SafeMode,
     ast::{
         AutolinkRef, BlockKind, ElementIdRef, HyperlinkRef, InlineKind, InlineRef, LinkRef,
         MailtoRef, UrlMacroRef,
     },
+    edit::{InlineNode, Link, Mailto, Source, UrlMacro},
     parse, parse_file, parse_inline,
 };
 
@@ -39,7 +39,7 @@ fn common_reads_preserve_targets_labels_and_source_forms(
         source,
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let before = serde_json::to_value(parsed_inlines.as_slice())?;
     let [owner] = parsed_inlines.as_slice() else {
         return Err("one hyperlink".into());
@@ -107,7 +107,8 @@ fn common_reads_keep_mail_payload_and_metadata_on_the_concrete_form(
             source,
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
         let link = InlineRef::from(parsed_inlines.as_slice().first().ok_or("inline")?)
             .as_hyperlink()
             .ok_or("hyperlink")?;
@@ -185,8 +186,8 @@ fn typed_owner_conversions_and_xref_exclusion_keep_distinct_contracts() -> Resul
         assert!(link.text().is_empty());
     }
     let parsed = parse_inline("<team@example.org>", &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [InlineNode::Macro(InlineMacro::Autolink(owner))] = parsed_inlines.as_slice() else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::Autolink(owner)] = parsed_inlines.as_slice() else {
         return Err("autolink".into());
     };
     let concrete = AutolinkRef::from(owner);
@@ -203,7 +204,7 @@ fn typed_owner_conversions_and_xref_exclusion_keep_distinct_contracts() -> Resul
         "xref:part[] xref:guide.adoc#part[] image:a.png[] text",
         &Options::default(),
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     assert!(
         parsed_inlines
             .as_slice()
@@ -256,7 +257,7 @@ fn shared_reads_keep_unicode_include_and_table_locations(
     assert_eq!(location.file, Some(include));
     assert_eq!(location.location.start.column, 3);
     assert_eq!(link.target().to_string(), "https://example.org");
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table

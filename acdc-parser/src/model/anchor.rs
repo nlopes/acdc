@@ -73,7 +73,7 @@ pub(crate) enum DocumentReferenceLabel {
 /// An anchor is a reference point in a document that can be linked to.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Anchor, Location};
+/// use acdc_parser::{Location, edit::Anchor};
 /// let mut anchor = Anchor::new("entry", Location::default());
 /// anchor.id = "changed";
 /// ```
@@ -210,7 +210,7 @@ impl<'a> Anchor<'a> {
 /// Use [`Self::set_title`] to edit the stored title.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, Title, TocEntry};
+/// use acdc_parser::{Location, edit::{Title, TocEntry}};
 /// let mut entry = TocEntry::new("target", Title::default(), 1, Location::default());
 /// entry.title = Title::default();
 /// ```
@@ -303,7 +303,7 @@ pub(crate) struct SectionReference {
 /// Use [`Self::set_title`] to edit the stored title.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, ReferenceTarget};
+/// use acdc_parser::{Location, edit::ReferenceTarget};
 /// let mut reference = ReferenceTarget::new("target", Location::default());
 /// reference.title = None;
 /// ```
@@ -395,11 +395,11 @@ impl<'a> ReferenceTarget<'a> {
         {
             label.inlines_mut().insert(
                 0,
-                InlineNode::PlainText(crate::Plain::new("[", anchor.location.clone())),
+                InlineNode::Plain(crate::Plain::new("[", anchor.location.clone())),
             );
             label
                 .inlines_mut()
-                .push(InlineNode::PlainText(crate::Plain::new(
+                .push(InlineNode::Plain(crate::Plain::new(
                     "]",
                     anchor.location.clone(),
                 )));
@@ -598,7 +598,7 @@ mod tests {
             content: Vec::new(),
         }));
         let direct = serde_json::to_value(&anchor)?;
-        let node = serde_json::to_value(InlineNode::InlineAnchor(anchor))?;
+        let node = serde_json::to_value(InlineNode::Anchor(anchor))?;
         assert_eq!(direct.get("bibliography_label"), Some(&json!([])));
         assert_eq!(node.get("bibliography_label"), Some(&json!([])));
         assert!(!direct.to_string().contains("unexported cache"));
@@ -652,9 +652,9 @@ pub(crate) fn displayed_reference_label<'a>(
     label
         .filter(|content| {
             !content.as_inlines().iter().all(|node| {
-                if let InlineNode::PlainText(text) = node {
+                if let InlineNode::Plain(text) = node {
                     text.content.trim().is_empty()
-                } else if let InlineNode::RawText(raw) = node {
+                } else if let InlineNode::Raw(raw) = node {
                     raw.content.trim().is_empty()
                 } else {
                     false

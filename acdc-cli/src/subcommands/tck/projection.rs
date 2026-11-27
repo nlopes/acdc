@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use acdc_parser::{
-    Block, BlockMetadata, Caption, DelimitedBlockType, Document,
     ast::{DocumentRef, ElementIdRef, IdOrigin, StructuralRef},
+    edit::{Block, BlockMetadata, Caption, Document},
 };
 use serde_json::Value;
 
@@ -57,6 +57,22 @@ fn metadata(mut metadata: BlockMetadata<'_>) -> BlockMetadata<'_> {
     metadata
 }
 
+// Replace a block's metadata with its prepared copy.
+macro_rules! prepare_metadata {
+    ($block:ident) => {
+        $block.set_metadata(metadata($block.clone_metadata()))?
+    };
+}
+
+// Prepare a delimited block's metadata, then its child blocks.
+macro_rules! prepare_compound {
+    ($block:ident) => {{
+        prepare_metadata!($block);
+        let content = blocks($block.take_blocks())?;
+        $block.set_blocks(content);
+    }};
+}
+
 fn blocks<'doc>(values: impl IntoIterator<Item = Block<'doc>>) -> Result<Vec<Block<'doc>>, Error> {
     values
         .into_iter()
@@ -66,25 +82,19 @@ fn blocks<'doc>(values: impl IntoIterator<Item = Block<'doc>>) -> Result<Vec<Blo
                     let content = blocks(section.take_blocks())?;
                     section.set_blocks(content);
                 }
-                Block::Paragraph(paragraph) => {
-                    paragraph.set_metadata(metadata(paragraph.clone_metadata()))?;
-                }
-                Block::Image(image) => {
-                    image.set_metadata(metadata(image.clone_metadata()))?;
-                }
-                Block::DelimitedBlock(delimited) => {
-                    delimited.set_metadata(metadata(delimited.clone_metadata()))?;
-                    let mut body =
-                        delimited.replace_body(DelimitedBlockType::DelimitedOpen(Vec::new()));
-                    if let DelimitedBlockType::DelimitedExample(content)
-                    | DelimitedBlockType::DelimitedOpen(content)
-                    | DelimitedBlockType::DelimitedSidebar(content)
-                    | DelimitedBlockType::DelimitedQuote(content) = &mut body
-                    {
-                        *content = blocks(std::mem::take(content))?;
-                    }
-                    delimited.replace_body(body);
-                }
+                Block::Paragraph(paragraph) => prepare_metadata!(paragraph),
+                Block::Image(image) => prepare_metadata!(image),
+                Block::DelimitedExample(example) => prepare_compound!(example),
+                Block::DelimitedOpen(open) => prepare_compound!(open),
+                Block::DelimitedSidebar(sidebar) => prepare_compound!(sidebar),
+                Block::DelimitedQuote(quote) => prepare_compound!(quote),
+                Block::DelimitedComment(comment) => prepare_metadata!(comment),
+                Block::DelimitedListing(listing) => prepare_metadata!(listing),
+                Block::DelimitedLiteral(literal) => prepare_metadata!(literal),
+                Block::DelimitedPassthrough(passthrough) => prepare_metadata!(passthrough),
+                Block::DelimitedVerse(verse) => prepare_metadata!(verse),
+                Block::DelimitedStem(stem) => prepare_metadata!(stem),
+                Block::DelimitedTable(table) => prepare_metadata!(table),
                 Block::Admonition(admonition) => {
                     let content = blocks(admonition.take_blocks())?;
                     admonition.set_blocks(content);
@@ -132,6 +142,7 @@ fn blocks<'doc>(values: impl IntoIterator<Item = Block<'doc>>) -> Result<Vec<Blo
                 | Block::Audio(_)
                 | Block::Video(_)
                 | Block::Comment(_)
+                | Block::Extension(_)
                 | _ => {}
             }
             Ok(block)

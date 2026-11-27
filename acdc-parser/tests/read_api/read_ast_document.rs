@@ -1,9 +1,10 @@
 use acdc_parser::{
-    Author, CompatibilityMode, Document, DocumentAttributeAssignment, DocumentAttributeValue,
-    Header, Location, Options, SafeMode, Title,
+    CompatibilityMode, DocumentAttributeAssignment, DocumentAttributeValue, Location, Options,
+    SafeMode,
     ast::{
         AttributeValueRef, AuthorRef, BlockKind, ContentRef, DocumentRef, HeaderRef, InlineKind,
     },
+    edit::{Author, Document, Header, Title},
     parse, parse_file,
 };
 

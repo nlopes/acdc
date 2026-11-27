@@ -4,21 +4,23 @@ use std::error::Error;
 
 use acdc_converters_core::{InlineTextTransform, code::code_inline_content};
 use acdc_parser::{
-    CompatibilityMode, IndexTermKind, InlineMacro, InlineNode, Options, ast::InlineRef,
+    CompatibilityMode, Options,
+    ast::InlineRef,
+    edit::{IndexTermKind, InlineNode},
     parse_inline,
 };
 
 fn code_inline_children<'source>(node: &InlineNode<'source>) -> Option<Vec<InlineNode<'source>>> {
     Some(match node.clone() {
-        InlineNode::BoldText(mut span) => span.take_content(),
-        InlineNode::ItalicText(mut span) => span.take_content(),
-        InlineNode::MonospaceText(mut span) => span.take_content(),
-        InlineNode::HighlightText(mut span) => span.take_content(),
-        InlineNode::SubscriptText(mut span) => span.take_content(),
-        InlineNode::SuperscriptText(mut span) => span.take_content(),
+        InlineNode::Bold(mut span) => span.take_content(),
+        InlineNode::Italic(mut span) => span.take_content(),
+        InlineNode::Monospace(mut span) => span.take_content(),
+        InlineNode::Highlight(mut span) => span.take_content(),
+        InlineNode::Subscript(mut span) => span.take_content(),
+        InlineNode::Superscript(mut span) => span.take_content(),
         InlineNode::DoubleQuotedSpan(mut span) => span.take_content(),
         InlineNode::SingleQuotedSpan(mut span) => span.take_content(),
-        InlineNode::Macro(InlineMacro::IndexTerm(mut term)) if term.is_visible() => {
+        InlineNode::IndexTerm(mut term) if term.is_visible() => {
             if let IndexTermKind::Flow(content) = term.replace_kind(IndexTermKind::Flow(Vec::new()))
             {
                 content
@@ -26,16 +28,29 @@ fn code_inline_children<'source>(node: &InlineNode<'source>) -> Option<Vec<Inlin
                 return None;
             }
         }
-        InlineNode::PlainText(_)
+        InlineNode::Plain(_)
         | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
+        | InlineNode::Raw(_)
+        | InlineNode::Verbatim(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutMarker(_)
+        | InlineNode::Anchor(_)
+        | InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Callout(_)
         | _ => return None,
     })
 }
@@ -57,7 +72,7 @@ fn typed_code_content_preserves_selection_and_locations() -> Result<(), Box<dyn 
         ] {
             let parsed = parse_inline(input, &options)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
             let [node] = parsed_inlines.as_slice() else {
                 return Err(format!("expected one node: {input}").into());
             };
@@ -93,7 +108,7 @@ fn typed_code_content_preserves_selection_and_locations() -> Result<(), Box<dyn 
         ] {
             let parsed = parse_inline(input, &options)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
             assert!(!parsed_inlines.as_slice().is_empty(), "{mode:?} {input}");
             for node in parsed_inlines.as_slice() {
                 assert!(
@@ -114,13 +129,14 @@ fn typed_code_content_keeps_present_empty_formatting() -> Result<(), Box<dyn Err
             "[.keep]*bold*",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-        let [InlineNode::BoldText(span)] = parsed_inlines.as_slice() else {
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Bold(span)] = parsed_inlines.as_slice() else {
             return Err("expected bold text".into());
         };
         let mut span = span.clone();
         span.take_content();
-        let node = InlineNode::BoldText(span);
+        let node = InlineNode::Bold(span);
         let retained = node.clone();
         let content = code_inline_content((&node).into()).ok_or("empty content is present")?;
         assert_eq!(content.inlines().count(), 0);

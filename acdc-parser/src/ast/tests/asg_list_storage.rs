@@ -78,7 +78,7 @@ fn checklist_and_nested_unsupported_content_report_their_own_paths() -> Result<(
     let Some(Block::UnorderedList(list)) = document.blocks.first_mut() else {
         return Err("list".into());
     };
-    list.items.first_mut().ok_or("item")?.principal = vec![InlineNode::CalloutMarker(
+    list.items.first_mut().ok_or("item")?.principal = vec![InlineNode::Callout(
         CalloutMarker::explicit(1, Location::default()),
     )];
     assert!(

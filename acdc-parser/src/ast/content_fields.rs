@@ -114,23 +114,23 @@ impl<'doc> StructuralRef<'doc> {
             Self::Block(block) => {
                 let body = match block.kind() {
                     BlockKind::Paragraph(node) => (Body, Some(node.content())),
-                    BlockKind::Listing(node) => (Body, Some(node.content())),
-                    BlockKind::Literal(node) => (Body, Some(node.content())),
-                    BlockKind::Passthrough(node) => (Body, Some(node.content())),
-                    BlockKind::Verse(node) => (Body, Some(node.content())),
+                    BlockKind::DelimitedListing(node) => (Body, Some(node.content())),
+                    BlockKind::DelimitedLiteral(node) => (Body, Some(node.content())),
+                    BlockKind::DelimitedPassthrough(node) => (Body, Some(node.content())),
+                    BlockKind::DelimitedVerse(node) => (Body, Some(node.content())),
                     BlockKind::DelimitedComment(node) => (Body, Some(node.content())),
                     BlockKind::Image(node) => (Alt, node.alt()),
                     BlockKind::Section(_)
                     | BlockKind::Admonition(_)
-                    | BlockKind::Example(_)
-                    | BlockKind::Open(_)
-                    | BlockKind::Sidebar(_)
-                    | BlockKind::Quote(_)
+                    | BlockKind::DelimitedExample(_)
+                    | BlockKind::DelimitedOpen(_)
+                    | BlockKind::DelimitedSidebar(_)
+                    | BlockKind::DelimitedQuote(_)
                     | BlockKind::UnorderedList(_)
                     | BlockKind::OrderedList(_)
                     | BlockKind::DescriptionList(_)
                     | BlockKind::CalloutList(_)
-                    | BlockKind::Table(_)
+                    | BlockKind::DelimitedTable(_)
                     | BlockKind::TableOfContents(_)
                     | BlockKind::DiscreteHeading(_)
                     | BlockKind::DocumentAttribute(_)
@@ -140,7 +140,7 @@ impl<'doc> StructuralRef<'doc> {
                     | BlockKind::Video(_)
                     | BlockKind::Comment(_)
                     | BlockKind::Extension(_)
-                    | BlockKind::Stem(_) => (Body, None),
+                    | BlockKind::DelimitedStem(_) => (Body, None),
                 };
                 let metadata = block.attributes().and_then(super::AttributesRef::metadata);
                 let mut fields =

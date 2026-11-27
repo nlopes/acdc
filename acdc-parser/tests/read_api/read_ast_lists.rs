@@ -153,7 +153,7 @@ fn callout_items_preserve_marker_kinds_numbers_and_continuations(
     )?;
     let before = serde_json::to_value(parsed.document())?;
     let mut blocks = parsed.document().blocks();
-    let BlockKind::Listing(listing) = blocks.next().ok_or("listing")?.kind() else {
+    let BlockKind::DelimitedListing(listing) = blocks.next().ok_or("listing")?.kind() else {
         return Err("listing".into());
     };
     let mut markers = listing.content().inlines().filter_map(|inline| {

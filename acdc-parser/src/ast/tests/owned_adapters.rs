@@ -1,5 +1,5 @@
 use crate::{
-    Block, InlineMacro, InlineNode, Options,
+    Block, InlineNode, Options,
     ast::{
         BlockKind, BlockRef, ContentRef, DocumentRef, InlineKind, InlineRef, LocationRef,
         ParagraphRef, PositionRef, SectionRef,
@@ -47,24 +47,20 @@ fn owner_conversions_preserve_typed_content_and_locations() -> Result<(), Error>
         InlineRef::from(inline).kind(),
         InlineKind::Image(_)
     ));
-    let InlineNode::Macro(inline_macro) = inline else {
-        return Err("expected macro".into());
-    };
-    assert!(matches!(
-        InlineRef::from(inline_macro).kind(),
-        InlineKind::Image(_)
-    ));
-    let InlineMacro::Image(image) = inline_macro else {
+    let InlineNode::Image(image) = inline else {
         return Err("expected image".into());
     };
     assert_eq!(
         plain(ContentRef::from(image.alt.as_ref().ok_or("missing alt")?))?,
         "Bird"
     );
-    let Some(Block::DelimitedBlock(table)) = section.content.get(1) else {
+    let Some(table @ Block::DelimitedTable(_)) = section.content.get(1) else {
         return Err("missing table".into());
     };
-    assert!(matches!(BlockRef::from(table).kind(), BlockKind::Table(_)));
+    assert!(matches!(
+        BlockRef::from(table).kind(),
+        BlockKind::DelimitedTable(_)
+    ));
     assert_eq!(LocationRef::from(&paragraph.location).start().line(), 3);
     assert_eq!(PositionRef::from(&paragraph.location.start).column(), 1);
     Ok(())

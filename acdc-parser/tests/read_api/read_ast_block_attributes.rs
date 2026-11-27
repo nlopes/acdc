@@ -1,10 +1,10 @@
 use acdc_parser::{
-    Caption, CompatibilityMode, ContentAttribute, Location, Options, Paragraph, SafeMode,
-    Substitution, SubstitutionOp, SubstitutionSpec,
+    CompatibilityMode, Location, Options, SafeMode, Substitution, SubstitutionOp, SubstitutionSpec,
     ast::{
         AttributeValueRef, AttributesRef, BlockKind, BlockRef, HeaderRef, InlineKind,
         SubstitutionEntryRef, SubstitutionSpecKind, SubstitutionSpecRef,
     },
+    edit::{Caption, ContentAttribute, Paragraph},
     parse, parse_file,
 };
 
@@ -16,7 +16,8 @@ fn header_metadata_and_document_assignments_stay_distinct() -> Result<(), Error>
         "= Document\n:reftext: document value\n\nBody.",
         &Options::default(),
     )?;
-    let mut header = acdc_parser::Header::new(acdc_parser::Title::default(), Location::default());
+    let mut header =
+        acdc_parser::edit::Header::new(acdc_parser::edit::Title::default(), Location::default());
     let mut metadata = header.take_metadata();
     metadata.reftext = Some(ContentAttribute::default());
     metadata.attribution = Some(ContentAttribute::default());
@@ -66,7 +67,7 @@ fn quote_content_reads_preserve_formatting_and_present_empty_values(
         &Options::builder().with_compatibility_mode(mode).build()?,
     )?;
     let mut blocks = parsed.document().blocks();
-    let BlockKind::Quote(quote) = blocks.next().ok_or("quote")?.kind() else {
+    let BlockKind::DelimitedQuote(quote) = blocks.next().ok_or("quote")?.kind() else {
         return Err("quote".into());
     };
     assert_eq!(
@@ -91,7 +92,7 @@ fn quote_content_reads_preserve_formatting_and_present_empty_values(
         citation.inlines().next().ok_or("citation text")?.kind(),
         InlineKind::Italic(_)
     ));
-    let BlockKind::Verse(verse) = blocks.next().ok_or("verse")?.kind() else {
+    let BlockKind::DelimitedVerse(verse) = blocks.next().ok_or("verse")?.kind() else {
         return Err("verse".into());
     };
     for name in ["attribution", "citetitle"] {
@@ -232,7 +233,7 @@ fn content_locations_survive_includes_and_nested_cells(
         parsed.resolve_location(author.location()).file,
         Some(include)
     );
-    let BlockKind::Table(table) = blocks.next().ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = blocks.next().ok_or("table")?.kind() else {
         return Err("table".into());
     };
     let cell = table
@@ -297,16 +298,16 @@ fn block_attributes_borrow_the_current_owner_beyond_temporary_handles() -> Resul
     let mut metadata = owner.take_metadata();
     metadata.attributes.set("indent".into(), "2".into());
     owner.set_metadata(metadata)?;
-    let block = acdc_parser::Block::Paragraph(owner);
+    let block = acdc_parser::edit::Block::Paragraph(owner);
     let attributes = { BlockRef::from(&block).attributes().ok_or("attributes")? };
     assert_eq!(attributes.get("indent"), Some(AttributeValueRef::Text("2")));
-    let acdc_parser::Block::Paragraph(mut owner) = block else {
+    let acdc_parser::edit::Block::Paragraph(mut owner) = block else {
         return Err("paragraph".into());
     };
     let mut metadata = owner.take_metadata();
     metadata.attributes.set("indent".into(), "4".into());
     owner.set_metadata(metadata)?;
-    let block = acdc_parser::Block::Paragraph(owner);
+    let block = acdc_parser::edit::Block::Paragraph(owner);
     assert_eq!(
         BlockRef::from(&block)
             .attributes()

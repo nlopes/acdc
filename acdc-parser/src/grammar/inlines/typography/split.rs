@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, mem::take, ops::Range};
 
 use crate::{
-    IndexTermKind, InlineMacro, InlineNode, Plain, Substitution,
+    IndexTermKind, InlineNode, Plain, Substitution,
     grammar::{ParserState, state::InlineRules},
 };
 
@@ -39,15 +39,15 @@ pub(super) fn resolve<'a>(
             .enabled(&Substitution::Replacements)
         || !(paragraph
             && nodes.iter().any(
-                |node| matches!(node, InlineNode::PlainText(plain) if plain.content.contains("--")),
+                |node| matches!(node, InlineNode::Plain(plain) if plain.content.contains("--")),
             )
             || nodes
                 .windows(2)
-                .any(|pair| matches!(pair, [InlineNode::PlainText(_), InlineNode::PlainText(_)]))
+                .any(|pair| matches!(pair, [InlineNode::Plain(_), InlineNode::Plain(_)]))
             || nodes.iter().any(|node| {
-                matches!(node, InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography())
-                    || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_)))
-                    || matches!(node, InlineNode::RawText(raw) if raw.content.is_empty())
+                matches!(node, InlineNode::Anchor(anchor) if !anchor.is_bibliography())
+                    || matches!(node, InlineNode::IndexTerm(_))
+                    || matches!(node, InlineNode::Raw(raw) if raw.content.is_empty())
             }))
     {
         return nodes;
@@ -87,10 +87,10 @@ pub(super) fn resolve<'a>(
 
 fn has_dash(nodes: &[InlineNode<'_>]) -> bool {
     nodes.iter().any(|node| {
-        if let InlineNode::PlainText(plain) = node {
+        if let InlineNode::Plain(plain) = node {
             return !plain.escaped && plain.content.contains('-');
         }
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+        if let InlineNode::IndexTerm(term) = node {
             return matches!(&term.kind, IndexTermKind::Flow(nodes) if has_dash(nodes));
         }
         false
@@ -102,7 +102,7 @@ impl<'tree, 'source> Planner<'tree, 'source, '_> {
         for node in nodes {
             let index = self.parents.len();
             self.parents.push(parent);
-            if let InlineNode::PlainText(plain) = node
+            if let InlineNode::Plain(plain) = node
                 && !plain.escaped
             {
                 let start = self.text.len();
@@ -114,14 +114,14 @@ impl<'tree, 'source> Planner<'tree, 'source, '_> {
                 });
                 continue;
             }
-            if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+            if let InlineNode::IndexTerm(term) = node {
                 if let IndexTermKind::Flow(nodes) = &term.kind {
                     self.collect(nodes, Some(index));
                 }
                 continue;
             }
-            if matches!(node, InlineNode::InlineAnchor(anchor) if !anchor.is_bibliography())
-                || matches!(node, InlineNode::RawText(raw) if raw.content.is_empty())
+            if matches!(node, InlineNode::Anchor(anchor) if !anchor.is_bibliography())
+                || matches!(node, InlineNode::Raw(raw) if raw.content.is_empty())
             {
                 continue;
             }
@@ -282,7 +282,7 @@ fn apply<'a>(
     for mut node in nodes {
         let index = *next;
         *next += 1;
-        if let InlineNode::PlainText(plain) = node {
+        if let InlineNode::Plain(plain) = node {
             if let Some(edits) = changes.remove(&index) {
                 let mut resolved = Vec::new();
                 append_resolved(
@@ -296,11 +296,11 @@ fn apply<'a>(
                 );
                 result.extend(resolved);
             } else {
-                result.push(InlineNode::PlainText(plain));
+                result.push(InlineNode::Plain(plain));
             }
             continue;
         }
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = &mut node {
+        if let InlineNode::IndexTerm(term) = &mut node {
             let original = (term.catalog.is_none() && snapshots.get(index) == Some(&true))
                 .then(|| Box::new((**term).clone()));
             if let IndexTermKind::Flow(nodes) = &mut term.kind {

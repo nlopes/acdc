@@ -1,7 +1,7 @@
 use acdc_parser::{
-    Admonition, AdmonitionForm, AdmonitionVariant, Block, CompatibilityMode, Location, Options,
-    Paragraph, SafeMode,
+    AdmonitionForm, AdmonitionVariant, CompatibilityMode, Location, Options, SafeMode,
     ast::{AdmonitionRef, BlockKind},
+    edit::{Admonition, Block, Paragraph},
     parse, parse_file,
 };
 

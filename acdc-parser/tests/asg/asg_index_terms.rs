@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, IndexTerm, IndexTermKind, IndexTermRelationship,
-    InlineMacro, InlineNode, Location, Options, Plain, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{ContentAttribute, IndexTerm, IndexTermKind, IndexTermRelationship, InlineNode, Plain},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -10,13 +11,11 @@ use std::{fs, path::Path};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn content(term: IndexTerm<'_>) -> ContentAttribute<'_> {
-    ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::IndexTerm(Box::new(
-        term,
-    )))])
+    ContentAttribute::new(vec![InlineNode::IndexTerm(Box::new(term))])
 }
 
 fn plain(text: &str) -> Vec<InlineNode<'_>> {
-    vec![InlineNode::PlainText(Plain::new(text, Location::default()))]
+    vec![InlineNode::Plain(Plain::new(text, Location::default()))]
 }
 
 #[test]

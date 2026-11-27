@@ -2,9 +2,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, ContentAttribute, CrossReference, InlineMacro, InlineNode,
-    Link, Location, Options, Source, XrefSignifier, XrefStyle, asg,
+    AttributeValue, CompatibilityMode, Location, Options, XrefSignifier, XrefStyle, asg,
     ast::{BlockKind, BlockRef, ContentRef},
+    edit::{ContentAttribute, CrossReference, InlineNode, Link, Source},
     parse, parse_inline,
 };
 use serde_json::{Value, json};
@@ -195,11 +195,12 @@ fn mailto_queries_keep_unrelated_headers_and_encode_values() -> Result<(), Error
             "{source}"
         );
     }
-    let mut mail = acdc_parser::Mailto::new(Source::Name("a@example.org"), Location::default());
+    let mut mail =
+        acdc_parser::edit::Mailto::new(Source::Name("a@example.org"), Location::default());
     mail.replace_subject(Some("Subject"));
     mail.replace_body(Some("First\nsecond\rthird\r\nfourth"));
     let value = asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![
-        InlineNode::Macro(InlineMacro::Mailto(Box::new(mail))),
+        InlineNode::Mailto(Box::new(mail)),
     ])))?;
     assert_eq!(
         value.pointer("/0/target"),
@@ -261,13 +262,13 @@ fn unsupported_reference_properties_fail_at_the_property() -> Result<(), Error> 
     let mut link = Link::new(Source::Name("target"), Location::default());
     link.set_attribute("custom/~".into(), AttributeValue::Bool(false))?;
     assert!(
-        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Link(Box::new(link))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/metadata/attributes/custom~1~0")
     );
     let mut xref = CrossReference::new("target", Location::default());
     xref.set_signifier(XrefSignifier::Omitted);
     assert!(
-        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::CrossReference(Box::new(xref))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/signifier")
     );
     Ok(())
@@ -279,7 +280,7 @@ fn target_classification_cannot_be_silently_changed() {
     xref.set_target_is_local(true);
     xref.set_xrefstyle(XrefStyle::Default);
     assert!(
-        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref)))]))), Err(asg::Error::Unsupported {path, ..})
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::CrossReference(Box::new(xref))]))), Err(asg::Error::Unsupported {path, ..})
         if path == "/0/target_is_local")
     );
 }
@@ -304,7 +305,7 @@ fn non_utf8_reference_targets_are_not_lossily_stringified() {
     let source = Source::Path(PathBuf::from(OsString::from_vec(vec![b'x', 0xff])));
     let link = Link::new(source, Location::default());
     assert!(
-        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(InlineMacro::Link(Box::new(link)))]))),
+        matches!(asg::export_inlines(ContentRef::from(&ContentAttribute::new(vec![InlineNode::Link(Box::new(link))]))),
         Err(asg::Error::Unsupported {path, ..}) if path == "/0/target")
     );
 }

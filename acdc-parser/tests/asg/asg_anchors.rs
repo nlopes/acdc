@@ -1,8 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Anchor, Block, CompatibilityMode, ContentAttribute, Document, InlineNode, Location, Options,
-    Paragraph, Plain, asg, parse, parse_file,
+    CompatibilityMode, Location, Options, asg,
+    edit::{Anchor, Block, ContentAttribute, Document, InlineNode, Paragraph, Plain},
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -67,9 +68,10 @@ fn prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_s
     metadata.anchors = vec![
         Anchor::new("id", Location::default()).with_reftext(Some(ContentAttribute::default())),
     ];
-    metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::PlainText(
-        Plain::new("Selected", Location::default()),
-    )]));
+    metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
+        "Selected",
+        Location::default(),
+    ))]));
     paragraph.set_metadata(metadata)?;
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));
@@ -90,7 +92,7 @@ fn prepared_declarations_keep_duplicate_ids_and_empty_labels_without_inventing_s
 #[test]
 fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Error> {
     let invalid = ContentAttribute::new(vec![InlineNode::CharacterReference(
-        acdc_parser::CharacterReference::new(
+        acdc_parser::edit::CharacterReference::new(
             acdc_parser::CharacterReferenceKind::Numeric(0),
             Location::default(),
         )
@@ -99,7 +101,7 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
     let anchor = Anchor::new("inline", Location::default()).with_reftext(Some(invalid));
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::InlineAnchor(anchor)],
+        vec![InlineNode::Anchor(anchor)],
         Location::default(),
     )));
     let result = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc);
@@ -111,7 +113,7 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
     anchor.set_bibliography(None);
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::InlineAnchor(anchor)],
+        vec![InlineNode::Anchor(anchor)],
         Location::default(),
     )));
     let result = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc);
@@ -131,7 +133,7 @@ fn anchor_children_and_bibliography_keep_explicit_boundaries() -> Result<(), Err
 #[test]
 fn unused_primary_anchor_label_does_not_replace_effective_reference_text() -> Result<(), Error> {
     let invalid = ContentAttribute::new(vec![InlineNode::CharacterReference(
-        acdc_parser::CharacterReference::new(
+        acdc_parser::edit::CharacterReference::new(
             acdc_parser::CharacterReferenceKind::Numeric(0),
             Location::default(),
         )
@@ -140,9 +142,10 @@ fn unused_primary_anchor_label_does_not_replace_effective_reference_text() -> Re
     let mut paragraph = Paragraph::new(Vec::new(), Location::default());
     let mut metadata = paragraph.take_metadata();
     metadata.id = Some(Anchor::new("id", Location::default()).with_reftext(Some(invalid)));
-    metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::PlainText(
-        Plain::new("Selected", Location::default()),
-    )]));
+    metadata.reftext = Some(ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
+        "Selected",
+        Location::default(),
+    ))]));
     paragraph.set_metadata(metadata)?;
     let mut document = Document::default();
     document.push_block(Block::Paragraph(paragraph));

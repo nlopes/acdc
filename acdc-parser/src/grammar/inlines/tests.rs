@@ -1,6 +1,6 @@
 use std::mem::discriminant;
 
-use crate::{CompatibilityMode, Error, InlineMacro, InlineNode, Options, parse_inline};
+use crate::{CompatibilityMode, Error, InlineNode, Options, parse_inline};
 
 #[test]
 fn ordinary_runs_preserve_inline_constructs_and_locations() -> Result<(), Error> {
@@ -44,7 +44,7 @@ fn ordinary_runs_preserve_inline_constructs_and_locations() -> Result<(), Error>
             let standalone = parse_inline(syntax, &options)?;
             let input = format!("{prefix}{syntax} trailing text");
             let parsed = parse_inline(&input, &options)?;
-            let is_construct = |node: &&InlineNode<'_>| !matches!(node, InlineNode::PlainText(_));
+            let is_construct = |node: &&InlineNode<'_>| !matches!(node, InlineNode::Plain(_));
             let expected = standalone
                 .inlines()
                 .iter()
@@ -56,13 +56,6 @@ fn ordinary_runs_preserve_inline_constructs_and_locations() -> Result<(), Error>
                 discriminant(expected),
                 "{syntax} ({mode:?})"
             );
-            if let (InlineNode::Macro(actual), InlineNode::Macro(expected)) = (actual, expected) {
-                assert_eq!(
-                    discriminant(actual),
-                    discriminant(expected),
-                    "{syntax} ({mode:?})"
-                );
-            }
             assert_eq!(
                 actual.location().absolute_start,
                 prefix.len() + expected.location().absolute_start,
@@ -87,7 +80,7 @@ fn punctuation_email_starts_keep_existing_plain_text_boundaries() -> Result<(), 
                 let input = format!("{prefix}{punctuation}name@example.com");
                 let parsed = parse_inline(&input, &options)?;
                 let node = parsed.inlines().last().expect("an email node");
-                assert!(matches!(node, InlineNode::Macro(InlineMacro::Autolink(_))));
+                assert!(matches!(node, InlineNode::Autolink(_)));
                 // In an existing plain-text run, punctuation belongs to that
                 // run. At the start of input it can belong to the email instead.
                 let start = if prefix.is_empty() {
@@ -118,7 +111,7 @@ fn formatting_runs_preserve_nested_links_and_closing_boundaries() -> Result<(), 
             "*ordinary links: mailtos: xreferences: httpish: words*",
         ] {
             let parsed = parse_inline(input, &options)?;
-            let [InlineNode::BoldText(bold)] = parsed.inlines() else {
+            let [InlineNode::Bold(bold)] = parsed.inlines() else {
                 return Err(
                     std::io::Error::other(format!("expected one bold span: {input}")).into(),
                 );

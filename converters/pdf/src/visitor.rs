@@ -9,13 +9,14 @@ use acdc_converters_core::{
     visitor::{BlockVisitor, DocumentVisitor, InlineVisitor, is_formatting_span},
 };
 use acdc_parser::{
-    AdmonitionVariant, Caption, Image, SectionKind, Source, Video,
+    AdmonitionVariant, SectionKind,
     ast::{
         AdmonitionRef, AttributeValueRef, AudioRef, BlockKind, BlockRef, CalloutListRef,
         ContentRef, DescriptionListRef, DiscreteHeadingRef, DocumentRef, HeaderRef, ImageRef,
         InlineKind, InlineRef, OrderedListRef, PageBreakRef, ParagraphRef, SectionRef,
         TableOfContentsRef, ThematicBreakRef, UnorderedListRef, VideoRef,
     },
+    edit::{Caption, Image, Source, Video},
 };
 
 use crate::{
@@ -227,16 +228,16 @@ impl<'a> BlockVisitor<'a> for PdfVisitor<'a, '_, '_> {
             BlockKind::TableOfContents(node) => self.visit_table_of_contents(traversal, node),
             BlockKind::DiscreteHeading(node) => self.visit_discrete_header(traversal, node),
             BlockKind::DocumentAttribute(_) | BlockKind::Comment(_) => Ok(()),
-            BlockKind::Example(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Quote(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Table(_)
-            | BlockKind::Stem(_)
+            BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedQuote(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedTable(_)
+            | BlockKind::DelimitedStem(_)
             | BlockKind::DelimitedComment(_) => self.visit_delimited_block(traversal, block),
             BlockKind::Extension(_) | _ => {
                 self.warn_unsupported_parser_variant("block", None);
@@ -859,7 +860,8 @@ fn part_signifier<'doc>(attributes: &TraversalContext<'doc>) -> Option<&'doc str
 mod poster_tests {
     use super::*;
     use acdc_parser::{
-        Anchor, BlockMetadata, ContentAttribute, ElementAttributes, Location, Title,
+        ElementAttributes, Location,
+        edit::{Anchor, BlockMetadata, ContentAttribute, Title},
     };
 
     #[test]

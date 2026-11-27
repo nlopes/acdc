@@ -92,7 +92,7 @@ impl<'doc> BlockVisitor<'doc> for CommandCollector<'doc> {
             let result = traversal.visit_blocks(self, section.blocks());
             self.section_title = parent;
             result
-        } else if let BlockKind::Table(table) = block.kind() {
+        } else if let BlockKind::DelimitedTable(table) = block.kind() {
             self.visit_table(traversal, table)
         } else {
             self.visit_children(traversal, StructuralRef::Block(block))
@@ -158,7 +158,7 @@ fn parse_command_block(
             location: Box::new(location.clone()),
         })?;
     let command_id = anchor.id();
-    let source_text = if let BlockKind::Listing(listing) = block.kind() {
+    let source_text = if let BlockKind::DelimitedListing(listing) = block.kind() {
         listing.source_text()
     } else if let BlockKind::Paragraph(paragraph) = block.kind()
         && matches!(paragraph.style(), Some("source" | "listing"))
@@ -1181,11 +1181,11 @@ mod tests {
         ] {
             let mut attributes = acdc_parser::ElementAttributes::default();
             attributes.insert_if_absent("interpreter".into(), value);
-            let metadata = acdc_parser::BlockMetadata::default()
+            let metadata = acdc_parser::edit::BlockMetadata::default()
                 .with_attributes(attributes)
                 .unwrap();
             let paragraph =
-                acdc_parser::Paragraph::new(Vec::new(), acdc_parser::Location::default())
+                acdc_parser::edit::Paragraph::new(Vec::new(), acdc_parser::Location::default())
                     .with_metadata(metadata)
                     .unwrap();
             let attributes = acdc_parser::ast::ParagraphRef::from(&paragraph).attributes();

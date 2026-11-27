@@ -2,8 +2,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, CompatibilityMode, DelimitedBlock, DelimitedBlockType, Document, Image, InlineNode,
-    Location, Options, Source, asg, parse,
+    CompatibilityMode, Location, Options, asg,
+    edit::{Block, Document, Image, InlineNode, Listing, Quote, Source},
+    parse,
 };
 use serde_json::{Value, json};
 
@@ -190,11 +191,9 @@ fn missing_forms_and_unsupported_semantics_fail_explicitly() -> Result<(), Error
         );
     }
     let mut document = Document::default();
-    document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedQuote(Vec::new()),
-        ">",
-        Location::default(),
-    )));
+    let mut quote = Quote::new(Vec::new(), Location::default());
+    quote.set_delimiter(">");
+    document.push_block(Block::DelimitedQuote(quote));
     assert!(
         matches!(asg::export_document((&document).into()), Err(asg::Error::Unsupported {path, ..}) if path == "/blocks/0/delimiter")
     );
@@ -214,18 +213,16 @@ fn nested_block_failures_keep_their_paths_and_owner() -> Result<(), Error> {
 #[test]
 fn uncaptioned_library_listing_forms_are_supported() -> Result<(), Error> {
     for delimited in [false, true] {
-        let content = vec![InlineNode::VerbatimText(acdc_parser::Verbatim::new(
+        let content = vec![InlineNode::Verbatim(acdc_parser::edit::Verbatim::new(
             "<code> *literal*",
             Location::default(),
         ))];
         let block = if delimited {
-            Block::DelimitedBlock(DelimitedBlock::new(
-                DelimitedBlockType::DelimitedListing(content),
-                "```",
-                Location::default(),
-            ))
+            let mut listing = Listing::new(content, Location::default());
+            listing.set_delimiter("```");
+            Block::DelimitedListing(listing)
         } else {
-            let mut paragraph = acdc_parser::Paragraph::new(content, Location::default());
+            let mut paragraph = acdc_parser::edit::Paragraph::new(content, Location::default());
             let mut metadata = paragraph.take_metadata();
             metadata.style = Some("source");
             paragraph.set_metadata(metadata)?;

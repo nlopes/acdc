@@ -8,7 +8,7 @@ pub(super) fn project(
     settings: InlineContext,
 ) -> Result<Node, Error> {
     match value {
-        InlineNode::BoldText(span) => span_node(
+        InlineNode::Bold(span) => span_node(
             "strong",
             &span.form,
             span.role,
@@ -17,7 +17,7 @@ pub(super) fn project(
             path,
             settings,
         ),
-        InlineNode::ItalicText(span) => span_node(
+        InlineNode::Italic(span) => span_node(
             "emphasis",
             &span.form,
             span.role,
@@ -26,7 +26,7 @@ pub(super) fn project(
             path,
             settings,
         ),
-        InlineNode::MonospaceText(span) => span_node(
+        InlineNode::Monospace(span) => span_node(
             "code",
             &span.form,
             span.role,
@@ -35,7 +35,7 @@ pub(super) fn project(
             path,
             settings,
         ),
-        InlineNode::HighlightText(span) => span_node(
+        InlineNode::Highlight(span) => span_node(
             "mark",
             &span.form,
             span.role,
@@ -44,7 +44,7 @@ pub(super) fn project(
             path,
             settings,
         ),
-        InlineNode::SubscriptText(span) => span_node(
+        InlineNode::Subscript(span) => span_node(
             "subscript",
             &span.form,
             span.role,
@@ -53,7 +53,7 @@ pub(super) fn project(
             path,
             settings,
         ),
-        InlineNode::SuperscriptText(span) => span_node(
+        InlineNode::Superscript(span) => span_node(
             "superscript",
             &span.form,
             span.role,
@@ -82,19 +82,30 @@ pub(super) fn project(
             settings,
         )
         .map(|result| quotation(result, ["‘", "’"])),
-        InlineNode::Extension(_)
-        | InlineNode::PlainText(_)
-        | InlineNode::VerbatimText(_)
+        InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Verbatim(_)
         | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::RawText(_)
-        | InlineNode::Macro(_)
+        | InlineNode::Raw(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutMarker(_) => {
-            Err(unsupported(path, "expected a supported inline span"))
-        }
+        | InlineNode::Anchor(_)
+        | InlineNode::Callout(_) => Err(unsupported(path, "expected a supported inline span")),
     }
 }
 

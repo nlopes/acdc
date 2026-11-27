@@ -119,7 +119,8 @@ mod tests {
     use crate::create_test_converter_with;
     use acdc_converters_core::{Diagnostics, WarningSource, visitor::DocumentVisitor};
     use acdc_parser::{
-        Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section, Title,
+        Location,
+        edit::{Author, Block, Document, Header, InlineNode, Paragraph, Plain, Section, Title},
     };
 
     #[test]
@@ -145,7 +146,7 @@ mod tests {
     #[test]
     fn test_render_document_with_header() -> Result<(), Error> {
         let mut doc = Document::default();
-        let title = Title::new(vec![InlineNode::PlainText(Plain::new(
+        let title = Title::new(vec![InlineNode::Plain(Plain::new(
             "Title",
             Location::default(),
         ))]);
@@ -177,20 +178,20 @@ mod tests {
         let mut doc = Document::default();
         doc.set_blocks(vec![
             Block::Paragraph(Paragraph::new(
-                vec![InlineNode::PlainText(Plain::new(
+                vec![InlineNode::Plain(Plain::new(
                     "Hello, world!",
                     Location::default(),
                 ))],
                 Location::default(),
             )),
             Block::Section(Section::new(
-                Title::new(vec![InlineNode::PlainText(Plain::new(
+                Title::new(vec![InlineNode::Plain(Plain::new(
                     "Section",
                     Location::default(),
                 ))]),
                 1,
                 vec![Block::Paragraph(Paragraph::new(
-                    vec![InlineNode::PlainText(Plain::new(
+                    vec![InlineNode::Plain(Plain::new(
                         "Hello, section!",
                         Location::default(),
                     ))],

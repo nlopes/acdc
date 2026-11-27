@@ -82,7 +82,7 @@ fn typed_nested_cells_restore_parent_state_after_success_and_error() -> Result<(
     let table = document
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Table(table) = block.kind() {
+            if let BlockKind::DelimitedTable(table) = block.kind() {
                 Some(table)
             } else {
                 None
@@ -184,7 +184,7 @@ fn table_decoration_lookup_follows_nested_scopes_and_restores_body_defaults() ->
         let table = document
             .blocks()
             .find_map(|block| {
-                if let BlockKind::Table(table) = block.kind() {
+                if let BlockKind::DelimitedTable(table) = block.kind() {
                     Some(table)
                 } else {
                     None

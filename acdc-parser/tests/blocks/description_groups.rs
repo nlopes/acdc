@@ -1,9 +1,10 @@
 use acdc_parser::{
-    CompatibilityMode, DescriptionListDefinition, DescriptionListItem, Document, Options,
+    CompatibilityMode, Options,
     ast::{
         BlockKind, ContentRef, ContentRole, DescriptionListDefinitionRef, DescriptionListItemRef,
         InlineKind, StructuralRef,
     },
+    edit::{DescriptionListDefinition, DescriptionListItem, Document},
     parse,
 };
 
@@ -137,7 +138,10 @@ fn shared_definition_visits_and_registers_authored_content_once(
 fn rebuilt_shared_definition_keeps_one_catalog_and_repairs_atomically(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{Block, DescriptionList, DescriptionListTerm, ast::DocumentRef};
+    use acdc_parser::{
+        ast::DocumentRef,
+        edit::{Block, DescriptionList, DescriptionListTerm},
+    };
     let parsed = parse(
         "[[first]]first::\n[[second]]second:: Shared footnote:shared[One note] and ((one index term)).\n+\nAttached footnote:shared[].\n",
         &Options::builder().with_compatibility_mode(mode).build()?,
@@ -171,8 +175,8 @@ fn rebuilt_shared_definition_keeps_one_catalog_and_repairs_atomically(
     let mut groups = list.clone().take_items().collect::<Vec<_>>();
     let item = groups.first_mut().ok_or("group")?;
     let mut definition = item.take_definition().ok_or("definition")?;
-    definition.push_block(Block::Section(acdc_parser::Section::new(
-        acdc_parser::Title::new(Vec::new()),
+    definition.push_block(Block::Section(acdc_parser::edit::Section::new(
+        acdc_parser::edit::Title::new(Vec::new()),
         1,
         Vec::new(),
         acdc_parser::Location::default(),

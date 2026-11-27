@@ -2,8 +2,9 @@
 
 use crate::code::{detect_language, source_language};
 use acdc_parser::{
-    AttributeValue, BlockMetadata, CompatibilityMode, Location, Options, Paragraph,
+    AttributeValue, CompatibilityMode, Location, Options,
     ast::{BlockKind, ParagraphRef},
+    edit::{BlockMetadata, Paragraph},
     parse,
 };
 
@@ -119,12 +120,12 @@ fn parsed_paragraphs_and_delimited_blocks_keep_language_controls() -> Result<(),
             let parsed_blocks: Vec<_> = parsed
                 .document()
                 .blocks()
-                .map(acdc_parser::Block::from)
+                .map(acdc_parser::edit::Block::from)
                 .collect();
             let block = parsed_blocks.first().ok_or("block")?;
-            let metadata = if let acdc_parser::Block::Paragraph(paragraph) = block {
+            let metadata = if let acdc_parser::edit::Block::Paragraph(paragraph) = block {
                 paragraph.clone_metadata()
-            } else if let acdc_parser::Block::DelimitedBlock(block) = block {
+            } else if let acdc_parser::edit::Block::DelimitedListing(block) = block {
                 block.clone_metadata()
             } else {
                 return Err("expected source or listing block".into());
@@ -138,7 +139,7 @@ fn parsed_paragraphs_and_delimited_blocks_keep_language_controls() -> Result<(),
                 .kind();
             let attributes = if let BlockKind::Paragraph(paragraph) = kind {
                 paragraph.attributes()
-            } else if let BlockKind::Listing(listing) = kind {
+            } else if let BlockKind::DelimitedListing(listing) = kind {
                 listing.attributes()
             } else {
                 return Err("expected typed paragraph or listing".into());

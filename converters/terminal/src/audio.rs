@@ -45,7 +45,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
 
 #[cfg(test)]
 mod tests {
-    use acdc_parser::{Audio, Location, Source};
+    use acdc_parser::{
+        Location,
+        edit::{Audio, Source},
+    };
 
     use super::*;
 

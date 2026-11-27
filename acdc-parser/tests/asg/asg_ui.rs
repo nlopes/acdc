@@ -1,9 +1,12 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    Block, Bold, Button, CharacterReference, CharacterReferenceKind, CompatibilityMode,
-    ContentAttribute, Document, FormattingForm, InlineMacro, InlineNode, KeyboardShortcut,
-    Location, MenuPath, Options, Paragraph, Plain, asg, parse, parse_file,
+    CharacterReferenceKind, CompatibilityMode, FormattingForm, Location, Options, asg,
+    edit::{
+        Block, Bold, Button, CharacterReference, ContentAttribute, Document, InlineNode,
+        KeyboardShortcut, MenuPath, Paragraph, Plain,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -11,7 +14,7 @@ use std::{fs, path::Path};
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
 fn plain(text: &'static str) -> ContentAttribute<'static> {
-    ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+    ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
         text,
         Location::default(),
     ))])
@@ -58,8 +61,8 @@ fn source_interface_labels_keep_component_order_and_nested_content() -> Result<(
 
 #[test]
 fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<(), Error> {
-    let formatted = ContentAttribute::new(vec![InlineNode::BoldText(Bold::new(
-        vec![InlineNode::PlainText(Plain::new(
+    let formatted = ContentAttribute::new(vec![InlineNode::Bold(Bold::new(
+        vec![InlineNode::Plain(Plain::new(
             "Formatted",
             Location::default(),
         ))],
@@ -69,23 +72,20 @@ fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<()
     let mut document = Document::default();
     document.push_block(Block::Paragraph(Paragraph::new(
         vec![
-            InlineNode::Macro(InlineMacro::Button(Button::new(
-                plain("*literal*"),
-                Location::default(),
-            ))),
-            InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut::new(
+            InlineNode::Button(Button::new(plain("*literal*"), Location::default())),
+            InlineNode::KeyboardShortcut(KeyboardShortcut::new(
                 vec![
                     ContentAttribute::default(),
                     formatted.clone(),
                     ContentAttribute::default(),
                 ],
                 Location::default(),
-            ))),
-            InlineNode::Macro(InlineMacro::MenuPath(MenuPath::new(
+            )),
+            InlineNode::MenuPath(MenuPath::new(
                 ContentAttribute::default(),
                 vec![ContentAttribute::default(), formatted],
                 Location::default(),
-            ))),
+            )),
         ],
         Location::default(),
     )));
@@ -109,22 +109,22 @@ fn prepared_labels_preserve_empty_components_and_inline_structure() -> Result<()
 fn nested_label_errors_and_footnotes_keep_their_owners() -> Result<(), Error> {
     for (value, path) in [
         (
-            InlineMacro::Button(Button::new(invalid()?, Location::default())),
+            InlineNode::Button(Button::new(invalid()?, Location::default())),
             "/0/inlines/0",
         ),
         (
-            InlineMacro::KeyboardShortcut(KeyboardShortcut::new(
+            InlineNode::KeyboardShortcut(KeyboardShortcut::new(
                 vec![plain("Ctrl"), invalid()?],
                 Location::default(),
             )),
             "/0/keys/1/0",
         ),
         (
-            InlineMacro::MenuPath(MenuPath::new(invalid()?, Vec::new(), Location::default())),
+            InlineNode::MenuPath(MenuPath::new(invalid()?, Vec::new(), Location::default())),
             "/0/target/0",
         ),
         (
-            InlineMacro::MenuPath(MenuPath::new(
+            InlineNode::MenuPath(MenuPath::new(
                 plain("File"),
                 vec![invalid()?],
                 Location::default(),
@@ -132,7 +132,7 @@ fn nested_label_errors_and_footnotes_keep_their_owners() -> Result<(), Error> {
             "/0/items/0/0",
         ),
     ] {
-        let content = ContentAttribute::new(vec![InlineNode::Macro(value)]);
+        let content = ContentAttribute::new(vec![value]);
         assert!(
             matches!(asg::export_inlines_with_profile((&content).into(), asg::Profile::Acdc), Err(asg::Error::Unsupported{path:actual,..}) if actual == path)
         );

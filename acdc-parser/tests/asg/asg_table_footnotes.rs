@@ -8,8 +8,10 @@ type Error = Box<dyn std::error::Error>;
 #[test]
 fn prepared_cells_reject_foreign_bindings_and_duplicate_global_numbers() -> Result<(), Error> {
     use acdc_parser::{
-        Block, DelimitedBlock, DelimitedBlockType, Document, Footnote, InlineMacro, InlineNode,
-        Location, Paragraph, Table, TableCell, TableRow, ast::StructuralRef, parse,
+        Location,
+        ast::StructuralRef,
+        edit::{Block, Document, Footnote, InlineNode, Paragraph, Table, TableCell, TableRow},
+        parse,
     };
     let parsed = parse(
         "[cols=a,options=noheader]\n|===\n|footnote:same[Cell.]\n|===\n",
@@ -28,8 +30,10 @@ fn prepared_cells_reject_foreign_bindings_and_duplicate_global_numbers() -> Resu
         .ok_or("cell")?;
     let mut document = Document::from(parsed.document());
     document.push_block(Block::Paragraph(Paragraph::new(
-        vec![InlineNode::Macro(InlineMacro::Footnote(
-            Footnote::reference(Some("same"), 1, Location::default()),
+        vec![InlineNode::Footnote(Footnote::reference(
+            Some("same"),
+            1,
+            Location::default(),
         ))],
         Location::default(),
     )));
@@ -38,12 +42,8 @@ fn prepared_cells_reject_foreign_bindings_and_duplicate_global_numbers() -> Resu
     assert_eq!(serde_json::to_value(&document)?, before);
 
     let cell = TableCell::from(cell);
-    document.set_blocks([Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(Table::new(
-            vec![TableRow::new(vec![cell.clone(), cell])],
-            Location::default(),
-        )),
-        "|===",
+    document.set_blocks([Block::DelimitedTable(Table::new(
+        vec![TableRow::new(vec![cell.clone(), cell])],
         Location::default(),
     ))]);
     assert!(

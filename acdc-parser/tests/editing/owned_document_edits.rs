@@ -1,9 +1,9 @@
 //! Owned document transfers preserve source lifetimes and registration snapshots.
 
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, Document, DocumentAttributes, Location, Options,
-    ReferenceTarget, SafeMode, Title,
+    CompatibilityMode, DocumentAttributes, Location, Options, SafeMode,
     ast::{BlockKind, DocumentRef, StructuralRef},
+    edit::{ContentAttribute, Document, ReferenceTarget, Title},
     parse, parse_file,
 };
 
@@ -181,10 +181,9 @@ fn default_parts_are_empty_and_replacement_is_explicit() {
     document.set_references([]);
     document.set_location(Location::default());
     assert_eq!(document, Document::default());
-    document.push_block(acdc_parser::Block::Paragraph(acdc_parser::Paragraph::new(
-        Vec::new(),
-        Location::default(),
-    )));
+    document.push_block(acdc_parser::edit::Block::Paragraph(
+        acdc_parser::edit::Paragraph::new(Vec::new(), Location::default()),
+    ));
     assert_eq!(DocumentRef::from(&document).blocks().count(), 1);
     document.set_blocks([]);
     assert_eq!(document, Document::default());

@@ -1,8 +1,9 @@
 //! Header edits transfer owned content and preserve declaration snapshots.
 
 use acdc_parser::{
-    Author, CompatibilityMode, Document, Header, Location, Options, Title,
+    CompatibilityMode, Location, Options,
     ast::{AuthorRef, ContentRef, DocumentRef, ElementIdRef, HeaderRef},
+    edit::{Author, Document, Header, Title},
     parse,
 };
 

@@ -6,10 +6,10 @@ mod streaming;
 mod tests;
 
 use crate::{
-    AttributeName, AttributeValue, Block, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock,
-    DelimitedBlockType, DocumentAttribute, DocumentAttributeAssignment, Error, HorizontalAlignment,
-    InlineNode, Location, Paragraph, Table, TableCell, TablePresentation, TableRow, Verbatim,
-    VerticalAlignment, Warning, WarningKind,
+    AttributeName, AttributeValue, Block, ColumnFormat, ColumnStyle, ColumnWidth,
+    DocumentAttribute, DocumentAttributeAssignment, Error, HorizontalAlignment, InlineNode,
+    Location, Paragraph, TableCell, TablePresentation, TableRow, Verbatim, VerticalAlignment,
+    Warning, WarningKind,
     blocks::table::{CellSpecifier, MAX_TABLE_COLUMNS},
     grammar::{
         ParserState,
@@ -19,6 +19,8 @@ use crate::{
         inline_processing::{PreparedInlines, adjust_and_log_parse_error},
         state::BlockContext,
     },
+    model::Delimited,
+    model::TableContent,
 };
 use std::{borrow::Cow, cell::RefCell, rc::Rc};
 
@@ -359,7 +361,7 @@ fn parse_table_with_cells<'input>(
 
     // Keep the source span of an incomplete row for the warning.
     let mut dropped_span = None;
-    let raw_rows = Table::parse_rows_with_positions(
+    let raw_rows = TableContent::parse_rows_with_positions(
         content,
         &separator,
         &mut has_header,
@@ -567,22 +569,22 @@ fn parse_table_with_cells<'input>(
         rows.push(TableRow { columns });
     }
 
-    let table = Table::new(rows, table_location.clone())
-        .with_header(header)
-        .with_footer(footer)
-        .with_columns(column_formats)
-        .with_presentation(&metadata, presentation_defaults);
+    let mut table = TableContent::new(rows, table_location.clone());
+    table.header = header;
+    table.footer = footer;
+    table.columns = column_formats;
+    let table = table.with_presentation(&metadata, presentation_defaults);
 
-    Ok(Block::DelimitedBlock(DelimitedBlock {
+    Ok(Block::DelimitedTable(crate::model::Table(Delimited {
         source_text: None,
         metadata: metadata.clone(),
         delimiter: state.intern_str(open_delim),
-        inner: DelimitedBlockType::DelimitedTable(table),
+        body: table,
         title: block_metadata.title.clone(),
         location,
         open_delimiter_location: Some(open_delimiter_location),
         close_delimiter_location,
-    }))
+    })))
 }
 
 pub(super) fn finalize_footnotes(blocks: &mut [Block<'_>]) {
@@ -652,25 +654,38 @@ impl<'a> PreparedTableCellParagraph<'a> {
 
 fn simple_cell_nodes(nodes: &[InlineNode<'_>]) -> bool {
     nodes.iter().all(|node| match node {
-        InlineNode::PlainText(_) => true,
-        InlineNode::BoldText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
-        InlineNode::ItalicText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
-        InlineNode::MonospaceText(text) => text.id.is_none() && simple_cell_nodes(&text.content),
-        InlineNode::Extension(_)
+        InlineNode::Plain(_) => true,
+        InlineNode::Bold(text) => text.id.is_none() && simple_cell_nodes(&text.content),
+        InlineNode::Italic(text) => text.id.is_none() && simple_cell_nodes(&text.content),
+        InlineNode::Monospace(text) => text.id.is_none() && simple_cell_nodes(&text.content),
+        InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Extension(_)
         | InlineNode::Symbol(_)
         | InlineNode::CharacterReference(_)
-        | InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::HighlightText(_)
-        | InlineNode::SubscriptText(_)
-        | InlineNode::SuperscriptText(_)
+        | InlineNode::Raw(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
         | InlineNode::DoubleQuotedSpan(_)
         | InlineNode::SingleQuotedSpan(_)
         | InlineNode::StandaloneCurvedApostrophe(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::Macro(_)
-        | InlineNode::CalloutMarker(_) => false,
+        | InlineNode::Anchor(_)
+        | InlineNode::Callout(_) => false,
     })
 }
 
@@ -740,7 +755,7 @@ fn parse_table_cell_with_parser<'a>(
             state.create_block_location(0, content.len(), cell_start_offset)
         };
         let blocks = vec![Block::Paragraph(Paragraph::new(
-            vec![InlineNode::VerbatimText(Verbatim {
+            vec![InlineNode::Verbatim(Verbatim {
                 content,
                 location: location.clone(),
             })],

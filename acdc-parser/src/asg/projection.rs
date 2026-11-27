@@ -8,9 +8,9 @@ use std::collections::BTreeMap;
 use serde_json::{Map, Value};
 
 use crate::{
-    Block, BlockMetadata, CalloutMarkerKind, Caption, ContentAttribute, DelimitedBlockType,
-    Document, DocumentAttributeAssignment, Header, InlineNode, Section, SectionKind, Substitution,
-    Title,
+    Block, BlockMetadata, CalloutMarkerKind, Caption, ContentAttribute, DelimitedComment, Document,
+    DocumentAttributeAssignment, Example, Header, InlineNode, Listing, Literal, Open, Passthrough,
+    Quote, Section, SectionKind, Sidebar, StemBlock, Substitution, Table, Title, Verse,
 };
 
 use super::{
@@ -55,6 +55,44 @@ impl InlineContext {
     }
 }
 
+/// Whether an inline gives a label visible text, so blank text alone does not count.
+fn is_visible_label_text(inline: &InlineNode<'_>) -> bool {
+    match inline {
+        InlineNode::Plain(text) => !text.content.trim().is_empty(),
+        InlineNode::Raw(text) => !text.content.trim().is_empty(),
+        InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)
+        | InlineNode::Extension(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Italic(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Anchor(_)
+        | InlineNode::Callout(_) => true,
+    }
+}
+
 fn body_inlines(
     values: &[InlineNode<'_>],
     value: &BlockMetadata<'_>,
@@ -87,13 +125,13 @@ pub(super) fn project_inlines(
 ) -> Result<Value, Error> {
     let mut result = Vec::new();
     for value in values {
-        let bracketed_email = matches!(value, InlineNode::Macro(crate::InlineMacro::Autolink(link))
+        let bracketed_email = matches!(value, InlineNode::Autolink(link)
             if link.bracketed && references::mailto_address(&link.url.to_string()).is_some());
         if bracketed_email {
             result.push(Value::Object(literal("text", "<")));
         }
         let at = pointer(path, &result.len().to_string());
-        let projected = if let InlineNode::VerbatimText(text) = value
+        let projected = if let InlineNode::Verbatim(text) = value
             && settings.literal
         {
             let mut result = literal(settings.text_name(), text.content);
@@ -125,8 +163,8 @@ fn inline_value(
         InlineNode::Extension(_) => {
             return Err(unsupported(path, "inline macro requires conversion"));
         }
-        InlineNode::PlainText(text) => literal(settings.text_name(), text.content),
-        InlineNode::VerbatimText(_) => {
+        InlineNode::Plain(text) => literal(settings.text_name(), text.content),
+        InlineNode::Verbatim(_) => {
             return Err(unsupported(
                 path,
                 "verbatim presentation requires a supported literal or listing block mapping",
@@ -147,28 +185,26 @@ fn inline_value(
             result
         }
         InlineNode::StandaloneCurvedApostrophe(_) => literal("text", "\u{2019}"),
-        InlineNode::RawText(raw) => raw_literal(raw, path)?,
-        InlineNode::BoldText(_)
-        | InlineNode::ItalicText(_)
-        | InlineNode::MonospaceText(_)
-        | InlineNode::HighlightText(_) => spans::project(value, path, settings)?,
-        InlineNode::SubscriptText(_)
-        | InlineNode::SuperscriptText(_)
+        InlineNode::Raw(raw) => raw_literal(raw, path)?,
+        InlineNode::Bold(_)
+        | InlineNode::Italic(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Highlight(_) => spans::project(value, path, settings)?,
+        InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
         | InlineNode::DoubleQuotedSpan(_)
         | InlineNode::SingleQuotedSpan(_)
             if settings.profile == Profile::Acdc =>
         {
             spans::project(value, path, settings)?
         }
-        InlineNode::Macro(crate::InlineMacro::Image(image))
-            if settings.profile == Profile::Acdc =>
-        {
+        InlineNode::Image(image) if settings.profile == Profile::Acdc => {
             images::inline(image, path, settings.profile)?
         }
-        InlineNode::InlineAnchor(anchor) if settings.profile == Profile::Acdc => {
+        InlineNode::Anchor(anchor) if settings.profile == Profile::Acdc => {
             super::identities::inline(anchor, path)?
         }
-        InlineNode::CalloutMarker(value) if settings.profile == Profile::Acdc => {
+        InlineNode::Callout(value) if settings.profile == Profile::Acdc => {
             let mut result = node("callout", "inline");
             result.insert("number".into(), value.number.into());
             result.insert(
@@ -182,14 +218,27 @@ fn inline_value(
             result
         }
         InlineNode::LineBreak(_) if settings.profile == Profile::Acdc => node("break", "inline"),
-        InlineNode::Macro(value) => references::project(value, path, settings)?,
-        InlineNode::SubscriptText(_)
-        | InlineNode::SuperscriptText(_)
+        value @ (InlineNode::Autolink(_)
+        | InlineNode::Button(_)
+        | InlineNode::CrossReference(_)
+        | InlineNode::Footnote(_)
+        | InlineNode::Icon(_)
+        | InlineNode::Image(_)
+        | InlineNode::IndexTerm(_)
+        | InlineNode::KeyboardShortcut(_)
+        | InlineNode::Link(_)
+        | InlineNode::Mailto(_)
+        | InlineNode::MenuPath(_)
+        | InlineNode::Passthrough(_)
+        | InlineNode::Stem(_)
+        | InlineNode::UrlMacro(_)) => references::project(value, path, settings)?,
+        InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
         | InlineNode::DoubleQuotedSpan(_)
         | InlineNode::SingleQuotedSpan(_)
         | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutMarker(_) => {
+        | InlineNode::Anchor(_)
+        | InlineNode::Callout(_) => {
             return Err(unsupported(
                 path,
                 "this inline form has no supported upstream mapping",
@@ -351,7 +400,7 @@ pub(super) fn document(value: &Document<'_>, profile: Profile) -> Result<Value, 
                         Target {
                             owner: None,
                             title: None,
-                            label: if let InlineNode::InlineAnchor(anchor) = inline {
+                            label: if let InlineNode::Anchor(anchor) = inline {
                                 anchor.xreflabel.as_ref()
                             } else {
                                 None
@@ -459,9 +508,7 @@ impl<'a, 'doc> Export<'a, 'doc> {
             Block::CalloutList(list) => self.callout_list(list, at)?,
             Block::DescriptionList(list) => self.description_list(list, at)?,
             Block::Comment(comment) => return metadata::check_comment(comment, at).map(|()| None),
-            Block::DelimitedBlock(block)
-                if matches!(&block.inner, DelimitedBlockType::DelimitedComment(_)) =>
-            {
+            Block::DelimitedComment(DelimitedComment(block)) => {
                 if block.title.is_present() {
                     return Err(unsupported(
                         &pointer(at, "title"),
@@ -471,24 +518,37 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 metadata::empty(&block.metadata, at)?;
                 return Ok(None);
             }
-            Block::DelimitedBlock(block) => self.delimited(block, at)?,
-            Block::Image(image) => {
-                if image.alt.is_some() && self.profile == Profile::Upstream {
-                    return Err(unsupported(
-                        &pointer(at, "alt"),
-                        "parsed alternative content needs an explicit content-attribute mapping",
-                    ));
-                }
-                let mut result = self.block_macro(
-                    "image",
-                    Some(&image.source),
-                    Some(&image.title),
-                    &image.metadata,
-                    at,
-                )?;
-                images::block(&mut result, image, at, self.profile)?;
-                result
+            Block::DelimitedListing(Listing(block)) => {
+                self.delimited_inlines(block, "listing", true, at)?
             }
+            Block::DelimitedLiteral(Literal(block)) => {
+                self.delimited_inlines(block, "literal", true, at)?
+            }
+            Block::DelimitedVerse(Verse(block)) => {
+                self.delimited_inlines(block, "verse", true, at)?
+            }
+            Block::DelimitedPassthrough(Passthrough(block)) => {
+                self.delimited_inlines(block, "pass", false, at)?
+            }
+            Block::DelimitedOpen(Open(block)) => self.delimited_blocks(block, "open", false, at)?,
+            Block::DelimitedExample(Example(block)) => {
+                self.delimited_blocks(block, "example", false, at)?
+            }
+            Block::DelimitedSidebar(Sidebar(block)) => {
+                self.delimited_blocks(block, "sidebar", false, at)?
+            }
+            Block::DelimitedQuote(Quote(block)) => {
+                self.delimited_blocks(block, "quote", true, at)?
+            }
+            Block::DelimitedStem(StemBlock(block)) => {
+                self.delimited_marker(block, false, at)?;
+                self.stem(block, at)?
+            }
+            Block::DelimitedTable(Table(block)) => {
+                self.delimited_marker(block, false, at)?;
+                self.table(block, at)?
+            }
+            Block::Image(image) => self.image_block(image, at)?,
             Block::Audio(audio) => self.block_macro(
                 "audio",
                 Some(&audio.source),
@@ -625,29 +685,9 @@ impl<'a, 'doc> Export<'a, 'doc> {
                 unsupported(&at, "reference data has no supported exported owner")
                     .with_context("reference", &reference.location)
             })?;
-            let label = target.label.filter(|content| {
-                content.as_inlines().iter().any(|inline| match inline {
-                    InlineNode::PlainText(text) => !text.content.trim().is_empty(),
-                    InlineNode::RawText(text) => !text.content.trim().is_empty(),
-                    InlineNode::Extension(_)
-                    | InlineNode::CharacterReference(_)
-                    | InlineNode::Symbol(_)
-                    | InlineNode::VerbatimText(_)
-                    | InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::DoubleQuotedSpan(_)
-                    | InlineNode::SingleQuotedSpan(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-                    | InlineNode::LineBreak(_)
-                    | InlineNode::InlineAnchor(_)
-                    | InlineNode::Macro(_)
-                    | InlineNode::CalloutMarker(_) => true,
-                })
-            });
+            let label = target
+                .label
+                .filter(|content| content.as_inlines().iter().any(is_visible_label_text));
             let independent_label = self.profile == Profile::Acdc
                 && (reference.target != *id
                     || reference.document_label
@@ -757,7 +797,7 @@ fn raw_literal(raw: &crate::Raw<'_>, path: &str) -> Result<Node, Error> {
 #[cfg(test)]
 mod tests {
     use super::{Error, Profile, inlines};
-    use crate::{CalloutMarker, InlineMacro, InlineNode, Location, Passthrough, PassthroughKind};
+    use crate::{CalloutMarker, InlineNode, InlinePassthrough, Location, PassthroughKind};
 
     #[test]
     fn pending_comment_events_are_rejected_instead_of_discarded() {
@@ -781,17 +821,17 @@ mod tests {
 
     #[test]
     fn unresolved_macro_and_callout_owners_are_rejected() {
-        let pass = InlineNode::Macro(InlineMacro::Passthrough(Passthrough {
+        let pass = InlineNode::Passthrough(InlinePassthrough {
             attribute_fragments: Box::default(),
             text: Some("literal"),
             substitutions: Vec::new(),
             location: Location::default(),
             kind: PassthroughKind::Macro,
-        }));
+        });
         for (node, owner) in [
             (pass, "passthrough"),
             (
-                InlineNode::CalloutMarker(CalloutMarker::explicit(1, Location::default())),
+                InlineNode::Callout(CalloutMarker::explicit(1, Location::default())),
                 "callout",
             ),
         ] {

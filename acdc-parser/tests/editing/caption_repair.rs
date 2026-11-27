@@ -1,8 +1,9 @@
 //! Explicit caption repair preserves prepared prefixes and other registrations.
 
 use acdc_parser::{
-    Block, CaptionKind, CompatibilityMode, Document, InlineNode, Location, Options, Plain, Title,
+    CaptionKind, CompatibilityMode, Location, Options,
     ast::{BlockRef, CaptionRef, DocumentRef, ImageRef, StructuralRef},
+    edit::{Block, Document, InlineNode, Plain, Title},
     parse,
 };
 
@@ -219,7 +220,7 @@ fn adding_or_removing_a_title_updates_only_the_prepared_automatic_counter() -> R
                 .id()
                 .is_some_and(|anchor| anchor.as_str() == "first")
             {
-                image.set_title(Title::new(vec![InlineNode::PlainText(Plain::new(
+                image.set_title(Title::new(vec![InlineNode::Plain(Plain::new(
                     "Added",
                     Location::default(),
                 ))]));
@@ -330,7 +331,7 @@ fn an_incompatible_numbered_category_requires_new_prepared_context() -> Result<(
         return Err("image".into());
     };
     let mut metadata = image.clone_metadata();
-    metadata.caption = Some(acdc_parser::Caption::Numbered {
+    metadata.caption = Some(acdc_parser::edit::Caption::Numbered {
         kind: CaptionKind::Listing,
         label: "Wrong category".into(),
         number: None,

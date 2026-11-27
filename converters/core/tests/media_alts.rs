@@ -4,8 +4,9 @@ use std::{borrow::Cow, path::PathBuf};
 
 use acdc_converters_core::{icon, media};
 use acdc_parser::{
-    ContentAttribute, InlineNode, Location, Options, Raw, Source, SourceUrl, Substitution,
+    Location, Options, Substitution,
     ast::{ContentRef, SourceRef},
+    edit::{ContentAttribute, InlineNode, Raw, Source, SourceUrl},
     parse_inline,
 };
 
@@ -135,7 +136,7 @@ fn raw_alternatives_decode_only_unescaped_numeric_references() {
         (vec![], "Bird &"),
         (vec![Substitution::SpecialChars], "Bird &#38;"),
     ] {
-        let alt = ContentAttribute::new(vec![InlineNode::RawText(Raw::new(
+        let alt = ContentAttribute::new(vec![InlineNode::Raw(Raw::new(
             "Bird &#38;",
             subs,
             Location::default(),
@@ -173,9 +174,9 @@ fn image_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestEr
             "image:bird.png[alt=\"(C) -> --\",title=\"(C) -> --\"]",
             &options,
         )?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-        let [InlineNode::Macro(acdc_parser::InlineMacro::Image(image))] = parsed_inlines.as_slice()
-        else {
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Image(image)] = parsed_inlines.as_slice() else {
             return Err("expected inline image".into());
         };
         let mut prepared = image.as_ref().clone();
@@ -211,9 +212,9 @@ fn icon_alternatives_preserve_parser_selected_boundaries() -> Result<(), TestErr
             "icon:heart[alt=\"(C) -> --\",title=\"(C) -> --\"]",
             &Options::builder().with_compatibility_mode(mode).build()?,
         )?;
-        let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-        let [InlineNode::Macro(acdc_parser::InlineMacro::Icon(icon))] = parsed_inlines.as_slice()
-        else {
+        let parsed_inlines =
+            acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+        let [InlineNode::Icon(icon)] = parsed_inlines.as_slice() else {
             return Err("expected icon".into());
         };
         let mut prepared = icon.as_ref().clone();

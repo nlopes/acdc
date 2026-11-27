@@ -22,7 +22,7 @@ fn nested_tables_retain_delimiters_and_unicode_source_offsets(
         .descendants()
         .filter_map(|node| {
             if let StructuralRef::Block(block) = node
-                && let BlockKind::Table(table) = block.kind()
+                && let BlockKind::DelimitedTable(table) = block.kind()
             {
                 return Some(table);
             }
@@ -65,7 +65,8 @@ fn selected_table_delimiters_resolve_to_original_include_ranges(
             .with_compatibility_mode(mode)
             .build()?,
     )?;
-    let BlockKind::Table(table) = parsed.document().blocks().next().ok_or("block")?.kind() else {
+    let BlockKind::DelimitedTable(table) = parsed.document().blocks().next().ok_or("block")?.kind()
+    else {
         return Err("table".into());
     };
     for (location, line) in [

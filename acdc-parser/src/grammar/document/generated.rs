@@ -313,20 +313,19 @@ pub(crate) fn replace_source<'a>(
         substitutions,
         ..Default::default()
     };
+    let kind = if matches!(block, crate::Block::DelimitedLiteral(_)) {
+        DelimitedKind::Literal
+    } else {
+        DelimitedKind::Listing
+    };
     let nodes = if let crate::Block::Paragraph(paragraph) = block {
         paragraph.content =
             crate::grammar::process_inlines(&mut state, &parsing, 0, source.len(), 0, source)?.0;
         paragraph.source_text = Some(source);
         &mut paragraph.content
-    } else if let crate::Block::DelimitedBlock(delimited) = block {
-        let kind = if matches!(
-            delimited.inner,
-            crate::DelimitedBlockType::DelimitedListing(_)
-        ) {
-            DelimitedKind::Listing
-        } else {
-            DelimitedKind::Literal
-        };
+    } else if let crate::Block::DelimitedListing(crate::Listing(delimited))
+    | crate::Block::DelimitedLiteral(crate::Literal(delimited)) = block
+    {
         let params = super::delimited::DelimitedParams {
             open_start: 0,
             source_text: source,
@@ -340,23 +339,14 @@ pub(crate) fn replace_source<'a>(
             content: source,
             kind,
         };
-        delimited.inner = super::verbatim::verbatim_inner(
+        delimited.body = super::verbatim::verbatim_inlines(
             &mut state,
             &parsing,
             &mut delimited.metadata,
             &params,
         )?;
         delimited.source_text = Some(source);
-        if let crate::DelimitedBlockType::DelimitedListing(nodes)
-        | crate::DelimitedBlockType::DelimitedLiteral(nodes) = &mut delimited.inner
-        {
-            nodes
-        } else {
-            return Err(Error::Extension(
-                Box::new(origin.clone()),
-                "source replacement produced an unsupported body".into(),
-            ));
-        }
+        &mut delimited.body
     } else {
         return Err(Error::Extension(
             Box::new(origin.clone()),

@@ -482,7 +482,7 @@ impl<'a> ElementId<'a> {
 /// Content and macro-specific attributes belong to the owning node.
 ///
 /// ```compile_fail
-/// let metadata = acdc_parser::InlineMetadata::default();
+/// let metadata = acdc_parser::edit::InlineMetadata::default();
 /// let _ = metadata.caption;
 /// ```
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]

@@ -313,18 +313,9 @@ fn are_all_columns_default(specs: &[ColumnFormat]) -> bool {
     specs.iter().all(|s| *s == ColumnFormat::default())
 }
 
-/// A `Table` represents a table in a document.
-///
-/// Use [`Self::take_rows`] and [`Self::set_rows`] for owned row edits.
-///
-/// ```compile_fail,E0616
-/// use acdc_parser::{Location, Table};
-/// let mut table = Table::new(Vec::new(), Location::default());
-/// table.rows.clear();
-/// ```
+/// Rows, header, footer and column formats stored in a [`super::Table`].
 #[derive(Clone, Debug, PartialEq, Serialize)]
-#[non_exhaustive]
-pub struct Table<'a> {
+pub(crate) struct TableContent<'a> {
     pub(crate) header: Option<TableRow<'a>>,
     pub(crate) footer: Option<TableRow<'a>>,
     pub(crate) rows: Vec<TableRow<'a>>,
@@ -343,10 +334,10 @@ struct ResolvedTablePresentation {
     value: TablePresentation,
 }
 
-impl<'a> Table<'a> {
-    /// Create a new table with the given rows and location.
+impl<'a> TableContent<'a> {
+    /// Create table content with the given rows and delimited span.
     #[must_use]
-    pub fn new(rows: Vec<TableRow<'a>>, location: Location) -> Self {
+    pub(crate) fn new(rows: Vec<TableRow<'a>>, location: Location) -> Self {
         Self {
             header: None,
             footer: None,
@@ -355,27 +346,6 @@ impl<'a> Table<'a> {
             presentation: None,
             location,
         }
-    }
-
-    /// Set the header row.
-    #[must_use]
-    pub fn with_header(mut self, header: Option<TableRow<'a>>) -> Self {
-        self.header = header;
-        self
-    }
-
-    /// Set the footer row.
-    #[must_use]
-    pub fn with_footer(mut self, footer: Option<TableRow<'a>>) -> Self {
-        self.footer = footer;
-        self
-    }
-
-    /// Set the column format specifications.
-    #[must_use]
-    pub fn with_columns(mut self, columns: Vec<ColumnFormat>) -> Self {
-        self.columns = columns;
-        self
     }
 
     #[must_use]
@@ -399,7 +369,7 @@ impl<'a> Table<'a> {
 
     /// Table decoration that overrides converter defaults, if present.
     #[must_use]
-    pub const fn presentation(&self) -> Option<TablePresentation> {
+    pub(crate) const fn presentation(&self) -> Option<TablePresentation> {
         match &self.presentation {
             Some(presentation) => Some(presentation.value),
             None => None,
@@ -514,64 +484,6 @@ impl<'a> TableCell<'a> {
             valign,
             style,
         }
-    }
-}
-
-impl<'a> Table<'a> {
-    /// Replace the header, preserving a present empty row.
-    pub fn set_header(&mut self, header: Option<TableRow<'a>>) {
-        self.header = header;
-    }
-
-    /// Remove the header without moving a body row into its place.
-    #[must_use]
-    pub fn take_header(&mut self) -> Option<TableRow<'a>> {
-        self.header.take()
-    }
-
-    /// Replace the footer, preserving a present empty row.
-    pub fn set_footer(&mut self, footer: Option<TableRow<'a>>) {
-        self.footer = footer;
-    }
-
-    /// Remove the footer without moving a body row into its place.
-    #[must_use]
-    pub fn take_footer(&mut self) -> Option<TableRow<'a>> {
-        self.footer.take()
-    }
-
-    /// Replace prepared body rows without changing header, footer or presentation.
-    pub fn set_rows(&mut self, rows: impl IntoIterator<Item = TableRow<'a>>) {
-        self.rows = rows.into_iter().collect();
-    }
-
-    /// Append a body row without recalculating cell positions or spans.
-    pub fn push_row(&mut self, row: TableRow<'a>) {
-        self.rows.push(row);
-    }
-
-    /// Remove body rows, retaining their content and original source lifetimes.
-    pub fn take_rows(
-        &mut self,
-    ) -> impl DoubleEndedIterator<Item = TableRow<'a>> + ExactSizeIterator + use<'a> {
-        std::mem::take(&mut self.rows).into_iter()
-    }
-
-    /// Replace column formats without reinterpreting existing cell content.
-    pub fn set_columns(&mut self, columns: impl IntoIterator<Item = ColumnFormat>) {
-        self.columns = columns.into_iter().collect();
-    }
-
-    /// Remove column formats without changing cell overrides or resolved content.
-    pub fn take_columns(
-        &mut self,
-    ) -> impl DoubleEndedIterator<Item = ColumnFormat> + ExactSizeIterator + use<> {
-        std::mem::take(&mut self.columns).into_iter()
-    }
-
-    /// Replace the table body's span without relocating its cells or enclosing block.
-    pub fn set_location(&mut self, location: Location) {
-        self.location = location;
     }
 }
 

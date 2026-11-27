@@ -30,21 +30,21 @@ fn visit_structure<'doc, B>(
         StructuralRef::Block(block) => match block.kind() {
             BlockKind::Paragraph(paragraph) => visit_content(paragraph.content(), visit)?,
             BlockKind::Image(image) => visit(BodyOccurrence::Image(image))?,
-            BlockKind::Listing(block) => visit_content(block.content(), visit)?,
-            BlockKind::Literal(block) => visit_content(block.content(), visit)?,
-            BlockKind::Passthrough(block) => visit_content(block.content(), visit)?,
-            BlockKind::Verse(block) => visit_content(block.content(), visit)?,
+            BlockKind::DelimitedListing(block) => visit_content(block.content(), visit)?,
+            BlockKind::DelimitedLiteral(block) => visit_content(block.content(), visit)?,
+            BlockKind::DelimitedPassthrough(block) => visit_content(block.content(), visit)?,
+            BlockKind::DelimitedVerse(block) => visit_content(block.content(), visit)?,
             BlockKind::DelimitedComment(block) => visit_content(block.content(), visit)?,
             BlockKind::Section(section) => visit(BodyOccurrence::Section(section))?,
             BlockKind::Admonition(_)
-            | BlockKind::Example(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Quote(_)
+            | BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedQuote(_)
             | BlockKind::UnorderedList(_)
             | BlockKind::OrderedList(_)
             | BlockKind::DescriptionList(_) => {}
-            BlockKind::Table(_)
+            BlockKind::DelimitedTable(_)
             | BlockKind::CalloutList(_)
             | BlockKind::DiscreteHeading(_)
             | BlockKind::DocumentAttribute(_)
@@ -54,7 +54,7 @@ fn visit_structure<'doc, B>(
             | BlockKind::Audio(_)
             | BlockKind::Video(_)
             | BlockKind::Comment(_)
-            | BlockKind::Stem(_)
+            | BlockKind::DelimitedStem(_)
             | _ => return ControlFlow::Continue(()),
         },
         StructuralRef::ListItem(item) => visit_content(item.principal(), visit)?,

@@ -307,16 +307,16 @@ impl<'a, W: Write> BlockVisitor<'a> for ManpageVisitor<'a, '_, W> {
             BlockKind::TableOfContents(_)
             | BlockKind::DocumentAttribute(_)
             | BlockKind::Comment(_) => Ok(()),
-            BlockKind::Example(_)
-            | BlockKind::Open(_)
-            | BlockKind::Sidebar(_)
-            | BlockKind::Quote(_)
-            | BlockKind::Verse(_)
-            | BlockKind::Listing(_)
-            | BlockKind::Literal(_)
-            | BlockKind::Passthrough(_)
-            | BlockKind::Table(_)
-            | BlockKind::Stem(_)
+            BlockKind::DelimitedExample(_)
+            | BlockKind::DelimitedOpen(_)
+            | BlockKind::DelimitedSidebar(_)
+            | BlockKind::DelimitedQuote(_)
+            | BlockKind::DelimitedVerse(_)
+            | BlockKind::DelimitedListing(_)
+            | BlockKind::DelimitedLiteral(_)
+            | BlockKind::DelimitedPassthrough(_)
+            | BlockKind::DelimitedTable(_)
+            | BlockKind::DelimitedStem(_)
             | BlockKind::DelimitedComment(_) => self.render_delimited_block(traversal, block),
             BlockKind::Extension(_) | _ => {
                 self.visit_unhandled_block(traversal, block);

@@ -1,7 +1,7 @@
 use crate::{
     AttributeValue, Block, Caption, CharacterReference, CharacterReferenceKind, ContentAttribute,
-    Document, Header, InlineImage, InlineMacro, InlineNode, Location, Options, Paragraph, Source,
-    Title, asg, parse,
+    Document, Header, InlineImage, InlineNode, Location, Options, Paragraph, Source, Title, asg,
+    parse,
 };
 use serde_json::{Value, json};
 
@@ -22,10 +22,7 @@ fn image_support_composes_through_every_supported_content_owner() -> Result<(), 
     else {
         return Err("paragraph".into());
     };
-    assert!(matches!(
-        source.content.first(),
-        Some(InlineNode::BoldText(_))
-    ));
+    assert!(matches!(source.content.first(), Some(InlineNode::Bold(_))));
     let mut paragraph = Paragraph::new(source.content.clone(), Location::default());
     paragraph.title = Title::new(source.content.clone());
     paragraph.metadata.reftext = Some(ContentAttribute::new(source.content.clone()));
@@ -76,7 +73,7 @@ fn unsupported_image_content_and_scalar_states_fail_by_property() -> Result<(), 
         }
         let mut document = Document::default();
         document.blocks.push(Block::Paragraph(Paragraph::new(
-            vec![InlineNode::Macro(InlineMacro::Image(Box::new(image)))],
+            vec![InlineNode::Image(Box::new(image))],
             Location::default(),
         )));
         assert!(
@@ -88,7 +85,7 @@ fn unsupported_image_content_and_scalar_states_fail_by_property() -> Result<(), 
         image.set_attribute("custom".into(), attribute)?;
         let mut document = Document::default();
         document.blocks.push(Block::Paragraph(Paragraph::new(
-            vec![InlineNode::Macro(InlineMacro::Image(Box::new(image)))],
+            vec![InlineNode::Image(Box::new(image))],
             Location::default(),
         )));
         assert!(

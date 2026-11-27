@@ -87,7 +87,7 @@ pub struct Monospace<'a> {
 /// A `Highlight` represents a highlighted section of text in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Highlight, FormattingForm, Location};
+/// use acdc_parser::{FormattingForm, Location, edit::Highlight};
 /// let mut value = Highlight::new(Vec::new(), FormattingForm::Constrained, Location::default());
 /// value.role = Some("");
 /// ```
@@ -103,7 +103,7 @@ pub struct Highlight<'a> {
 /// A `Bold` represents a bold section of text in a document.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Bold, FormattingForm, Location};
+/// use acdc_parser::{FormattingForm, Location, edit::Bold};
 /// let mut value = Bold::new(Vec::new(), FormattingForm::Constrained, Location::default());
 /// value.content.clear();
 /// ```
@@ -165,7 +165,7 @@ impl Serialize for LineBreak {
 /// substitutions, or [`Verbatim`] for literal and listing content.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, Plain};
+/// use acdc_parser::{Location, edit::Plain};
 /// let mut plain = Plain::new("text", Location::default());
 /// plain.content = "changed";
 /// ```
@@ -235,7 +235,7 @@ impl Serialize for Plain<'_> {
 /// output behavior.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{Location, Raw};
+/// use acdc_parser::{Location, edit::Raw};
 /// let mut value = Raw::new("text", Vec::new(), Location::default());
 /// value.content = "changed";
 /// ```
@@ -379,7 +379,7 @@ pub enum CalloutMarkerKind {
 /// numbering throughout a sequence.
 ///
 /// ```compile_fail,E0616
-/// use acdc_parser::{CalloutMarker, Location};
+/// use acdc_parser::{Location, edit::CalloutMarker};
 /// let mut marker = CalloutMarker::auto(1, Location::default());
 /// marker.number = 2;
 /// ```

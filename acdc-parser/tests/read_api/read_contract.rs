@@ -1,9 +1,10 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, Document, ElementAttributes, Options, ParseResult,
-    TableFrame, TableGrid,
+    AttributeValue, CompatibilityMode, ElementAttributes, Options, ParseResult, TableFrame,
+    TableGrid,
     ast::{AttributeValueRef, BlockKind, BlockRef, BoldRef, InlineImageRef, InlineKind, InlineRef},
+    edit::Document,
     parse,
 };
 
@@ -61,7 +62,7 @@ fn nested_reads_preserve_structure_content_and_declarations(
     };
     let [
         BlockKind::Paragraph(_),
-        BlockKind::Table(table),
+        BlockKind::DelimitedTable(table),
         BlockKind::Paragraph(_),
     ] = &*section.blocks().map(BlockRef::kind).collect::<Vec<_>>()
     else {

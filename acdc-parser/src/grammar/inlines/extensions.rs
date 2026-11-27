@@ -150,7 +150,7 @@ pub(super) fn recognize<'a>(
                 }),
             }))
         } else {
-            InlineNode::PlainText(literal)
+            InlineNode::Plain(literal)
         };
         return peg::RuleResult::Matched(end, node);
     }
@@ -164,7 +164,7 @@ pub(super) fn recognize<'a>(
             .map_or(limit, |c| limit.min(c.start));
         return peg::RuleResult::Matched(
             end,
-            InlineNode::PlainText(Plain::new(
+            InlineNode::Plain(Plain::new(
                 &state.input[start..end],
                 state.create_block_location(start, end, state.inline_ctx.offset),
             )),
@@ -182,7 +182,7 @@ pub(super) fn clip<'a>(
     node: InlineNode<'a>,
 ) -> peg::RuleResult<InlineNode<'a>> {
     if let Some(candidates) = &state.inline_candidates
-        && matches!(&node, InlineNode::PlainText(plain) if !plain.escaped && state.input.get(start..end).is_some_and(|source| std::ptr::eq(plain.content,source)))
+        && matches!(&node, InlineNode::Plain(plain) if !plain.escaped && state.input.get(start..end).is_some_and(|source| std::ptr::eq(plain.content,source)))
     {
         let index = candidates.offsets.partition_point(|c| c.start <= start);
         if let Some(call) = candidates.offsets.get(index).filter(|c| c.start < end) {
@@ -190,7 +190,7 @@ pub(super) fn clip<'a>(
             let location = state.create_block_location(start, call.start, state.inline_ctx.offset);
             return peg::RuleResult::Matched(
                 call.start,
-                InlineNode::PlainText(Plain::new(&state.input[start..call.start], location)),
+                InlineNode::Plain(Plain::new(&state.input[start..call.start], location)),
             );
         }
     }

@@ -120,18 +120,37 @@ impl<'doc> DocumentEditor<'doc> {
             .query()
             .get(target)
             .ok_or_else(|| self.error(target, "target is absent"))?;
-        let mut builder = if matches!(view.storage(), Block::Paragraph(_)) {
-            BlockBuilder::paragraph(source)
-        } else if let Block::DelimitedBlock(block) = view.storage() {
-            if matches!(block.inner, crate::DelimitedBlockType::DelimitedListing(_)) {
-                BlockBuilder::listing(source)
-            } else if matches!(block.inner, crate::DelimitedBlockType::DelimitedLiteral(_)) {
-                BlockBuilder::literal(source)
-            } else {
+        let mut builder = match view.storage() {
+            Block::Paragraph(_) => BlockBuilder::paragraph(source),
+            Block::DelimitedListing(_) => BlockBuilder::listing(source),
+            Block::DelimitedLiteral(_) => BlockBuilder::literal(source),
+            Block::Admonition(_)
+            | Block::Audio(_)
+            | Block::CalloutList(_)
+            | Block::Comment(_)
+            | Block::DelimitedComment(_)
+            | Block::DescriptionList(_)
+            | Block::DiscreteHeading(_)
+            | Block::DocumentAttribute(_)
+            | Block::DelimitedExample(_)
+            | Block::Extension(_)
+            | Block::Image(_)
+            | Block::DelimitedOpen(_)
+            | Block::OrderedList(_)
+            | Block::PageBreak(_)
+            | Block::DelimitedPassthrough(_)
+            | Block::DelimitedQuote(_)
+            | Block::Section(_)
+            | Block::DelimitedSidebar(_)
+            | Block::DelimitedStem(_)
+            | Block::DelimitedTable(_)
+            | Block::TableOfContents(_)
+            | Block::ThematicBreak(_)
+            | Block::UnorderedList(_)
+            | Block::DelimitedVerse(_)
+            | Block::Video(_) => {
                 return Err(self.error(target, "target has no replaceable inline source body"));
             }
-        } else {
-            return Err(self.error(target, "target has no replaceable inline source body"));
         };
         builder.source_body = true;
         self.replace_block(target, builder)

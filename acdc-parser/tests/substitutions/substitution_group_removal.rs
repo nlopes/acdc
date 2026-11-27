@@ -94,8 +94,8 @@ fn removed_verbatim_group_controls_callouts_in_every_code_block_kind() -> Result
                 let parsed = parse(&source, &Options::default())?;
                 let nodes = match parsed.document().blocks().next().map(BlockRef::kind) {
                     Some(BlockKind::Paragraph(paragraph)) => paragraph.content(),
-                    Some(BlockKind::Listing(block)) => block.content(),
-                    Some(BlockKind::Literal(block)) => block.content(),
+                    Some(BlockKind::DelimitedListing(block)) => block.content(),
+                    Some(BlockKind::DelimitedLiteral(block)) => block.content(),
                     _ => return Err("expected code content".into()),
                 };
                 let callouts = nodes

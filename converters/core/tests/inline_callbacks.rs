@@ -5,8 +5,9 @@ use acdc_converters_core::{
     visitor::{BlockVisitor, DocumentVisitor, InlineVisitor, is_formatting_span},
 };
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineNode, Location, Options, Plain,
+    CompatibilityMode, Location, Options,
     ast::{BlockKind, BlockRef, ContentRef, HeaderRef, InlineKind, InlineRef},
+    edit::{ContentAttribute, InlineNode, Plain},
     parse, parse_inline,
 };
 
@@ -71,7 +72,7 @@ fn constructed_inline_sequence_visits_only_selected_direct_nodes() -> Result<(),
     {
         let fragment = parse_inline(SOURCE, &Options::default())?;
         let fragment_inlines =
-            acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+            acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
         visitor.visit_inline_nodes(
             &mut context,
             ContentRef::from(&ContentAttribute::new(fragment_inlines.as_slice().to_vec())),
@@ -101,7 +102,7 @@ fn constructed_inline_errors_stop_the_sequence_and_retain_attribute_borrows() ->
         {
             let fragment = parse_inline(SOURCE, &Options::default())?;
             let fragment_inlines =
-                acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
             assert_eq!(
                 visitor.visit_inline_nodes(
                     &mut context,
@@ -147,7 +148,7 @@ fn owner_formatting_span_policy_covers_eight_spans_and_excludes_nested_fields() 
         for (source, expected) in SPANS {
             let parsed = parse_inline(source, &options)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
             assert_eq!(
                 parsed_inlines.as_slice().iter().any(is_formatting_span),
                 *expected,
@@ -251,7 +252,7 @@ fn typed_and_constructed_inline_sequences_agree_after_temporary_fragments_are_dr
                 let source = String::from(SOURCE);
                 let fragment = parse_inline(&source, &options)?;
                 let fragment_inlines =
-                    acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+                    acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
                 let expected = owner.visit_inline_nodes(
                     &mut context,
                     ContentRef::from(&ContentAttribute::new(fragment_inlines.as_slice().to_vec())),
@@ -281,7 +282,7 @@ fn typed_trait_objects_accept_constructed_text_shorter_than_the_document() -> Re
     let visitor: &mut dyn InlineVisitor<'_, Error = &'static str> = &mut trace;
     {
         let normalized = String::from("normalized");
-        let fragment = ContentAttribute::new(vec![InlineNode::PlainText(Plain::new(
+        let fragment = ContentAttribute::new(vec![InlineNode::Plain(Plain::new(
             &normalized,
             Location::default(),
         ))]);
@@ -351,13 +352,12 @@ fn standalone_content_reads_preserve_source_spans_and_borrowed_text() -> Result<
         for (source, expected) in SPANS {
             let fragment = parse_inline(source, &options)?;
             let fragment_inlines =
-                acdc_parser::ContentAttribute::from(fragment.content()).into_inlines();
+                acdc_parser::edit::ContentAttribute::from(fragment.content()).into_inlines();
             let read = fragment.content();
             assert_eq!(read.inlines().len(), fragment_inlines.as_slice().len());
             for (typed, owner) in read.inlines().zip(fragment_inlines.as_slice()) {
                 assert_eq!(Location::from(typed.location()), *owner.location());
-                if let (InlineKind::Plain(typed), InlineNode::PlainText(owner)) =
-                    (typed.kind(), owner)
+                if let (InlineKind::Plain(typed), InlineNode::Plain(owner)) = (typed.kind(), owner)
                 {
                     let mut copy = owner.clone();
                     assert!(std::ptr::eq(typed.text(), copy.replace_text("")));

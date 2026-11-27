@@ -1,9 +1,9 @@
 #![cfg(feature = "asg")]
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, ContentAttribute, InlineImage, InlineMacro, InlineNode,
-    Location, Options, Source, asg,
+    AttributeValue, CompatibilityMode, Location, Options, asg,
     ast::{BlockKind, ContentRef, DocumentRef},
+    edit::{ContentAttribute, InlineImage, InlineNode, Source},
     parse,
 };
 use serde_json::{Value, json};
@@ -177,9 +177,9 @@ fn standalone_image_export_checks_the_selected_profile() -> Result<(), Error> {
     image.set_attribute("flag".into(), AttributeValue::Bool(true))?;
     image.set_attribute("width".into(), AttributeValue::String("003".into()))?;
     let value = asg::export_inlines_with_profile(
-        ContentRef::from(&ContentAttribute::new(vec![InlineNode::Macro(
-            InlineMacro::Image(Box::new(image)),
-        )])),
+        ContentRef::from(&ContentAttribute::new(vec![InlineNode::Image(Box::new(
+            image,
+        ))])),
         asg::Profile::Acdc,
     )?;
     assert!(value.pointer("/0/location").is_none());

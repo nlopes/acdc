@@ -12,8 +12,9 @@
 //! - `macro` - Render where `toc::[]` macro appears
 
 use acdc_parser::{
-    DocumentAttributeValue, SectionKind, TableOfContents, TocEntry,
+    DocumentAttributeValue, SectionKind,
     ast::{AttributeValueRef, TableOfContentsRef, TocEntryRef},
+    edit::{TableOfContents, TocEntry},
 };
 
 use crate::{

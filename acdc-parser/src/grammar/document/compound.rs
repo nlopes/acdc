@@ -137,17 +137,15 @@ fn finish_compound<'a>(
         ));
     };
     *block.location_mut() = state.create_block_location(params.start, params.end, params.offset);
-    if let Block::DelimitedBlock(delimited) = block {
-        delimited.close_delimiter_location = close_location;
-        delimited.source_text = Some(source);
-    }
-    let Some(slot) = crate::extensions::compound_body_mut(block) else {
+    let crate::model::compound_block!(delimited) = block else {
         return Err(Error::Parse(
             Box::new(state.create_error_source_location(block.location().clone())),
             "compound builder returned no child content slot".into(),
         ));
     };
-    *slot = body;
+    delimited.close_delimiter_location = close_location;
+    delimited.source_text = Some(source);
+    delimited.body = body;
     Ok(())
 }
 

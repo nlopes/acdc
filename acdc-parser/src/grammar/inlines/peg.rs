@@ -1,8 +1,8 @@
 use crate::{
     Anchor, Autolink, Bold, Button, DoubleQuotedSpan, Footnote, FormattingForm, Highlight, Icon,
-    InlineMacro, InlineNode, Italic, KeyboardShortcut, LineBreak, Link, Mailto, MenuPath,
-    Monospace, Passthrough, PassthroughKind, Plain, Raw, SingleQuotedSpan, Source,
-    StandaloneCurvedApostrophe, Stem, StemNotation, Subscript, Superscript, UrlMacro,
+    InlineNode, InlinePassthrough, Italic, KeyboardShortcut, LineBreak, Link, Mailto, MenuPath,
+    Monospace, PassthroughKind, Plain, Raw, SingleQuotedSpan, Source, StandaloneCurvedApostrophe,
+    Stem, StemNotation, Subscript, Superscript, UrlMacro,
     grammar::{
         ParserState,
         attributes::AttributeQuote,
@@ -112,7 +112,7 @@ peg::parser! {
 
         rule escaped_passthrough_attributes() -> InlineNode<'input>
         = check_macros() check_passthrough_attributes() "\\" content:$(inline_attributes()) &attributed_passthrough_index(0) {
-            InlineNode::PlainText(Plain { content, escaped: true, location: state.create_block_location(span_start, span_end, state.inline_ctx.offset) })
+            InlineNode::Plain(Plain { content, escaped: true, location: state.create_block_location(span_start, span_end, state.inline_ctx.offset) })
         }
 
         rule attributed_passthrough_match()
@@ -121,7 +121,7 @@ peg::parser! {
         rule attributed_passthrough() -> InlineNode<'input>
         = check_macros() check_passthrough_attributes() start:position!() attrs:inline_attributes() check_passthrough_prefix(start) index:attributed_passthrough_index(start) {?
             let pass = state.attribute_passthroughs.get(index).ok_or("plus passthrough")?;
-            Ok(InlineNode::RawText(Raw {
+            Ok(InlineNode::Raw(Raw {
                 metadata: Some(Box::new(crate::InlineMetadata { roles: if attrs.0.is_empty() { crate::TokenAssignment::default() } else { attrs.0.into() }, id: attrs.1 })),
                 content: pass.text.unwrap_or_default(),
                 subs: pass.substitutions.clone(),
@@ -145,8 +145,8 @@ peg::parser! {
             // Empty profiles keep the preceding boundary; nonempty profiles
             // use their final nonempty node rather than the opaque placeholder.
             if let Some(node) = nodes.iter().rfind(|node|
-                !matches!(node, InlineNode::PlainText(text) if text.content.is_empty())
-                    && !matches!(node, InlineNode::RawText(text) if text.content.is_empty())) {
+                !matches!(node, InlineNode::Plain(text) if text.content.is_empty())
+                    && !matches!(node, InlineNode::Raw(text) if text.content.is_empty())) {
                 record_url_boundary(state, node, span_end, &Substitution::Attributes);
             } else {
                 state.last_url_boundary = match state.last_url_boundary {
@@ -172,7 +172,7 @@ peg::parser! {
         rule verbatim_footnote() -> InlineNode<'input>
         = check_macros() node:(
             "\\" &footnote_match() content:$("footnote:" id()? "[") {
-                InlineNode::PlainText(Plain {
+                InlineNode::Plain(Plain {
                     content,
                     location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                     escaped: false,
@@ -185,7 +185,7 @@ peg::parser! {
         = check_macros() node:(
             &("\\"+ verbatim_link_match(true)) node:escaped_syntax() { node }
             / "\\" content:$(check_autolinks() inline_autolink_match(true)) {
-                InlineNode::PlainText(Plain {
+                InlineNode::Plain(Plain {
                     content,
                     location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                     escaped: false,
@@ -248,7 +248,7 @@ peg::parser! {
             ))
             [_]
         )+) {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 escaped: false,
@@ -314,7 +314,7 @@ peg::parser! {
         end:position!()
         {
             tracing::debug!(input_len = content.len(), "Found quotes-only plain text inline");
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_block_location(start_pos, end, state.inline_ctx.offset),
                 escaped: false,
@@ -331,7 +331,7 @@ peg::parser! {
             // byte guards cut that to the subset whose first byte matches.
             // Preserves original ordering to keep PEG first-match semantics.
 
-            // Escaped superscript/subscript must come first - produces RawText to prevent re-parsing
+            // Escaped superscript/subscript must come first - produces Raw to prevent re-parsing
             &['\\'] escaped_super_sub:escaped_superscript_subscript() { escaped_super_sub }
             / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
@@ -389,7 +389,7 @@ peg::parser! {
 
         /// Escaped superscript/subscript rule - matches \^content^ or \~content~.
         ///
-        /// Produces PlainText with empty substitutions so the content:
+        /// Produces Plain with empty substitutions so the content:
         /// 1. Gets HTML escaped by the converter (security)
         /// 2. Doesn't get re-parsed as formatting (no Quotes in substitutions)
         ///
@@ -397,7 +397,7 @@ peg::parser! {
         /// followed by closing marker).
         rule escaped_superscript_subscript() -> InlineNode<'input>
         = check_catalog_escape() check_quotes() "\\" content:escaped_super_sub_pattern() {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
                 escaped: true,
@@ -417,7 +417,7 @@ peg::parser! {
             let escapes = usize::from(structural_token_allowed(
                 state, &Substitution::Macros, span_start, content.len(),
             ));
-            InlineNode::RawText(Raw {
+            InlineNode::Raw(Raw {
                 metadata: None,
                 content: &content[escapes..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -447,7 +447,7 @@ peg::parser! {
             } else {
                 0
             };
-            InlineNode::RawText(Raw {
+            InlineNode::Raw(Raw {
                 metadata: None,
                 content: &content[escapes.min(content.len() - 1)..],
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -473,7 +473,7 @@ peg::parser! {
             // A longer run leaves the entire URL macro literal, including the run.
             // Late attribute text also stays literal: the original reference's
             // closing brace prevents URI recognition before attributes expand.
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content: if escapes.len() == 1 && macro_token_allowed(state, span_start, 1) {
                     content
                 } else {
@@ -484,7 +484,7 @@ peg::parser! {
             })
         }
         / check_catalog_escape() "\\" content:escaped_content() {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 escaped: false,
@@ -578,7 +578,7 @@ peg::parser! {
             {
                 vec![]
             } else if content_str.trim().is_empty() {
-                vec![InlineNode::PlainText(Plain {
+                vec![InlineNode::Plain(Plain {
                     content: content_str,
                     location: state.create_block_location(content_start, end - 1, state.inline_ctx.offset),
                     escaped: false,
@@ -614,14 +614,14 @@ peg::parser! {
                     },
                     Some(state.create_error_source_location(footnote.location.clone())),
                 ));
-                return Ok(InlineNode::PlainText(Plain {
+                return Ok(InlineNode::Plain(Plain {
                     content: state.intern_fmt(format_args!("[{id}]")),
                     location: footnote.location,
                     escaped: false,
                 }));
             }
 
-            Ok(InlineNode::Macro(InlineMacro::Footnote(footnote)))
+            Ok(InlineNode::Footnote(footnote))
         }
 
         rule footnote_match() -> (usize, Option<&'input str>, usize, &'input str, usize)
@@ -695,13 +695,13 @@ peg::parser! {
         {
             tracing::debug!("Found pass inline");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
-            InlineNode::Macro(InlineMacro::Passthrough(Passthrough {
+            InlineNode::Passthrough(InlinePassthrough {
                 attribute_fragments: Box::default(),
                 text: Some(content),
                 substitutions: substitutions.into_iter().filter_map(|s| parse_substitution(s.trim())).collect(),
                 location,
                 kind: PassthroughKind::Macro,
-            }))
+            })
         }
 
         /// Match inline pass without consuming - for use in negative lookaheads.
@@ -816,7 +816,7 @@ peg::parser! {
         // Escaping a concealed shorthand leaves its inner visible term active.
         rule escaped_index_prefix() -> InlineNode<'input>
         = escapes:$("\\"+) &index_term_concealed_content() "(" {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content: state.intern_fmt(format_args!("{}(", &escapes[..escapes.len() - 1])),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 escaped: false,
@@ -875,11 +875,11 @@ peg::parser! {
         {?
             let target = parse_content(state, target, span_start + 5, AttributeQuote::Unquoted).map_err(|_| "invalid menu target")?;
             let items = parse_menu_items(state, items, start).map_err(|_| "invalid menu items")?;
-            Ok(InlineNode::Macro(InlineMacro::MenuPath(MenuPath {
+            Ok(InlineNode::MenuPath(MenuPath {
                 target,
                 items,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            }))
         }
 
         /// Match inline menu without consuming.
@@ -891,11 +891,11 @@ peg::parser! {
             let mut labels = parse_menu_items(state, content.text, content.start)
                 .map_err(|_| "invalid implicit menu labels")?.into_iter();
             let target = labels.next().ok_or("missing implicit menu target")?;
-            Ok(InlineNode::Macro(InlineMacro::MenuPath(MenuPath {
+            Ok(InlineNode::MenuPath(MenuPath {
                 target,
                 items: labels.collect(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            }))
         }
 
         rule inline_implicit_menu_match()
@@ -916,10 +916,10 @@ peg::parser! {
             let start = start + label.len() - label.trim_start().len();
             let label = label.trim();
             let label = parse_content(state, label, start, crate::grammar::attributes::AttributeQuote::Unquoted).map_err(|_| "invalid button label")?;
-            Ok(InlineNode::Macro(InlineMacro::Button(Button {
+            Ok(InlineNode::Button(Button {
                 label,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            }))
         }
 
         /// Match inline button without consuming - for use in negative lookaheads.
@@ -930,10 +930,10 @@ peg::parser! {
         = check_ui_macros() "kbd:[" start:position!() source:escaped_balanced_bracket_content() "]"
         {?
             let keys = parse_keyboard_keys(state, source, start).map_err(|_| "invalid keyboard labels")?;
-            Ok(InlineNode::Macro(InlineMacro::KeyboardShortcut(KeyboardShortcut {
+            Ok(InlineNode::KeyboardShortcut(KeyboardShortcut {
                 keys,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            }))
         }
 
         /// Match inline keyboard without consuming.
@@ -963,7 +963,7 @@ peg::parser! {
                 })?;
             let interned_target = state.intern_cow(target);
             let target_source = Source::from_str_borrowed(interned_target).map_err(|_| "failed to parse URL target")?;
-            Ok(InlineNode::Macro(InlineMacro::UrlMacro(Box::new(UrlMacro {
+            Ok(InlineNode::UrlMacro(Box::new(UrlMacro {
                 text,
                 tooltip,
                 target: target_source,
@@ -971,7 +971,7 @@ peg::parser! {
                 macro_attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
-            }))))
+            })))
         }
 
         /// Recognize URL macro syntax for escaping and inline lookahead.
@@ -1013,7 +1013,7 @@ peg::parser! {
                     "could not process link text"
                 })?;
             let target_source = Source::from_str_borrowed(target).map_err(|_| "failed to parse mailto target")?;
-            Ok(InlineNode::Macro(InlineMacro::Mailto(Box::new(Mailto {
+            Ok(InlineNode::Mailto(Box::new(Mailto {
                 text,
                 tooltip,
                 subject,
@@ -1022,7 +1022,7 @@ peg::parser! {
                 metadata,
                 macro_attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            })))
         }
 
         /// Match mailto macro without consuming - for use in negative lookaheads.
@@ -1118,12 +1118,12 @@ peg::parser! {
             tracing::debug!("Found autolink inline");
             let interned_url = state.intern_cow(url);
             let url_source = Source::from_str_borrowed(interned_url).map_err(|_| "failed to parse autolink URL")?;
-            Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
+            Ok(InlineNode::Autolink(Autolink {
                 url: url_source,
                 bracketed,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
-            })))
+            }))
         }
 
         /// Match inline autolink without consuming - for use in negative lookaheads.
@@ -1203,7 +1203,7 @@ peg::parser! {
         = "icon:" source:source() "[" start:position!() content:link_macro_content() "]"
         {?
             let parsed = process_media_content(state, &content, start, true).map_err(|_| "invalid icon content")?;
-            Ok(InlineNode::Macro(InlineMacro::Icon(Box::new(Icon {
+            Ok(InlineNode::Icon(Box::new(Icon {
                 alt: parsed.alt,
                 tooltip: parsed.tooltip,
                 target: source,
@@ -1216,7 +1216,7 @@ peg::parser! {
                     options: parsed.metadata.options,
                 },
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            })))
         }
 
         /// Match an icon without building its metadata.
@@ -1239,11 +1239,11 @@ peg::parser! {
                 content
             };
 
-            InlineNode::Macro(InlineMacro::Stem(Stem {
+            InlineNode::Stem(Stem {
                 content,
                 notation,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+            })
         }
 
         /// Match inline stem without consuming - for use in negative lookaheads.
@@ -1255,7 +1255,7 @@ peg::parser! {
         = "image:" source:media_source() "[" start:position!() content:link_macro_content() "]"
         {?
             let parsed = process_media_content(state, &content, start, false).map_err(|_| "invalid image content")?;
-            Ok(InlineNode::Macro(InlineMacro::Image(Box::new(crate::InlineImage {
+            Ok(InlineNode::Image(Box::new(crate::InlineImage {
                 alt: parsed.alt,
                 tooltip: parsed.tooltip,
                 source,
@@ -1268,7 +1268,7 @@ peg::parser! {
                     options: parsed.metadata.options,
                 },
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            })))
         }
 
         /// Match inline image without consuming - for use in negative lookaheads.
@@ -1290,7 +1290,7 @@ peg::parser! {
                     tracing::error!("could not process link text");
                     "could not process link text"
                 })?;
-            Ok(InlineNode::Macro(InlineMacro::Link(Box::new(Link {
+            Ok(InlineNode::Link(Box::new(Link {
                 text,
                 tooltip,
                 target,
@@ -1298,7 +1298,7 @@ peg::parser! {
                 macro_attributes,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
-            }))))
+            })))
         }
 
         /// Recognize link syntax for escaping and inline lookahead.
@@ -1366,7 +1366,7 @@ peg::parser! {
         // while its remaining label can still contain formatting and other links.
         rule literal_link_target() -> InlineNode<'input>
         = content:$(literal_link_target_match()) {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 escaped: false,
@@ -1412,7 +1412,7 @@ peg::parser! {
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
             }
-            Ok(InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref))))
+            Ok(InlineNode::CrossReference(Box::new(xref)))
         }
 
         /// Pattern for cross-reference shorthand: <<id>> or <<reference text,custom text>>
@@ -1483,7 +1483,7 @@ peg::parser! {
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
             }
-            Ok(InlineNode::Macro(InlineMacro::CrossReference(Box::new(xref))))
+            Ok(InlineNode::CrossReference(Box::new(xref)))
         }
 
         /// Parse explicit xref text without balancing arbitrary brackets.
@@ -1547,7 +1547,7 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained bold text content"
             )?;
-            Ok(InlineNode::BoldText(Bold {
+            Ok(InlineNode::Bold(Bold {
                 content,
                 role,
                 id,
@@ -1675,7 +1675,7 @@ peg::parser! {
             state.outer_constrained_delimiter = saved_delimiter;
             let (content, _) = result?;
 
-            Ok(InlineNode::BoldText(Bold {
+            Ok(InlineNode::Bold(Bold {
                 content,
                 role,
                 id,
@@ -1745,7 +1745,7 @@ peg::parser! {
             );
             state.outer_constrained_delimiter = saved_delimiter;
             let (content, _) = result?;
-            Ok(InlineNode::ItalicText(Italic {
+            Ok(InlineNode::Italic(Italic {
                 content,
                 role,
                 id,
@@ -1790,7 +1790,7 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained italic text content"
             )?;
-            Ok(InlineNode::ItalicText(Italic {
+            Ok(InlineNode::Italic(Italic {
                 content,
                 role,
                 id,
@@ -1824,7 +1824,7 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained monospace text content"
             )?;
-            Ok(InlineNode::MonospaceText(Monospace {
+            Ok(InlineNode::Monospace(Monospace {
                 content,
                 role,
                 id,
@@ -1890,7 +1890,7 @@ peg::parser! {
             );
             state.outer_constrained_delimiter = saved_delimiter;
             let (content, _) = result?;
-            Ok(InlineNode::MonospaceText(Monospace {
+            Ok(InlineNode::Monospace(Monospace {
                 content,
                 role,
                 id,
@@ -1935,7 +1935,7 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained highlight text content"
             )?;
-            Ok(InlineNode::HighlightText(Highlight {
+            Ok(InlineNode::Highlight(Highlight {
                 content,
                 role,
                 id,
@@ -1996,7 +1996,7 @@ peg::parser! {
             );
             state.outer_constrained_delimiter = saved_delimiter;
             let (content, _) = result?;
-            Ok(InlineNode::HighlightText(Highlight {
+            Ok(InlineNode::Highlight(Highlight {
                 content,
                 role,
                 id,
@@ -2042,7 +2042,7 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process superscript text content"
             )?;
-            Ok(InlineNode::SuperscriptText(Superscript {
+            Ok(InlineNode::Superscript(Superscript {
                 content,
                 role,
                 id,
@@ -2077,7 +2077,7 @@ peg::parser! {
                 process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process subscript text content"
             )?;
-            Ok(InlineNode::SubscriptText(Subscript {
+            Ok(InlineNode::Subscript(Subscript {
                 content,
                 role,
                 id,
@@ -2195,7 +2195,7 @@ peg::parser! {
         // anchor macros must retain their backslash instead of using the generic escape.
         rule escaped_anchor_macro() -> InlineNode<'input>
         = "\\" content:$(anchor_macro_pattern()) {
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 escaped: false,
@@ -2211,7 +2211,7 @@ peg::parser! {
                 anchor.xreflabel = Some(crate::grammar::reference_text::resolve(state, source).map_err(|_| "reference label")?);
                 anchor.reftext_source = Some(source);
             }
-            Ok(InlineNode::InlineAnchor(anchor))
+            Ok(InlineNode::Anchor(anchor))
         }
 
         // Share recognition with lookaheads so plain text and xref labels stop at
@@ -2264,7 +2264,7 @@ peg::parser! {
             let substituted_id = state.intern_cow(apply_attribute_substitutions(id, HEADER, &state.document_attributes));
             let source = reftext.map(|(start, text)| crate::grammar::reference_text::capture_inline(state, text, start + state.inline_ctx.offset, true));
             let xreflabel = source.map(|id| crate::grammar::reference_text::resolve(state, id)).transpose().map_err(|_| "reference label")?;
-            Ok(InlineNode::InlineAnchor(Anchor {
+            Ok(InlineNode::Anchor(Anchor {
                 id: substituted_id,
                 xreflabel,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -2300,7 +2300,7 @@ peg::parser! {
             if is_valid_bibliography_id(id) {
                 Err("valid bibliography anchor")
             } else {
-                Ok(InlineNode::PlainText(Plain {
+                Ok(InlineNode::Plain(Plain {
                     content: syntax,
                     location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                     escaped: false,
@@ -2364,7 +2364,7 @@ peg::parser! {
             tracing::trace!(input_len = content.len(), "Found plain text inline");
             // Note: Backslash escape stripping (e.g., \^ -> ^) is handled by the converter,
             // not here, so that verbatim contexts (like monospace) preserve backslashes.
-            InlineNode::PlainText(Plain {
+            InlineNode::Plain(Plain {
                 content,
                 location: state.create_block_location(start_pos, end, state.inline_ctx.offset),
                 escaped: false,

@@ -3,9 +3,10 @@
 use std::collections::HashMap;
 
 use acdc_parser::{
-    AttributeValue, CompatibilityMode, DelimitedBlock, DelimitedBlockType, DocumentAttributes,
-    Location, Options, Table, TableFrame, TableGrid, TablePresentation, TableStripes,
-    ast::{BlockKind, BlockRef},
+    AttributeValue, CompatibilityMode, DocumentAttributes, Location, Options, TableFrame,
+    TableGrid, TablePresentation, TableStripes,
+    ast::{BlockKind, TableRef},
+    edit::Table,
     parse,
 };
 
@@ -16,25 +17,21 @@ fn decoration(value: TablePresentation) -> Decoration {
     (value.frame(), value.grid(), value.stripes())
 }
 
-fn resolve(block: &DelimitedBlock<'_>, defaults: &DocumentAttributes<'_>) -> TablePresentation {
+fn resolve(block: &Table<'_>, defaults: &DocumentAttributes<'_>) -> TablePresentation {
     let expected =
         TablePresentation::from_attributes(&block.clone_metadata(), |name| defaults.get(name));
-    let actual = TablePresentation::resolve(BlockRef::from(block).attributes(), defaults.into());
+    let attributes = Some(TableRef::from(block).attributes());
+    let actual = TablePresentation::resolve(attributes, defaults.into());
     assert_eq!(actual, expected);
     assert_eq!(
-        TablePresentation::resolve_with(BlockRef::from(block).attributes(), |name| defaults
-            .get(name)),
+        TablePresentation::resolve_with(attributes, |name| defaults.get(name)),
         expected
     );
     actual
 }
 
-fn empty_table() -> DelimitedBlock<'static> {
-    DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(Table::new(Vec::new(), Location::default())),
-        "|===",
-        Location::default(),
-    )
+fn empty_table() -> Table<'static> {
+    Table::new(Vec::new(), Location::default())
 }
 
 #[rstest::rstest]
@@ -194,13 +191,11 @@ fn lookup_resolution_uses_body_assignments_and_unsets_without_updating_tables(
     let mut overlay = HashMap::new();
     let mut actual = Vec::new();
     let unresolved = empty_table();
-    let BlockKind::Table(constructed) = BlockRef::from(&unresolved).kind() else {
-        return Err("expected constructed table".into());
-    };
+    let constructed = TableRef::from(&unresolved);
     for block in parsed.document().blocks() {
         if let BlockKind::DocumentAttribute(event) = block.kind() {
             overlay.insert(event.name(), event.assignment().value());
-        } else if let BlockKind::Table(table) = block.kind() {
+        } else if let BlockKind::DelimitedTable(table) = block.kind() {
             let lookup = |name: &str| {
                 overlay
                     .get(name)
@@ -249,7 +244,7 @@ fn local_values_mask_lookup_defaults_without_requesting_them() -> Result<(), Err
         block.set_metadata(metadata)?;
         let mut requested = Vec::new();
         let resolved =
-            TablePresentation::resolve_with(BlockRef::from(&block).attributes(), |name| {
+            TablePresentation::resolve_with(Some(TableRef::from(&block).attributes()), |name| {
                 requested.push(name.to_owned());
                 None
             });

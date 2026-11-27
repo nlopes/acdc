@@ -2198,7 +2198,7 @@ peg::parser! {
             Ok(Block::Paragraph(Paragraph {
                 metadata: block_metadata.metadata.clone(),
                 title: block_metadata.title.clone(),
-                content: vec![InlineNode::PlainText(Plain { content, location, escaped: false })],
+                content: vec![InlineNode::Plain(Plain { content, location, escaped: false })],
                 location: state.create_block_location(start, span_end, offset),
                 source_text: Some(content),
             }))
@@ -3609,7 +3609,7 @@ peg::parser! {
             let substituted_id = state.intern_cow(apply_attribute_substitutions(id, HEADER, &state.document_attributes));
             let source = reftext.map(|(start, text)| crate::grammar::reference_text::capture_inline(state, text, start + offset, true));
             let xreflabel = source.map(|id| crate::grammar::reference_text::resolve(state, id)).transpose().map_err(|_| "reference label")?;
-            Ok(InlineNode::InlineAnchor(Anchor {
+            Ok(InlineNode::Anchor(Anchor {
                 id: substituted_id,
                 xreflabel,
                 location: state.create_block_location(span_start, span_end, offset),
@@ -3629,7 +3629,7 @@ peg::parser! {
             if is_valid_bibliography_id(id) {
                 Err("valid bibliography anchor")
             } else {
-                Ok(InlineNode::PlainText(Plain {
+                Ok(InlineNode::Plain(Plain {
                     content: syntax,
                     location: state.create_block_location(span_start, span_end, offset),
                     escaped: false,

@@ -301,7 +301,7 @@ fn extract_plain_content(
 
 #[cfg(test)]
 fn extract_plain_text(
-    inlines: &[acdc_parser::InlineNode<'_>],
+    inlines: &[acdc_parser::edit::InlineNode<'_>],
     transform: InlineTextTransform<'_, '_>,
 ) -> String {
     transform
@@ -313,14 +313,17 @@ fn extract_plain_text(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{Bold, FormattingForm, InlineNode, Italic, LineBreak, Location, Plain};
+    use acdc_parser::{
+        FormattingForm, Location,
+        edit::{Bold, InlineNode, Italic, LineBreak, Plain},
+    };
 
     fn plain(s: &str) -> InlineNode<'_> {
-        InlineNode::PlainText(Plain::new(s, Location::default()))
+        InlineNode::Plain(Plain::new(s, Location::default()))
     }
 
     fn bold(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::BoldText(Bold::new(
+        InlineNode::Bold(Bold::new(
             nodes,
             FormattingForm::Constrained,
             Location::default(),
@@ -328,7 +331,7 @@ mod tests {
     }
 
     fn italic(nodes: Vec<InlineNode>) -> InlineNode {
-        InlineNode::ItalicText(Italic::new(
+        InlineNode::Italic(Italic::new(
             nodes,
             FormattingForm::Constrained,
             Location::default(),

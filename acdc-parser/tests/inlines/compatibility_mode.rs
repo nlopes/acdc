@@ -98,7 +98,7 @@ fn includes_and_cells_inherit_mode_without_leaking_local_attributes() -> Result<
             let [
                 BlockKind::DocumentAttribute(_),
                 BlockKind::Paragraph(listing),
-                BlockKind::Table(table),
+                BlockKind::DelimitedTable(table),
                 BlockKind::Image(image),
                 BlockKind::Paragraph(link),
             ] = &*blocks(parsed.document())
@@ -231,7 +231,7 @@ fn named_title_quoting_follows_compatibility_mode() -> Result<(), Error> {
         ] {
             let source = format!("[{attribute}]\n----\nx\n----");
             let parsed = parse(&source, &options)?;
-            let [BlockKind::Listing(block)] = &*blocks(parsed.document()) else {
+            let [BlockKind::DelimitedListing(block)] = &*blocks(parsed.document()) else {
                 return Err("missing listing".into());
             };
             assert_eq!(
@@ -351,7 +351,7 @@ fn draft_literal_titles_protect_typography_passthroughs_and_entities() -> Result
             block.title().ok_or("missing title")?
         } else if let BlockKind::Image(block) = block {
             block.title().ok_or("missing title")?
-        } else if let BlockKind::Listing(block) = block {
+        } else if let BlockKind::DelimitedListing(block) = block {
             block.title().ok_or("missing title")?
         } else {
             return Err(format!("unexpected block: {block:?}").into());

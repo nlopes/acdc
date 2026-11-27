@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, Location, Options, ReferenceTarget, Title, TocEntry,
+    CompatibilityMode, Location, Options,
     ast::{ReferenceTargetRef, TocEntryRef},
+    edit::{ContentAttribute, ReferenceTarget, Title, TocEntry},
     parse, parse_file,
 };
 
@@ -119,7 +120,7 @@ fn parsed_targets_and_selected_include_snapshots_keep_their_identity() -> Result
 #[test]
 fn checked_asg_export_rejects_a_reference_with_a_different_canonical_target() -> Result<(), Error> {
     let parsed = parse("[#target]\nA paragraph.\n", &Options::default())?;
-    let mut document = acdc_parser::Document::from(parsed.document());
+    let mut document = acdc_parser::edit::Document::from(parsed.document());
     acdc_parser::asg::export_document(acdc_parser::ast::DocumentRef::from(&document))?;
     let mut references: std::collections::HashMap<_, _> = document.take_references().collect();
     references

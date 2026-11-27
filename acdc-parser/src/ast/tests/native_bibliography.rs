@@ -34,7 +34,7 @@ fn native_anchor_fields_preserve_bibliography_kind_and_label_presence(
     let (node, anchor) = content
         .iter()
         .find_map(|node| {
-            if let InlineNode::InlineAnchor(anchor) = node {
+            if let InlineNode::Anchor(anchor) = node {
                 Some((node, anchor))
             } else {
                 None
@@ -85,7 +85,7 @@ fn bibliography_display_and_citation_keep_distinct_profiles_in_json(
         .principal
         .iter()
         .find_map(|node| {
-            if let InlineNode::InlineAnchor(anchor) = node {
+            if let InlineNode::Anchor(anchor) = node {
                 Some(anchor)
             } else {
                 None

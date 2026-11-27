@@ -176,7 +176,7 @@ impl<'a> ConversionSession<'a> {
         let args = &call.args;
         let origin = SourceLocation::at_location(args.file.clone(), location.clone());
         let Some((index, entry)) = self.registry.inline_registration(&args.name) else {
-            return Ok(InlineNode::PlainText(call.literal.clone()));
+            return Ok(InlineNode::Plain(call.literal.clone()));
         };
         let processor = self
             .processors
@@ -220,12 +220,12 @@ impl<'a> ConversionSession<'a> {
         let text = |s: String| super::inline::plain(arena.alloc_str(&s), location);
         Ok(match output {
             InlineMacroOutput::Text(s) => text(s),
-            InlineMacroOutput::Strong(s) => InlineNode::BoldText(Bold::new(
+            InlineMacroOutput::Strong(s) => InlineNode::Bold(Bold::new(
                 vec![text(s)],
                 FormattingForm::Constrained,
                 location.clone(),
             )),
-            InlineMacroOutput::Emphasis(s) => InlineNode::ItalicText(Italic::new(
+            InlineMacroOutput::Emphasis(s) => InlineNode::Italic(Italic::new(
                 vec![text(s)],
                 FormattingForm::Constrained,
                 location.clone(),

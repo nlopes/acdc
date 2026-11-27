@@ -136,12 +136,12 @@ pub(super) fn collect_protected_ranges(ast: DocumentRef<'_>, text: &str) -> Vec<
 
 fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<ProtectedRange>) {
     match block.kind() {
-        BlockKind::Listing(_)
-        | BlockKind::Literal(_)
-        | BlockKind::Passthrough(_)
+        BlockKind::DelimitedListing(_)
+        | BlockKind::DelimitedLiteral(_)
+        | BlockKind::DelimitedPassthrough(_)
         | BlockKind::DelimitedComment(_)
-        | BlockKind::Verse(_)
-        | BlockKind::Stem(_) => {
+        | BlockKind::DelimitedVerse(_)
+        | BlockKind::DelimitedStem(_) => {
             let location = block.location();
             if is_primary_location(location) {
                 ranges.push(ProtectedRange {
@@ -153,10 +153,10 @@ fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<Pro
         }
         BlockKind::Section(_)
         | BlockKind::Admonition(_)
-        | BlockKind::Example(_)
-        | BlockKind::Open(_)
-        | BlockKind::Sidebar(_)
-        | BlockKind::Quote(_) => {}
+        | BlockKind::DelimitedExample(_)
+        | BlockKind::DelimitedOpen(_)
+        | BlockKind::DelimitedSidebar(_)
+        | BlockKind::DelimitedQuote(_) => {}
         BlockKind::TableOfContents(_)
         | BlockKind::DiscreteHeading(_)
         | BlockKind::DocumentAttribute(_)
@@ -171,7 +171,7 @@ fn collect_protected_ranges_from_block(block: BlockRef<'_>, ranges: &mut Vec<Pro
         | BlockKind::Audio(_)
         | BlockKind::Video(_)
         | BlockKind::Comment(_)
-        | BlockKind::Table(_)
+        | BlockKind::DelimitedTable(_)
         | _ => return,
     }
     for child in StructuralRef::from(block).children() {

@@ -1,9 +1,8 @@
 //! Reference registration and document finalization.
 
 use crate::{
-    Anchor, Block, BlockMetadata, ContentAttribute, DelimitedBlockType, Document,
-    DocumentAttributes, Header, InlineMacro, InlineNode, Location, ReferenceTarget, Section, Title,
-    TocEntry, Warning, WarningKind,
+    Anchor, Block, BlockMetadata, ContentAttribute, Document, DocumentAttributes, Header,
+    InlineNode, Location, ReferenceTarget, Section, Title, TocEntry, Warning, WarningKind,
     grammar::{
         ParserState,
         document::sections::warn_for_nested_special_section,
@@ -172,7 +171,7 @@ pub(super) fn finalize_inline_semantics<'a>(
     }
     try_walk_document_inline_nodes_mut(document, &mut |inline| {
         finalize_registered_inline(state, inline);
-        let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+        let InlineNode::CrossReference(xref) = inline else {
             return Ok(());
         };
         if let Some(target) = resolve_source_target(state, xref.target, xref.source_syntax) {
@@ -611,33 +610,33 @@ pub(super) fn normalize_bibliography_lists<'a>(state: &ParserState<'a>, blocks: 
             Block::Admonition(admonition) => {
                 normalize_bibliography_lists(state, &mut admonition.blocks);
             }
-            Block::DelimitedBlock(block) => match &mut block.inner {
-                DelimitedBlockType::DelimitedExample(blocks)
-                | DelimitedBlockType::DelimitedOpen(blocks)
-                | DelimitedBlockType::DelimitedSidebar(blocks)
-                | DelimitedBlockType::DelimitedQuote(blocks) => {
-                    normalize_bibliography_lists(state, blocks);
-                }
-                DelimitedBlockType::DelimitedTable(table) => {
-                    for row in table
-                        .header
-                        .iter_mut()
-                        .chain(table.rows.iter_mut())
-                        .chain(table.footer.iter_mut())
-                    {
-                        for column in &mut row.columns {
-                            normalize_bibliography_lists(state, &mut column.content);
-                        }
+            Block::DelimitedExample(crate::model::Example(block))
+            | Block::DelimitedOpen(crate::model::Open(block))
+            | Block::DelimitedSidebar(crate::model::Sidebar(block))
+            | Block::DelimitedQuote(crate::model::Quote(block)) => {
+                let blocks = &mut block.body;
+                normalize_bibliography_lists(state, blocks);
+            }
+            Block::DelimitedTable(crate::model::Table(block)) => {
+                let table = &mut block.body;
+                for row in table
+                    .header
+                    .iter_mut()
+                    .chain(table.rows.iter_mut())
+                    .chain(table.footer.iter_mut())
+                {
+                    for column in &mut row.columns {
+                        normalize_bibliography_lists(state, &mut column.content);
                     }
                 }
-                DelimitedBlockType::DelimitedListing(_)
-                | DelimitedBlockType::DelimitedLiteral(_)
-                | DelimitedBlockType::DelimitedPass(_)
-                | DelimitedBlockType::DelimitedVerse(_)
-                | DelimitedBlockType::DelimitedComment(_)
-                | DelimitedBlockType::DelimitedStem(_) => {}
-            },
-            Block::Paragraph(_)
+            }
+            Block::DelimitedListing(_)
+            | Block::DelimitedLiteral(_)
+            | Block::DelimitedPassthrough(_)
+            | Block::DelimitedVerse(_)
+            | Block::DelimitedComment(_)
+            | Block::DelimitedStem(_)
+            | Block::Paragraph(_)
             | Block::DiscreteHeading(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
@@ -654,9 +653,9 @@ pub(super) fn normalize_bibliography_lists<'a>(state: &ParserState<'a>, blocks: 
 
 fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<InlineNode<'a>>) {
     let [
-        InlineNode::PlainText(open),
-        InlineNode::InlineAnchor(anchor),
-        InlineNode::PlainText(close),
+        InlineNode::Plain(open),
+        InlineNode::Anchor(anchor),
+        InlineNode::Plain(close),
         ..,
     ] = principal.as_mut_slice()
     else {
@@ -711,7 +710,7 @@ fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<
 }
 
 fn finalize_registered_inline<'a>(state: &ParserState<'a>, node: &mut InlineNode<'a>) {
-    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+    if let InlineNode::IndexTerm(term) = node {
         crate::grammar::passthrough_processing::prepare_index_catalog(term, state);
         if let Some(catalog) = &mut term.catalog {
             catalog.for_each_label_mut(|nodes| {
@@ -721,7 +720,7 @@ fn finalize_registered_inline<'a>(state: &ParserState<'a>, node: &mut InlineNode
                 );
             });
         }
-    } else if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = node
+    } else if let InlineNode::Footnote(footnote) = node
         && let Some(content) = &mut footnote.content
     {
         finalize_footnote_text(&mut footnote.registration_substitutions, content);

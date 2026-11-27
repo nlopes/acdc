@@ -3,8 +3,9 @@
 use std::{alloc::System, fmt::Write, hint::black_box};
 
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineNode, Location, Options, Plain, Title,
+    CompatibilityMode, Location, Options,
     ast::{BlockKind, ContentRef, InlineKind},
+    edit::{ContentAttribute, InlineNode, Plain, Title},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -80,7 +81,7 @@ fn optional_title_copies_keep_absence_separate_from_empty() {
 }
 
 fn text(source: &str) -> InlineNode<'_> {
-    InlineNode::PlainText(Plain::new(source, Location::default()).with_escaped(true))
+    InlineNode::Plain(Plain::new(source, Location::default()).with_escaped(true))
 }
 
 #[test]

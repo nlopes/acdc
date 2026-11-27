@@ -1,6 +1,7 @@
 use acdc_parser::{
-    InlineMacro, InlineNode, Options,
+    Options,
     ast::{InlineKind, InlineRef},
+    edit::InlineNode,
     parse, parse_inline,
 };
 
@@ -30,17 +31,17 @@ fn named_index_delimiters_preserve_registration_time_macro_text() -> Result<(), 
     let label = "Before https://example.org[Link] after";
     let source = format!("indexterm2:[{label}]");
     let parsed = parse_inline(&source, &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [InlineNode::Macro(InlineMacro::IndexTerm(term))] = parsed_inlines.as_slice() else {
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [InlineNode::IndexTerm(term)] = parsed_inlines.as_slice() else {
         return Err("expected index term".into());
     };
-    let content = acdc_parser::ContentAttribute::from(
+    let content = acdc_parser::edit::ContentAttribute::from(
         acdc_parser::ast::IndexTermRef::from(term.as_ref())
             .catalog()
             .term(),
     )
     .into_inlines();
-    let [InlineNode::RawText(catalog)] = content.as_slice() else {
+    let [InlineNode::Raw(catalog)] = content.as_slice() else {
         return Err("expected literal catalog text".into());
     };
     let catalog = acdc_parser::ast::RawRef::from(catalog);
@@ -92,12 +93,8 @@ fn named_index_delimiters_preserve_complete_children_and_source_spans(
     };
     let source = format!("α {outer}[{label}] ω");
     let parsed = parse_inline(&source, &Options::default())?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-    let [
-        _,
-        InlineNode::Macro(InlineMacro::IndexTerm(term)),
-        InlineNode::PlainText(tail),
-    ] = parsed_inlines.as_slice()
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+    let [_, InlineNode::IndexTerm(term), InlineNode::Plain(tail)] = parsed_inlines.as_slice()
     else {
         return Err(format!(
             "expected complete index term: {:?}",
@@ -115,11 +112,11 @@ fn named_index_delimiters_preserve_complete_children_and_source_spans(
                 .absolute_end()],
         format!("{outer}[{label}]")
     );
-    let content = acdc_parser::ContentAttribute::from(
+    let content = acdc_parser::edit::ContentAttribute::from(
         acdc_parser::ast::IndexTermRef::from(term.as_ref()).term(),
     )
     .into_inlines();
-    let [InlineNode::PlainText(_), node, InlineNode::PlainText(after)] = content.as_slice() else {
+    let [InlineNode::Plain(_), node, InlineNode::Plain(after)] = content.as_slice() else {
         return Err(format!("expected complete child macro: {:?}", content.as_slice()).into());
     };
     assert_eq!(acdc_parser::ast::PlainRef::from(after).text(), " after");

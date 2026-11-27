@@ -22,7 +22,7 @@ pub(crate) enum Error {
     UnsupportedType(String),
     #[cfg(feature = "tck")]
     #[error(transparent)]
-    TckMetadata(#[from] acdc_parser::ReservedAttribute),
+    TckMetadata(#[from] acdc_parser::edit::ReservedAttribute),
     #[error("ASG output requires a build with the `asg` feature")]
     UnavailableFormat,
 }

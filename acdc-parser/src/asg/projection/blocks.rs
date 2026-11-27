@@ -1,6 +1,7 @@
 use crate::{
-    Admonition, AdmonitionForm, Anchor, BlockMetadata, DelimitedBlock, DelimitedBlockType,
-    DiscreteHeading, Paragraph, Source, ThematicBreak, Title,
+    Admonition, AdmonitionForm, Anchor, BlockMetadata, DiscreteHeading, Image, Paragraph, Source,
+    ThematicBreak, Title,
+    model::{Delimited, StemContent},
 };
 
 use super::{
@@ -114,74 +115,62 @@ impl<'a, 'doc> Export<'a, 'doc> {
         Ok(result)
     }
 
-    pub(super) fn delimited(
-        &mut self,
-        value: &'a DelimitedBlock<'doc>,
+    /// Check the delimiter form shared by every delimited kind.
+    ///
+    /// Returns the quote marker (`"` or `>`) when a quote block uses one.
+    pub(super) fn delimited_marker<B>(
+        &self,
+        value: &'a Delimited<'doc, B>,
+        quote: bool,
         path: &str,
-    ) -> Result<Node, Error> {
+    ) -> Result<Option<&'doc str>, Error> {
         let marker = matches!(value.delimiter, "\"" | ">").then_some(value.delimiter);
         if value.delimiter.is_empty()
-            || (marker.is_some()
-                && (self.profile == Profile::Upstream
-                    || !matches!(value.inner, DelimitedBlockType::DelimitedQuote(_))))
+            || (marker.is_some() && (self.profile == Profile::Upstream || !quote))
         {
             return Err(unsupported(
                 &pointer(path, "delimiter"),
                 "this source marker is not a delimited block form",
             ));
         }
-        let (name, body, content) = match &value.inner {
-            DelimitedBlockType::DelimitedListing(content) => (
-                "listing",
-                "inlines",
-                body_inlines(content, &value.metadata, path, true, self.profile)?,
-            ),
-            DelimitedBlockType::DelimitedLiteral(content) => (
-                "literal",
-                "inlines",
-                body_inlines(content, &value.metadata, path, true, self.profile)?,
-            ),
-            DelimitedBlockType::DelimitedVerse(content) => (
-                "verse",
-                "inlines",
-                body_inlines(content, &value.metadata, path, true, self.profile)?,
-            ),
-            DelimitedBlockType::DelimitedPass(content) => (
-                "pass",
-                "inlines",
-                body_inlines(content, &value.metadata, path, false, self.profile)?,
-            ),
-            DelimitedBlockType::DelimitedOpen(content) => (
-                "open",
-                "blocks",
-                self.nonsection_blocks(content, &pointer(path, "blocks"))?,
-            ),
-            DelimitedBlockType::DelimitedExample(content) => (
-                "example",
-                "blocks",
-                self.nonsection_blocks(content, &pointer(path, "blocks"))?,
-            ),
-            DelimitedBlockType::DelimitedSidebar(content) => (
-                "sidebar",
-                "blocks",
-                self.nonsection_blocks(content, &pointer(path, "blocks"))?,
-            ),
-            DelimitedBlockType::DelimitedQuote(content) => (
-                "quote",
-                "blocks",
-                self.nonsection_blocks(content, &pointer(path, "blocks"))?,
-            ),
-            DelimitedBlockType::DelimitedTable(table) => return self.table(value, table, path),
-            DelimitedBlockType::DelimitedStem(content) => {
-                return self.stem(value, content, path);
-            }
-            DelimitedBlockType::DelimitedComment(_) => {
-                return Err(unsupported(
-                    &pointer(path, "inner"),
-                    "this block body has no supported upstream mapping",
-                ));
-            }
-        };
+        Ok(marker)
+    }
+
+    /// Project a delimited block whose body is inline content.
+    pub(super) fn delimited_inlines(
+        &mut self,
+        value: &'a Delimited<'doc, Vec<crate::InlineNode<'doc>>>,
+        name: &'static str,
+        literal: bool,
+        path: &str,
+    ) -> Result<Node, Error> {
+        let marker = self.delimited_marker(value, false, path)?;
+        let content = body_inlines(&value.body, &value.metadata, path, literal, self.profile)?;
+        self.delimited_node(value, marker, name, "inlines", content, path)
+    }
+
+    /// Project a delimited block whose body is child blocks.
+    pub(super) fn delimited_blocks(
+        &mut self,
+        value: &'a Delimited<'doc, Vec<crate::Block<'doc>>>,
+        name: &'static str,
+        quote: bool,
+        path: &str,
+    ) -> Result<Node, Error> {
+        let marker = self.delimited_marker(value, quote, path)?;
+        let content = self.nonsection_blocks(&value.body, &pointer(path, "blocks"))?;
+        self.delimited_node(value, marker, name, "blocks", content, path)
+    }
+
+    fn delimited_node<B>(
+        &mut self,
+        value: &'a Delimited<'doc, B>,
+        marker: Option<&str>,
+        name: &str,
+        body: &str,
+        content: serde_json::Value,
+        path: &str,
+    ) -> Result<Node, Error> {
         let mut result = node(name, "block");
         if let Some(marker) = marker {
             result.insert("form".into(), "marked".into());
@@ -195,12 +184,12 @@ impl<'a, 'doc> Export<'a, 'doc> {
         Ok(result)
     }
 
-    fn stem(
+    pub(super) fn stem(
         &mut self,
-        block: &'a DelimitedBlock<'doc>,
-        content: &crate::StemContent<'_>,
+        block: &'a Delimited<'doc, StemContent<'doc>>,
         path: &str,
     ) -> Result<Node, Error> {
+        let content = &block.body;
         if self.profile == Profile::Upstream {
             return Err(unsupported(
                 &pointer(path, "notation"),
@@ -235,6 +224,28 @@ impl<'a, 'doc> Export<'a, 'doc> {
             result.insert("target".into(), super::super::target(source, path)?.into());
         }
         self.block_metadata(&mut result, value, title, path)?;
+        Ok(result)
+    }
+
+    pub(super) fn image_block(
+        &mut self,
+        image: &'a Image<'doc>,
+        path: &str,
+    ) -> Result<Node, Error> {
+        if image.alt.is_some() && self.profile == Profile::Upstream {
+            return Err(unsupported(
+                &pointer(path, "alt"),
+                "parsed alternative content needs an explicit content-attribute mapping",
+            ));
+        }
+        let mut result = self.block_macro(
+            "image",
+            Some(&image.source),
+            Some(&image.title),
+            &image.metadata,
+            path,
+        )?;
+        super::super::images::block(&mut result, image, path, self.profile)?;
         Ok(result)
     }
 

@@ -3,9 +3,9 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    ElementId, InlineMacro, InlineMetadata, InlineNode, Location, Passthrough, PassthroughKind,
-    Raw, Substitution,
+    Location, PassthroughKind, Substitution,
     ast::{ElementIdRef, InlinePassthroughRef, RawRef},
+    edit::{ElementId, InlineMetadata, InlineNode, InlinePassthrough, Raw},
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
 
@@ -43,15 +43,15 @@ fn raw_copies_keep_identity_roles_text_and_ordered_substitutions() {
 fn raw_metadata_keeps_absence_distinct_from_present_empty() -> Result<(), Error> {
     let mut raw = Raw::new("", Vec::new(), Location::default());
     assert_eq!(raw.clone_metadata(), None);
-    let absent = serde_json::to_value(InlineNode::RawText(raw.clone()))?;
+    let absent = serde_json::to_value(InlineNode::Raw(raw.clone()))?;
     assert!(absent.get("metadata").is_none());
     raw.set_metadata(Some(InlineMetadata::default()));
     assert_eq!(raw.clone_metadata(), Some(InlineMetadata::default()));
-    let present = serde_json::to_value(InlineNode::RawText(raw.clone()))?;
+    let present = serde_json::to_value(InlineNode::Raw(raw.clone()))?;
     assert_eq!(present, absent);
     assert_eq!(raw.take_metadata(), Some(InlineMetadata::default()));
     assert_eq!(raw.take_metadata(), None);
-    assert_eq!(serde_json::to_value(InlineNode::RawText(raw))?, absent);
+    assert_eq!(serde_json::to_value(InlineNode::Raw(raw))?, absent);
     Ok(())
 }
 
@@ -140,8 +140,8 @@ fn pass_copies_keep_optional_text_kind_and_substitutions() {
             PassthroughKind::Macro,
             PassthroughKind::AttributeRef,
         ] {
-            let pass = Passthrough::new(text, profile(), kind.clone(), Location::default());
-            let copy = Passthrough::from(InlinePassthroughRef::from(&pass));
+            let pass = InlinePassthrough::new(text, profile(), kind.clone(), Location::default());
+            let copy = InlinePassthrough::from(InlinePassthroughRef::from(&pass));
             assert_eq!(copy, pass);
             assert_eq!(InlinePassthroughRef::from(&copy).text(), text);
             assert_eq!(InlinePassthroughRef::from(&copy).kind(), kind);
@@ -160,7 +160,7 @@ fn pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct() {
     let source = String::from("*original*");
     let replacement = String::from("image:literal[]");
     let old = {
-        let mut pass = Passthrough::new(
+        let mut pass = InlinePassthrough::new(
             Some(&source),
             profile(),
             PassthroughKind::Macro,
@@ -190,7 +190,7 @@ fn pass_text_transfers_keep_absence_empty_and_source_lifetime_distinct() {
 fn pass_substitution_transfers_keep_vector_storage_order_and_duplicates() {
     let initial = profile();
     let original_pointer = initial.as_ptr();
-    let mut pass = Passthrough::new(
+    let mut pass = InlinePassthrough::new(
         Some("<x>"),
         initial,
         PassthroughKind::Macro,
@@ -213,7 +213,7 @@ fn pass_substitution_transfers_keep_vector_storage_order_and_duplicates() {
 
 #[test]
 fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
-    let mut pass = Passthrough::new(
+    let mut pass = InlinePassthrough::new(
         Some("*{literal}*"),
         profile(),
         PassthroughKind::Single,
@@ -245,7 +245,7 @@ fn pass_form_and_location_edits_do_not_process_or_reconstruct_text() {
 #[test]
 fn undecorated_passthrough_copies_do_not_allocate() {
     let raw = Raw::new("raw", Vec::new(), Location::default());
-    let pass = Passthrough::new(
+    let pass = InlinePassthrough::new(
         None,
         Vec::new(),
         PassthroughKind::Macro,
@@ -253,7 +253,7 @@ fn undecorated_passthrough_copies_do_not_allocate() {
     );
     let region = Region::new(ALLOCATOR);
     let raw_copy = black_box(Raw::from(RawRef::from(&raw)));
-    let pass_copy = black_box(Passthrough::from(InlinePassthroughRef::from(&pass)));
+    let pass_copy = black_box(InlinePassthrough::from(InlinePassthroughRef::from(&pass)));
     let change = region.change();
     assert_eq!(change.allocations, 0);
     assert_eq!(change.reallocations, 0);
@@ -266,15 +266,15 @@ fn selected_passthrough_copies_keep_native_json() -> Result<(), Error> {
     let mut raw = Raw::new("λ <b>", profile(), Location::default());
     raw.set_metadata(Some(InlineMetadata::default()));
     assert_eq!(
-        serde_json::to_value(InlineNode::RawText(Raw::from(RawRef::from(&raw))))?,
-        serde_json::to_value(InlineNode::RawText(raw))?
+        serde_json::to_value(InlineNode::Raw(Raw::from(RawRef::from(&raw))))?,
+        serde_json::to_value(InlineNode::Raw(raw))?
     );
-    let pass = Passthrough::new(None, profile(), PassthroughKind::Macro, Location::default());
+    let pass = InlinePassthrough::new(None, profile(), PassthroughKind::Macro, Location::default());
     assert_eq!(
-        serde_json::to_value(InlineNode::Macro(InlineMacro::Passthrough(
-            Passthrough::from(InlinePassthroughRef::from(&pass))
+        serde_json::to_value(InlineNode::Passthrough(InlinePassthrough::from(
+            InlinePassthroughRef::from(&pass)
         )))?,
-        serde_json::to_value(InlineNode::Macro(InlineMacro::Passthrough(pass)))?
+        serde_json::to_value(InlineNode::Passthrough(pass))?
     );
     Ok(())
 }

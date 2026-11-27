@@ -6,7 +6,7 @@ macro_rules! metadata_contract {
     ($module:ident, $owner:ident, $source:literal, $new:expr) => {
         mod $module {
             use super::Error;
-            use acdc_parser::{Block, CompatibilityMode, Options, ast::BlockRef, parse};
+            use acdc_parser::{CompatibilityMode, Options, ast::BlockRef, parse, edit::Block};
 
             #[rstest::rstest]
             fn metadata_round_trips_and_rejected_replacements_are_atomic(
@@ -79,8 +79,8 @@ metadata_contract!(
     heading,
     DiscreteHeading,
     "[discrete#local.note]\n== A *heading*",
-    acdc_parser::DiscreteHeading::new(
-        acdc_parser::Title::default(),
+    acdc_parser::edit::DiscreteHeading::new(
+        acdc_parser::edit::Title::default(),
         2,
         acdc_parser::Location::default()
     )
@@ -89,13 +89,13 @@ metadata_contract!(
     page,
     PageBreak,
     "[#local.note]\n.Title\n<<<",
-    acdc_parser::PageBreak::new(acdc_parser::Location::default())
+    acdc_parser::edit::PageBreak::new(acdc_parser::Location::default())
 );
 metadata_contract!(
     toc,
     TableOfContents,
     "[#local.note]\ntoc::[]",
-    acdc_parser::TableOfContents::new(acdc_parser::Location::default())
+    acdc_parser::edit::TableOfContents::new(acdc_parser::Location::default())
 );
 
 #[rstest::rstest]
@@ -107,8 +107,9 @@ fn boundary_titles_keep_absent_empty_and_formatted_content(
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
-        Block, Location, Options, PageBreak, ThematicBreak, Title,
+        Location, Options,
         ast::{BlockRef, ContentRef},
+        edit::{Block, PageBreak, ThematicBreak, Title},
         parse,
     };
     let parsed = parse(
@@ -171,7 +172,11 @@ fn boundary_titles_keep_absent_empty_and_formatted_content(
 
 #[test]
 fn thematic_anchor_transfers_preserve_order_content_and_source_lifetimes() -> Result<(), Error> {
-    use acdc_parser::{Anchor, Location, ThematicBreak, ast::ThematicBreakRef};
+    use acdc_parser::{
+        Location,
+        ast::ThematicBreakRef,
+        edit::{Anchor, ThematicBreak},
+    };
     let id = String::from("original");
     let anchors = {
         let mut local = ThematicBreak::new(Location::default());
@@ -206,7 +211,7 @@ fn thematic_anchor_transfers_preserve_order_content_and_source_lifetimes() -> Re
 
 #[test]
 fn comment_edits_preserve_literal_text_and_retained_category() {
-    use acdc_parser::{Comment, CommentKind, Location, ast::CommentRef};
+    use acdc_parser::{CommentKind, Location, ast::CommentRef, edit::Comment};
     let text = String::from("  *literal* {name} λ  ");
     let previous = {
         let mut comment = Comment::new(CommentKind::Line, &text, Location::default());
@@ -228,7 +233,7 @@ fn moving_an_assignment_span_does_not_replay_accepted_document_policy(
     )]
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
-    use acdc_parser::{Block, Location, Options, ast::DocumentAttributeRef, parse};
+    use acdc_parser::{Location, Options, ast::DocumentAttributeRef, edit::Block, parse};
     let parsed = parse(
         "= Attributes\n:label: Header\n\nBody.\n\n:label: Body\n\n:label!:\n",
         &Options::builder().with_compatibility_mode(mode).build()?,

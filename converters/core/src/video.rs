@@ -12,8 +12,8 @@
 use std::fmt::Write as _;
 
 use acdc_parser::{
-    Video,
     ast::{AttributeValueRef, VideoRef},
+    edit::Video,
 };
 
 /// Errors that can occur while generating a video URL.
@@ -337,7 +337,10 @@ fn build_local_url(video: VideoRef<'_>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::{AttributeValue, BlockMetadata, ElementAttributes, Location, Source};
+    use acdc_parser::{
+        AttributeValue, ElementAttributes, Location,
+        edit::{BlockMetadata, Source},
+    };
 
     fn create_video<'a>(
         source: &'a str,

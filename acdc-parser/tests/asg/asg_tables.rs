@@ -1,8 +1,10 @@
 #![cfg(feature = "asg")]
 use acdc_parser::{
-    Block, ColumnFormat, ColumnStyle, ColumnWidth, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, Document, InlineNode, Location, Options, Paragraph, Table, TableCell,
-    TableRow, Verbatim, asg, parse, parse_file,
+    ColumnStyle, ColumnWidth, CompatibilityMode, Location, Options, asg,
+    edit::{
+        Block, ColumnFormat, Document, InlineNode, Paragraph, Table, TableCell, TableRow, Verbatim,
+    },
+    parse, parse_file,
 };
 use serde_json::{Value, json};
 use std::{fs, path::Path};
@@ -72,11 +74,7 @@ fn basic_tables_preserve_sections_cells_and_formatting() -> Result<(), Error> {
 
 fn with_table(table: Table<'_>) -> Document<'_> {
     let mut document = Document::default();
-    document.push_block(Block::DelimitedBlock(DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(table),
-        "|===",
-        Location::default(),
-    )));
+    document.push_block(Block::DelimitedTable(table));
     document
 }
 
@@ -115,7 +113,7 @@ fn empty_table_parts_keep_presence_and_prepared_column_values() -> Result<(), Er
 #[test]
 fn literal_column_context_preserves_prepared_verbatim_paragraphs() -> Result<(), Error> {
     let paragraph = Paragraph::new(
-        vec![InlineNode::VerbatimText(Verbatim::new(
+        vec![InlineNode::Verbatim(Verbatim::new(
             "*literal* <raw>",
             Location::default(),
         ))],
@@ -148,7 +146,7 @@ fn table_decoration_keeps_source_defaults_after_prepared_metadata_edits() -> Res
         ":table-frame: sides\n\n|===\n|Cell\n|===",
         &Options::default(),
     )?;
-    let Block::DelimitedBlock(mut block) =
+    let Block::DelimitedTable(mut block) =
         Block::from(parsed.document().blocks().next().ok_or("table")?)
     else {
         return Err("table".into());
@@ -162,7 +160,7 @@ fn table_decoration_keeps_source_defaults_after_prepared_metadata_edits() -> Res
         }
         block.set_metadata(metadata)?;
         let mut document = Document::default();
-        document.push_block(Block::DelimitedBlock(block.clone()));
+        document.push_block(Block::DelimitedTable(block.clone()));
         let value = asg::export_document_with_profile((&document).into(), asg::Profile::Acdc)?;
         assert_eq!(
             value.pointer("/blocks/0/presentation/frame"),
@@ -194,7 +192,7 @@ fn strict_tables_and_invalid_ordinary_cell_blocks_reject() -> Result<(), Error> 
         matches!(asg::export_document_with_profile((&document).into(),asg::Profile::Acdc),Err(asg::Error::Unsupported {path,construct:Some("unordered list"),..}) if path=="/blocks/0/rows/0/cells/0/blocks/0")
     );
     let paragraph = Paragraph::new(
-        vec![InlineNode::VerbatimText(Verbatim::new(
+        vec![InlineNode::Verbatim(Verbatim::new(
             "unclassified",
             Location::default(),
         ))],

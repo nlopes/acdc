@@ -6,7 +6,7 @@ use acdc_parser::{
 };
 
 #[cfg(test)]
-use acdc_parser::{Block, ast::SectionRef};
+use acdc_parser::{ast::SectionRef, edit::Block};
 
 use crate::TraversalContext;
 
@@ -44,11 +44,11 @@ pub fn contains_index_section<'doc>(mut blocks: impl Iterator<Item = BlockRef<'d
         BlockKind::Section(section) => {
             section.kind() == SectionKind::Index || contains_index_section(section.blocks())
         }
-        BlockKind::Example(block) => contains_index_section(block.blocks()),
-        BlockKind::Open(block) => contains_index_section(block.blocks()),
-        BlockKind::Quote(block) => contains_index_section(block.blocks()),
-        BlockKind::Sidebar(block) => contains_index_section(block.blocks()),
-        BlockKind::Table(table) => table
+        BlockKind::DelimitedExample(block) => contains_index_section(block.blocks()),
+        BlockKind::DelimitedOpen(block) => contains_index_section(block.blocks()),
+        BlockKind::DelimitedQuote(block) => contains_index_section(block.blocks()),
+        BlockKind::DelimitedSidebar(block) => contains_index_section(block.blocks()),
+        BlockKind::DelimitedTable(table) => table
             .header()
             .into_iter()
             .chain(table.rows())
@@ -89,11 +89,11 @@ pub fn contains_index_section<'doc>(mut blocks: impl Iterator<Item = BlockRef<'d
         | BlockKind::Audio(_)
         | BlockKind::Video(_)
         | BlockKind::DelimitedComment(_)
-        | BlockKind::Listing(_)
-        | BlockKind::Literal(_)
-        | BlockKind::Passthrough(_)
-        | BlockKind::Verse(_)
-        | BlockKind::Stem(_)
+        | BlockKind::DelimitedListing(_)
+        | BlockKind::DelimitedLiteral(_)
+        | BlockKind::DelimitedPassthrough(_)
+        | BlockKind::DelimitedVerse(_)
+        | BlockKind::DelimitedStem(_)
         | _ => false,
     })
 }

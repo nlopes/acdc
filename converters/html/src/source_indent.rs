@@ -2,8 +2,9 @@ use std::io::Write;
 
 use acdc_converters_core::{Diagnostics, TraversalContext};
 use acdc_parser::{
-    InlineNode, Location, Verbatim,
+    Location,
     ast::{AttributeValueRef, AttributesRef, ContentRef, InlineKind, InlineRef},
+    edit::{InlineNode, Verbatim},
 };
 
 const MAX_INDENT: u16 = 1024;
@@ -209,10 +210,7 @@ impl IndentedSource {
                 let text = text.as_deref()?;
                 crate::source::replace_text(node, text).or_else(|| {
                     (!text.is_empty()).then(|| {
-                        InlineNode::VerbatimText(Verbatim::new(
-                            text,
-                            Location::from(node.location()),
-                        ))
+                        InlineNode::Verbatim(Verbatim::new(text, Location::from(node.location())))
                     })
                 })
             })
@@ -228,7 +226,9 @@ mod tests {
     fn local_indent_preserves_quoting_presence_limits_and_source_default()
     -> Result<(), Box<dyn std::error::Error>> {
         use acdc_converters_core::WarningSource;
-        use acdc_parser::{AttributeValue, Location, Options, Paragraph, ast::ParagraphRef, parse};
+        use acdc_parser::{
+            AttributeValue, Location, Options, ast::ParagraphRef, edit::Paragraph, parse,
+        };
         let parsed = parse(":source-indent: 4\n\nText.", &Options::default())?;
         let traversal = TraversalContext::new(parsed.document().attributes());
         let source = WarningSource::new("html");
@@ -298,7 +298,7 @@ mod tests {
     fn normalization_retains_relative_indent_across_node_boundaries()
     -> Result<(), Box<dyn std::error::Error>> {
         let inlines = ["  ", "  α\n    ", "\n      β\n    γ"].map(|content| {
-            InlineNode::VerbatimText(Verbatim::new(content, acdc_parser::Location::default()))
+            InlineNode::Verbatim(Verbatim::new(content, acdc_parser::Location::default()))
         });
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn unchanged_indentation_needs_no_replacement_buffer() {
-        let inlines = [InlineNode::VerbatimText(Verbatim::new(
+        let inlines = [InlineNode::Verbatim(Verbatim::new(
             "  first\n    second",
             acdc_parser::Location::default(),
         ))];
@@ -330,14 +330,17 @@ mod tests {
     #[test]
     fn normalization_preserves_text_kinds_profiles_and_include_spans()
     -> Result<(), Box<dyn std::error::Error>> {
-        use acdc_parser::{Location, Plain, Raw, Substitution};
+        use acdc_parser::{
+            Location, Substitution,
+            edit::{Plain, Raw},
+        };
 
         let mut location = Location::default();
         location.start.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
         location.end.file = Some(vec!["outer.adoc".into(), "selected.adoc".into()].into());
         let inlines = [
-            InlineNode::PlainText(Plain::new("  ", location.clone()).with_escaped(true)),
-            InlineNode::RawText(Raw::new(
+            InlineNode::Plain(Plain::new("  ", location.clone()).with_escaped(true)),
+            InlineNode::Raw(Raw::new(
                 "  α\n    ",
                 vec![
                     Substitution::Replacements,
@@ -346,7 +349,7 @@ mod tests {
                 ],
                 location.clone(),
             )),
-            InlineNode::VerbatimText(Verbatim::new("\n      β\n    γ", location)),
+            InlineNode::Verbatim(Verbatim::new("\n      β\n    γ", location)),
         ];
         for (width, expected) in [(0, "α\n\n  β\nγ"), (2, "  α\n\n    β\n  γ")] {
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(width))
@@ -392,8 +395,8 @@ mod tests {
             let options = Options::builder().with_compatibility_mode(mode).build()?;
             let parsed = parse_inline("*bold*", &options)?;
             let parsed_inlines =
-                acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
-            let [InlineNode::BoldText(span)] = parsed_inlines.as_slice() else {
+                acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
+            let [InlineNode::Bold(span)] = parsed_inlines.as_slice() else {
                 return Err("expected one formatting span".into());
             };
             let mut span = span.clone();
@@ -401,11 +404,11 @@ mod tests {
             location.start.file = Some(vec!["selected.adoc".into()].into());
             location.end.file = Some(vec!["selected.adoc".into()].into());
             span.set_location(location);
-            let original = InlineNode::BoldText(span);
+            let original = InlineNode::Bold(span);
             let inlines = [
-                InlineNode::VerbatimText(Verbatim::new("\t", Location::default())),
+                InlineNode::Verbatim(Verbatim::new("\t", Location::default())),
                 original.clone(),
-                InlineNode::VerbatimText(Verbatim::new("\n  after", Location::default())),
+                InlineNode::Verbatim(Verbatim::new("\n  after", Location::default())),
             ];
             let normalized = IndentedSource::new(inlines.iter().map(InlineRef::from), Some(2))
                 .ok_or("expected indentation to change")?;

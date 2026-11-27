@@ -247,17 +247,17 @@ impl<'doc, W: Write> BlockVisitor<'doc> for TreeVisitor<W> {
                 let text = InlineTextTransform::default().content_to_string(paragraph.content());
                 self.print_tree_line("Paragraph", Some(&truncate(&text, 50)), location)
             }
-            BlockKind::Listing(_) => self.print_delimited(block, "Listing"),
-            BlockKind::Literal(_) => self.print_delimited(block, "Literal"),
-            BlockKind::Example(_) => self.print_delimited(block, "Example"),
-            BlockKind::Quote(_) => self.print_delimited(block, "Quote"),
-            BlockKind::Sidebar(_) => self.print_delimited(block, "Sidebar"),
-            BlockKind::Open(_) => self.print_delimited(block, "Open"),
-            BlockKind::Verse(_) => self.print_delimited(block, "Verse"),
-            BlockKind::Passthrough(_) => self.print_delimited(block, "Pass"),
-            BlockKind::Stem(_) => self.print_delimited(block, "Stem"),
+            BlockKind::DelimitedListing(_) => self.print_delimited(block, "Listing"),
+            BlockKind::DelimitedLiteral(_) => self.print_delimited(block, "Literal"),
+            BlockKind::DelimitedExample(_) => self.print_delimited(block, "Example"),
+            BlockKind::DelimitedQuote(_) => self.print_delimited(block, "Quote"),
+            BlockKind::DelimitedSidebar(_) => self.print_delimited(block, "Sidebar"),
+            BlockKind::DelimitedOpen(_) => self.print_delimited(block, "Open"),
+            BlockKind::DelimitedVerse(_) => self.print_delimited(block, "Verse"),
+            BlockKind::DelimitedPassthrough(_) => self.print_delimited(block, "Pass"),
+            BlockKind::DelimitedStem(_) => self.print_delimited(block, "Stem"),
             BlockKind::DelimitedComment(_) => self.print_delimited(block, "Comment"),
-            BlockKind::Table(_) => self.print_delimited(block, "Table"),
+            BlockKind::DelimitedTable(_) => self.print_delimited(block, "Table"),
             BlockKind::UnorderedList(list) => {
                 self.print_items("UnorderedList", list.items().count(), location)
             }

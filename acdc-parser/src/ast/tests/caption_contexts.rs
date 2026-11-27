@@ -1,8 +1,9 @@
 use crate::{
     Block,
     CaptionKind::{self, Example, Figure, Listing, Table},
-    CompatibilityMode, DelimitedBlockType, Options,
+    CompatibilityMode, Options,
     ast::{BlockRef, CaptionRef},
+    model::Delimited,
     parse,
 };
 
@@ -49,15 +50,7 @@ fn caption_context_uses_the_current_form_and_style(
     .into_iter()
     .zip(expected)
     {
-        let metadata = if let Block::Paragraph(node) = &mut block {
-            &mut node.metadata
-        } else if let Block::DelimitedBlock(node) = &mut block {
-            &mut node.metadata
-        } else if let Block::Image(node) = &mut block {
-            &mut node.metadata
-        } else {
-            return Err("block with editable style".into());
-        };
+        let metadata = block.metadata_mut().ok_or("block with editable style")?;
         metadata.style = style;
         let before = serde_json::to_value(&block)?;
         assert_eq!(
@@ -65,13 +58,12 @@ fn caption_context_uses_the_current_form_and_style(
             expected,
             "{body:?} {style:?}"
         );
-        if let Block::DelimitedBlock(delimited) = &block {
-            assert_eq!(
-                CaptionKind::for_delimited(&delimited.inner, style),
-                expected,
-                "owner adapter: {body:?} {style:?}"
-            );
-        }
+        let copy = Block::from(BlockRef::from(&block));
+        assert_eq!(
+            CaptionKind::for_block(BlockRef::from(&copy)),
+            expected,
+            "owner adapter: {body:?} {style:?}"
+        );
         assert_eq!(serde_json::to_value(&block)?, before);
     }
     Ok(())
@@ -83,17 +75,26 @@ fn current_caption_context_does_not_replace_the_stored_caption() -> Result<(), E
         "= Doc\n:listing-caption: Listing\n\n.Title\n----\nCode.\n----\n",
         &Options::default(),
     )?;
-    let mut block = parsed
+    let block = parsed
         .document_storage()
         .blocks
         .first()
         .ok_or("listing")?
         .clone();
-    let Block::DelimitedBlock(delimited) = &mut block else {
+    let Block::DelimitedListing(crate::model::Listing(delimited)) = block else {
         return Err("delimited listing".into());
     };
     let stored = delimited.metadata.caption.clone().ok_or("stored caption")?;
-    delimited.inner = DelimitedBlockType::DelimitedExample(Vec::new());
+    let block = Block::DelimitedExample(crate::model::Example(Delimited {
+        metadata: delimited.metadata,
+        body: Vec::new(),
+        delimiter: delimited.delimiter,
+        title: delimited.title,
+        location: delimited.location,
+        open_delimiter_location: delimited.open_delimiter_location,
+        close_delimiter_location: delimited.close_delimiter_location,
+        source_text: delimited.source_text,
+    }));
     let block = BlockRef::from(&block);
     let kind = CaptionKind::for_block(block);
     assert_eq!(kind, Some(Example));

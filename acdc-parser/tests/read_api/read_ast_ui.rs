@@ -1,10 +1,10 @@
 use acdc_parser::{
-    CompatibilityMode, ContentAttribute, InlineMacro, InlineNode, KeyboardShortcut, Location,
-    Options, SafeMode, StemNotation,
+    CompatibilityMode, Location, Options, SafeMode, StemNotation,
     ast::{
         BlockKind, ButtonRef, ContentRef, DocumentRef, InlineKind, KeyboardShortcutRef,
         MenuPathRef, StemRef,
     },
+    edit::{ContentAttribute, InlineNode, KeyboardShortcut},
     parse, parse_file, parse_inline,
 };
 
@@ -208,15 +208,15 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
         "btn:[Label] kbd:[Ctrl+S] menu:File[Open] stem:[x]",
         &options,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let mut families = 0;
     for inline in parsed_inlines.as_slice() {
-        if let InlineNode::Macro(InlineMacro::Button(owner)) = inline {
+        if let InlineNode::Button(owner) = inline {
             let mut owner = owner.clone();
             owner.replace_label(ContentAttribute::default());
             assert!(ButtonRef::from(&owner).label().is_empty());
             families += 1;
-        } else if let InlineNode::Macro(InlineMacro::KeyboardShortcut(owner)) = inline {
+        } else if let InlineNode::KeyboardShortcut(owner) = inline {
             assert_eq!(
                 KeyboardShortcutRef::from(owner)
                     .keys()
@@ -225,7 +225,7 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
                 ["Ctrl", "S"]
             );
             families += 1;
-        } else if let InlineNode::Macro(InlineMacro::MenuPath(owner)) = inline {
+        } else if let InlineNode::MenuPath(owner) = inline {
             let mut owner = owner.clone();
             owner.replace_target(ContentAttribute::default());
             owner.replace_items(vec![ContentAttribute::default()]);
@@ -238,7 +238,7 @@ fn constructed_and_cloned_owners_use_the_same_reads() -> Result<(), Error> {
                     .is_empty()
             );
             families += 1;
-        } else if let InlineNode::Macro(InlineMacro::Stem(owner)) = inline {
+        } else if let InlineNode::Stem(owner) = inline {
             let mut owner = owner.clone();
             owner.replace_text("");
             owner.replace_notation(StemNotation::Latexmath);
@@ -297,7 +297,8 @@ fn payload_reads_preserve_includes_and_table_cells(
             count += 1;
         }
     }
-    let BlockKind::Table(table) = parsed.document().blocks().nth(1).ok_or("table")?.kind() else {
+    let BlockKind::DelimitedTable(table) = parsed.document().blocks().nth(1).ok_or("table")?.kind()
+    else {
         return Err("table".into());
     };
     let cell = table

@@ -110,7 +110,7 @@ macro_rules! delimited_source {
                 /// including constructed blocks.
                 #[must_use]
                 pub fn source_text(self) -> Option<&'doc str> {
-                    self.node.source_text()
+                    self.node.source_text
                 }
             }
         )+
@@ -221,7 +221,7 @@ impl<'doc> From<&'doc Admonition<'doc>> for AdmonitionRef<'doc> {
 }
 
 /// Copy the selected formula value without its containing block's metadata.
-impl<'doc> From<StemBlockRef<'doc>> for crate::StemContent<'doc> {
+impl<'doc> From<StemBlockRef<'doc>> for crate::model::StemContent<'doc> {
     fn from(value: StemBlockRef<'doc>) -> Self {
         value.body.clone()
     }

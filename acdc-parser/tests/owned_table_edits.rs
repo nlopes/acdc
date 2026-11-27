@@ -3,10 +3,10 @@
 use std::{alloc::System, hint::black_box};
 
 use acdc_parser::{
-    Block, ColumnFormat, ColumnStyle, ColumnWidth, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, HorizontalAlignment, Location, Options, Paragraph, ParseResult, Table,
-    TableCell, TableFrame, TableGrid, TableRow, VerticalAlignment,
-    ast::{BlockKind, BlockRef, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
+    ColumnStyle, ColumnWidth, CompatibilityMode, HorizontalAlignment, Location, Options,
+    ParseResult, TableFrame, TableGrid, VerticalAlignment,
+    ast::{BlockKind, ColumnFormatRef, TableCellRef, TableRef, TableRowRef},
+    edit::{Block, ColumnFormat, Paragraph, Table, TableCell, TableRow},
     parse,
 };
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -23,28 +23,13 @@ fn table(parsed: &ParseResult) -> Result<TableRef<'_>, Error> {
         .document()
         .blocks()
         .find_map(|block| {
-            if let BlockKind::Table(table) = block.kind() {
+            if let BlockKind::DelimitedTable(table) = block.kind() {
                 Some(table)
             } else {
                 None
             }
         })
         .ok_or_else(|| "table".into())
-}
-
-fn block(table: Table<'_>) -> DelimitedBlock<'_> {
-    DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(table),
-        "|===",
-        Location::default(),
-    )
-}
-
-fn read<'a>(block: &'a DelimitedBlock<'a>) -> Result<TableRef<'a>, Error> {
-    let BlockKind::Table(table) = BlockRef::from(block).kind() else {
-        return Err("table".into());
-    };
-    Ok(table)
 }
 
 #[rstest::rstest]
@@ -58,8 +43,7 @@ fn selected_copies_preserve_rows_formats_presentation_and_initial_scopes(
     let original_document = serde_json::to_value(parsed.document())?;
     let original = table(&parsed)?;
     let copied = Table::from(original);
-    let wrapper = block(copied.clone());
-    let copied_read = read(&wrapper)?;
+    let copied_read = TableRef::from(&copied);
     assert_eq!(Table::from(copied_read), copied);
     assert_eq!(copied_read.rows().count(), original.rows().count());
     assert_eq!(copied_read.columns().count(), original.columns().count());
@@ -112,8 +96,7 @@ fn table_parts_outlive_the_previous_owner_and_round_trip_without_layout_repairs(
             local.take_rows(),
             local.take_columns(),
         );
-        let empty = block(local);
-        let empty = read(&empty)?;
+        let empty = TableRef::from(&local);
         assert!(empty.header().is_none());
         assert!(empty.footer().is_none());
         assert_eq!(empty.rows().count(), 0);
@@ -130,19 +113,18 @@ fn table_parts_outlive_the_previous_owner_and_round_trip_without_layout_repairs(
         serde_json::to_value(&rebuilt)?,
         serde_json::to_value(&original)?
     );
-    rebuilt.set_location(Location::default());
+    rebuilt.set_delimited_location(Location::default());
     rebuilt.push_row(TableRow::new(Vec::new()));
-    let wrapper = block(rebuilt);
     assert_eq!(
-        read(&wrapper)?.rows().count(),
+        TableRef::from(&rebuilt).rows().count(),
         table(&parsed)?.rows().count() + 1
     );
     assert_eq!(
-        read(&wrapper)?.presentation(),
+        TableRef::from(&rebuilt).presentation(),
         table(&parsed)?.presentation()
     );
     assert_eq!(
-        Location::from(read(&wrapper)?.delimited_location()),
+        Location::from(TableRef::from(&rebuilt).delimited_location()),
         Location::default()
     );
     Ok(())
@@ -153,18 +135,17 @@ fn present_empty_header_and_footer_are_independent_from_body_rows() -> Result<()
     let mut table = Table::new(Vec::new(), Location::default());
     table.set_header(Some(TableRow::new(Vec::new())));
     table.set_footer(Some(TableRow::new(Vec::new())));
-    let wrapper = block(table.clone());
-    let table_read = read(&wrapper)?;
+    let table_read = TableRef::from(&table);
     assert_eq!(table_read.header().ok_or("header")?.cells().count(), 0);
     assert_eq!(table_read.footer().ok_or("footer")?.cells().count(), 0);
     assert_eq!(table_read.rows().count(), 0);
     assert!(table.take_header().is_some());
     assert!(table.take_footer().is_some());
-    let wrapper = block(table);
-    assert!(read(&wrapper)?.header().is_none());
-    assert!(read(&wrapper)?.footer().is_none());
-    assert_eq!(read(&wrapper)?.rows().count(), 0);
-    assert!(read(&wrapper)?.presentation().is_none());
+    let table_read = TableRef::from(&table);
+    assert!(table_read.header().is_none());
+    assert!(table_read.footer().is_none());
+    assert_eq!(table_read.rows().count(), 0);
+    assert!(table_read.presentation().is_none());
     Ok(())
 }
 

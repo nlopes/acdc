@@ -1,25 +1,43 @@
-use acdc_parser::{CompatibilityMode, InlineMacro, InlineNode, Options, parse_inline};
+use acdc_parser::{CompatibilityMode, Options, edit::InlineNode, parse_inline};
 use serde_json::Value;
 
 type TestError = Box<dyn std::error::Error>;
 
-fn owner_json(owner: &InlineMacro<'_>) -> Result<Value, TestError> {
+fn owner_json(owner: &InlineNode<'_>) -> Result<Value, TestError> {
     Ok(match owner {
-        InlineMacro::Footnote(value) => serde_json::to_value(value)?,
-        InlineMacro::Icon(value) => serde_json::to_value(value)?,
-        InlineMacro::Image(value) => serde_json::to_value(value)?,
-        InlineMacro::KeyboardShortcut(value) => serde_json::to_value(value)?,
-        InlineMacro::Button(value) => serde_json::to_value(value)?,
-        InlineMacro::MenuPath(value) => serde_json::to_value(value)?,
-        InlineMacro::UrlMacro(value) => serde_json::to_value(value)?,
-        InlineMacro::Link(value) => serde_json::to_value(value)?,
-        InlineMacro::Mailto(value) => serde_json::to_value(value)?,
-        InlineMacro::Autolink(value) => serde_json::to_value(value)?,
-        InlineMacro::CrossReference(value) => serde_json::to_value(value)?,
-        InlineMacro::Passthrough(value) => serde_json::to_value(value)?,
-        InlineMacro::Stem(value) => serde_json::to_value(value)?,
-        InlineMacro::IndexTerm(value) => serde_json::to_value(value)?,
-        _ => return Err("uncovered macro family".into()),
+        InlineNode::Footnote(value) => serde_json::to_value(value)?,
+        InlineNode::Icon(value) => serde_json::to_value(value)?,
+        InlineNode::Image(value) => serde_json::to_value(value)?,
+        InlineNode::KeyboardShortcut(value) => serde_json::to_value(value)?,
+        InlineNode::Button(value) => serde_json::to_value(value)?,
+        InlineNode::MenuPath(value) => serde_json::to_value(value)?,
+        InlineNode::UrlMacro(value) => serde_json::to_value(value)?,
+        InlineNode::Link(value) => serde_json::to_value(value)?,
+        InlineNode::Mailto(value) => serde_json::to_value(value)?,
+        InlineNode::Autolink(value) => serde_json::to_value(value)?,
+        InlineNode::CrossReference(value) => serde_json::to_value(value)?,
+        InlineNode::Passthrough(value) => serde_json::to_value(value)?,
+        InlineNode::Stem(value) => serde_json::to_value(value)?,
+        InlineNode::IndexTerm(value) => serde_json::to_value(value)?,
+        InlineNode::Anchor(_)
+        | InlineNode::Bold(_)
+        | InlineNode::Callout(_)
+        | InlineNode::CharacterReference(_)
+        | InlineNode::DoubleQuotedSpan(_)
+        | InlineNode::Extension(_)
+        | InlineNode::Highlight(_)
+        | InlineNode::Italic(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::Monospace(_)
+        | InlineNode::Plain(_)
+        | InlineNode::Raw(_)
+        | InlineNode::SingleQuotedSpan(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::Subscript(_)
+        | InlineNode::Superscript(_)
+        | InlineNode::Symbol(_)
+        | InlineNode::Verbatim(_)
+        | _ => return Err("uncovered macro family".into()),
     })
 }
 
@@ -54,7 +72,7 @@ fn macros_have_one_projection_at_each_serialization_boundary(
             .with_attribute("experimental", true)
             .build()?,
     )?;
-    let parsed_inlines = acdc_parser::ContentAttribute::from(parsed.content()).into_inlines();
+    let parsed_inlines = acdc_parser::edit::ContentAttribute::from(parsed.content()).into_inlines();
     let [node] = parsed_inlines.as_slice() else {
         return Err(format!(
             "expected one macro for {source}: {:?}",
@@ -62,13 +80,9 @@ fn macros_have_one_projection_at_each_serialization_boundary(
         )
         .into());
     };
-    let InlineNode::Macro(owner) = node else {
-        return Err(format!("expected macro for {source}: {node:?}").into());
-    };
     let expected = serde_json::to_value(node)?;
-    assert_eq!(serde_json::to_value(owner)?, expected, "{source}");
-    assert_eq!(owner_json(owner)?, expected, "{source}");
-    if let InlineMacro::Autolink(autolink) = owner {
+    assert_eq!(owner_json(node)?, expected, "{source}");
+    if let InlineNode::Autolink(autolink) = node {
         assert_eq!(
             expected.get("bracketed").and_then(Value::as_bool),
             acdc_parser::ast::AutolinkRef::from(autolink)
@@ -76,7 +90,7 @@ fn macros_have_one_projection_at_each_serialization_boundary(
                 .then_some(true)
         );
     }
-    if let InlineMacro::Passthrough(pass) = owner {
+    if let InlineNode::Passthrough(pass) = node {
         let mut copy = pass.clone();
         let text = copy.replace_text(None);
         let substitutions = copy.take_substitutions();
@@ -93,7 +107,7 @@ fn macros_have_one_projection_at_each_serialization_boundary(
 
 #[test]
 fn line_break_has_the_same_projection_as_its_inline_node() -> Result<(), TestError> {
-    let line_break = acdc_parser::LineBreak::new(acdc_parser::Location::default());
+    let line_break = acdc_parser::edit::LineBreak::new(acdc_parser::Location::default());
     let node = InlineNode::LineBreak(line_break.clone());
     assert_eq!(
         serde_json::to_value(&line_break)?,

@@ -1,7 +1,10 @@
 use acdc_parser::{
-    Anchor, BlockMetadata, CompatibilityMode, ContentAttribute, Document, InlineNode, Location,
-    Options, Plain, ReferenceRepairError, Title,
+    CompatibilityMode, Location, Options,
     ast::{AnchorRef, AttributeValueRef, BlockKind, ContentRef, DocumentRef, InlineKind},
+    edit::{
+        Anchor, BlockMetadata, ContentAttribute, Document, InlineNode, Plain, ReferenceRepairError,
+        Title,
+    },
     parse,
 };
 
@@ -183,7 +186,7 @@ fn changed_header_ids_keep_the_prepared_document_label(
     header.set_metadata(
         BlockMetadata::new().with_id(Some(Anchor::new("renamed", Location::default()))),
     )?;
-    header.set_title(Title::new(vec![InlineNode::PlainText(Plain::new(
+    header.set_title(Title::new(vec![InlineNode::Plain(Plain::new(
         "Changed",
         Location::default(),
     ))]));

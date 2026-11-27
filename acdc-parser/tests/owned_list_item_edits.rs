@@ -16,7 +16,8 @@ macro_rules! item_contract {
             use acdc_parser::{
                 CompatibilityMode, Location, Options, ParseResult,
                 ast::{BlockKind, $read},
-                parse, $owner,
+                edit::$owner,
+                parse,
             };
 
             fn owner(parsed: &ParseResult) -> Result<$owner<'_>, Error> {
@@ -28,11 +29,11 @@ macro_rules! item_contract {
                         assert_eq!(read.principal(), original.principal());
                         assert_eq!(
                             read.blocks()
-                                .map(acdc_parser::Block::from)
+                                .map(acdc_parser::edit::Block::from)
                                 .collect::<Vec<_>>(),
                             original
                                 .blocks()
-                                .map(acdc_parser::Block::from)
+                                .map(acdc_parser::edit::Block::from)
                                 .collect::<Vec<_>>()
                         );
                         assert_eq!(read.location(), original.location());
@@ -94,17 +95,16 @@ macro_rules! item_contract {
                 assert_eq!(read.principal(), original.principal());
                 assert_eq!(
                     read.blocks()
-                        .map(acdc_parser::Block::from)
+                        .map(acdc_parser::edit::Block::from)
                         .collect::<Vec<_>>(),
                     original
                         .blocks()
-                        .map(acdc_parser::Block::from)
+                        .map(acdc_parser::edit::Block::from)
                         .collect::<Vec<_>>()
                 );
-                rebuilt.push_block(acdc_parser::Block::Paragraph(acdc_parser::Paragraph::new(
-                    Vec::new(),
-                    Location::default(),
-                )));
+                rebuilt.push_block(acdc_parser::edit::Block::Paragraph(
+                    acdc_parser::edit::Paragraph::new(Vec::new(), Location::default()),
+                ));
                 rebuilt.set_location(Location::default());
                 assert_eq!($read::from(&rebuilt).blocks().count(), 2);
                 assert_eq!(serde_json::to_value(parsed.document())?, original_document);
@@ -120,7 +120,7 @@ item_contract!(
     ListItemRef,
     UnorderedList,
     "* [x] First *item* footnote:[Note].\n+\nAttached paragraph.\n",
-    acdc_parser::ListItem::new(Vec::new(), 1, "*", acdc_parser::Location::default())
+    acdc_parser::edit::ListItem::new(Vec::new(), 1, "*", acdc_parser::Location::default())
 );
 item_contract!(
     ordered,
@@ -128,14 +128,14 @@ item_contract!(
     ListItemRef,
     OrderedList,
     ". First *item* footnote:[Note].\n+\nAttached paragraph.\n",
-    acdc_parser::ListItem::new(Vec::new(), 1, ".", acdc_parser::Location::default())
+    acdc_parser::edit::ListItem::new(Vec::new(), 1, ".", acdc_parser::Location::default())
 );
 mod description {
     use super::Error;
     use acdc_parser::{
-        Block, CompatibilityMode, DescriptionListDefinition, Location, Options, Paragraph,
-        ParseResult,
+        CompatibilityMode, Location, Options, ParseResult,
         ast::{BlockKind, DescriptionListDefinitionRef},
+        edit::{Block, DescriptionListDefinition, Paragraph},
         parse,
     };
 
@@ -238,8 +238,8 @@ item_contract!(
     CalloutListItemRef,
     CalloutList,
     "----\nCode <.>\n----\n\n<.> First *explanation* footnote:[Note].\n+\nAttached paragraph.\n",
-    acdc_parser::CalloutListItem::new(
-        acdc_parser::CalloutMarker::auto(1, acdc_parser::Location::default()),
+    acdc_parser::edit::CalloutListItem::new(
+        acdc_parser::edit::CalloutMarker::auto(1, acdc_parser::Location::default()),
         Vec::new(),
         acdc_parser::Location::default()
     )
@@ -247,7 +247,7 @@ item_contract!(
 
 #[test]
 fn ordinary_item_scalars_and_checklist_presence_are_independent() {
-    use acdc_parser::{ListItem, ListItemCheckedStatus, Location, ast::ListItemRef};
+    use acdc_parser::{ListItemCheckedStatus, Location, ast::ListItemRef, edit::ListItem};
     let marker = String::from("**");
     let previous = {
         let mut item = ListItem::new(Vec::new(), 2, &marker, Location::default());
@@ -274,7 +274,9 @@ fn ordinary_item_scalars_and_checklist_presence_are_independent() {
 #[test]
 fn callout_replacement_keeps_the_supplied_kind_number_and_span() {
     use acdc_parser::{
-        CalloutListItem, CalloutMarker, CalloutMarkerKind, Location, ast::CalloutListItemRef,
+        CalloutMarkerKind, Location,
+        ast::CalloutListItemRef,
+        edit::{CalloutListItem, CalloutMarker},
     };
     let mut item = CalloutListItem::new(
         CalloutMarker::auto(3, Location::default()),
@@ -302,8 +304,9 @@ fn description_terms_anchors_and_delimiter_spans_transfer_independently(
     mode: acdc_parser::CompatibilityMode,
 ) -> Result<(), Error> {
     use acdc_parser::{
-        Anchor, DescriptionListTerm, Location, Options,
+        Location, Options,
         ast::{BlockKind, DescriptionListTermRef},
+        edit::{Anchor, DescriptionListTerm},
         parse,
     };
     let parsed = parse(
@@ -371,7 +374,11 @@ fn description_terms_anchors_and_delimiter_spans_transfer_independently(
 
 #[test]
 fn description_anchor_transfers_outlive_the_previous_item() -> Result<(), Error> {
-    use acdc_parser::{Anchor, DescriptionListTerm, Location, ast::DescriptionListTermRef};
+    use acdc_parser::{
+        Location,
+        ast::DescriptionListTermRef,
+        edit::{Anchor, DescriptionListTerm},
+    };
 
     let id = String::from("retained");
     let anchors = {
@@ -392,7 +399,10 @@ fn description_anchor_transfers_outlive_the_previous_item() -> Result<(), Error>
 #[test]
 fn selected_item_copy_cost_does_not_grow_with_sibling_count() -> Result<(), Error> {
     use acdc_parser::{
-        CalloutListItem, DescriptionListItem, ListItem, Options, ast::BlockKind, parse,
+        Options,
+        ast::BlockKind,
+        edit::{CalloutListItem, DescriptionListItem, ListItem},
+        parse,
     };
     fn cost<T>(copy: impl FnOnce() -> T) -> (usize, usize) {
         let region = Region::new(ALLOCATOR);

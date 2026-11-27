@@ -1,7 +1,7 @@
 use acdc_converters_core::TraversalContext;
 use acdc_parser::{
-    InlineNode,
     ast::{AttributeValueRef, AttributesRef, InlineKind, InlineRef},
+    edit::InlineNode,
 };
 
 pub(crate) fn font_icons(attributes: &TraversalContext<'_>) -> bool {
@@ -110,15 +110,17 @@ fn strip_line_guard<'text>(text: &'text str, prefix: Option<&str>) -> &'text str
 mod tests {
     use super::*;
     use acdc_parser::{
-        AttributeValue, CalloutMarker, Location, Paragraph, Verbatim, ast::ParagraphRef,
+        AttributeValue, Location,
+        ast::ParagraphRef,
+        edit::{CalloutMarker, Paragraph, Verbatim},
     };
 
     #[test]
     fn callout_guards_preserve_nontext_empty_quoted_and_disabled_controls()
     -> Result<(), Box<dyn std::error::Error>> {
         let inlines = [
-            InlineNode::VerbatimText(Verbatim::new("value # ", Location::default())),
-            InlineNode::CalloutMarker(CalloutMarker::explicit(1, Location::default())),
+            InlineNode::Verbatim(Verbatim::new("value # ", Location::default())),
+            InlineNode::Callout(CalloutMarker::explicit(1, Location::default())),
         ];
         for (prefix, expected) in [
             (None, "value "),

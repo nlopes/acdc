@@ -10,7 +10,7 @@ fn replacing_a_title_cannot_leave_its_old_named_value() -> Result<(), Error> {
     };
     assert!(matches!(
         original.title.as_inlines().first(),
-        Some(InlineNode::BoldText(_))
+        Some(InlineNode::Bold(_))
     ));
     assert!(!original.metadata.attributes.contains_key("title"));
 
@@ -47,9 +47,10 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
         "[title=Discarded]\n.Selected\n[quote,attribution='*Ada*',citetitle='A _book_']\n____\nWords.\n____",
         &Options::default(),
     )?;
-    let [Block::DelimitedBlock(block)] = parsed.document_storage().blocks.as_slice() else {
+    let [Block::DelimitedQuote(quote)] = parsed.document_storage().blocks.as_slice() else {
         return Err("missing quote".into());
     };
+    let block = &quote.0;
     let attribution = block
         .metadata
         .attribution
@@ -62,13 +63,13 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
         .ok_or("missing citation")?;
     assert!(matches!(
         attribution.as_inlines().first(),
-        Some(InlineNode::BoldText(_))
+        Some(InlineNode::Bold(_))
     ));
     assert!(
         citation
             .as_inlines()
             .iter()
-            .any(|node| matches!(node, InlineNode::ItalicText(_)))
+            .any(|node| matches!(node, InlineNode::Italic(_)))
     );
     assert_eq!(
         attribution,
@@ -79,7 +80,7 @@ fn content_attributes_serialize_only_their_selected_inline_content() -> Result<(
         &ContentAttribute::new(citation.as_inlines().to_vec())
     );
 
-    let json = serde_json::to_value(block)?;
+    let json = serde_json::to_value(quote)?;
     assert!(json.pointer("/metadata/attributes").is_none());
     assert_eq!(
         json.pointer("/title/0/value"),

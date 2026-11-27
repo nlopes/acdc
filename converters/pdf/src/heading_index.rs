@@ -36,7 +36,7 @@ where
         {
             visit_index_inlines(title.inlines(), &mut |term, _| (self.0)(traversal, term))?;
         }
-        if let BlockKind::Table(table) = block.kind() {
+        if let BlockKind::DelimitedTable(table) = block.kind() {
             visit_table(self, traversal, table)
         } else {
             visit_children(self, traversal, block.into())

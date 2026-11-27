@@ -1,6 +1,7 @@
 use acdc_parser::{
-    CompatibilityMode, Options, Title,
+    CompatibilityMode, Options,
     ast::{BlockKind, InlineKind, InlineRef},
+    edit::Title,
     parse,
 };
 

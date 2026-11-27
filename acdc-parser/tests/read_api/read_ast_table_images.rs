@@ -1,14 +1,14 @@
 use std::{borrow::Cow, path::Path};
 
 use acdc_parser::{
-    AttributeValue, ColumnFormat, ColumnStyle, ColumnWidth, CompatibilityMode, DelimitedBlock,
-    DelimitedBlockType, HorizontalAlignment, Location, Options, SafeMode, Source, SourceUrl, Table,
-    TableFrame, TableGrid, TableRow, TableStripes, Title, VerticalAlignment,
+    AttributeValue, ColumnStyle, ColumnWidth, CompatibilityMode, HorizontalAlignment, Location,
+    Options, SafeMode, TableFrame, TableGrid, TableStripes, VerticalAlignment,
     ast::{
         AttributeValueRef, BlockKind, BlockRef, BoldRef, ColumnFormatRef, ContentRef, ElementIdRef,
         ImageRef, InlineImageRef, InlineKind, InlineRef, SourceKind, SourceRef, TableCellRef,
         TableRef, TableRowRef,
     },
+    edit::{ColumnFormat, Source, SourceUrl, Table, TableRow, Title},
     parse, parse_file,
 };
 
@@ -28,7 +28,7 @@ fn bold_word(bold: BoldRef<'_>) -> Result<&str, Error> {
 }
 
 fn table(block: BlockRef<'_>) -> Result<TableRef<'_>, Error> {
-    let BlockKind::Table(table) = block.kind() else {
+    let BlockKind::DelimitedTable(table) = block.kind() else {
         return Err("expected table".into());
     };
     Ok(table)
@@ -252,12 +252,7 @@ fn constructed_tables_preserve_presence_and_exact_scalar_values() -> Result<(), 
         .with_columns(vec![
             ColumnFormat::new().with_width(ColumnWidth::Percentage(75)),
         ]);
-    let mut block = DelimitedBlock::new(
-        DelimitedBlockType::DelimitedTable(owner),
-        "|===",
-        Location::default(),
-    )
-    .with_title(Title::new(Vec::new()));
+    let mut block = owner.with_title(Title::new(Vec::new()));
     let text = String::from("\"literal quotes\"");
     let pointer = text.as_ptr();
     let mut metadata = block.take_metadata();
@@ -269,7 +264,7 @@ fn constructed_tables_preserve_presence_and_exact_scalar_values() -> Result<(), 
         .attributes
         .set("stripes".into(), AttributeValue::None);
     block.set_metadata(metadata)?;
-    let table = table(BlockRef::from(&block))?;
+    let table = TableRef::from(&block);
     assert!(table.title().is_some_and(ContentRef::is_empty));
     assert_eq!(
         table
