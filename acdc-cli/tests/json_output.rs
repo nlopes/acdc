@@ -50,18 +50,19 @@ fn native_json_is_available_in_every_build() -> Result<(), Box<dyn Error>> {
 
 #[test]
 fn file_and_stdin_use_the_selected_language_mode() -> Result<(), Box<dyn Error>> {
+    let source = "[title=\"*Title*\"]\nText.";
     let directory = tempfile::tempdir()?;
     let path = directory.path().join("input.adoc");
-    fs::write(&path, "[title=\"*Title*\"]\nText.")?;
+    fs::write(&path, source)?;
     for (mode, name, text) in [
         ("asciidoctor", "span", "Title"),
         ("draft", "raw", "*Title*"),
     ] {
         for input in ["-", path.to_str().ok_or("path")?] {
-            let output = run(
-                &["parse", "--compatibility-mode", mode, input],
-                "[title=\"*Title*\"]\nText.",
-            )?;
+            // A file input never reads stdin, so the process can exit before
+            // anything is written to it. Only pipe the source for `-`.
+            let stdin = if input == "-" { source } else { "" };
+            let output = run(&["parse", "--compatibility-mode", mode, input], stdin)?;
             assert!(
                 output.status.success(),
                 "{}",
