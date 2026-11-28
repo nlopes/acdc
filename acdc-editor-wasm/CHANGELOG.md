@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Release tarballs ship with a `.sha256` checksum.
+
 - Choose Asciidoctor or Draft spec compatibility in the live editor. Changing the
   selection updates highlighting, diagnostics, and the preview together. Rust
   callers can select the same mode with `parse_and_render_with_mode`; the

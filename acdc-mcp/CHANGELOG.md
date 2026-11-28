@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Each release ships prebuilt `acdc-mcp` binaries for Linux and macOS (x86_64
+  and aarch64) and Windows (x86_64).
+
 - Select Asciidoctor compatibility (the default) or Draft with
   `--compatibility-mode asciidoctor|draft`. All document tools use that mode,
   including includes and table cells. Root and include access rules stay the

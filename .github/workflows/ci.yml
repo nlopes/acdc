@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: ['*']
+  # release.yml runs the whole CI on the commit it releases.
+  workflow_call:
+    inputs:
+      all:
+        description: Run every job, ignoring the path filters
+        type: boolean
+        default: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,16 +20,18 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      parser: ${{ steps.filter.outputs.parser }}
-      converters: ${{ steps.filter.outputs.converters }}
-      cli: ${{ steps.filter.outputs.cli }}
-      lsp: ${{ steps.filter.outputs.lsp }}
-      mcp: ${{ steps.filter.outputs.mcp }}
-      pdf: ${{ steps.filter.outputs.pdf }}
-      wasm: ${{ steps.filter.outputs.wasm }}
+      parser: ${{ inputs.all && 'true' || steps.filter.outputs.parser }}
+      converters: ${{ inputs.all && 'true' || steps.filter.outputs.converters }}
+      cli: ${{ inputs.all && 'true' || steps.filter.outputs.cli }}
+      lsp: ${{ inputs.all && 'true' || steps.filter.outputs.lsp }}
+      mcp: ${{ inputs.all && 'true' || steps.filter.outputs.mcp }}
+      pdf: ${{ inputs.all && 'true' || steps.filter.outputs.pdf }}
+      wasm: ${{ inputs.all && 'true' || steps.filter.outputs.wasm }}
     steps:
       - uses: actions/checkout@v7
+        if: ${{ !inputs.all }}
       - uses: dorny/paths-filter@v4
+        if: ${{ !inputs.all }}
         id: filter
         with:
           filters: |
@@ -186,7 +195,14 @@ jobs:
   test-cli:
     needs: changes
     if: needs.changes.outputs.cli == 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Release builds don't run tests, so the CLI suite runs on every
+        # release OS here. libghostty-vt's C++ needs the VS 2022 STL on
+        # Windows (see the target table in release.yml).
+        os: [ubuntu-latest, windows-2022, macos-15]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -198,18 +214,26 @@ jobs:
           env-vars: ImageOS
       - uses: taiki-e/install-action@nextest
       - name: Run CLI and execute library tests
+        if: runner.os == 'Linux'
         run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
+      - name: Run CLI tests
+        if: runner.os != 'Linux'
+        run: cargo nextest run -p acdc-cli --all-features --verbose --test-threads 1 --no-fail-fast
       - name: Run execute-only tests
+        if: runner.os == 'Linux'
         run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
       - name: Test execute with the parser network capability
+        if: runner.os == 'Linux'
         run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/network -E 'test(substitution_is_independent_of_optional_capabilities)' --verbose
       - name: Smoke-test backend-only CLI builds
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           for feature in html manpage markdown pdf terminal; do
             cargo run -p acdc-cli --no-default-features --features "$feature" -- convert --help
           done
       - name: Smoke-test tool-only CLI builds
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           cargo run -p acdc-cli --no-default-features --features execute -- execute --help
@@ -217,8 +241,10 @@ jobs:
           cargo run -p acdc-cli --no-default-features --features lint -- lint --help
           cargo run -p acdc-cli --no-default-features --features tck -- tck --help
       - name: Test native JSON without backends
+        if: runner.os == 'Linux'
         run: cargo nextest run -p acdc-cli --no-default-features --test cli --test json_output
       - name: Test standalone ASG and fixed TCK export
+        if: runner.os == 'Linux'
         shell: bash
         run: |
           for feature in asg tck; do

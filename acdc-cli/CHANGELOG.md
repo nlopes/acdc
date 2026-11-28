@@ -73,6 +73,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Release archives are named `acdc-cli-TARGET.tar.gz` (`.zip` on Windows) with a
+  matching `.sha256` checksum, and unpack to an `acdc-cli-TARGET` directory that
+  also holds `README.adoc` and `CHANGELOG.md`.
+
 - The `tck` adapter uses Draft mode and a smaller upstream ASG projection,
   omitting derived caption state and generated heading IDs that no exported
   reference uses. Explicit IDs, titles and document caption settings remain;

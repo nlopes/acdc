@@ -21,6 +21,8 @@ on:
       - 'converters/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
+  # release.yml runs the TCK on the commit it releases.
+  workflow_call:
 
 env:
   CARGO_TERM_COLOR: always
