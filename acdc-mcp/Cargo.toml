@@ -1,6 +1,6 @@
 [package]
 name = "acdc-mcp"
-version = "0.1.0"
+version = "0.2.0"
 edition.workspace = true
 description = "Stateless MCP navigation for AsciiDoc documents using acdc-parser"
 readme = "README.adoc"
