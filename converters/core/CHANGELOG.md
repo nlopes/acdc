@@ -7,534 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Breaking:** removed `TraversalContext::substitute_attributes()`. To expand
-  references at a traversal position, call
-  `DocumentAttributesRef::substitute_attributes()` from `acdc-parser` on the
-  document's attributes with `|name| context.get(name)`. It reads names as the
-  document's compatibility mode does.
-
-- Added optional `highlighting` support for custom converters, with shared
-  built-in languages and themes, a 16 KiB source-line limit, and structured
-  warnings when a block needs plain-source rendering.
-
-- **Breaking:** duration formatting now uses `format_human()` and
-  `format_human_with_precision()` in place of `pretty_print()` and
-  `pretty_print_precise()`. Update custom converters to use these names.
-
-- TOC configuration preserves attribute presentation rules. Custom converters can
-  use `toc::Config::title_value()` for target-specific escaping; `title()` returns
-  literal text, including authored entity spellings.
-
-- **Breaking:** `link::strip_uri_scheme` is internal. Use
-  `link::link_fallback(target, true)` to hide a URI scheme in displayed link text.
-
-- **Breaking:** import `InlineTextTransform` from the crate root; `inline_text`
-  is private. Replace `inlines_to_string(nodes)` with
-  `InlineTextTransform::default().to_string(nodes)` and
-  `ConversionResult::outfile()` with `output_path()`.
-
-- **Breaking:** converter compatibility helpers now use typed parser reads.
-  Replace `SourceLineOptions::resolve` with `SourceLineOptions::from_attributes`,
-  `detect_language` with `source_language`, and `with_time_range` with
-  `with_time_range_from_attributes`. Replace `has_index_section` with
-  `contains_index_section` over typed blocks. For `last_section_has_style`,
-  inspect the last top-level `SectionRef::style()`; this differs from searching
-  the whole document for an index section.
-
-- **Breaking:** replace `TextBoundaries::for_inline` with `for_inline_refs`,
-  passing the current inline, preceding siblings in reverse order, and following
-  siblings in source order. Replace `apply_passthrough_replacements` with
-  `apply_passthrough_replacements_iter` and `subs.iter().cloned()`.
-  `shows_block_title` is removed; converters should inspect typed block kinds
-  and suppress visible captions for passthrough blocks.
-
-- Document traversal now provides footnote bodies and distinct output labels
-  for notes owned by AsciiDoc table cells. Custom document visitors can use
-  `TraversalContext::with_document()` to provide the same context.
-
-- Automatic document references and plain-text extraction use body `reftext`
-  values in source order. Empty and unset values fall back to the document title.
-  **Breaking:** keep the occurrence alive while using `resolve_reference` or
-  `resolve_local_reference` results; returned content can borrow its saved label.
-
-- Index sections attached to shared description-list definitions remain visible
-  to converters.
-
-- Short and full cross-references retain formatting in parsed custom `caption=`
-  prefixes. Only a final unformatted period and space are removed; punctuation
-  inside a styled span remains visible.
-
-- Text-only cross-reference display resolves external `.adoc` paths through
-  their source stem and omits empty fragments. Local filename-like IDs retain
-  their spelling.
-
-- Cross-reference rendering supports exact output suffixes, including an empty
-  suffix that removes the source extension. Extension-based callers retain their
-  existing output.
-
-- Table widths now share one numeric scale. With `cols="2*3,~"`, the numeric
-  columns keep 3% each and leave automatic space, matching Asciidoctor. Large
-  supported widths no longer overflow, and all-zero numeric widths divide space
-  equally. **Breaking:** `column_widths` returns `Vec<Option<f64>>`; `None` is
-  automatic, while `Some(0.0)` is an explicit zero width.
-
-- **Breaking:** use `code_inline_content` and `visit_index_inlines` for typed
-  code children and index discovery. The owner-slice and owner-callback APIs
-  have been removed. Selection, offsets, visibility and early errors are unchanged.
-
-- **Breaking:** table helpers now use typed parser handles. Replace
-  `calculate_column_widths`, `determine_column_count`, `build_grid`, and
-  `table_has_spans` with `column_widths`, `column_count`, `grid_rows`, and
-  `has_spans`. Span placement and row-group behavior are unchanged.
-
-- **Breaking:** replace `visitor::Visitor` and `WritableVisitor` implementations
-  with `DocumentVisitor`, `BlockVisitor`, and `InlineVisitor`. Block callbacks
-  always receive `BlockRef`; dispatch still accepts constructed blocks through
-  `Into<BlockRef>`. Callbacks select their children, and attribute replay and
-  error stopping remain unchanged.
-
-- Rust callers pass `ReferencesRef` to `InlineTextTransform::references` and `resolve_code_link`, and `ReferenceRef` to `reference_text`. Use `document.references()` or `ReferencesRef::from(&catalog)`; `reference_text` returns `ContentRef`. Label precedence and rendered output are unchanged.
-
-- Conversion methods now accept `ast::DocumentRef`. Pass `parsed.document()` for parsed input or `DocumentRef::from(&document)` for a document you construct. Output is unchanged.
-
-- Code-link labels and index occurrence offsets use the display characters of parsed references. Escaped references remain literal, and offsets count UTF-8 bytes in the decoded text.
-
-- Image and icon alternative-text helpers return the display characters of parsed references, while escaped reference text stays literal.
-
-- Text extraction supports constructed character-reference nodes. `decode_char_refs(true)` decodes known names and valid numeric values; unknown or invalid values keep their reference spelling.
-
-- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
-
-- Removed the obsolete `SubsFlags`, `effective_subs_flags`, `apply_replacements`, and `baseline_subs` APIs. Use `effective_subs` for block output settings and retained Raw profiles for deferred text substitutions. The free `substitutions::substitute_attributes` wrapper is replaced by `TraversalContext::substitute_attributes` for raw source templates.
-
-- Text extraction keeps resolved ordinary and verbatim text literal, including when `subs=none` disables formatting. Use `InlineTextTransform::rendered()` for Raw fragments with remaining substitutions; it replaces `rendered_replacements(bool)` and cannot reapply typography to resolved text.
-
-- Document text attributes and media directories retain literal quote characters; only attribute-list syntax removes its enclosing delimiters.
-
-- Media playback controls retain literal quotes in start/end values, playlists, language and hashes. A quoted provider name remains a local poster value, matching Asciidoctor. Code-link anchors keep their parsed IDs.
-
-- Icon alternatives retain the parser-selected text, including literal trailing dashes.
-
-- Image alternatives retain the parser-selected text, including literal trailing dashes in inline images.
-
-- Custom converters can resolve an ordered list's default numbering style with
-  `list::OrderedListNumbering::resolve()`, from its style and marker, or
-  `for_depth()`. The default follows Asciidoctor: `arabic`, `loweralpha`,
-  `lowerroman`, `upperalpha`, `upperroman`, then `arabic` past level 5.
-
 ### Added
 
-- Converters can resolve explicit block substitution settings in every build.
-  The list-based `effective_subs` helper no longer requires `pre-spec-subs`.
-
-- Text reads now return parser-resolved copyright and trademark signs,
-  ellipses, word-internal apostrophes, and em dashes. Replacement escapes return their
-  literal value, including when rendered replacements are disabled.
-
-- Typed automatic-reference resolution can apply the manpage policy of using
-  matching local labels for interdocument syntax. The source target classification
-  and other backends' reference behavior stay unchanged.
-
-### Breaking changes
-
-- Replace `resolve_xref` with `resolve_reference` and pass a typed catalog
-  target. Explicit display types use `XrefDisplay<'guard, ContentRef<'catalog>>`.
-  Label precedence, caption styles, and recursion guards are unchanged.
-- Table grid rows now use `GridRow<Row>`; existing explicit row types become
-  `GridRow<&TableRow<'_>>`. Typed table consumers can use `column_count`,
-  `grid_rows`, and `has_spans` with the same span placement and row ordering.
-
-- `effective_subs` and `effective_subs_flags` now accept
-  `Option<SubstitutionSpecRef>`; convert existing optional owner references with
-  `.map(Into::into)`. Block defaults and ordering are unchanged. List-based
-  resolution is available in every build.
-
-- Boxed mail macros passed to `mailto_target` now need `.as_ref()`. Direct
-  `&Mailto` references and typed `MailtoRef` handles are accepted.
-
-- `TraversalContext::visit_block` and `visit_blocks` accept typed blocks and
-  iterators alongside existing owner inputs. Calls that explicitly name generic
-  arguments must supply the inferred input type too: `visit_block::<V, _>` or
-  `visit_blocks::<V, _>`. Ordinary calls remain unchanged.
-
-- `TraversalContext::header()` now returns `DocumentAttributesRef`; callers with
-  explicit header type annotations must update them. Contexts accept typed header
-  snapshots, body assignments, and table-cell scopes alongside existing owner
-  inputs, with unchanged source-order values and parent-scope restoration.
-
-- Image and icon alternative-text helpers accept optional `ContentAttribute`
-  values. Plain-text extraction supports rich media and UI labels. Video helpers
-  preserve the complete local target and interpret provider playlists separately.
-  Replace `video::watch_urls` with `TryUrl::try_url(false)` for the single target.
-
-### Performance
-
-- Copied cross-reference catalogs use less memory for numbered sections.
-
-- Source-ordered document-attribute changes require less copying when converter
-  scopes change.
-- **Typography replacements skip the replace chain on plain prose.** Text
-  without special characters (arrows, ellipses, escapes) costs nothing per
-  paragraph.
-
-### Added
-
-- Code renderers can inspect formatting-span and visible-index-term content
-  through typed parser handles, including explicitly empty formatting.
-
-- Library converters can resolve TOC settings and number prefixes from typed
-  macro and catalog reads. Existing owner-based calls remain supported.
-
-- Library converters can detect index sections from typed block iterators.
-  Existing slice calls keep the same search boundaries and short-circuiting.
-
-- Library converters can discover index occurrences from typed inline iterators.
-  Existing owner callbacks retain their original references, occurrence order,
-  plain-text byte offsets, and first-error stopping.
-
-- Library converters can calculate column widths from typed format iterators.
-  Existing slice calls retain proportional, percentage, automatic, and
-  normalization behavior.
-
-- Text extraction can write typed inline iterators directly to a caller's buffer,
-  including temporary fragments. Existing text policies, surrounding word context,
-  and writer errors are preserved.
-
-- Source code text extraction accepts typed inline iterators. Existing owner
-  slice calls retain displayed text, visible index terms, footnote markers,
-  and link detection.
-
-- Source-code links can be resolved from typed inline handles. Existing owner
-  calls retain label formatting, fallback text, destinations, and registered IDs.
-
-- `SourceLineOptions::from_attributes` accepts typed element attributes for
-  source numbering and highlights.
-
-- Library converters can read source languages from typed block attributes.
-  Unknown and empty names are preserved; document defaults stay separate.
-
-- Video URL generation and playback-range helpers accept typed reads. Existing
-  calls retain provider playlists, private hashes, empty times, and URL spelling.
-
-- Image and icon alternative-text helpers accept typed targets and content.
-  Existing calls retain their fallback text, empty values, and return lifetimes.
-
-- Library converters can resolve automatic references from typed parser handles,
-  with the same label precedence, caption styles, and recursion protection.
-
-- Library converters can derive typography context from typed inline iterators,
-  retaining word boundaries across anchors and index labels.
-
-- Library converters can build email destinations and icon image sources from
-  typed parser handles. Existing owner calls keep their query and path handling.
-
-- Library converters can apply passthrough replacements from lazy substitution
-  profiles without copying the profile, with the same ordered replacement rules.
-
-- Library converters can render typed inline content through `visitor::InlineVisitor`,
-  including temporary text and parsed fragments whose lifetime is shorter than the
-  document's. Callbacks keep content selection, sibling handling, and rendering
-  policy under converter control.
-  Formatting-span checks accept typed reads alongside existing owner inputs.
-
-- Library converters can use `visitor::DocumentVisitor` with typed document and
-  header reads. Its default traversal preserves the existing document hook order,
-  preamble wrappers, attribute replay, and first-error stopping. Hooks select the
-  header and inline content to render.
-
-- Library visitors can handle typed blocks through `visitor::BlockVisitor`, with
-  source-order attribute replay and the existing nested cell scopes. The before
-  hook sees the previous value; the block callback sees the accepted assignment.
-  Callbacks choose their own children and content coverage.
-
-- Typed caption reads preserve the existing cross-reference display policy,
-  including formatted prefixes, empty-caption fallback, and reference styles.
-
-- Plain-text extraction accepts typed parser content while preserving source
-  text, rendered typography, reference fallbacks, and media alternatives.
-  Existing slice-based calls remain supported.
-
-- Rendered text extraction retains dash and apostrophe context across index labels
-  and invisible targets without changing source labels. Spaced dashes consume one
-  source space on each side, and split dash pairs render once. Passthrough profiles
-  keep their own spaces and escapes. Unlike Asciidoctor's default substitution
-  order, parsed index labels remain visible to enabled replacements.
-
-- Rendered plain-text extraction can retain a fragment's surrounding paragraph
-  boundaries, so an embedded index label does not gain extra dash replacements.
-
-- Index-section discovery supports earlier sections and sections nested in book
-  parts, while existing last-section style queries remain available.
-
-- Automatic cross-references to numbered sections resolve under
-  `xrefstyle=short` and `xrefstyle=full` for every backend, with the
-  `<name>-refsig` word recorded at the reference position. A `full` reference
-  to a chapter or appendix sets its title in emphasis, and backends render
-  that form in their own style.
-- Converter visitors now expose the document attributes active at each body
-  position. Set, repeated set, and unset events override the header snapshot,
-  and nested AsciiDoc table cells restore the parent values when they end.
-- Backend profiles now expose `embedded` only for embedded output, and
-  `ConversionResult::outdir` and `ConversionResult::output_path` expose resolved
-  post-conversion output metadata without making it visible to document source.
-- Plain-text and shared converter output now resolve title-based shorthand
-  references to matching section IDs while preserving written text for
-  unresolved targets.
-- Converter visitors can report or recover from parser block variants added
-  before their backend supports them, instead of being limited to a tracing
-  event.
-- Automatic cross-references to captioned blocks support source-order
-  `xrefstyle=short` and `xrefstyle=full`, including custom and disabled
-  captions. Explicit reference labels still take precedence.
-- Plain-text output uses the visible, substituted text of index terms without
-  formatting markers.
-- Link fallback labels can omit Asciidoctor-compatible URI prefixes while
-  preserving the complete destination.
-- Source blocks have shared handling for line numbers, custom starting numbers,
-  and highlighted-line selectors.
-- `xref::resolve_xref` resolves an automatic cross-reference's display content
-  with Asciidoctor's precedence — explicit reference label, target title, then
-  `[id]` — and distinguishes an untitled target, a missing local target, an
-  inter-document target, and a reference nested inside another one's text. Its
-  `xref::XrefGuard` keeps a target whose reference text holds a reference of its
-  own from recursing. Asciidoctor falls back to `[refid]` at the same point,
-  except where it reuses a target's cached converted title, which can carry one
-  already-resolved level and makes its result depend on document order.
-- `InlineTextTransform` now carries the text of every inline node,
-  so a heading or caption loses nothing it cannot render as markup: a link
-  contributes its link text, an image its alt text, an icon its alternative
-  text (or a readable form of its target), a
-  footnote its marker, and a stem its content; asciidoctor brackets the last
-  four, and so does this. A reference to an unknown target reads as its stylized
-  id, which drops a file extension so `other.adoc#part` reads as `[other#part]`. Two options extend it — `decode_char_refs` turns
-  `&#39;` into a character for non-HTML backends, and `references` resolves a
-  cross-reference with no text of its own to its target's reference text,
-  falling back to `[id]` for an unknown target or for a reference inside another
-  target's reference text. `xref::reference_text` exposes that precedence on its
-  own. A standalone curved apostrophe extracts as the typographic character
-  rather than an ASCII quote.
-- Converter backends can declare an Asciidoctor-compatible profile containing
-  their backend, base-backend, file-type, output-suffix, and HTML syntax and
-  apply the corresponding intrinsic and doctype convenience attributes
-  consistently.
-- `InlineTextTransform` provides shared
-  plain-text extraction from inline nodes for converters and tooling, including
-  configurable hard-line-break rendering.
-- **`#` callout guards in shell-session and PowerShell blocks** — `[source,console]`,
-  `[source,terminal]`, and `[source,powershell]`/`[source,ps1]` source blocks use `#`
-  as their line-comment prefix, so a guarding `# <1>` is stripped from the rendered
-  line just like it is for `bash`/`sh`/`zsh`/`fish`.
-- `list::OrderedListNumbering` — resolves an ordered list's explicit `[style]`
-  attribute (`arabic`, `decimal`, `loweralpha`, `upperalpha`, `lowerroman`,
-  `upperroman`, `lowergreek`) and formats a 1-based item position into its marker
-  text, shared by the terminal and manpage backends.
-- `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
-  per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
-  Previously lived in the HTML converter; promoted so terminal, manpage, and
-  future backends can honor `subs=` uniformly.
-- **Structured converter warnings** — `Warning`, `WarningSource`,
-  and `Diagnostics` let converters return non-fatal user-facing warnings
-  alongside `ConversionResult` without baking backend-specific warning categories
-  into the core crate.
-- Converter conversion methods now return output metadata containing the written
-  file path when applicable.
-- **Typography replacements API** — `Replacements` struct, `apply()`, and
-  `replace_apostrophes()` for shared AsciiDoc `Replacements` substitution across
-  converters. Includes `Replacements::unicode()` for terminal/manpage output.
-- `replace_em_dashes()` — standalone function for em-dash pattern matching, shared
-  by converters that need format-specific em-dash output (e.g. HTML entities).
-- `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
-  `Doctype`, and `IconMode` for semver-safe future additions
-- Comprehensive module-level documentation
-- `acdc-converters-dev` crate for test utilities (not published to crates.io)
-- Visitor method `visit_callout_ref` for processing callout references
-- **Copyright and registered escape handling** - `\(C)` and `\(R)` are now recognized as
-  escapable patterns alongside `\(TM)`, preventing accidental symbol conversion.
-
-### Fixed
-
-- Generated cross-reference labels now preserve the resolved custom caption text, including escaped typography and literal values.
-
-- Plain-text output preserves curved quotation marks around formatted content,
-  including image alternative text and tooltips.
-
-- Image descriptions preserve literal quotes in alt text across converters.
-
-- Media URLs retain end-only playback ranges. YouTube URLs support lists and
-  dynamic playlists, language, related videos, and fullscreen controls; Vimeo
-  embed URLs retain start positions and private-video hashes, matching Asciidoctor.
-
-- Passthrough arrows follow their substitution order: `pass:c,r[->]` renders
-  `→`, while `pass:r,c[->]` and `pass:r[->]` remain literal, matching
-  Asciidoctor. Already encoded arrows such as `pass:r[-&gt;]` also render as
-  symbols. Escaped arrows remain text, and source-text reads are unchanged.
-
-- Enabled typography in code and quotes-disabled text retains unrelated
-  formatting backslashes, matching Asciidoctor. Escaped symbols and arrows stay
-  literal; source-text extraction remains unchanged.
-- Rendered plain-text output can apply `pass:r[...]` and `pass:normal[...]`
-  typography while source-text reads remain unchanged. Escaped replacements
-  stay literal, independently of surrounding replacement settings.
-- Escaped numeric character references remain literal in plain-text labels
-  instead of being decoded a second time.
-- External cross-references retain their external destination and fallback text
-  even when a local anchor has the same name.
-
-- Literal bracket backslashes now survive in escaped macros and ordinary text,
-  matching Asciidoctor. Active links, cross-references, footnotes, and named
-  index terms consume only their closing-delimiter escape. Footnotes with `\]`
-  keep the complete body instead of ending at the escaped bracket.
-
-- `mailto:address[label,subject,body]` now carries percent-encoded subject and
-  body values, including Unicode, quoted commas, and empty arguments. Unlike
-  Asciidoctor 2.0.26, acdc preserves literal `&` and passthrough text instead of
-  encoding HTML entities or internal placeholders, keeps formatting and
-  typography syntax as plain email text, accepts unquoted empty
-  subjects, and correctly reads escaped apostrophes in single-quoted values.
-  Existing query headers are retained; positional subject/body values replace
-  matching headers and use `&`, rather than adding a second `?`. Message-body
-  line breaks use CRLF encoding.
-
-- Preserve inline anchor targets nested inside formatted code when macros and
-  quotes are enabled, including highlighted HTML.
-
-- Keep footnote markers in the text used to highlight code with enabled macros, so HTML can retain their links.
-
-- Resolve link labels and destinations consistently for highlighted HTML and PDF code, including automatic cross-reference labels and interdocument links.
-
-- Index catalogs can activate from AsciiDoc table cells inside compound blocks
-  and list continuations. Ordinary heading-looking text does not activate a catalog.
-
-- Converters can find index occurrences in formatted code and locate them in
-  its visible text. Labels and relationship targets remain separate from occurrences.
-
-- Index sections inside AsciiDoc table cells activate catalog generation.
-  Cell catalogs share preceding terms with the containing document; later terms
-  remain excluded.
-
-- Escaped attribute references such as `\{name}` stay literal when expanding
-  source-block text with `subs=attributes`, matching asciidoctor.
-
-- References resolved within an included document keep local fallback text,
-  including IDs with punctuation. Document-top references use `[^top]` when
-  the document has no title or reference label.
-
-- Custom captions such as `caption="Exhibit 7. "` omit the final period and
-  space in `xrefstyle=short` and `xrefstyle=full` links, matching Asciidoctor.
-  The displayed block caption keeps its original punctuation.
-
-- Cross-references to blocks with `caption=""` use the title for both
-  `xrefstyle=short` and `xrefstyle=full`, matching Asciidoctor. This also applies
-  to an empty document-wide `:caption:` and collapsible examples.
-
-- Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
-  matching Asciidoctor. Selected styles retain this emphasis for unnumbered
-  chapters; omitted or unset styles keep the title as written.
-
-- Styled section references stay consistent after AST edits and renumbering.
-  A chapter changed to an appendix uses its appendix signifier instead of
-  producing `Chapter A`; source-position settings and caller overrides are
-  preserved.
-
-- TOC placement follows normalized document settings, including `toc2`, position
-  aliases, and explicit `toc-position` and `toc-placement` overrides.
-- Nested AsciiDoc cell traversal applies child document settings and restores
-  parent settings after success or failure.
-- Switching backend profiles clears obsolete `htmlsyntax` and convenience
-  attributes while preserving an explicit `outfilesuffix`.
-- Numbered book TOCs can now retain a configured `chapter-signifier` on
-  chapter entries without adding it to nested sections.
-- Automatic references to sections with a named `reftext` now display that
-  label for both its natural alias and explicit ID. The section title is no
-  longer accepted as a second natural alias, matching Asciidoctor.
-- Parser API and CLI attributes now take precedence over document entries,
-  while document entries can still replace converter defaults.
-- Media targets used as URIs resolve relative paths against `imagesdir`, use
-  forward slashes, normalize path segments, and encode spaces as `%20`.
-- Icon mode selection now treats any set `icons` value other than `font` as
-  image mode, matching Asciidoctor.
-- Link fallback text distinguishes `link:`, `mailto:`, and automatic links, so
-  the HTML and PDF backends match Asciidoctor mail targets and angle brackets.
-- Inter-document cross-references preserve their external target and let each
-  backend use its own output suffix and fallback filename.
-- Universal AsciiDoc defaults passed to parsers no longer act like caller-set
-  attributes, so nested documents can change them locally. Implied converter
-  fallbacks such as `lang=en` are no longer exposed to attribute substitution
-  unless the attribute is explicitly set.
-- Built-in converters now use the parser's section numbers for both headings and
-  table-of-contents entries. Source-order changes and nested documents therefore
-  use one sequence in every backend.
-- Special-section numbering now treats book abstracts as chapters, honors
-  `sectnums=all`, and keeps the ordinary section sequence across appendices.
-- Book table-of-contents numbering now keeps chapter numbers continuous across
-  part boundaries.
-- Book chapter numbers continue across part boundaries instead of restarting,
-  matching Asciidoctor.
-- Spaced em dashes now consume one adjacent space or newline on each side,
-  preserve the rest of a whitespace run, ignore tabs, and distinguish true
-  paragraph boundaries from inline formatting boundaries.
-- `--no-default-features` builds no longer re-enable parser default features
-  through the shared parser dependency.
-- Video URL generation now reports missing video sources with a dedicated error.
-- **Em-dash patterns now match asciidoctor** — spaced (`word -- word`) emits
-  thin-space + em-dash + thin-space; word-bounded (`word--word`) emits em-dash +
-  zero-width-space. Patterns like `word --word`, `word-- word`, `test--`, `--test`,
-  and `---` are correctly left unchanged.
-- **Em-dash boundary replacement inside inline spans** — `replace_em_dashes` and
-  `Replacements::apply` now accept a `string_boundaries_are_space` parameter. When
-  `false`, string start/end are not treated as whitespace, preventing `--` inside
-  inline formatting (bold, italic, monospace, etc.) from being incorrectly converted
-  to an em-dash.
-- Shared table grid utilities (`build_grid`, `CellKind`, `GridRow`, `determine_column_count`,
-  `table_has_spans`) provide normalized cell placement and span tracking for converters.
-- Output file creation now creates parent directories if they don't exist, so
-  `-o path/to/nonexistent/dir/file.html` works without pre-creating the directory
-  tree. ([#358])
-- Preamble wrapper now only renders when all conditions are met: document has a title,
-  contains at least one section, and has content before that section. Previously,
-  documents without sections incorrectly rendered preamble wrappers. ([#275])
+- Cross-references support `xrefstyle=short`, `xrefstyle=full` and
+  `<name>-refsig` in every backend. `<<Section Title>>` resolves by title.
+- Links without their own text can hide the URI scheme with `hide-uri-scheme`.
+- Each backend sets `backend`, `basebackend`, `filetype`, `outfilesuffix`,
+  `htmlsyntax` and convenience attributes such as `doctype-book`.
+- Attributes set or unset in the document body apply from that point on.
+- Converters report non-fatal problems as warnings.
+- Source blocks share `linenums`, `start` and `highlight` handling across
+  backends. A block with a line over 16 KiB isn't highlighted, and gets a
+  warning.
+- Terminal and manpage ordered lists number by their style, such as
+  `loweralpha`. This matches Asciidoctor.
+- Plain-text headings and captions include every inline element. Non-HTML
+  backends decode character references.
+- Replacements also apply to index term text, unlike Asciidoctor.
 
 ### Changed
 
-- Resolved source arrows now expose their semantic Unicode value
-  through inline text reads, including passthroughs with special characters
-  before replacements.
+- Plain text shows the parser's resolved typography and never applies it
+  twice.
+- The `embedded` attribute is set only for embedded output. The output
+  directory isn't exposed as an attribute.
+- Source blocks read the language only from position 2.
+- Numbered sections and body attribute changes use less memory.
 
-- Library converter options now default to Secure, matching the parser API.
-  Select a lower safe mode explicitly for trusted documents that need resources.
-  CLI conversion retains its Unsafe default.
+### Fixed
 
-- **Breaking:** configure a converter with the parser options builder, then parse
-  with the converter's validated parser options. Application overrides, defaults,
-  and backend setup are resolved together before preprocessing.
-- **Breaking:** visitor callbacks receive the source-ordered attribute context.
-  Shared block dispatch applies assignments, and scoped traversal restores parent
-  values on success or error. Custom converters no longer implement an attribute
-  source trait or expose mutable attribute state.
-- **BREAKING**: `Converter::write_to`, `derive_output_path`, and the
-  provided `convert*` methods now accept `&Document<'_>` of any lifetime
-  instead of `&Document<'a>` tied to the converter's stored-attribute
-  lifetime. Stored attributes still use `'a`; the per-call doc lifetime is
-  independent, so a `Converter<'static>` can convert short-lived parsed
-  documents without leaking or `to_static`-ing them.
-- Source blocks accept any language name from position 2. Empty or named slots
-  no longer cause a later value to be treated as the language.
-- **BREAKING**: Renamed crate from `acdc-converters-common` to `acdc-converters-core`
-- **BREAKING**: `Options` struct now uses builder pattern with private fields -
-  use `Options::builder().doctype(...).build()` instead of struct construction
-- **BREAKING**: `toc::Config` fields are now private - use accessor methods
-  (`placement()`, `title()`, `levels()`, `toc_class()`)
-- **BREAKING**: Removed `Backend`, `Options::backend`, and
-  `OptionsBuilder::backend(...)`. Variant choice lives in each converter crate
-  (`HtmlVariant`, `MarkdownVariant`) and is set via each converter's `with_variant()`
-  method, or HTML's `acdc_converters_html::Converter::new_with_variant()`. Use `Converter::name(&self) -> &'static str`
-  instead of `Converter::backend(&self) -> Backend`.
-- **BREAKING**: Renamed `Processable` trait to `Converter` with new output routing:
-  - New `OutputDestination` enum for routing output (stdout, file, buffer)
-  - `convert()` is now a provided method that handles output routing
-  - Required methods: `convert_to_stdout()`, `convert_to_file()`
-  - New helpers: `write_to()`, `derive_output_path()`, `after_write()` ([#313])
+- Cross-references now match Asciidoctor more closely, including captions,
+  `xrefstyle=basic`, `reftext` and inter-document targets.
+- Section numbers come from the parser in every backend. Book chapter numbers
+  continue across parts, matching Asciidoctor.
+- TOCs use `toc2`, `toc-position`, `toc-placement` and `chapter-signifier`.
+- Index sections now generate anywhere, including book parts and AsciiDoc
+  table cells.
+- Table column widths use one numeric scale, matching Asciidoctor. Footnotes
+  in AsciiDoc table cells now show their text.
+- Attributes passed with `-a` or through the parser API now override document
+  entries. Fallbacks such as `lang=en` resolve as `{lang}` only when set.
+- Attribute values, including `imagesdir`, keep literal quotes. Relative media
+  URIs resolve against `imagesdir`.
+- Any `icons` value other than `font` selects image icons. YouTube and Vimeo
+  URLs keep their playback options, matching Asciidoctor.
+- `mailto:` links percent-encode the subject and body. Unlike Asciidoctor
+  2.0.26, acdc keeps literal `&` and passthrough text there.
+- Backslash escapes, passthrough arrows and em dashes now match Asciidoctor.
+- Highlighted HTML code keeps inline anchors and footnote markers.
+- Builds with `--no-default-features` no longer turn on the parser's default
+  features.
+- Conversion creates missing output directories. ([#358])
+- The preamble wrapper appears only with a document title, a section, and
+  content before that section. ([#275])
 
 [#275]: https://github.com/nlopes/acdc/issues/275
-[#313]: https://github.com/nlopes/acdc/pull/313
 [#358]: https://github.com/nlopes/acdc/issues/358

@@ -7,63 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Breaking:** Rust callers receive `EditorRenderResult` from
-  `parse_and_render()` and `parse_and_render_with_mode()`, renamed from
-  `ParseResult`. Highlighted source, preview HTML, and warnings are unchanged.
+### Breaking changes
 
-- Description-list previews retain all terms in a shared group, with separate
-  marker highlighting and one highlighted definition.
-
-- Callout list markers such as `<1>` are highlighted on their own line when a
-  comment line inside a paragraph, an excluded conditional, or an include comes
-  earlier in the document. Before, the highlight landed on an earlier line and
-  could split a block delimiter. The callout highlight now covers only `<1>`,
-  not the explanation after it.
-
-- The demo site's editor and preview headers have the same height, and the
-  compatibility selector has a cleaner, rounded look in light and dark themes.
-
-- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+- The `pre-spec-subs` and `setext` Cargo features are removed. Remove them from
+  your feature lists. The compatibility mode now selects the language rules,
+  and block `subs=` works in every build. Every build recognizes and
+  highlights underlined (setext) headings in Asciidoctor mode, the default.
 
 ### Added
 
+- The live editor can switch between Asciidoctor and Draft spec compatibility.
+  Highlighting, diagnostics and the preview follow the mode. Draft spec shows a
+  notice that the specification isn't final.
+- The editor pane warns that embedded HTML can run code or change the page.
+  Use content you trust.
+- Warnings keep their source file name. The status badge shows it as
+  `file:line:column`.
 - Release tarballs ship with a `.sha256` checksum.
-
-- Choose Asciidoctor or Draft spec compatibility in the live editor. Changing the
-  selection updates highlighting, diagnostics, and the preview together. Rust
-  callers can select the same mode with `parse_and_render_with_mode`; the
-  existing API keeps its Asciidoctor default and disabled include loading.
-  Selecting Draft spec shows a notice above the preview that the specification
-  is not finalized, with a link to the current draft.
-
-- Keep source highlighting available around resolved typography.
-
-- A note in the editor pane explains that embedded HTML can run code or
-  change the page. Use content you trust.
-
-- Warnings retain their source filenames. The status badge shows named
-  locations as `file:line:column`. Rust callers that construct `EditorWarning`
-  must supply its new `file` field. Use `None` for unnamed input.
 
 ### Fixed
 
-- Highlighted code blocks in light-mode previews use a light gray background
-  that stands out from the white page.
-
-- Highlighted code blocks in dark-mode previews use a dark background with
-  readable text and distinct syntax colors, including when the system theme changes.
-
-- Line numbers stay aligned with wrapped source lines when editing, scrolling,
-  or resizing the editor pane, so diagnostic locations match the gutter.
-
-- Restore clean strict Clippy builds for the WASM editor.
-
-- Legacy underlined headings are recognized and highlighted in builds without
-  the `setext` feature, following the default Asciidoctor mode.
-
-- Highlighting skips included-file ranges and ranges that cross source files.
-  These ranges no longer apply styles to unrelated entry text. Entry-file
-  children still receive highlighting. Include loading remains disabled.
+- Description-list terms that share one definition now all appear in the
+  preview and are highlighted.
+- Callout markers such as `<1>` are now highlighted on their own line.
+  Highlighting skips ranges from included files, so it no longer styles
+  unrelated text.
+- Highlighted code blocks in previews now stand out and stay readable in light
+  and dark mode.
+- Line numbers stay aligned with wrapped source lines when you edit, scroll or
+  resize the editor pane.
 
 ## [0.6.0] - 2026-10-10
 

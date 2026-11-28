@@ -7,49 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Breaking:** select portrait or landscape with `PageOrientation`, renamed
-  from `PageLayout`. Append markup through `Writer::write_raw_markup()`,
-  `write_text()`, and `write_string_literal()` instead of `raw()`, `text()`,
-  and `string_literal()`. Escaping and generated markup are unchanged.
+### Added
 
-### Fixed
-
-- Italic text in custom captions stays italic when the caption theme already uses italic text, matching Asciidoctor PDF.
-
-- Literal backticks and spacing acute accents no longer attach to the preceding
-  letter in IBM Plex Serif. Combining accents remain enabled.
+- Initial Typst writer for PDF output, with color emoji in any theme.
+- PDF output supports A3, A4, A5, Executive, Legal, Letter, Tabloid and custom
+  page sizes.
+- PDF metadata can include title, author, description and keywords.
+- Block images can be links with themed captions.
 
 ### Changed
 
-- Generated page headers and footers use the configured theme alignment,
-  sizes, title weight, logo height, page-one visibility, and page-number
-  position.
-- Generated documents apply the configured margin between document blocks.
-- Generated admonitions use text labels and a vertical divider, with titles in
-  the content column.
-- Generated block titles and captions use the configured PDF caption style.
-- Generated documents include theme-derived abstract title and body styles.
-- Generated documents can set the language and optional region of their text.
-- Page-header text is configured independently from embedded document title
-  metadata.
-- Page headers start after the first numbered page, so the document title is
-  not repeated at the top of its opening page.
-- The crate now lives under `converters/pdf/crates` as a non-publishable implementation
-  component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
-- `EmitOptions` now contains only preamble configuration; converters place tables of
-  contents during their document traversal.
+- Headers, footers, block margins, captions and abstracts use theme styles.
+  Page headers start after the first numbered page.
+- Admonitions show text labels and a vertical divider.
 
-### Added
+### Fixed
 
-- Generated documents can use A3, A4, A5, Executive, Legal, Letter, or Tabloid
-  paper in portrait or landscape layout.
-- Generated documents can use validated custom page dimensions and margins.
-- Generated documents can place themed image captions below block images.
-- Generated documents can make block images clickable without extending the
-  link to their captions or surrounding layout.
-- Generated documents can include title, author, description, and keyword
-  metadata.
-- Initial shared Typst writer, escaping, page preamble, header/footer,
-  watermark, image, callout, list, table, and source-code styling helpers for
-  PDF converters. Every font stack ends with the bundled color emoji face, so
-  emoji render as glyphs in body text, headings, and code, under any theme.
+- Backticks and spacing acute accents no longer attach to the previous letter
+  in IBM Plex Serif.

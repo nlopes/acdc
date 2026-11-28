@@ -7,100 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- New `attribute-name-not-normalized` lint reports attribute entries whose
-  names have uppercase letters or characters other than letters, digits, `_`,
-  and `-`, such as `:TOC:` or `:First Name:`. Asciidoctor mode normalizes those
-  names, as Asciidoctor does, and Draft mode keeps them as written. The lint
-  reports a parser warning, warns by default, and belongs to the
-  `document-structure` group.
+### Added
 
-- New `header-only-attribute` lint reports body entries for attributes that only
-  take effect in the document header, such as `doctype` or `toc` after the empty
-  line that ends the header. New `unset-attribute-value` lint reports text after
-  an unset entry such as `:!toc: left`. Both report parser warnings, warn by
-  default, and belong to the `document-structure` group.
-
-- Sentence checks visit a shared description-list definition once and keep term
-  punctuation separate from definition prose.
-
-- Expanded regression coverage for diagnostics in both compatibility modes, including formatted labels, nested lists, source blocks, delimiter safety, and image-directory scopes.
-
-- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
-
-- Image checks retain literal quotes in `imagesdir`. Quoted document text that is not a URL no longer triggers URL-prefix advice.
+- `acdc lint` checks documents against AsciiDoc recommended practices. The
+  groups are `recommended-practices`, `document-structure`, `source-format`,
+  `semantic-asciidoc` and `resources`. Stricter header checks are opt-in by
+  lint name.
+- Lints cover parser warnings, tables, headings, block spacing, whitespace,
+  lists, images and Markdown syntax.
+- Three `document-structure` lints warn by default about attribute entries.
+  `attribute-name-not-normalized` reports names such as `:TOC:`.
+  `header-only-attribute` reports header-only attributes in the body.
+  `unset-attribute-value` reports text after an unset, such as `:!toc: left`.
+- The opt-in `section-title-capitalization-monospace` lint reports titles
+  that start with lowercase monospace text. `section-title-capitalization` now
+  skips titles that start with monospace text.
+- Lint level overrides can target locations: `lint@line`, `lint@start-end`,
+  `lint@line:column` or `lint@start-line:start-column-end-line:end-column`.
+  Separate several scopes with commas. A scope that no longer matches reports
+  a warning.
+- `--compatibility-mode asciidoctor|draft` selects the parsing rules. The
+  default is `asciidoctor`.
+- `--max-total-include-bytes` limits include text per parse. The default is
+  64 MiB.
 
 ### Changed
 
-- Library linting now defaults to Secure and does not read include targets.
-  Use `LintOptions::with_safe_mode()` to enable includes for trusted sources.
-  The `acdc lint` command keeps its Unsafe default.
-
-- Document-attribute rules now inspect accepted text assignments. Unset,
-  invalid, and rejected entries are not treated as semantic values.
-
-### Added
-
-- `LintOptions::with_compatibility_mode()` selects Asciidoctor or Draft parsing
-  rules for file and string inputs. Asciidoctor remains the default, with the
-  existing Secure include policy.
-
-- `LintOptions::with_max_total_include_bytes()` sets the total selected include
-  text allowed per parse, in bytes. The default is 64 MiB. Safe modes and the
-  10 MiB per-include limit still apply.
-- Added location-scoped lint level overrides for individual lint IDs. Overrides
-  can now target `lint@line`, `lint@start-end`, `lint@line:column`, or
-  `lint@start-line:start-column-end-line:end-column`, with comma-separated
-  scopes such as `lint@line,line`; stale scopes that no longer match a
-  diagnostic now report a warning so obsolete local suppressions can be removed
-  or moved.
-- Added the opt-in `section-title-capitalization-monospace` lint for projects
-  that want lowercase leading monospace title text to be reported. The existing
-  `section-title-capitalization` lint now ignores titles that start with
-  monospace text, so case-sensitive tool and command names can keep their exact
-  casing by default.
-- Initial lint command support crate with lint names, lint groups, severity overrides,
-  report types, and implemented AsciiDoc recommended-practice checks. The
-  `recommended-practices` group starts with low-noise style checks, while stricter
-  document-header checks remain opt-in by lint name. Counter naming is intentionally
-  omitted because acdc warns on unsupported counter syntax and removes it from output.
-  `document-structure`, `source-format`, `semantic-asciidoc`, and `resources` groups
-  organize lints by authoring intent. Added diagnostics for parser recovery warnings,
-  table format/row issues, unsupported counter syntax, repeated document titles, heading
-  marker spacing and capitalization, delimited block blank-line layout, trailing
-  whitespace, hard tabs, repeated blank lines, list marker spacing, explicit numbered list
-  markers, bold-term paragraphs, image alt text, missing local image files, and Markdown
-  heading/link/image/code fence/table syntax. Lint metadata now includes stable
-  long-form explanations for each lint ID, suitable for generated rule docs and future
-  `acdc lint --explain` output.
-- Added a linked `RULES.adoc` reference that documents every lint ID, default level,
-  group membership, detection intent, drawbacks, and bad/good examples. Lint
-  references inside the page link to the corresponding lint sections.
+- Attribute lints now check only accepted text values.
 
 ### Fixed
 
-- Escaped counter references no longer trigger the counter-syntax lint. Active
-  counter diagnostics now stop at the closing brace.
-
-- Image-alt checks read parsed alternative content, including formatted labels.
-  Resource checks also traverse media alternatives, tooltips, and UI labels.
-
-- Inline images retain alt-text lint behavior with the explicit `alt` AST
-  field, including positional alt text and empty values.
-
-- The `one-sentence-per-line` lint now checks description-list values on the
-  term's line or immediately below it, including wrapped sentences.
-  Punctuation in the term does not count as part of the value.
-- The `one-sentence-per-line` lint now recognizes sentence endings and
-  colon-terminated lead-ins inside inline formatting. It also detects multiple
-  sentences on one line when a sentence starts or ends with formatting, while
-  preserving literal formatting characters.
-- Image-existence checks use `imagesdir` at each image's source position, including
-  body changes, unsets, nested blocks, and local AsciiDoc table-cell settings.
-  An explicit unset removes the earlier directory prefix.
-- The `delimited-block-minimal-delimiter` lint now accounts for delimiter
-  lines inside block content before deciding whether a longer delimiter can be
-  shortened.
-- The `excessive-blank-lines` lint no longer reports repeated blank lines
-  inside listing/source block content.
-- The `one-sentence-per-line` lint no longer treats a standalone
-  colon-terminated lead-in line as a sentence wrapped onto the following line.
+- `one-sentence-per-line` now handles description lists, inline formatting
+  and colon-terminated lead-ins.
+- Image checks now use the `imagesdir` value at each image's position, and
+  read the parsed alt text.
+- `counter-syntax`, `attribute-url-prefix`,
+  `delimited-block-minimal-delimiter` and `excessive-blank-lines` report fewer
+  false positives.

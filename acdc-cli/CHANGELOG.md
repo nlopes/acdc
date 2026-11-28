@@ -7,100 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Conversion continues after recoverable parser errors and reports structured
-  warnings, including non-conforming manpage titles. `convert --fail-on-warnings`
-  retains successful output, processes the remaining selected inputs, and exits
-  with status 1. `--strict` still rejects non-conforming manpage titles.
-
-- Faster source-snippet rendering for large documents with many warnings.
-  All warnings retain their messages, source locations, and context lines.
-
-- Native JSON and named ASG exports retain multiple description terms with one
-  shared definition. The TCK projection preserves the same grouping.
-
-- `inspect` displays scalar block controls in name order so repeated runs produce a stable outline. The displayed hierarchy, text, and source ranges are unchanged.
-
-- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
-
 ### Breaking changes
 
-- Conversion recognizes legacy underlined headings by default, matching
-  Asciidoctor. The redundant `convert --setext` and
-  `--enable-setext-compatibility` flags have been removed; the `setext` Cargo
-  feature is a compatibility alias.
+- Conversion recognizes underlined (setext) headings by default. This matches
+  Asciidoctor. The `convert --setext` and `--enable-setext-compatibility` flags
+  are removed. Drop them from your commands.
+- The `pre-spec-subs` and `setext` Cargo features are removed. Remove them from
+  your feature lists. The compatibility mode now selects the language rules,
+  and block `subs=` works in every build.
 
 ### Added
 
-- `acdc parse` exports native JSON from files or stdin in every build. `--format upstream-asg` and `--format acdc-asg-v1` select checked export when built with `asg`; `--compatibility-mode` selects language rules independently. `--type inline` parses a fragment. Parser/export diagnostics are JSON lines on stderr, and semantic failures do not replace output files.
-
-- `convert`, `inspect`, `lint`, and `execute` accept `--compatibility-mode
-  asciidoctor|draft`. Asciidoctor remains the default. The selected rules apply
-  to every input and nested include/table cell; safety and resource limits
-  remain separate.
-
-- `convert --force-local-file-xrefs` resolves file-qualified references by their
-  local anchors in combined or partially included documents. It preserves URLs
-  and custom text and requires a nonempty fragment. This opt-in override can
-  redirect genuine external file references. It does not scope duplicate IDs,
-  resolve Antora resource IDs, or change page-only references. It deliberately
-  differs from Asciidoctor for files that are not fully included.
-
-- `convert --backend pdf --emit-theme-config FILE` also saves the full resolved
-  theme as native acdc YAML during PDF conversion. It works with either theme
-  format and requires a document or `--stdin`. Exported Asciidoctor themes can
-  be reused with `--theme FILE` alone.
-  Theme page defaults are preserved; document and caller overrides are excluded.
-  Warnings still apply, and `--fail-on-warnings` retains the exported file.
-
-- `convert --backend pdf --theme FILE --theme-format asciidoctor` loads supported
-  Asciidoctor PDF 2.3.15 theme settings without a separate migration step.
-  Unsupported settings and known mapping differences produce converter warnings.
-  `--fail-on-warnings` applies and retains the generated PDF. Native acdc theme
-  files remain the default.
-
-- `convert --backend pdf --image-concurrency N` allows up to `N` simultaneous
-  remote document-image requests. The default is two. Use `1` for sequential
-  fetching. Source and byte quotas can reduce concurrency. Asset policy and
-  warning order stay the same.
-
-- `convert --fail-on-warnings` exits with status 1 for structured parser,
-  preprocessor, or converter warnings. Each warning is shown once, and
-  successful output is retained in files, stdout, and the terminal pager.
-  Multi-file runs keep their existing input selection and processing policy.
-  The flag can be used with `--strict`, which keeps its current behavior.
-  This warning exit and output retention are similar to Asciidoctor's
-  `--failure-level WARN`.
+- `acdc parse` exports native JSON from a file or stdin. It accepts
+  `--compatibility-mode`. `--type inline` parses an inline fragment. Builds
+  with `asg` add `--format upstream-asg` and `--format acdc-asg-v1`.
+  Diagnostics go to stderr as JSON lines.
+- `convert`, `inspect`, `lint` and `execute` accept `--compatibility-mode
+  asciidoctor|draft`. The default is `asciidoctor`. The mode also applies to
+  includes and table cells.
+- `convert --force-local-file-xrefs` resolves file references such as
+  `<<other.adoc#id>>` to local anchors, for combined documents. It can also
+  redirect real external references. Asciidoctor doesn't do this.
+- `convert --fail-on-warnings` exits with status 1 on any warning. It still
+  processes every input and writes all successful output. This is like
+  Asciidoctor's `--failure-level WARN`.
+- `convert --backend pdf --theme FILE --theme-format asciidoctor` loads an
+  Asciidoctor PDF 2.3.15 theme. Unsupported settings show warnings.
+  `--emit-theme-config FILE` writes the resolved theme as acdc YAML, to pass
+  back with `--theme`.
+- `convert --backend pdf --image-concurrency N` fetches up to `N` remote images
+  at once. The default is 2.
 
 ### Changed
 
-- Release archives are named `acdc-cli-TARGET.tar.gz` (`.zip` on Windows) with a
-  matching `.sha256` checksum, and unpack to an `acdc-cli-TARGET` directory that
-  also holds `README.adoc` and `CHANGELOG.md`.
+- Conversion continues after recoverable parser errors and reports them as
+  warnings. This includes nonconforming manpage titles, which `--strict` still
+  rejects.
+- Manpage conversion keeps the `manpage` doctype, even with `--doctype article`
+  or `--doctype book`.
+- The `tck` adapter uses Draft mode and exports a smaller upstream ASG.
+- Release archives are named `acdc-cli-TARGET.tar.gz` (`.zip` on Windows), with
+  an `acdc-cli-TARGET.sha256` checksum. Each unpacks to an `acdc-cli-TARGET`
+  directory that also holds `README.adoc` and `CHANGELOG.md`.
 
-- The `tck` adapter uses Draft mode and a smaller upstream ASG projection,
-  omitting derived caption state and generated heading IDs that no exported
-  reference uses. Explicit IDs, titles and document caption settings remain;
-  unsupported authored content still fails before output. Native JSON, regular
-  ASG exports and conversion are unchanged. Diagnostics are JSON lines on stderr.
+### Deprecated
 
-- Explicit `toc2` settings now warn once per input document. Use `:toc: left`
-  or `-a toc=left`. TOC output is unchanged. With `--fail-on-warnings`, this
-  warning gives exit status 1 and retains the output.
-- Manpage conversion keeps the effective `manpage` document type when
-  `--doctype article` or `--doctype book` is supplied. Output is unchanged.
+- `toc2` settings now show one warning per document. Use `:toc: left` or
+  `-a toc=left` instead.
 
 ### Fixed
 
-- `inspect` shows the complete video target, including commas and playlist slots.
-
-- HTML output supports inline and interactive SVG images and `data-uri`
-  embedding. Builds with `network` also embed remote images when `allow-uri-read`
-  is supplied by the caller; safe modes still restrict resource access.
-
-- Valid Asciidoctor `code_font_size` and `code_font_size_min` values no longer
-  produce a false adjustment warning or fail with `--fail-on-warnings`.
-
-- Restore native Windows CLI release builds.
+- HTML output now supports inline and interactive SVG images, and `data-uri`
+  embedding. Builds with `network` also embed remote images when you pass
+  `allow-uri-read`.
+- `inspect` now lists block controls in name order and shows the complete video
+  target.
+- Windows release builds are back.
 
 ## [0.3.0] - 2026-10-10
 

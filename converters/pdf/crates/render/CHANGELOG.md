@@ -7,22 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Breaking:** `render_pdf()` returns `RenderedPdf`, renamed from `Rendered`.
-  PDF bytes and compilation warnings remain available through the same fields.
+### Added
+
+- Initial Typst-based PDF renderer. It bundles fallback fonts, and also uses
+  font directories given at runtime with `--font-dir`. It embeds resolved
+  images as needed. Typst warnings are reported and don't stop the conversion.
+- PDF output warns once for each text cluster that has no glyph after font
+  fallback. The warning lists the Unicode code points that an extra font must
+  cover.
 
 ### Changed
 
-- PDF export explicitly keeps Typst's semantic structure tagging enabled. The
-  tagged output carries document language and supported content roles but does
-  not claim PDF/UA-1 conformance.
-- The crate now lives under `converters/pdf/crates` as a non-publishable implementation
-  component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
-
-### Added
-
-- Warn when text has no glyph after font fallback, once per distinct text
-  cluster, including the Unicode code points needed from an additional font.
-- Consumers can identify source-language names and tags supported by Typst.
-- Initial Typst-backed PDF renderer with bundled fallback fonts, optional
-  runtime font directories, on-demand resolved image embedding, and non-fatal
-  Typst warning reporting.
+- PDF output keeps Typst's semantic structure tags, with the document language
+  and supported content roles. This tagged output doesn't claim PDF/UA-1
+  conformance.

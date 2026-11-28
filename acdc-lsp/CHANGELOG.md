@@ -7,182 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Description-list navigation keeps each term's own destination. Semantic tokens
-  and body displays visit the shared definition once, with their existing term policy.
+### Breaking changes
 
-- Conditional highlighting now follows body attribute assignments and unsets,
-  including selected nested includes. Inactive parent conditions and the configured
-  backend use the same decisions as document parsing.
-
-- Removed the obsolete `pre-spec-subs` Cargo feature. Remove it from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
-
-- Image navigation retains literal quote characters in `imagesdir`, matching generated output.
-
-- Callout list markers such as `<1>` are highlighted again when an include, an
-  excluded conditional, or a comment line inside a paragraph comes earlier in
-  the document. Before, their highlight was misplaced or missing. The marker
-  token now covers only `<1>`; the explanation after it was highlighted as an
-  operator too.
+- The `pre-spec-subs` Cargo feature is removed. Remove it from your feature
+  lists. The compatibility mode now selects the language rules, and block
+  `subs=` works in every build.
 
 ### Added
 
-- Semantic highlighting covers document and block titles, table separators and
-  cell content, header and column styles, list markers, block delimiters,
-  attribute values and references, and inline macros. Bold, italic, code,
-  highlighted, subscript, and superscript text have distinct style modifiers.
-  Nested styles combine, and multiline content stays highlighted on every line.
-  Emacs users can use the documented Eglot setup to replace `adoc-mode` colors.
-  Source blocks receive a code face; the server does not highlight embedded
-  languages.
-
-- Set `compatibilityMode` to `asciidoctor` (the default) or `draft` in initialization
-  options or resource-scoped workspace settings. Changing the mode refreshes analysis
-  and workspace symbols; previews use the same mode, including unsaved includes.
-  Backend selection and include access limits remain independent.
-
-- Keep source selection and inline scanning available around resolved typography.
-
-- Document outlines and workspace search retain formatted titles, media
-  alternatives, anchor aliases, and source locations across includes. Outlines
-  keep their existing hierarchy and empty-title fallbacks.
-
-- Preview code actions render the current unsaved buffer as PDF, HTML5, or
-  semantic HTML according to its configured backend, then open it with the
-  system's URL handler. An explicit HTML5 preview is also available. Local includes
-  use unsaved buffers when available and follow the existing include limits.
-  PDF preview includes PDF-specific content and page layout. Requires an editor
-  with `window/showDocument` support; the `preview` and `preview-pdf` features
-  are enabled by default.
-
-### Performance
-
-- Conditional highlighting uses less temporary memory on documents with many
-  attributes. Attribute suggestions retain included header values, empty values,
-  and backend-specific defaults.
+- Semantic highlighting covers titles, tables, list markers, block delimiters,
+  attributes and inline macros. Inline styles such as bold and italic have
+  distinct modifiers. The server doesn't highlight embedded languages.
+- The `compatibilityMode` setting selects `asciidoctor`, the default, or
+  `draft`. Set it in initialization options or resource-scoped workspace
+  settings. Analysis, workspace symbols and previews follow it.
+- Preview code actions show the current buffer, with unsaved changes, as PDF,
+  HTML5 or semantic HTML. The configured backend picks the format. Previews
+  need an editor with `window/showDocument` support. The `preview` and
+  `preview-pdf` features are on by default.
 
 ### Changed
 
-- Release archives are named `acdc-lsp-TARGET.tar.gz` (`.zip` on Windows) with a
-  matching `.sha256` checksum, and unpack to an `acdc-lsp-TARGET` directory that
-  also holds `README.md` and `CHANGELOG.md`.
+- Conditional highlighting uses less temporary memory on documents with many
+  attributes.
+- Release archives are named `acdc-lsp-TARGET.tar.gz` (`.zip` on Windows),
+  with a matching `.sha256` checksum. Each unpacks to an `acdc-lsp-TARGET`
+  directory that also holds `README.md` and `CHANGELOG.md`.
 
 ### Fixed
 
-- Semantic highlighting leading document attributes with a blank line before title.
-
-- Header highlighting follows the parsed header, with or without a title.
-  Comment lines and comment blocks in the header are highlighted as comments,
-  so an entry commented out in a `////` block is no longer shown as an
-  attribute. Entries after a conditional directive stay highlighted, and a
-  header that starts or ends in an included file keeps highlighting for its
-  lines in the open document.
-
-- Comment lines and comment blocks among a block's metadata, such as between
-  `[[id]]` and `[.role]`, are highlighted as comments. Before, they were
-  highlighted as block attributes.
-
-- Attribute entries whose value wraps with ` \` are highlighted on every line,
-  in the header and the body. Before, such an entry in the body had no
-  highlighting at all.
-
-- Attribute references follow the parser's name rule for the configured
-  compatibility mode. Hover, inlay hints, code lens, and highlighting no longer
-  treat `{-x}` or `{x²}` as references, or, in Asciidoctor mode, names with a
-  zero-width joiner or non-joiner. Hover, inlay hints, and code lens now find
-  `{b}` in text such as `{a {b}`.
-
-- Document outlines label untitled source blocks with their language, such as
-  `Source (json)`, instead of `Listing`. Explicit block titles remain the name.
-
-- Editors that draw semantic tokens over their own highlighting, such as Zed
-  with `semantic_tokens: "combined"`, no longer have the bodies of blocks that
-  name a language covered by a code style, so `[source,json]` shows JSON
-  colors. Callouts in the body stay highlighted, and bodies without a language
-  keep the code style.
-
-- Builds without the default preview features no longer emit unused-code warnings.
-
-- IDs without recorded source coordinates no longer produce navigation targets
-  at line zero. Generated section IDs still navigate to their heading.
-
-- Semantic highlighting marks section IDs supplied through `[#id]` or `[[id]]` as definitions. Generated section IDs remain unmarked.
-
-- Document symbols show resolved typography in block titles, including em dashes.
-
-- Clickable `mailto:` links use a single scheme prefix, so editors open the
-  intended email address.
-
-- Navigation, references, and rename now recognize retained named block IDs and
-  inline IDs, including images and formatting spans in titles, tables, and includes.
-  Hover retains formatted section names, header attribute values, and cross-file
-  targets, including unsaved documents. Inlay hints retain registered section
-  labels, and reference-count lenses keep their existing heading and body coverage.
-  Section warnings and folding ranges retain their source locations, ordering, and
-  include boundaries. Formatting and on-type edits preserve verbatim source,
-  original line endings, and selected include boundaries. Media diagnostics retain
-  source-order directory changes and unsets, nested cell scopes, and content-field
-  coverage.
-  Rename changes only source-validated literal spellings, preserves quoting and
-  surrounding markup, and updates duplicate declarations together. Generated or
-  expanded IDs remain navigable but cannot be renamed through guessed ranges.
-  An ID on an xref macro takes precedence over that macro's target at the cursor.
-
-- Definition, hover, references, and rename now find cross-references in titles,
-  captions, image alt text and tooltips, quote credits, footnotes, UI labels,
-  description terms, callouts, and table cells. Nested references select the
-  innermost target. Rename declines the operation if a retained reference has
-  no safely editable literal target, instead of leaving a broken reference.
-  File rename also finds these references in closed files under the configured backend.
-
-- Editor requests with columns past a line's end now use the end of that line,
-  as required by LSP. Returned edit ranges use those normalized UTF-16 positions.
-  Batches of full document updates now use the last snapshot; ranged fragments
-  cannot replace the complete document when full synchronization is enabled.
-
-- Formatting, completion, signature help, and block wrapping now use UTF-16
-  cursor positions after emoji and reject invalid selections. Formatting emits
-  valid, non-overlapping edits at the end of a file, and inserted line breaks
-  follow the file's LF or CRLF style. Wrapping preserves the selected source.
-  Renaming a file updates Unicode include paths without leaving stray characters.
-  Unfinished listing blocks keep their whitespace; pressing Enter after the
-  opening delimiter can insert its matching closer.
-
-- Expand selection now follows the original source after includes and uses
-  correct UTF-16 positions after emoji, through CRLF endings, and at end of file.
-  Highlighting validates source spans and avoids duplicate tokens in nested
-  inactive conditionals. Attribute unsetting highlights the name without `!`.
-  Folding omits ranges that do not fit the original source.
-
-- Hover, reference-count code lenses, inlay hints, and document links now align
-  correctly after emoji and in CRLF files. Navigation finds targets correctly
-  after preprocessing. Hovering immediately after an attribute's closing brace
-  no longer selects it.
-
-- Diagnostics, document and workspace symbols, and include call hierarchy now
-  use UTF-16 positions from the original source, including unsaved buffers and
-  selected or reindented includes. Missing source text no longer produces guessed
-  ranges. Include ranges also remain accurate in CRLF files and Unicode paths.
-
-- References and go-to-definition now use UTF-16 character positions after emoji
-  and other non-BMP characters. Included targets use their original source text,
-  including selected and reindented includes and unsaved editor buffers.
-  The server explicitly advertises UTF-16; unavailable source text no longer
-  produces a guessed navigation range.
-
-- Media navigation preserves complete video targets and discovers images nested
-  in alternative content, tooltips, and UI labels.
-
-- Closing a document no longer restores symbols from a removed workspace folder.
-  Moving a closed file outside active folders also removes its workspace symbols.
-  Open documents and their include updates still work after a folder is removed.
-- File renames now update active cross-references in closed files using each
-  folder's analysis backend. PDF-only references are no longer skipped.
-- Changing the analysis backend now refreshes cross-file diagnostics in all open
-  documents after the workspace indexes are updated. References to conditional
-  anchors no longer keep stale diagnostics, including anchors from unsaved includes.
-- Windows documents with canonical file paths now resolve local `include::` targets
-  without false errors that the target is outside the document directory.
-- File links and included source locations use normal Windows drive URIs.
+- Semantic highlighting now handles headers, comments in block metadata,
+  wrapped attribute entries and callout markers. Conditional highlighting
+  matches document parsing. Blocks that name a language no longer get a code
+  style over their body. Editors such as Zed then show their own language
+  colors.
+- Hover, inlay hints, code lens and highlighting now use the parser's attribute
+  name rules. `{-x}` is no longer a reference.
+- Navigation, references and rename now find block IDs, inline IDs, media
+  targets and cross-references in titles, captions, tables and footnotes.
+  Rename changes only IDs it can confirm in the source. It stops rather than
+  leave a broken reference. File renames now update closed files and Unicode
+  include paths.
+- Ranges now line up after emoji and in CRLF files. The server advertises and
+  uses UTF-16 positions. Diagnostics and navigation use the original source of
+  included files.
+- Document symbols label untitled source blocks with their language, such as
+  `Source (json)`.
+- Formatting, completion, signature help and block wrapping now reject invalid
+  selections and keep the file's line endings. Pressing Enter after an opening
+  listing delimiter can insert the closing one.
+- Workspace symbols and cross-file diagnostics now update when you remove a
+  folder or change the analysis backend.
+- On Windows, local `include::` targets no longer fail with a false error, and
+  file links use normal drive URIs.
 
 ## [0.3.0] - 2026-10-10
 

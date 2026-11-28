@@ -7,503 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- The end of the document header now follows the compatibility mode. Asciidoctor
-  mode matches Asciidoctor and ignores empty lines before the document title:
-  attribute entries, comments, block anchors, and attribute lists above the
-  title, in any order, stay in the header, so `:toc:` followed by an empty line
-  and `= Title` keeps its title and table of contents. A document without a
-  title keeps its leading attribute entries in the header however many empty
-  lines separate them. Draft mode follows the language documentation: the first
-  empty line ends the header, with or without a title, so a title after it is a
-  level-0 section and later entries are body assignments. The specification
-  hasn't decided this yet, so the Draft mode rule may change. Without empty lines,
-  Draft mode also accepts those lines above the title in any order, as
-  Asciidoctor mode does; the language documentation doesn't address their order.
-  After a title, the first empty line still ends the header in both modes.
-- In Asciidoctor mode, a document without a title now also keeps the attribute
-  entries among the first block's anchors, attribute lists, and block titles in
-  its header, as Asciidoctor does. A setting that only works in the header, such
-  as `:toc:` after `[[intro]]`, now takes effect without a warning. The metadata
-  still applies to the first block, and an attribute list before an entry still
-  sees the earlier value. Draft mode keeps these entries in the body, because
-  the language documentation doesn't list block metadata as header lines.
-- `DocumentRef::header_location()` returns the source span of the document
-  header, with or without a title.
-- A footnote in the document title is no longer registered twice when an anchor
-  or attribute list precedes the title.
-- An attribute entry now needs whitespace or the end of the line after
-  `:name:`, matching Asciidoctor in both compatibility modes. A line such as
-  `:foo:bar` is ordinary text: it no longer sets `foo` (including for `ifdef`),
-  drops `bar` from the output, or continues onto the next line when it ends in
-  ` \`. On the line after the document title it is the author line, and later
-  in the header it ends the header.
-- An unset entry with text after it, such as `:!foo: ignored` or
-  `:foo!: ignored`, now also unsets `foo` for `ifdef` and `ifndef`. Before, only
-  attribute references treated `foo` as unset. The text is still ignored, and
-  the entry now adds a located `WarningKind::UnsetAttributeValue` warning;
-  Asciidoctor ignores the text without a warning.
-- A body attribute entry for an attribute that only takes effect in the header,
-  such as `doctype`, `toc`, `source-highlighter`, `stylesheet`, `description`,
-  `mansource`, or acdc's `dark-mode`, `highlight-style`, `highlight-css`, and
-  `csp`, now adds a located `WarningKind::HeaderOnlyAttribute` warning.
-  This catches header attributes grouped with empty lines, since the first empty
-  line after the title ends the header. Unsets warn too. Attributes that acdc
-  applies in the body, such as `icons`, `stem`, and `sectnums`, don't warn, and
-  neither do caller-supplied values or entries a caller lock rejects.
-  Asciidoctor doesn't warn.
-- Asciidoctor mode now normalizes attribute names as Asciidoctor does. An
-  entry's name loses every character other than a letter, a digit, `_`, or `-`,
-  and is lowercased, so `:TOC:` turns on the table of contents and
-  `:First Name: Dan` sets `firstname`. A line such as `:.name: value` is now
-  text, not an entry. Attribute references and `ifdef`, `ifndef`, and `ifeval`
-  directives look names up in lowercase, so `{TOC}` and `ifdef::TOC[]` find
-  `toc`, and caller attributes such as `-a TOC` are lowercased. Lookups through
-  `DocumentAttributes` ignore case in this mode, and body entries report their
-  normalized name. Draft mode keeps names as written, since the specification
-  hasn't decided how to normalize them. In both modes, an entry whose name isn't
-  normalized adds a located `WarningKind::AttributeNameNotNormalized` warning.
-- Conditional directives now see entries such as `:my.attr:` or
-  `:First Name:`, whose names have characters other than letters, digits, `_`,
-  and `-`. Before, `ifdef` missed them even with the exact spelling.
-- Attribute references now read names as Asciidoctor does. Names may contain
-  non-ASCII letters, combining marks, and digits, so `{café}` resolves `:café:`
-  instead of staying text. A name must start with a letter, a digit, or `_`, so
-  `{-x}` is text even when `-x` is set. In Asciidoctor mode, the zero-width
-  non-joiner (U+200C) and zero-width joiner (U+200D) aren't word characters, as
-  in Asciidoctor: an entry drops them from its name, and a reference that
-  contains one is text. Draft mode accepts them in reference names. In verbatim
-  blocks with `subs=attributes`, block attribute lists, escaped passthroughs,
-  and `pass:a` entry values, text such as `{a {b}` now resolves `{b}`, as it
-  already did in paragraphs. `pass:a` entry values also leave invalid names
-  such as `{a b}` as text, including their backslash escapes.
-- **Breaking:** the free function `substitute_attributes()` is no longer
-  public. Use `DocumentAttributesRef::substitute_attributes()`, which expands
-  references by the document's compatibility mode with values from a lookup you
-  supply, such as `|name| attributes.get(name)`.
-- `CompatibilityMode::is_attribute_reference_name()` tells whether `{name}` is
-  a reference in a mode, and `DocumentAttributesRef::compatibility_mode()`
-  returns the mode that parsed a document.
-- Attribute entries whose value wraps with ` \` now have locations in the
-  original source. The entry's location, and the header's when the entry ends
-  it, end on the value's last line, at the right column. Before, they ended on
-  the first line, past its end. In AsciiDoc table cells, a value wrapped with
-  ` \` now joins its lines with a space, matching Asciidoctor, instead of
-  keeping the backslash and the line break.
-- `ifeval` now compares integers exactly. Before, large integers that differ
-  could compare as equal, so `ifeval::[9007199254740992 == 9007199254740993]`
-  was true. Comparisons between an integer and a decimal number, such as
-  `9007199254740993 > 9007199254740992.0`, are exact too, matching Asciidoctor.
-  Integer values are exact within the signed 128-bit range; Asciidoctor has no
-  such limit.
-- `ifeval` no longer evaluates arithmetic or functions in its operands, matching
-  Asciidoctor and the `ifeval` rules proposed for the AsciiDoc specification.
-  An unquoted operand such as `1 + 1`, `7 / 2`, or `max(1, 9)`, including one
-  that comes from an attribute value, is now text. Comparing it with a number
-  reports a warning that the operands have different types and excludes the
-  content, so `ifeval::[1 + 1 == 2]` no longer includes it.
-
-- Faster processing of included files, especially `lines=` and tag selections,
-  while preserving resource limits, source locations, and compatibility modes.
-
-- Heading-like lines such as `== Title` and `## Title` inside paragraphs and
-  list items now remain text in both compatibility modes, matching Asciidoctor.
-  They no longer create extra sections or table of contents entries.
-
-- Tables now retain a final row completed by a row span from an earlier row,
-  including combined column and row spans, without an incorrect incomplete-row
-  warning. Both compatibility modes match Asciidoctor.
-
-- Recoverable include options, malformed directives and URLs, include read and
-  decoding failures, conditional errors, oversized table column widths, and
-  excessive list-marker depths now return located warnings and preserve a usable
-  document. Invalid `lines=` selections remain unresolved rather than including
-  the entire file; unevaluable conditional bodies are excluded. Entry-input
-  failures, explicit provider fatal errors, and resource budgets remain fatal.
-  These conservative recoveries can differ from Asciidoctor.
-- Tables require an exact closing delimiter and recover to a later matching
-  delimiter or the end of input with an unterminated-table warning. Tab-separated
-  sibling headings keep their correct section placement.
-- Non-conforming manpage titles return `NonConformingManpageTitle` warnings with
-  the existing fallback values. Explicit strict mode still rejects them.
-
-- Include attribute lists now accept single or double quotes, ignored unknown
-  fields, `options=`, raw attribute expansion, open-ended `lines=`, and `depth=`.
-  Missing target attributes follow the selected `attribute-missing` recovery policy.
-  Escaped references and invalid reference names remain literal, and quoted
-  attribute values can contain closing brackets.
-- Include `leveloffset` values now follow the selected compatibility mode.
-  Asciidoctor mode interprets signed document entries before reference expansion
-  and reapplies previous signed values when leaving an include, matching
-  Asciidoctor. Draft keeps expansion before relative arithmetic and restores the
-  prior effective offset. Unsigned include offsets
-  replace the active value; signed offsets adjust it, including nested includes.
-  Both modes honor caller-locked offsets and `max-attribute-value-size` for
-  include overrides. Leading zeros are retained, so `leveloffset=01` with a
-  one-byte cap applies offset `0`, matching Asciidoctor. Verbatim examples do
-  not affect subsequent headings, and document locations retain authored include
-  boundaries. Include offset entries that remain literal inside listings or
-  paragraphs retain the public `:leveloffset:` spelling, matching Asciidoctor.
-  Literal entries do not change the active offset, including when listing
-  boundaries cross included files.
-- `max-attribute-value-size` truncates document-defined text at a complete UTF-8
-  character, including resolved relative `leveloffset` values. Secure mode defaults
-  to 4096 bytes. A bare caller value applies a zero-byte cap; an explicit unset
-  disables the cap. This limit and include `depth=` accept Ruby digit separators,
-  such as `4_096`.
-
-- **Breaking since 0.11:** public names now distinguish table cells, reference
-  targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
-  `Reference` with `ReferenceTarget`, `CurvedApostrophe` / `CurvedQuotation` with
-  `SingleQuotedSpan` / `DoubleQuotedSpan`, and update the corresponding handles
-  and variants. Text reads use `preprocessed_source()`; attribute defaults use
-  `insert_if_absent()` / `merge_defaults()`. See the README migration table for
-  all renamed types and operations. Checked ASG exports use `export_document()` /
-  `export_inlines()` and their `_with_profile` variants. Parsing and serialized
-  node names are preserved.
-
-- **Breaking since 0.11:** `pass:c[...]` attribute text, native JSON, and raw
-  inline text retain unencoded characters. Read displayed attribute pieces through
-  `DocumentAttributeValue::parts()` and apply their retained substitutions
-  in the converter. Raw inline text offers the same view through
-  `RawRef::text_part()`. Scalar conditions and include targets now use neutral text,
-  which can differ from Asciidoctor's encoded strings. Parsed snapshot reuse
-  preserves preparation; `into_inputs()` deliberately exports fresh scalar input.
-
-- Parser contributors can select regression suites by area with `--test`, such as
-  `--test substitutions` or `--test read_api`, while retaining individual nextest
-  case filters and separate allocation measurements.
-
-- Prepared-tree editing guidance now specifies footnote repair before reference/TOC
-  repair, followed by caption repair, so restored footnote anchors and reference
-  caption snapshots stay consistent. Each repair is atomic on error; the sequence
-  is not a transaction.
-
-- Faster parsing of documents that produce many warnings, including repeated
-  explicit IDs. Warning contents, order, and source locations are preserved.
-
-- Lines beginning with `+` followed by text, such as `+ (+).`, now stay inside
-  ordered, unordered, and description list items in both compatibility modes,
-  matching Asciidoctor. Only a standalone `+` acts as a list continuation.
-
-- Faster parsing of paragraphs, mixed ASCII and Unicode text, formatting, inline
-  passthroughs, and duplicated ordinary table cells (`3*|text`) in both
-  compatibility modes, including text expanded from attributes, while
-  preserving substitution rules and source locations.
-
-- Keyboard macros with deeply nested brackets no longer abort parsing with a
-  stack overflow when `:experimental:` is enabled. Both compatibility modes
-  preserve nested labels and escaped brackets.
-
-- AsciiDoc table cells now keep separate footnote names and definitions in both
-  modes, matching Asciidoctor's scope. Ordinary cells share their containing
-  owner. Numbers remain unique across the document. Use `TableCellRef::footnotes()`
-  for cell definitions; `DocumentRef::footnotes()` now returns only outer definitions.
-  Native JSON adds `footnote_scope`; named ASG stores canonical bodies in each
-  owner's `footnotes` array. Prepared repair keeps these owners separate.
-
-- Document references in both modes use the `reftext` active at their source
-  position. Empty and unset body values select the title. Labels retain the
-  winning declaration's source location; caller values have no source location.
-  Prepared edits retain captured labels. Natural aliases keep their header
-  binding, unlike Asciidoctor's lookup-order-dependent alias cache.
-  `CrossReferenceRef::document_reftext()` reads the body context; native JSON
-  and named ASG expose `document_reftext` separately from explicit link text.
-
-- Description lists now nest under ordered and unordered items in both modes.
-  Outer siblings remain in their list, and a blank line before `+` attaches the
-  next block to the ordinary parent. Same-line description markers stay literal.
-
-- A list that follows a list item's attached blocks now nests in that item in
-  both modes, matching Asciidoctor. This covers a deeper item of the same list,
-  such as `**` after a `+` delimited block, or after an attached paragraph and
-  an empty line, as well as ordered, description, and callout lists. These
-  lists were previously parsed as siblings or as separate top-level lists. A
-  callout list nested this way ends at the next item of the enclosing list.
-
-- List items now belong to lists by their marker in both modes, matching
-  Asciidoctor: an item continues the open list whose marker it matches, and
-  any other marker starts a list nested in the previous item. acdc compared
-  marker depth before. Now `10.` is a sibling of `9.`, a numbered item after a
-  nested dotted list returns to the numbered list, `*` after a list that starts
-  with `**` nests in its last item, and `-` and `*` are different markers, so
-  `- a` followed by `* b` nests `b`.
-
-- A list attached to a list item with `+` now ends at the next item of an
-  enclosing list in both modes, matching Asciidoctor. Previously, `* Next` after
-  an ordered list attached to `* Item` was nested in that ordered list. A `+`
-  before an item of the same or an enclosing list is dropped, and the list
-  continues with that item instead of attaching it. This covers ordinary,
-  description, and callout lists. Block attributes, titles, anchors, and
-  attribute entries between the `+` and that item are dropped too, as in
-  Asciidoctor.
-
-- A callout list item's marker location (`callout().location()`, `callout.location`
-  in native JSON, `callout_location` in the acdc ASG profile) now covers just
-  the marker, such as `<1>`, on the item's own line. Before, it covered the
-  item's whole first line, and an include, an excluded conditional, or a
-  comment line inside a paragraph earlier in the document moved it by the
-  number of lines added or removed, so editors using it, such as acdc-lsp,
-  could highlight `<1>` on the wrong line.
-
-- Description lists now group consecutive terms with one shared definition in both
-  modes. An authored principal that expands to empty remains present. The read API
-  uses `item.terms()` and `item.definition()`; term content, anchors, and delimiters
-  belong to `DescriptionListTerm`, and principal/blocks belong to
-  `DescriptionListDefinition`. Native JSON follows these owners. Named ASG adds
-  term metadata and definition presence; upstream ASG keeps its existing shape.
-
-- `ParseResult::conditionals()` exposes preprocessing decisions in source order,
-  with original source files and line numbers. Tools can use the selected branches
-  without evaluating conditions against the end-of-header attribute snapshot.
-
-- Documented that accepted assignments immediately before an open block closes
-  still affect later content in both modes. Asciidoctor defines attribute entries
-  inside delimited blocks as undefined behavior.
-
-- Local image and block audio filenames now accept literal single and double
-  quotes. Quoted alt and title values remain separate from the target. Inline
-  filenames keep ASCII apostrophes; Asciidoctor can replace them with typographic
-  apostrophes.
-
-- Explicit overrides of character-replacement attributes now follow the same
-  substitution order as ordinary attributes. For example, `:quot: ->` produces
-  an arrow under normal substitutions in both modes. Built-in values remain literal.
-  Raw `->` values from caller options or `pass:[]` also follow this rule;
-  Asciidoctor keeps them literal.
-
-- Documented the shared formatting boundary after a literal `&`. With quotes
-  enabled, `&_a_;` formats its inner letter in both modes; Asciidoctor's default
-  substitutions leave the markers literal.
-
-- Explicit `link:` macros now accept custom schemes and paths with colons,
-  such as `link:urn:example:target[Read]`, in both modes. Labels, metadata,
-  and source locations are preserved.
-
-- Document `reftext` now overrides the authored header label for references to
-  its explicit ID in both modes, as it does for document-top references.
-  Empty and unset header values select the document title. Authored labels
-  remain separate, and prepared reference repair keeps the document label.
-
-- Thematic breaks keep named IDs and reference labels and select the last
-  authored ID in both compatibility modes. Stacked anchors no longer lose the
-  selected label. Earlier declarations remain available without becoming
-  registered aliases. Draft reports unresolved references inside these labels.
-
-- Blocks with metadata now select the last authored ID, including stacked
-  anchors and named IDs, in both compatibility modes. Cross-reference labels,
-  typed identity reads, and named ASG output agree with that selection, matching
-  Asciidoctor. Earlier bracket anchors remain declarations, not link aliases.
-
-- Empty inline formulas, buttons, and keyboard sequences remain shared acdc
-  extensions in both compatibility modes. Asciidoctor leaves isolated empty
-  forms literal. Empty and whitespace-only menu item lists remain distinct.
-
-- Table column widths above 4,294,967,295 now return a located parse error
-  instead of silently selecting a default width. This bound differs from
-  Asciidoctor, which accepts larger integers.
-
-- Checked ASG export no longer confuses document attributes named `name`, `type`
-  or `id` with node identities. It also rejects dangling footnotes retained only
-  in index or reference labels, while keeping canonical note bodies unchanged.
-
-
-- The named ASG profile preserves icon targets, alt text, tooltips, roles and
-  controls across font, image and text fallback modes without resolving assets.
-
-
 ### Breaking changes
 
-- Role and option metadata uses `TokenAssignment`. Convert prepared vectors with
-  `.into()`; use the default value for absence and an empty vector for explicit
-  emptiness. `TokensRef::is_present()` exposes the distinction. Native JSON and
-  supported ASG metadata retain empty arrays instead of omitting them. Strict
-  ASG export rejects explicit empty inline assignments where no mapping exists.
-
-- ID source locations are optional. Generated section IDs and caller-built IDs
-  without recorded coordinates return `None` from `ElementIdRef::location()`.
-  Native JSON omits unknown anchor and inline-ID locations instead of writing
-  line-zero coordinates; known source ranges remain unchanged.
-
-- Admonition JSON distinguishes paragraph, indented, and delimited forms, retaining
-  the actual opening delimiter. Read source form with `AdmonitionRef::form()`;
-  library-built compound admonitions need `with_form` to supply known provenance.
-
-- Read parsed trees through `ParseResult::document()` and concrete `ast::*Ref`
-  handles. Match `BlockKind` / `InlineKind` and use lazy child/content iterators
-  instead of public fields or backing slices. Use constructors, checked setters,
-  and prepared transfers to edit owned values; `From` copies a selected read.
-  Text can still borrow from the parse result. See the README's 0.11 migration.
-- `ContentAttribute` and `Title` no longer expose borrowed slices or `Deref`.
-  Use `ContentRef::from(&content)` or `title.content()`, then `inlines()`.
-  Standalone inline results use `content()`. `Title::default()` is absent;
-  `Title::new(Vec::new())` is present and empty.
-- Images, tooltips, UI labels, credits, custom captions, and reference labels
-  retain parsed inline content. Inline images use `InlineImage`; block images
-  use `Image`. Alt, tooltip, and caption title are independent. Content is stored
-  once, outside scalar controls; checked scalar setters reject reserved names.
-- Native JSON writes content as dedicated inline arrays, omitting absent values
-  and retaining `[]` for explicit emptiness. Inline macro owners serialize like
-  their enclosing nodes, with consistent metadata and unencoded mail subject/body.
-  Bibliography display labels remain separate from citation text; index catalog
-  labels remain separate from display labels. Footnote references omit `inlines`,
-  while definitions retain it, including `[]`.
-- Enabled typography replacements now produce semantic symbol nodes. Character
-  references use `InlineNode::CharacterReference` and native `charref` nodes;
-  numeric references use decimal spelling. Locations retain the authored source.
-  Render these resolved nodes without applying language replacements again.
-- `Video::source` replaces `sources` in Rust and native JSON. It preserves the
-  complete provider target, including playlist commas and empty slots. Read the
-  provider from `poster`, rather than synthetic `youtube`/`vimeo` booleans.
-- Select language behavior with `CompatibilityMode::Asciidoctor` (default) or
-  `Draft`. Both modes use the same AST in every build and apply to includes and
-  nested content. Remove the `pre-spec-subs` and `setext` dependency features;
-  block `subs=` now works in every build. Draft uses attribute expansion before
-  ordinary formatting, its attribute-list rules, and literal unquoted/double-quoted
-  named content. Underlined headings remain an Asciidoctor-mode feature.
-- Removed `strip_quotes`: attribute-list delimiters are already removed, and
-  remaining quote characters are literal. Document presence/unsets serialize as
-  `true`/`false`; validated integers are JSON numbers with their written text
-  available through typed reads. Header snapshots and ordered body events remain
-  separate. Scalar metadata cannot shadow dedicated fields.
-- With `asg`, checked document and inline export accept `DocumentRef` and
-  `ContentRef`. Native JSON remains independent of ASG; callers must choose an
-  export profile and handle unsupported meaning explicitly.
+- Read parsed trees through `ParseResult::document()` and typed `ast::*Ref`
+  handles, not public fields. Match `BlockKind` and `InlineKind`. Read content
+  with `ContentRef::from(&content)` or `title.content()`. Edit owned values
+  with constructors and checked setters. See "Migrating from 0.11" in the
+  README.
+- Many public types, methods and enum variants are renamed. For example,
+  `TableColumn` is now `TableCell`. The README migration table lists every
+  rename.
+- Remove the `pre-spec-subs` and `setext` features from your dependency.
+  Select language rules with `CompatibilityMode::Asciidoctor` (the default) or
+  `CompatibilityMode::Draft`. Only Asciidoctor mode parses setext headings.
+  Block `subs=` works in every build.
+- `substitute_attributes()` is no longer public. Use
+  `DocumentAttributesRef::substitute_attributes()` instead.
+- `strip_quotes` is removed. Attribute lists already remove their delimiters.
+- Role and option metadata uses `TokenAssignment`. Convert vectors with
+  `.into()`. `TokensRef::is_present()` tells absent from explicitly empty.
+- `ElementIdRef::location()` returns `None` for generated section IDs.
+- Read an admonition's source form with `AdmonitionRef::form()`. Library-built
+  compound admonitions need `with_form` to set a known form.
+- Image alt text, tooltips, UI labels, credits, custom captions and reference
+  labels are now parsed inline content. Use `InlineImage` for inline images and
+  `Image` for block images.
+- Typography replacements now produce symbol nodes. Character references
+  produce `InlineNode::CharacterReference`. Render them without applying the
+  replacements again.
+- `Video::source` replaces `sources`, in Rust and native JSON. Read the
+  provider from `poster`, not the `youtube` and `vimeo` booleans.
+- `pass:c[...]` attribute text and raw inline text now stay unencoded. Apply
+  their kept substitutions in the converter, through
+  `DocumentAttributeValue::parts()` and `RawRef::text_part()`.
+- Native JSON changes shape. Content fields are inline arrays, and attribute
+  presence and unsets are `true` and `false`. See the README's native JSON
+  migration.
 
 ### Added
 
-- The acdc ASG profile preserves keyboard keys, button labels and menu paths as
-  structured inline content, including empty labels and ordered steps. acdc
-  recognizes empty `btn:[]` and `kbd:[]`; Asciidoctor leaves those sources literal.
+- The `asg` feature adds checked ASG export through `asg::export_document()`
+  and `asg::export_inlines()`. `Profile::Acdc` extends the pinned upstream
+  profile under `urn:acdc:asg:1`. Select it with the `_with_profile` variants.
+  Unsupported content returns a typed error.
+- New reads include `ParseResult::conditionals()`,
+  `DocumentRef::header_location()` and
+  `DocumentAttributesRef::compatibility_mode()`.
+- Prepared documents can rebuild references and the TOC, captions, footnotes
+  and author attributes. After structural edits, call `rebuild_footnotes()`,
+  `rebuild_references_and_toc()`, then `rebuild_captions()`.
+- `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified
+  anchors locally in combined documents.
+- The caller attribute `max-attribute-value-size` caps document-defined
+  attribute values, in UTF-8 bytes. Secure mode defaults to 4096 bytes.
+  Without a value, it sets a zero-byte cap. An explicit unset disables it.
+- Include attribute lists accept quoted values, `options=`, open-ended
+  `lines=` and `depth=`.
+- Body entries for header-only attributes, such as `doctype` and `toc`, add a
+  `WarningKind::HeaderOnlyAttribute` warning. Asciidoctor doesn't warn.
 
-- The acdc ASG profile preserves inline STEM notation and literal formulas,
-  including mathematics nested in formatting, footnotes and content attributes.
-  acdc keeps empty `stem:[]` as mathematics; Asciidoctor leaves that source literal.
+### Changed
 
-- The acdc ASG profile preserves block STEM formulas with their resolved LaTeX
-  or AsciiMath notation, actual delimiters, metadata and output-escaping policy.
+- The end of the document header depends on the compatibility mode.
+  Asciidoctor mode ignores empty lines before the title, as Asciidoctor does.
+  In Draft mode, the first empty line ends the header. This rule may change.
+- Asciidoctor mode normalizes attribute names as Asciidoctor does, so `:TOC:`
+  sets `toc`. References, conditionals and lookups ignore case. Draft mode
+  keeps names as written. In both modes, unnormalized names add a
+  `WarningKind::AttributeNameNotNormalized` warning.
+- `ifeval` no longer evaluates arithmetic or functions, as in Asciidoctor. It
+  compares integers exactly, within the signed 128-bit range.
+- Recoverable include, directive and conditional problems now report located
+  warnings and keep a usable document. Non-conforming manpage titles add a
+  `WarningKind::NonConformingManpageTitle` warning.
+- Include `leveloffset` values follow the compatibility mode. Asciidoctor mode
+  matches Asciidoctor.
+- AsciiDoc table cells keep their own footnotes, as in Asciidoctor.
+  `DocumentRef::footnotes()` returns only the outer ones. Use
+  `TableCellRef::footnotes()` for a cell's.
+- References to the document use the `reftext` in effect at their position.
+  Read it with `CrossReferenceRef::document_reftext()`.
+- Parsing is faster for includes, documents with many warnings, inline
+  formatting and repeated table cells.
 
-- The acdc ASG profile retains subscript, superscript and nested typographic
-  quotations, including their resolved quotation characters and inline metadata.
+### Deprecated
 
-- The acdc ASG profile preserves hard line breaks as semantic inline breaks,
-  including configured hard wrapping and breaks inside content attributes.
-
-- The acdc ASG profile retains inline callout markers, resolved list numbers and
-  marker locations, including repeated and unmatched markers. Explicit and
-  automatic markers remain distinct without changing code text.
-
-- The acdc ASG profile records registered cross-reference targets separately from
-  retained anchor declarations. Aliases keep independent reference text, and
-  document-top references preserve resolved document labels and section fallbacks.
-
-- The named ASG profile retains ordinary inline anchors, extra block anchor
-  declarations and known primary-ID locations. It preserves acdc's primary-ID
-  selection: ordinary blocks use the first anchor, headings use the last.
-  Asciidoctor also uses the last anchor for ordinary stacked block anchors.
-
-- The named ASG profile retains visible/hidden index terms, hierarchy,
-  see/see-also relationships, and distinct registration-time labels when later
-  substitutions or prepared edits change the displayed text.
-
-- The named ASG profile exports registered footnote bodies once, with linked
-  definition/reference occurrences, including unresolved references and notes
-  in selected titles. Stale registrations report an error without renumbering.
-
-- The named ASG profile exports basic tables with header/body/footer sections,
-  cell content, widths, alignment, styles, and captured frame/grid/stripe settings.
-  Positive row/column spans retain cell order; inconsistent grids report errors.
-  AsciiDoc cells retain nested blocks and ordered initial attribute assignments,
-  so cell-local settings stay separate from sibling cells and outer content.
-
-- The named ASG profile preserves ordinary, unchecked, and checked list items
-  distinctly, including nested checklists and item continuations.
-
-- The named ASG profile retains header subtitles and title metadata separately,
-  including empty subtitles, formatting, and document-title references.
-
-- ASG export supports actual delimited admonitions. The named acdc profile also
-  preserves paragraph/indented admonitions, styled parent paragraphs, and marked
-  quotes without invented delimiters or body wrappers.
-
-- Checked ASG export now accepts resolved block `subs=` settings in both profiles.
-  Text/raw nodes preserve output escaping alongside parsed formatting and
-  expansions. Unknown instructions and unresolved raw processing still fail.
-
-- The acdc ASG profile now retains IDs and roles on supported formatted spans,
-  plus link/reference options, scalar attributes and formatted tooltips. Generic
-  highlighted spans stay distinct from marks. Strict upstream export is unchanged;
-  nondefault cross-reference policies still report an unsupported property.
-- The acdc ASG profile preserves ordered body attribute set/unset events separately
-  from header attributes, including settings that affect later media. Strict
-  upstream export continues to reject body assignments.
-
-- Typed reads cover every block and inline family, retained attributes, structural
-  children, owned content fields, source coordinates, and derived catalogs. Walks
-  support early stopping; direct and flat walks allocate no memory. Dedicated
-  content keeps missing and empty values distinct. `AttributeValueRef::as_str()`
-  reads scalar text without rendering or allocating.
-- Prepared documents can explicitly rebuild references/TOC, captions, footnotes,
-  and author-derived attributes. These operations preserve declaration snapshots
-  and have separate scopes. Reference, caption, and footnote errors leave the tree
-  unchanged. Ordinary reads, copies, and setters do not rebuild registrations.
-- The `asg` feature provides all-or-error export to a pinned upstream subset.
-  The explicit `Profile::Acdc` extension preserves supported formatted content
-  attributes and images under `urn:acdc:asg:1`. Unsupported owners or properties
-  report typed errors with property paths and known source coordinates. Offline
-  schema validation, a support inventory, and semantic regressions document the
-  limits; schema validity alone is not a conformance claim.
-- `OptionsBuilder::with_force_local_file_xrefs()` resolves file-qualified anchors
-  locally in combined documents. It can redirect genuine external references;
-  it does not scope duplicate IDs or resolve Antora resources.
+- `toc2` now reports a deprecation warning. Use `toc=left` instead.
 
 ### Fixed
 
-- Tables with an integer `cols` value, such as `[cols=3]`, have that many
-  equal-width columns, matching Asciidoctor. `cols=0` infers columns from the
-  first row; `cols=03` remains one column of width 3.
-
-- Named titles, image alt/tooltips, custom captions, quote credits, reference
-  labels, and UI labels preserve formatting, escapes, declaration-time attributes,
-  explicit emptiness, and authored source ranges. Only selected content registers
-  footnotes. Inline image `title=` supplies a tooltip without replacing alt;
-  block image `title=` supplies a caption. Named/macro precedence follows the
-  selected mode. Draft block-image alt remains literal.
-- Block attributes, anchors, and titles before comments apply to the next
-  visible block, including headings and list continuations. Comment nodes keep
-  their own ranges. Unused end-of-input titles do not register footnotes. Discrete
-  headings, stacked attributes, positional gaps, and mapped media/quote values
-  follow the selected mode without changing the native tree shape.
-- Lists, description terms, styled/indented paragraphs, open blocks, and matched
-  listing/literal delimiters retain their correct boundaries and attached blocks.
-  Draft recognizes structure before applying verbatim styles; Asciidoctor mode
-  preserves its style-dependent behavior. Page-break markers work at end of file.
-- Explicit block and inline substitution order is preserved, including formatted
-  document attributes and passthroughs. Later expansion cannot create tokens for
-  an earlier stage. Unsupported passthrough/STEM settings preserve their complete
-  source and warn instead of silently producing incorrect content. acdc keeps
-  semantic text rather than generated backend markup; documented word-context
-  and repeated-expansion differences from Asciidoctor remain.
-- Keyboard/menu/button labels preserve rich content, separator keys, quoted menu
-  sequences, escaped closing brackets, and substitution-dependent boundaries.
-  Named index controls stay outside labels; bibliography labels retain empty and
-  whitespace-only values. Inline anchors accept closing brackets in labels.
-- Image/audio/video/TOC macros with trailing nonwhitespace stay paragraph text.
-  Complete video playlists and provider posters are preserved, including in
-  checked ASG export. Table column
-  declarations are validated completely, and metadata/body edits refresh stored
-  frame/grid/stripe decoration against the table's original defaults.
-- Generated section IDs honor declaration-time `idprefix`/`idseparator`, empty
-  values, and collision suffixes. References and TOC entries use those same IDs.
-  Prepared index edits preserve registration labels until explicitly restored.
-- Source spans and warnings retain original Unicode, attribute-reference, include,
-  selection, and table-cell context. Unresolved notes report each authored use;
-  active unsupported counters mark source recovery, while escaped counters stay
-  literal. `toc2` reports a deprecation warning; use `toc=left`.
-- STEM defaults to AsciiMath for absent/empty/unknown notation, accepts LaTeX
-  aliases, and preserves formula text. Explicit block attribute expansion works
-  without putting formatting tags into formulas. Literal document/manpage text,
-  quoted offsets, and cross-reference controls retain meaningful quotes.
-
+- Attribute entries and references now match Asciidoctor more closely.
+  `:foo:bar`, for example, is now text. An unset with trailing text, such as
+  `:!foo: ignored`, now also unsets `foo` for `ifdef` and `ifndef`. It adds a
+  `WarningKind::UnsetAttributeValue` warning. Asciidoctor doesn't warn.
+- Sections, lists and description lists now match Asciidoctor more closely.
+  Read grouped description terms with `item.terms()` and `item.definition()`.
+- Titles, alt text, captions, credits and UI labels now keep formatting,
+  escapes and empty values. Inline image `title=` sets a tooltip, and block
+  image `title=` sets a caption.
+- Block attributes, anchors and titles before a comment now apply to the next
+  block. Stacked anchors select the last ID, as in Asciidoctor.
+- Explicit substitution order is now kept. Unsupported passthrough and STEM
+  settings add a warning. STEM defaults to AsciiMath for absent, empty or
+  unknown notation.
+- `link:` macros accept custom schemes. Image and audio filenames accept
+  quotes.
+- Tables now match Asciidoctor more closely, including `[cols=3]` and row
+  spans. A table without an exact closing delimiter reports a warning. Column
+  widths above 4,294,967,295 warn and use width 1.
+- Keyboard macros with deeply nested brackets no longer overflow the stack.
+- Source locations and warnings now point at the authored source, including
+  includes, table cells and callout markers.
 
 ## [0.11.0] - 2026-10-10
 

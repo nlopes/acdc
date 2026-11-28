@@ -7,44 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Description-list excerpts retain every term in a shared group and show its
-  definition and attached blocks once.
+### Breaking changes
 
-- `adoc_links` includes inline-image and icon `link=` targets and links in retained captions, alternative text, tooltips, reference labels, and UI content. Each owned occurrence is reported once, with its original source location. Mail links no longer repeat the `mailto:` scheme.
-
-- Anchored paragraphs and thematic breaks now appear in the tree and can be selected by their retained IDs. Tree, exact selectors and reference resolution use the same primary and alias identities. Normalized block output retains the primary anchor.
-
-- Character-reference nodes retain their reference spelling in AsciiDoc responses and use character values in plain-text responses.
-
-- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
+- The `pre-spec-subs` and `setext` Cargo features are removed. Remove them from
+  your feature lists. The compatibility mode now selects the language rules,
+  and block `subs=` works in every build. Every build recognizes underlined
+  (setext) headings in Asciidoctor mode, the default.
 
 ### Added
 
-- Each release ships prebuilt `acdc-mcp` binaries for Linux and macOS (x86_64
-  and aarch64) and Windows (x86_64).
-
-- Select Asciidoctor compatibility (the default) or Draft with
-  `--compatibility-mode asciidoctor|draft`. All document tools use that mode,
-  including includes and table cells. Root and include access rules stay the
-  same. Continuation cursors cannot be reused after changing the mode.
-
-### Fixed
-
-- Preserve resolved typography in extracted document text.
-
-- Legacy underlined headings are recognized in every build, following the
-  default Asciidoctor mode. The `setext` feature no longer changes document
-  structure.
-
-- Document rendering reads image alternative text and formatted UI labels from
-  the current parser API. Video playlists retain their source text.
-- The workspace manifest can be read by the parser's minimum supported Rust
-  version, 1.88.
+- Releases ship prebuilt `acdc-mcp` binaries for Linux and macOS (x86_64 and
+  aarch64) and Windows (x86_64).
+- `--compatibility-mode asciidoctor|draft` selects the language rules for all
+  document tools. The default is `asciidoctor`. Continuation cursors can't be
+  reused after a mode change.
 
 ### Changed
 
-- `adoc_find` and fuzzy title lookup now use case-insensitive Unicode fuzzy matching. Use short terms or abbreviations; all space-separated terms must match, with no English stopword or shared-prefix rules.
-- Metadata-only search matches now return the document with selector `@document`.
+- `adoc_find` and fuzzy title lookup now use case-insensitive Unicode fuzzy
+  matching. Every space-separated term must match.
+- Metadata-only search matches now return the document with the `@document`
+  selector.
+- AsciiDoc responses keep character references as written. Plain-text
+  responses show the character.
+
+### Fixed
+
+- `adoc_links` now finds `link=` targets on inline images and icons, and links
+  in captions, alt text and labels. It reports each link once.
+- Paragraphs and thematic breaks with an ID now appear in the tree. You can
+  select them by ID or alias.
+- Description-list excerpts now keep every term that shares a definition.
+- Rendered text now includes formatted image alt text and UI labels.
 
 ## [0.1.0] - 2026-10-25
 

@@ -7,43 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- **Breaking:** `command` and `discovery` are private modules. Import command
-  types and `DiscoveryError` from `acdc_execute` directly, such as
-  `acdc_execute::CommandBlock`. Execution and discovery capabilities are retained.
+### Added
 
-- Removed the obsolete `pre-spec-subs` and `setext` Cargo features. Remove them from dependency feature lists. Language behavior follows the compatibility mode, and block `subs=` works in every build.
-
-### Fixed
-
-- `subs=attributes` reads reference names in scripts as the document's
-  compatibility mode does, as the parser does: names may contain non-ASCII
-  letters, and Draft mode also accepts the zero-width joiner and non-joiner.
-  `{-x}` stays text.
-- Recognize `[[id]]` anchors as command IDs, alongside `[#id]` and `id=`. An explicit `id=` still takes precedence over aliases. Generated section IDs do not identify commands.
+- `acdc execute` runs listing and source blocks with the `command` role,
+  including blocks in table cells and included files. The `interpreter`
+  attribute overrides the source language.
+- Scripts keep their literal text. `subs=attributes` or `subs=+attributes`
+  expands document attributes, using their values at the command's position.
+  A missing attribute fails before any command runs.
+- Selecting a command also selects its prerequisites. A failed prerequisite
+  blocks its dependents. `--exit-on-failure` stops all commands at the first
+  failure. Invalid command input fails before any command runs.
+- `--cwd` and repeated `--env` options set the working directory and
+  environment variables for commands.
+- `--list` shows each command's direct prerequisites and enclosing section
+  title.
+- Diagnostics point to malformed commands and dependency errors, also in
+  included files.
 
 ### Changed
 
-- Library callers now import command-discovery errors as
-  `acdc_execute::DiscoveryError`.
-- Building `acdc-execute` no longer enables unused graph implementations in its
-  dependencies.
+- Planning which commands to run uses less temporary memory.
+- Explicit `subs=` settings on commands work in every build.
 
-### Added
+### Fixed
 
-- Library callers can inspect a command's direct prerequisites and nearest
-  enclosing section title.
-- Creating execution plans uses less temporary memory.
-- Discover and run listing and source blocks marked with the `command` role,
-  including commands in nested containers, AsciiDoc table cells, and included files.
-  Scripts retain their literal text after includes and conditionals; enable
-  textual document-attribute expansion with `subs=attributes` or `subs=+attributes`.
-  Expansion uses attributes at the command's source position and preserves
-  callouts. Missing enabled attributes fail before execution. The `interpreter` attribute
-  overrides the source language.
-- Select commands with their dependencies and inspect execution outcomes.
-  A failed prerequisite blocks its dependents; callers can stop all commands at
-  the first failure. Infrastructure errors and signal termination always stop
-  execution. Invalid or incomplete command input fails before execution.
-- Configure child working directories and environment variables while preserving
-  inherited defaults. Source diagnostics identify malformed commands and
-  dependency errors, including their locations in included files.
+- With `subs=attributes`, attribute names in scripts now follow the parser's
+  rules for the compatibility mode.
+- Commands can now use a `[[id]]` anchor as their ID. An explicit `id=` still
+  takes precedence.
