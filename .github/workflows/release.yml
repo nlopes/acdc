@@ -1,0 +1,310 @@
+name: Release
+
+# Pushing a `release-*` tag (e.g. `release-2026-11-28`) on a commit on main
+# releases every crate below whose `<crate>-vX.Y.Z` tag doesn't exist yet. The
+# full CI and TCK run on that commit while the binaries build, and each crate
+# publishes once CI, TCK and all of its builds pass. acdc-parser isn't released
+# here; it's published by hand.
+#
+# Pull requests and pushes to main that change this file build every crate
+# without publishing anything.
+on:
+  push:
+    # GitHub ignores `paths` for tag pushes, so every release tag runs this.
+    tags: ['release-*']
+    branches: [main]
+    paths: ['.github/workflows/release.yml']
+  pull_request:
+    paths: ['.github/workflows/release.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Never cancel a release; superseded dry runs can go.
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    with:
+      all: true
+
+  tck:
+    uses: ./.github/workflows/tck.yml
+
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.plan.outputs.releases }}
+      native: ${{ steps.plan.outputs.native }}
+      wasm: ${{ steps.plan.outputs.wasm }}
+      targets: ${{ steps.plan.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
+        with:
+          tool: parse-changelog
+      - name: Find what to release
+        id: plan
+        run: |
+          set -euo pipefail
+
+          # What each native archive holds besides the binary, relative to the
+          # repository root.
+          declare -A include=(
+            [acdc-cli]="LICENSE,acdc-cli/README.adoc,acdc-cli/CHANGELOG.md,converters/pdf/crates/theme/assets/fonts/OFL.txt,converters/pdf/crates/theme/assets/fonts/LICENSE-NotoColorEmoji.txt"
+            [acdc-lsp]="LICENSE,acdc-lsp/README.md,acdc-lsp/CHANGELOG.md"
+            [acdc-mcp]="LICENSE,acdc-mcp/README.adoc,acdc-mcp/CHANGELOG.md"
+          )
+          targets=$(jq -c . <<'EOF'
+          [
+            {"target": "aarch64-apple-darwin", "os": "macos-15"},
+            {"target": "x86_64-apple-darwin", "os": "macos-15-intel"},
+            {"target": "x86_64-unknown-linux-gnu", "os": "ubuntu-22.04"},
+            {"target": "aarch64-unknown-linux-gnu", "os": "ubuntu-22.04-arm"},
+            {"target": "x86_64-pc-windows-msvc", "os": "windows-2022"}
+          ]
+          EOF
+          )
+
+          release=false
+          if [[ $GITHUB_REF == refs/tags/release-* ]]; then
+            release=true
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "::error::${GITHUB_REF#refs/tags/} isn't on main. Tag a commit on main."
+              exit 1
+            fi
+          fi
+
+          metadata=$(cargo metadata --no-deps --format-version 1 --locked)
+          releases='[]'
+          missing_notes=false
+          for crate in acdc-cli acdc-lsp acdc-mcp acdc-editor-wasm; do
+            package=$(jq -ec --arg crate "$crate" '.packages[] | select(.name == $crate)' <<<"$metadata")
+            version=$(jq -er .version <<<"$package")
+            tag="$crate-v$version"
+            publish=false
+            if [[ $release == true ]]; then
+              # Exit 2 means the tag doesn't exist. Anything else is an error,
+              # never a reason to release everything.
+              status=0
+              git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null || status=$?
+              case $status in
+                0) echo "$tag is already released"; continue ;;
+                2) publish=true ;;
+                *) echo "::error::Couldn't list the tags on origin"; exit 1 ;;
+              esac
+            fi
+
+            if ! parse-changelog "$crate/CHANGELOG.md" "$version" >/dev/null; then
+              echo "::error::$crate $version has no CHANGELOG section"
+              missing_notes=true
+            fi
+
+            if [[ $crate == acdc-editor-wasm ]]; then
+              kind=wasm bin='' files=''
+            else
+              kind=native
+              bin=$(jq -er '[.targets[] | select(.kind | index("bin")) | .name] | if length == 1 then .[0] else error("expected one binary") end' <<<"$package")
+              files=${include[$crate]:-}
+              if [[ -z $files ]]; then
+                echo "::error::$crate has no packaging entry in release.yml"
+                exit 1
+              fi
+            fi
+            releases=$(jq -c \
+              --arg crate "$crate" --arg version "$version" --arg tag "$tag" \
+              --argjson publish "$publish" --arg kind "$kind" --arg bin "$bin" --arg include "$files" \
+              '. + [{$crate, $version, $tag, $publish, $kind} + (if $kind == "native" then {$bin, $include} else {} end)]' \
+              <<<"$releases")
+          done
+
+          if [[ $missing_notes == true ]]; then
+            exit 1
+          fi
+          if [[ $releases == '[]' ]]; then
+            echo "::error::Nothing to release: every crate's version is already tagged"
+            exit 1
+          fi
+
+          {
+            echo "releases=$releases"
+            echo "native=$(jq -c 'map(select(.kind == "native"))' <<<"$releases")"
+            echo "wasm=$(jq -c 'map(select(.kind == "wasm")) | first // empty' <<<"$releases")"
+            echo "targets=$targets"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.native != '[]'
+    name: build (${{ matrix.release.crate }}, ${{ matrix.platform.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.plan.outputs.native) }}
+        platform: ${{ fromJSON(needs.plan.outputs.targets) }}
+    runs-on: ${{ matrix.platform.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+      # libghostty-vt, behind acdc-cli's terminal emulator, builds with zig.
+      - if: matrix.release.crate == 'acdc-cli'
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+      # Always a dry run: the action builds and archives, and `publish` uploads
+      # once everything has passed.
+      - uses: taiki-e/upload-rust-binary-action@f0d45ae91ee7b8ee928de7a9d04d893a08bcbec6 # v1.30.2
+        with:
+          dry-run: true
+          dry-run-intended: true
+          ref: refs/tags/${{ matrix.release.tag }}
+          bin: ${{ matrix.release.bin }}
+          package: ${{ matrix.release.crate }}
+          target: ${{ matrix.platform.target }}
+          all-features: true
+          locked: true
+          archive: ${{ matrix.release.crate }}-$target
+          leading-dir: true
+          include: ${{ matrix.release.include }}
+          checksum: sha256
+      # Every runner builds for its own architecture, so the binary that goes
+      # into the archive can run here. acdc-lsp ignores --version and serves
+      # on stdin, so it exits as soon as it reads EOF.
+      - name: Check the binary starts
+        env:
+          BIN: target/${{ matrix.platform.target }}/release/${{ matrix.release.bin }}${{ runner.os == 'Windows' && '.exe' || '' }}
+        run: '"$BIN" --version </dev/null'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.release.tag }}-${{ matrix.platform.target }}
+          path: ${{ matrix.release.crate }}-${{ matrix.platform.target }}.*
+          if-no-files-found: error
+
+  wasm:
+    needs: plan
+    if: needs.plan.outputs.wasm != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ARCHIVE: acdc-editor-wasm-v${{ fromJSON(needs.plan.outputs.wasm).version }}.tar.gz
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
+        with:
+          tool: wasm-pack
+      - run: wasm-pack build acdc-editor-wasm --target web --release
+      - name: Create tarball and checksum
+        run: |
+          tar -czf "$ARCHIVE" -C acdc-editor-wasm/pkg .
+          sha256sum "$ARCHIVE" > "$ARCHIVE.sha256"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ fromJSON(needs.plan.outputs.wasm).tag }}
+          path: ${{ env.ARCHIVE }}*
+          if-no-files-found: error
+
+  publish:
+    needs: [ci, tck, plan, build, wasm]
+    # A crate whose build failed doesn't hold back the others; its own
+    # completeness check below fails instead.
+    if: ${{ !cancelled() && needs.ci.result == 'success' && needs.tck.result == 'success' && needs.plan.result == 'success' }}
+    name: publish (${{ matrix.release.tag }})
+    strategy:
+      fail-fast: false
+      matrix:
+        release: ${{ fromJSON(needs.plan.outputs.releases) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      CRATE: ${{ matrix.release.crate }}
+      VERSION: ${{ matrix.release.version }}
+      TAG: ${{ matrix.release.tag }}
+      KIND: ${{ matrix.release.kind }}
+      PUBLISH: ${{ matrix.release.publish }}
+      TARGETS: ${{ needs.plan.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83 # v2.90.11
+        with:
+          tool: parse-changelog
+      - if: matrix.release.kind == 'native'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: ${{ matrix.release.tag }}-*
+          merge-multiple: true
+          path: dist
+      - if: matrix.release.kind == 'wasm'
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.release.tag }}
+          path: dist
+      - name: Check every file is there and intact
+        run: |
+          set -euo pipefail
+          missing=()
+          if [[ $KIND == native ]]; then
+            for target in $(jq -r '.[].target' <<<"$TARGETS"); do
+              stem="dist/$CRATE-$target"
+              [[ -f $stem.sha256 ]] || missing+=("$stem.sha256")
+              [[ -f $stem.tar.gz || -f $stem.zip ]] || missing+=("$stem.tar.gz or .zip")
+            done
+          else
+            archive="dist/$CRATE-v$VERSION.tar.gz"
+            [[ -f $archive ]] || missing+=("$archive")
+            [[ -f $archive.sha256 ]] || missing+=("$archive.sha256")
+          fi
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::$TAG is missing ${missing[*]}"
+            exit 1
+          fi
+          cd dist
+          sha256sum --check --strict -- *.sha256
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          notes="$RUNNER_TEMP/notes.md"
+          parse-changelog "$CRATE/CHANGELOG.md" "$VERSION" > "$notes"
+          args=(release create "$TAG" dist/* --target "$GITHUB_SHA" --title "$CRATE $VERSION" --notes-file "$notes")
+          if [[ $VERSION == *-* ]]; then
+            args+=(--prerelease)
+          fi
+          if [[ $KIND == wasm ]]; then
+            args+=(--latest=false)
+          fi
+
+          if [[ $PUBLISH != true ]]; then
+            echo "Dry run, so not running: gh $(printf '%q ' "${args[@]}")"
+            ls -l dist
+            cat "$notes"
+            exit 0
+          fi
+
+          status=0
+          git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null || status=$?
+          case $status in
+            0) echo "::notice::$TAG was already released by another run"; exit 0 ;;
+            2) gh "${args[@]}" ;;
+            *) echo "::error::Couldn't list the tags on origin"; exit 1 ;;
+          esac

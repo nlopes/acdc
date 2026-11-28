@@ -88,8 +88,17 @@ All crates have **independent versions** — bump only crates that changed.
 
 The only crate we publish in crates.io is `acdc-parser`. All other crates in this repository are not published.
 
-`acdc-lsp` and `acdc-cli` have separate native release workflows that test five targets and create draft GitHub releases for matching `acdc-lsp-vX.Y.Z` and `acdc-cli-vX.Y.Z` tags. CLI binaries include all features. Manual runs upload artifacts only. Review and publish each draft separately. `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
+### Releases
 
-### Releasing acdc-editor-wasm
+`acdc-cli`, `acdc-lsp`, `acdc-mcp`, and `acdc-editor-wasm` are released by pushing a `release-*` tag on a commit on `main`. `.github/workflows/release.yml` then releases each of these crates whose `<crate>-vX.Y.Z` tag doesn't exist yet. It runs the full CI and TCK on that commit while it builds, and publishes each crate's GitHub release once CI, TCK and all of that crate's builds pass. Each native crate is built for five targets with all features; the release notes come from the crate's `CHANGELOG.md`, and publishing creates the crate's tag. `acdc-parser` isn't released this way; publish it to crates.io, and cut its GitHub release, by hand.
 
-Released via GitHub Actions. Bump version in `Cargo.toml`, update changelog, commit, tag `acdc-editor-wasm-vX.Y.Z`, push.
+To release, bump each crate's version, move its `[Unreleased]` entries into `## [X.Y.Z] - YYYY-MM-DD`, and push to `main`. Then tag a commit on `main` and push the tag:
+
+```console
+git tag release-YYYY-MM-DD <commit>
+git push origin release-YYYY-MM-DD
+```
+
+Use `release-YYYY-MM-DD.2` and so on for a second release on the same day. A release tag that isn't on `main`, has nothing to release, or has a bumped version without a changelog section fails before anything builds. Don't push `<crate>-v*` tags by hand: a crate with a tag counts as released. A failed build or CI run publishes nothing for the crates that failed; re-run the failed jobs or push a new release tag to retry. Crates that already published are skipped.
+
+The target and runner table, and what each archive holds, live in the `plan` job of `release.yml`. Pull requests and pushes to `main` that change `release.yml` build every crate without publishing. The converters and `acdc-converters-dev` are internal workspace members only.

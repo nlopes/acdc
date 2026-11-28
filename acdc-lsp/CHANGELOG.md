@@ -60,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attributes. Attribute suggestions retain included header values, empty values,
   and backend-specific defaults.
 
+### Changed
+
+- Release archives are named `acdc-lsp-TARGET.tar.gz` (`.zip` on Windows) with a
+  matching `.sha256` checksum, and unpack to an `acdc-lsp-TARGET` directory that
+  also holds `README.md` and `CHANGELOG.md`.
+
 ### Fixed
 
 - Semantic highlighting leading document attributes with a blank line before title.

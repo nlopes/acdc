@@ -400,25 +400,26 @@ Currently no extension available. Contributions welcome!
 
 ## Native release packaging
 
-The [Release LSP workflow](../.github/workflows/release-lsp.yml) tests the server
-for macOS ARM64/x86-64, Linux ARM64/x86-64, and Windows x86-64. It uses
-[upload-rust-binary-action](https://github.com/taiki-e/upload-rust-binary-action)
-to build the release binaries, create archives, and calculate SHA-256 checksums.
-Linux builds use Ubuntu 22.04 and require glibc 2.35 or later.
+The [release workflow](../.github/workflows/release.yml) builds the server with
+all features for macOS ARM64/x86-64, Linux ARM64/x86-64, and Windows x86-64.
+Linux builds use Ubuntu 22.04 and require glibc 2.35 or later. Windows binaries
+link the Visual C++ runtime dynamically, so install the Microsoft Visual C++
+Redistributable if `acdc-lsp.exe` reports a missing `VCRUNTIME140.dll`. Every
+release runs the full CI on the released commit; the release builds themselves
+don't run tests.
 
-Archives are named `acdc-lsp-X.Y.Z-TARGET.tar.gz` on macOS and Linux, or
-`acdc-lsp-X.Y.Z-TARGET.zip` on Windows. They contain `acdc-lsp` (or
-`acdc-lsp.exe`) and the license at their root. Each target also has an
-`acdc-lsp-X.Y.Z-TARGET.sha256` file.
+Archives are named `acdc-lsp-TARGET.tar.gz` on macOS and Linux, or
+`acdc-lsp-TARGET.zip` on Windows, and each has an `acdc-lsp-TARGET.sha256`
+checksum. Each archive holds an `acdc-lsp-TARGET` directory with `acdc-lsp` (or
+`acdc-lsp.exe`), `LICENSE`, `README.md`, and `CHANGELOG.md`.
 
-A manual workflow run uploads build artifacts without creating a release. A
-pushed `acdc-lsp-vX.Y.Z` tag must match the crate version and creates a **draft**
-GitHub release after all platform tests pass. Review the archives and changelog
-before publishing the draft.
-
-Before tagging a new release, update the crate version and lockfile, and move
-the relevant changelog entries into its release section. Use a new tag for
-each release; do not move an existing tag to newer code.
+Releases are cut with a release tag; see "Releases" in [AGENTS.md](../AGENTS.md).
+Bump the crate version, move the changelog entries into a
+`## [X.Y.Z] - YYYY-MM-DD` section, push to `main`, then push a
+`release-YYYY-MM-DD` tag on a commit on `main`. Once CI, the TCK, and every
+build pass on that commit, the release workflow publishes the release and
+creates the `acdc-lsp-vX.Y.Z` tag. Don't push `acdc-lsp-v*` tags by hand: a
+tagged version counts as released, so it would never get any downloads.
 
 ## File extensions
 
