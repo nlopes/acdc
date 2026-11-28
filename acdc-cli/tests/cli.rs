@@ -68,6 +68,24 @@ fn output_text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
+/// Undoes miette's line wrapping: it wraps reports at 80 columns and continues
+/// them behind a `│` gutter, so long OS messages (such as Windows ones) span
+/// several lines.
+fn unwrapped(text: &str) -> String {
+    text.split_whitespace()
+        .filter(|word| *word != "│")
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[test]
+fn unwrapped_joins_miette_continuation_lines() {
+    // Captured from a Windows runner, where the OS message pushes the line
+    // past miette's 80 columns.
+    let stderr = "  × Parsing error: I/O error: The system cannot find the file specified. (os\r\n  │ error 2)\r\n";
+    assert!(unwrapped(stderr).contains("The system cannot find the file specified. (os error 2)"));
+}
+
 #[cfg(any(
     feature = "html",
     feature = "lint",
@@ -343,9 +361,12 @@ fn missing_input_file_returns_a_failure() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&["convert", missing], None)?;
     let stderr = output_text(&output.stderr);
 
-    assert_eq!(output.status.code(), Some(1));
-    assert!(stderr.contains(missing));
-    assert!(stderr.contains(&read_error.to_string()));
+    assert_eq!(output.status.code(), Some(1), "{stderr}");
+    assert!(stderr.contains(missing), "{stderr}");
+    assert!(
+        unwrapped(&stderr).contains(&unwrapped(&read_error.to_string())),
+        "expected {read_error:?} in:\n{stderr}"
+    );
     Ok(())
 }
 
